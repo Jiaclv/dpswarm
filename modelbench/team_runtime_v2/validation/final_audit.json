@@ -1,0 +1,39 @@
+{
+  "verified_at": "2026-09-03T02:04:29.538731+00:00",
+  "legacy_programs_instances_control_core_verified": true,
+  "batches": [
+    {
+      "root": "regression_20260903_v2",
+      "source_hashes_verified": 17,
+      "snapshot_hashes_verified": 17,
+      "instance_hashes_verified": true,
+      "result_count": 6,
+      "budget_and_cp_checks": true,
+      "calls": 58,
+      "all_recorded_sandboxes_closed": true,
+      "protocol_errors": 0,
+      "no_actions": 0,
+      "handoff_rejected_attempts": 4,
+      "phase_budget_exhaustions": 11,
+      "clarification_requests": 0
+    },
+    {
+      "root": "regression_budget_visible_20260903",
+      "source_hashes_verified": 20,
+      "snapshot_hashes_verified": 20,
+      "instance_hashes_verified": true,
+      "result_count": 4,
+      "budget_and_cp_checks": true,
+      "calls": 51,
+      "all_recorded_sandboxes_closed": true,
+      "protocol_errors": 0,
+      "no_actions": 0,
+      "handoff_rejected_attempts": 0,
+      "phase_budget_exhaustions": 1,
+      "clarification_requests": 0
+    }
+  ],
+  "owned_container_count": 50,
+  "owned_containers_still_present": [],
+  "scope": "Read-only validation of frozen sources/snapshots/instances, completed call IDs and budgets, saved CP invariant replay/acceptance, and Docker resource removal. No model calls or grader reruns."
+}

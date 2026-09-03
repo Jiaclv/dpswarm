@@ -1,0 +1,12 @@
+{
+  "at": "2026-09-03T04:25:27.503542+00:00",
+  "status": "USER_PAUSED",
+  "source_binding_verified": true,
+  "call_csv_verified": true,
+  "files": {
+    "modelbench\\swe_fixed_team_20260903\\RUN_RECORD_20260903.md": "06e5f7c0e0a44e2c362cca2ce0855d89649b8331cdcb7cf72e1af72f03a42f52",
+    "modelbench\\swe_fixed_team_20260903\\HANDOFF_20260903.md": "e3068a87f3d93b69be5accae6a9582197dbea53811ec5a65ba2ec281c0cac359",
+    "modelbench\\swe_fixed_team_20260903\\pilot_v2\\USER_CLOSEOUT.json": "2ce5c8c626ba7ab1c0d6b43b8200eb82c70ab0c8057c3446f932c5cc3e91b947",
+    "modelbench\\swe_fixed_team_20260903\\validation\\REVISION3_PLAN.md": "1d4ec26efae3e13be8111e1715a303fd3f6112895e362b801ffe40491405ba35"
+  }
+}

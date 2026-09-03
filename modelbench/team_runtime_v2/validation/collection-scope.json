@@ -1,0 +1,7 @@
+{
+  "event": "offline_test_collection_scope_corrected",
+  "result": "Pytest recursively found copied INT1 test_pipeline.py files after regression directories were created and stopped with import-file-mismatch during collection; no test function or pipeline command ran.",
+  "inspected_import": "The only imported copied module was the unmodified, not-started preflight instance. Module-level code imports json/os/subprocess/sys and defines a test; it performs no task actions.",
+  "active_regression_instances": "Both active instance trees were checked against the frozen manifest and had no extra or changed files.",
+  "fix": "Use explicit unit/integration test paths and exclude regression directories in pytest.ini. Preserve the collection failure JUnit record. Runtime source and active experiment parameters unchanged."
+}

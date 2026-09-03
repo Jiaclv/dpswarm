@@ -1,0 +1,13 @@
+{
+  "status": "PASS",
+  "source": "Independent team_tasks review messages in this task, plus root final regression suite",
+  "scope": "SWE experimental adapter only; DSH bridge HOLD is unchanged",
+  "checks": [
+    "Pinned dataset selected records and public whitelist match",
+    "Official TestSpecs match selected records and official source is clean",
+    "Grader input/source/image/imported harness/report hashes are bound",
+    "Final negative control completes unresolved with no cleanup errors",
+    "Lead and worker cleanup failures preserve result and close real CP, prohibit grading"
+  ],
+  "negative_control": "official/negative_control/flask_baseline_v4_final/grader/result.json"
+}

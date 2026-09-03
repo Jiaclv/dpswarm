@@ -1,0 +1,30 @@
+{
+  "name": "dpswarm-dsh-plugin",
+  "version": "0.1.0",
+  "description": "DPSwarm: on-demand multi-model collaboration for the current dsh agent (control plane sidecar + delegation tools)",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "default": "./lib/client.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-connection",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-settings-plugins"
+      ]
+    },
+    "bundle": {
+      "patch": "cordis.patch.yml"
+    }
+  }
+}

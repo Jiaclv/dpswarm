@@ -1,0 +1,75 @@
+# ===== 秘密与凭据:永不提交 =====
+modelbench/keys.local.json
+*.local.json
+*.local.*
+.env
+.env.*
+**/credentials*.json
+
+# ===== 缓存与临时产物 =====
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.pytest-*/
+.pytest_*/
+.audit-pytest-*/
+.dsh-audit-*/
+.dpswarm-panel/
+.team-ledger-test-*/
+.tmp/
+.workbuddy/
+.flowmap/
+nul
+
+# ===== 实验证据与大数据(本地保留,可由脚本重建) =====
+modelbench/**/pilot_v*/
+modelbench/**/pilot20260903/
+modelbench/postrepair_review_20260903/
+modelbench/logs/
+modelbench/**/official/
+modelbench/**/results/
+modelbench/**/source_snapshot/
+modelbench/**/inputs_snapshot/
+modelbench/**/validation_snapshot/
+modelbench/**/images/
+modelbench/**/cleanup/
+modelbench/**/invocations/
+modelbench/**/validation/smoke_revision*/
+modelbench/**/validation/pilot_v*.agent_accounting*/
+modelbench/**/validation/pilot_v7.agent_accounting*/
+modelbench/**/validation/*.audit.json
+modelbench/**/validation/*.junit.xml
+modelbench/preflight.json
+*.parquet
+*.vhdx
+*.zip
+
+# ===== 外部代码与历史交接(不属本版本代码) =====
+deepseek-harness-master/
+cursorhandoff/
+experiment-01-teambench/
+experiment-02-widesearch/
+
+# ===== 构建产物 =====
+dpswarm-plugin/build/
+dpswarm-plugin/dpswarm.egg-info/
+dpswarm-dsh-plugin/build/
+dpswarm-dsh-plugin/node_modules/
+
+# ===== 环境备份/镜像目录(历史批次快照) =====
+modelbench/swe_verified_20260903/environment_revision2/
+modelbench/swe_verified_20260903/transport_revision3_wip/
+modelbench/swe_fixed_team_20260903/validation/environment_revision2/
+modelbench/team_eval20260903/native_followup/
+
+# ===== 旧实验目录:仅保留代码与文档 =====
+modelbench/team_runtime_v2/regression*/
+modelbench/team_eval20260903/*
+!modelbench/team_eval20260903/*.py
+!modelbench/team_eval20260903/*.md
+!modelbench/team_eval20260903/Dockerfile
+
+# ===== validation 根目录下的批量数据导出 =====
+modelbench/swe_fixed_team_20260903/validation/pilot_v*.csv
+modelbench/swe_fixed_team_20260903/validation/pilot_v*.json

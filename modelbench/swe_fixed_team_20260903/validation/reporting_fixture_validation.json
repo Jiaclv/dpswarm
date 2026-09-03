@@ -1,0 +1,23 @@
+{
+  "recorded_at": "2026-09-03T03:37:50.466569+00:00",
+  "status": "PASS",
+  "kind": "offline_in_memory_and_temporary_directory_fixture",
+  "verification_previously_executed": true,
+  "source_sha256": "c2996de531b4731b0de78e78bf1d0d410406252ef3348727b0f8a9a418cc19fa",
+  "source": "modelbench/swe_fixed_team_20260903/reporting.py",
+  "checks": [
+    "partial completed-results snapshot",
+    "Lead and worker usage separated for identical Sol route",
+    "cache/reasoning/attempt/echo unknown values stay null",
+    "zero attempt worker record excluded from actual invocation coverage",
+    "team completion validity kept separate from invocation coverage",
+    "derived report regeneration succeeds",
+    "original result SHA preserved",
+    "duplicate call ID rejected"
+  ],
+  "model_calls": 0,
+  "container_calls": 0,
+  "grader_calls": 0,
+  "original_evidence_modified": false,
+  "note": "Captures already completed plain-Python fixture checks; not a pytest/JUnit run or candidate benchmark result."
+}

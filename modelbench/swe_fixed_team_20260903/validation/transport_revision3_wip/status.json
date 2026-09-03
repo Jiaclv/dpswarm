@@ -1,0 +1,12 @@
+{
+  "at": "2026-09-03T04:20:33.869676+00:00",
+  "status": "DRAFT_SAVED_NOT_APPLIED_NOT_TESTED",
+  "original_path": "modelbench/swe_verified_20260903/transport.py",
+  "draft_sha256": "cfb885c639037947c17266fe9df96bd85cc77484997fe561ba05051e3060fab4",
+  "restored_sha256": "eccbb08ab5ffb4f01b6f931e73e06608c2ad16153bb11803434afca30c9e198f",
+  "reason": "User requested stopping after current round and handoff; preserve draft and restore reproducible frozen runtime",
+  "tests_added": false,
+  "tests_run_after_draft": false,
+  "new_candidate_calls_with_draft": 0,
+  "pilot_v3_started": false
+}

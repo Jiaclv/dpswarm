@@ -1,0 +1,183 @@
+# 机读价目表 —— GLM(bigmodel.cn)/ DeepSeek(api.deepseek.com)
+# 核实日期: 2026-09-03,来源见 modelbench/MODELS.md;模型名与价目经常变,使用前请复核官方价格页。
+# 字段: provider/model/currency/input_per_mtok/output_per_mtok/cache_read_per_mtok/notes
+#   - GLM 为人民币(CNY 元),DeepSeek 为美元(USD),均按每百万 tokens
+#   - 查不到填 null;Coding Plan 订阅项 notes 标 "subscription"(不按 token 计价,按积分抵扣)
+#   - 分档价填最基础档(<32K 输入且短输出),完整分档写在 notes
+
+# ---------- GLM 按量(open.bigmodel.cn/api/paas/v4) ----------
+
+- provider: glm
+  model: glm-5.3
+  currency: CNY
+  input_per_mtok: 8
+  output_per_mtok: 28
+  cache_read_per_mtok: 2
+  notes: "旗舰,1M 上下文/128K 输出;思考强制开启(reasoning_effort low/high/max,默认 max);缓存写限时免费"
+
+- provider: glm
+  model: glm-5.3-flash
+  currency: CNY
+  input_per_mtok: 0.4
+  output_per_mtok: 1.4
+  cache_read_per_mtok: 0.115
+  notes: "多模态(图/视频/文件/文本),1M/128K;5折限时两周(2026-09-03 核实时),原价 0.8/2.8/0.23"
+
+- provider: glm
+  model: glm-5.2
+  currency: CNY
+  input_per_mtok: 8
+  output_per_mtok: 28
+  cache_read_per_mtok: 2
+  notes: "1M/128K;缓存写限时免费"
+
+- provider: glm
+  model: glm-4.7
+  currency: CNY
+  input_per_mtok: 2
+  output_per_mtok: 8
+  cache_read_per_mtok: 0.4
+  notes: "200K/128K;分档:输入<32K且输出<2K:2/8/0.4;输入<32K且输出>=2K:3/14/0.6;输入[32K,200K):4/16/0.8;thinking.type enabled/disabled;reasoning_effort 未见于官方文档"
+
+- provider: glm
+  model: glm-4.6
+  currency: CNY
+  input_per_mtok: null
+  output_per_mtok: null
+  cache_read_per_mtok: null
+  notes: "存疑:模型文档页与 /models 仍在,但官方价格页旗舰表未列(疑移入历史模型);阿里云侧公告 2026-10-10 下架;单价查不到,用前实测"
+
+- provider: glm
+  model: glm-4.5-air
+  currency: CNY
+  input_per_mtok: 0.8
+  output_per_mtok: 2
+  cache_read_per_mtok: 0.16
+  notes: "128K 上下文;分档:输入<32K且输出<2K:0.8/2/0.16;输入<32K且输出>=2K:0.8/6/0.16;输入[32K,128K):1.2/8/0.24;thinking.type enabled/disabled"
+
+- provider: glm
+  model: glm-4.7-flash
+  currency: CNY
+  input_per_mtok: 0
+  output_per_mtok: 0
+  cache_read_per_mtok: 0
+  notes: "免费;200K/128K;第三方口径仅 1 并发"
+
+- provider: glm
+  model: glm-4.7-flashx
+  currency: CNY
+  input_per_mtok: 0.5
+  output_per_mtok: 3
+  cache_read_per_mtok: 0.1
+  notes: "200K/128K"
+
+- provider: glm
+  model: glm-4.5-flash
+  currency: CNY
+  input_per_mtok: null
+  output_per_mtok: null
+  cache_read_per_mtok: null
+  notes: "已下线(2026-01-30,由 glm-4.7-flash 替代);不要使用"
+
+- provider: glm
+  model: glm-5.1
+  currency: CNY
+  input_per_mtok: 6
+  output_per_mtok: 24
+  cache_read_per_mtok: 1.3
+  notes: "分档:输入<32K:6/24/1.3;输入>=32K:8/28/2;上下文官方价格页未标(存疑)"
+
+# ---------- GLM Coding Plan(订阅,积分制;额度只在官方指定编码工具/编程通道内有效) ----------
+
+- provider: glm
+  model: glm-5.3@coding-plan
+  currency: CNY
+  input_per_mtok: null
+  output_per_mtok: null
+  cache_read_per_mtok: null
+  notes: "subscription;积分系数 Input 6.9 / Cached 1.7 / Output 24(积分=(tok×系数)/10000);套餐: Lite 2000积分/5h+10000/周, Pro 12000/5h+60000/周, Max 28000/5h+140000/周;月费第三方核对 Lite ¥118/Pro ¥538/Max ¥1078(官方购买页复核);非高峰(除周一至五14:00-18:00 UTC+8)半积分"
+
+- provider: glm
+  model: glm-5.3-flash@coding-plan
+  currency: CNY
+  input_per_mtok: null
+  output_per_mtok: null
+  cache_read_per_mtok: null
+  notes: "subscription;积分系数 2.3/0.56/8;套餐内调 glm-5-turbo/glm-4.7 会自动切换到本模型(注意变量污染);MCP 联网搜索/网页读取 1.2 积分/次"
+
+# ---------- GLM 搜索工具(按次计费,chat/completions 内置 web_search 工具) ----------
+
+- provider: glm
+  model: web_search.search_std
+  currency: CNY
+  input_per_mtok: null
+  output_per_mtok: null
+  cache_read_per_mtok: null
+  notes: "按次计费 ¥0.01/次;tools:[{\"type\":\"web_search\",\"web_search\":{\"enable\":true,\"search_engine\":\"search_std\",...}}];与 function call 互斥"
+
+- provider: glm
+  model: web_search.search_pro
+  currency: CNY
+  input_per_mtok: null
+  output_per_mtok: null
+  cache_read_per_mtok: null
+  notes: "按次计费 ¥0.03/次"
+
+- provider: glm
+  model: web_search.search_pro_sogou
+  currency: CNY
+  input_per_mtok: null
+  output_per_mtok: null
+  cache_read_per_mtok: null
+  notes: "按次计费 ¥0.05/次"
+
+- provider: glm
+  model: web_search.search_pro_quark
+  currency: CNY
+  input_per_mtok: null
+  output_per_mtok: null
+  cache_read_per_mtok: null
+  notes: "按次计费 ¥0.05/次"
+
+# ---------- DeepSeek 按量(api.deepseek.com),2026-08-16 起峰谷制;下表为 off-peak,peak 时段 ×2 ----------
+# peak: 周一至周五 01:00-04:00 与 06:00-10:00 UTC
+
+- provider: deepseek
+  model: deepseek-v4-flash
+  currency: USD
+  input_per_mtok: 0.22
+  output_per_mtok: 0.66
+  cache_read_per_mtok: 0.007
+  notes: "当前版本 DeepSeek-V4-Flash-0731;1M 上下文/最大输出 384K;peak 价 ×2(输入命中 0.014/未命中 0.44/输出 1.32);thinking 默认开,effort low/high/max;并发上限 2500(账号级)"
+
+- provider: deepseek
+  model: deepseek-v4-pro
+  currency: USD
+  input_per_mtok: 0.66
+  output_per_mtok: 1.98
+  cache_read_per_mtok: 0.022
+  notes: "当前版本 DeepSeek-V4-Pro-0813;1M/384K;peak 价 ×2(0.044/1.32/3.96);并发上限 500"
+
+- provider: deepseek
+  model: deepseek-v4-flash-vision-exp
+  currency: USD
+  input_per_mtok: 0.22
+  output_per_mtok: 0.66
+  cache_read_per_mtok: 0.007
+  notes: "实验性多模态(图片按尺寸折算 token 计入输入);peak ×2;并发 2500"
+
+- provider: deepseek
+  model: deepseek-chat
+  currency: USD
+  input_per_mtok: null
+  output_per_mtok: null
+  cache_read_per_mtok: null
+  notes: "已停用(2026-07-24 15:59 UTC);停用前= deepseek-v4-flash 非思考模式;改用 deepseek-v4-flash"
+
+- provider: deepseek
+  model: deepseek-reasoner
+  currency: USD
+  input_per_mtok: null
+  output_per_mtok: null
+  cache_read_per_mtok: null
+  notes: "已停用(2026-07-24 15:59 UTC);停用前= deepseek-v4-flash 思考模式;改用 deepseek-v4-flash + thinking enabled"

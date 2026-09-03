@@ -1,0 +1,88 @@
+{
+  "checked_at": "2026-09-03T02:42:45.208607+00:00",
+  "scope": "local_configuration_only_no_provider_request",
+  "model_calls_made": 0,
+  "all_five_routes_configured": true,
+  "node_installed": true,
+  "node_version": "v24.15.0",
+  "codex_cli_installed": true,
+  "codex_cli_version": "codex-cli 0.149.0",
+  "chatgpt_login_present_locally": true,
+  "glm_key_present": true,
+  "glm_coding_endpoint_format_valid": true,
+  "live_authentication_verified": false,
+  "routes": [
+    {
+      "model": "glm-5.3",
+      "configured": true,
+      "adapter_mode": "glm_native_tools_swe",
+      "effort_requested": "max",
+      "service_tier_requested": null,
+      "model_reported": null,
+      "effort_reported": null,
+      "service_tier_reported": null,
+      "local_codex_cache_lists_model": null,
+      "local_codex_cache_supports_max": null
+    },
+    {
+      "model": "glm-5.3-flash",
+      "configured": true,
+      "adapter_mode": "glm_native_tools_swe",
+      "effort_requested": "max",
+      "service_tier_requested": null,
+      "model_reported": null,
+      "effort_reported": null,
+      "service_tier_reported": null,
+      "local_codex_cache_lists_model": null,
+      "local_codex_cache_supports_max": null
+    },
+    {
+      "model": "gpt-5.6-sol",
+      "configured": true,
+      "adapter_mode": "codex_text_tools_swe",
+      "effort_requested": "max",
+      "service_tier_requested": "fast",
+      "model_reported": null,
+      "effort_reported": null,
+      "service_tier_reported": null,
+      "local_codex_cache_lists_model": true,
+      "local_codex_cache_supports_max": true
+    },
+    {
+      "model": "gpt-5.6-terra",
+      "configured": true,
+      "adapter_mode": "codex_text_tools_swe",
+      "effort_requested": "max",
+      "service_tier_requested": "fast",
+      "model_reported": null,
+      "effort_reported": null,
+      "service_tier_reported": null,
+      "local_codex_cache_lists_model": true,
+      "local_codex_cache_supports_max": true
+    },
+    {
+      "model": "gpt-5.6-luna",
+      "configured": true,
+      "adapter_mode": "codex_text_tools_swe",
+      "effort_requested": "max",
+      "service_tier_requested": "fast",
+      "model_reported": null,
+      "effort_reported": null,
+      "service_tier_reported": null,
+      "local_codex_cache_lists_model": true,
+      "local_codex_cache_supports_max": true
+    }
+  ],
+  "echo_contract": {
+    "native_model_echo_required": true,
+    "gpt_missing_model_echo_remains_null": true,
+    "effort_not_exposed_remains_null": true,
+    "tier_not_exposed_remains_null": true,
+    "offline_contract_tests_passed": true
+  },
+  "verified_source_sha256": {
+    "transport.py": "7763bc284a72413940bfb927270120096ea4a16bc5d59dbefab3fb7b31c49252",
+    "tests/test_transport.py": "28e5836ab02ab0aea5b62859f70b9b344dcdf0dcd306f2666f6e3817055883e9",
+    "tests/test_runner_protocol.py": "3b09f1a852aabf81d9de916bd72cd80aeae347783b2dad6a11a3577550862f58"
+  }
+}

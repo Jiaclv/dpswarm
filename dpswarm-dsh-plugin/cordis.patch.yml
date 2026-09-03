@@ -1,0 +1,16 @@
+# DPSwarm bundle patch: the scheduling overlay for the web/base layers.
+# Rows here insert beside the base rows; the profile's own patch may override.
+
+- insert:
+    - id: dpswarm
+      name: dpswarm-dsh-plugin
+      config:
+        # Control-plane sidecar（机制文档 §9.1：控制面事件存储独立，harness 只作执行底座）
+        sidecarUrl: http://127.0.0.1:8791
+        # 未连接时是否自动拉起 sidecar（python -m dpswarm.server）
+        autoStart: true
+        # dpswarm-plugin 目录（autoStart 的 cwd；留空则用 sidecarUrl 探测失败时报指引）
+        dpswarmDir: K:\秋招\项目\DPswarm\dpswarm-plugin
+        pythonCmd: python
+        # 物理执行底座：subagent provider（web profile 默认 'spawn'）
+        subagentProvider: spawn

@@ -1,0 +1,36 @@
+{
+  "at": "2026-09-03T03:37:47.982046+00:00",
+  "status": "PASS",
+  "scope": "Fixed DERIVE team adapter; no new model calls yet",
+  "reviewed": [
+    "Real CP admission before first Lead call",
+    "Two isolated worker environments with common baseline",
+    "Fixed role prompts carry full issue",
+    "Lead and worker call attribution, positive actual transport attempt accounting",
+    "Source and input freeze, no candidate access to grader answers",
+    "Final result written after worker drain, cleanup and official scoring",
+    "Batch pairs drain before stop; incomplete runs not replayed"
+  ],
+  "runner_tests": {
+    "tests": 23,
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0
+  },
+  "prior_runtime_sources_unchanged": true,
+  "prior_input_artifacts_unchanged": true,
+  "prior_tests": {
+    "tests": 116,
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0
+  },
+  "negative_control_reused": "Unmodified environment/grader/data bound to previous successful negative control",
+  "scope_limits": {
+    "autonomous_delegation": false,
+    "split": "not_exposed",
+    "fission": "not_exposed",
+    "cm": "not_integrated",
+    "DSH_bridge": "HOLD"
+  }
+}

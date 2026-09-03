@@ -1,0 +1,38 @@
+{
+  "at": "2026-09-03T03:44:01.800330+00:00",
+  "status": "PASS",
+  "revision": 2,
+  "scope": "Fixed DERIVE adapter and mixed-owner container setup",
+  "tests": {
+    "tests": 47,
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0
+  },
+  "test_composition": {
+    "fixed_team": 23,
+    "environment_offline": 22,
+    "real_environment_fork": 2
+  },
+  "change": "Trusted host executes chmod as each existing inode owner before candidate execution; no symlink following, no added capabilities, candidate still UID1000",
+  "real_matplotlib_owner_uids": [
+    0,
+    1000,
+    197609
+  ],
+  "negative_control": {
+    "completed": true,
+    "resolved": false,
+    "sha256": "979c2a511a69cd7e375b62d304d8ac2104575ecb9daeea2a8a053981b7c5920a"
+  },
+  "source_and_grader_binding_verified": true,
+  "candidate_calls_in_failed_fixed_revision": 0,
+  "candidate_tokens_in_failed_fixed_revision": 0,
+  "scope_limits": {
+    "autonomous_activation": false,
+    "split": "not_exposed",
+    "fission": "not_exposed",
+    "CM": "not_integrated",
+    "DSH_bridge": "HOLD"
+  }
+}

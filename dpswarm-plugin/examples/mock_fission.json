@@ -1,0 +1,11 @@
+[
+ {
+  "text": "{\"action\": \"fission\", \"route\": {\"provider\": \"p\", \"model\": \"b-model\"}, \"subtasks\": [\"\\u5206\\u7247A\", \"\\u5206\\u7247B\"]}"
+ },
+ {
+  "text": "WORKER-OUTPUT-分片"
+ },
+ {
+  "text": "{\"verdict\": \"accept\", \"verdict_reason\": \"ok\"}"
+ }
+]

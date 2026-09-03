@@ -1,0 +1,116 @@
+--- modelbench/swe_verified_20260903/transport.py
++++ modelbench/swe_verified_20260903/transport.py
+@@ -117,6 +117,57 @@
+ 
+ class CallIdentityError(ValueError):
+     """No new provider call occurs when a call identity is invalid or reused."""
++
++
++class CodexTerminalError(ValueError):
++    def __init__(self, code, message):
++        self.code = code
++        super().__init__(message)
++
++
++def _codex_terminal_text(stdout, terminal_text, record):
++    """Bind the CLI's explicit final artifact to one completed turn.
++
++    Codex 0.149.0 exec JSONL drops message phase. Its output-last-message file
++    is written only after successful turn completion, from the last agent
++    message, without adding a newline. Do not choose text by JSON validity.
++    """
++    events = []
++    try:
++        for line in stdout.splitlines():
++            if line.strip():
++                event = json.loads(line)
++                if not isinstance(event, dict):
++                    raise ValueError('JSONL event is not an object')
++                events.append(event)
++    except (ValueError, TypeError) as exc:
++        raise CodexTerminalError('codex_terminal_ambiguous', 'Invalid JSONL prevents terminal-message binding') from exc
++    completed = [i for i, event in enumerate(events) if event.get('type') == 'turn.completed']
++    started = [i for i, event in enumerate(events) if event.get('type') == 'turn.started']
++    messages = [(i, event['item']) for i, event in enumerate(events)
++                if event.get('type') == 'item.completed' and isinstance(event.get('item'), dict)
++                and event['item'].get('type') == 'agent_message']
++    selection = {'policy': 'codex-output-last-message-exact-v1', 'agent_message_count': len(messages),
++                 'turn_completed_count': len(completed), 'turn_started_count': len(started),
++                 'terminal_artifact_present': terminal_text is not None,
++                 'selected_item_id': None, 'selected_event_index': None}
++    record['codex_response_selection'] = selection
++    if len(completed) != 1 or len(started) > 1 or not messages:
++        raise CodexTerminalError('codex_terminal_ambiguous', 'Expected one completed turn with an agent message')
++    end = completed[0]
++    if (any(index >= end for index, _ in messages)
++            or (started and (started[0] >= messages[0][0] or started[0] >= end))
++            or any(event.get('type') in ('turn.started', 'turn.failed') for event in events[end + 1:])
++            or any(not isinstance(item.get('text'), str) for _, item in messages)):
++        raise CodexTerminalError('codex_terminal_ambiguous', 'Agent messages do not belong to one terminal turn')
++    if terminal_text is None:
++        raise CodexTerminalError('codex_terminal_missing', 'Codex did not write the required final-message artifact')
++    index, final = messages[-1]
++    if terminal_text != final['text']:
++        raise CodexTerminalError('codex_terminal_mismatch', 'Final-message artifact differs from the terminal agent message')
++    selection.update(selected_item_id=final.get('id'), selected_event_index=index,
++                     terminal_text_sha256=hashlib.sha256(terminal_text.encode('utf-8')).hexdigest())
++    return terminal_text
+ 
+ 
+ class _Interrupted(subprocess.TimeoutExpired):
+@@ -392,8 +443,54 @@
+                                       deadline_at - time.monotonic())
+             else:
+                 original.TIMEOUT_SECONDS = timeout_seconds
+-                original._run_codex_process = run
++                terminal = {'text': None, 'stdout': None, 'capture_error': None}
++                temporary_terminal = folder / 'last-message.raw.tmp'
++
++                def codex_run(argv, *, input, cwd, timeout=None):
++                    actual_argv = list(argv)
++                    actual_argv[-1:-1] = ['--output-last-message', str(temporary_terminal)]
++                    request_path = folder / 'process-request.json'
++                    _write_once(request_path, original._redact({'argv': actual_argv, 'cwd': str(cwd),
++                        'stdin': input, 'cap_enforced': False, 'timeout_seconds': timeout,
++                        'terminal_message_contract': 'codex-output-last-message-exact-v1'}))
++                    record['raw_artifacts']['request_template'] = record['raw_artifacts']['request']
++                    record['raw_artifacts']['request'] = str(request_path)
++                    try:
++                        result = run(actual_argv, input=input, cwd=cwd, timeout=timeout)
++                        terminal['stdout'] = result.stdout
++                        return result
++                    finally:
++                        # Preserve the CLI artifact after exact credential
++                        # redaction, including interrupted partial calls. A
++                        # capture failure must not prevent stdout usage parsing.
++                        if temporary_terminal.exists() or temporary_terminal.is_symlink():
++                            try:
++                                if temporary_terminal.is_symlink() or not temporary_terminal.is_file():
++                                    raise ValueError('Final-message artifact is not a regular file')
++                                payload = temporary_terminal.read_bytes()
++                                try:
++                                    terminal['text'] = payload.decode('utf-8')
++                                except UnicodeDecodeError:
++                                    terminal['capture_error'] = 'Final-message artifact is not valid UTF-8'
++                                for secret in secrets:
++                                    payload = payload.replace(secret.encode('utf-8'), b'[REDACTED]')
++                                terminal_path = folder / 'last-message.txt'
++                                with terminal_path.open('xb') as stream:
++                                    stream.write(payload)
++                                    stream.flush()
++                                    os.fsync(stream.fileno())
++                                record['raw_artifacts']['last_message'] = str(terminal_path)
++                            except (OSError, ValueError) as exc:
++                                terminal['capture_error'] = str(exc)
++                            finally:
++                                if temporary_terminal.is_file() or temporary_terminal.is_symlink():
++                                    temporary_terminal.unlink()
++
++                original._run_codex_process = codex_run
+                 original.ExperimentTransport._codex(self, record, wire_messages, folder)
++                if terminal['capture_error']:
++                    raise CodexTerminalError('codex_terminal_artifact_invalid', terminal['capture_error'])
++                record['text'] = _codex_terminal_text(terminal['stdout'], terminal['text'], record)
+                 record['assistant_message'] = {'role': 'assistant', 'content': record['text']}
+             if interruption:
+                 raise v2.TransportError(interruption['code'], 'Local model request interrupted')
