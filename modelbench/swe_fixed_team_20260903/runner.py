@@ -20,24 +20,28 @@ from uuid import uuid4
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / 'dpswarm-plugin'))
-from dpswarm.context.assembler import AssemblerBrief
+from dpswarm.context.assembler import AssemblerBrief, ContextAssembler, est_tokens
 from dpswarm.context.manager import ContextManagerLLM
+from dpswarm.context.memory import MemoryService
 from dpswarm.types import Level, ModelRoute
 from dpswarm.team_runtime.ledger import RunBudget, LedgerError
 from modelbench.swe_verified_20260903.control import SweControl
 from modelbench.swe_verified_20260903.environment import SWEEnvironment
 from modelbench.swe_verified_20260903.transport import SweTransport
 
-MODELS = ['glm-5.3', 'glm-5.3-flash', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna']
+MODELS = ['glm-5.3', 'glm-5.3-flash', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'deepseek-v4-flash']
 LIMITS = {'max_calls': 28, 'token_limit': 600_000, 'wall_seconds': 1800,
           'worker_calls': 8, 'active_workers': 2, 'delegations': 2,
           'call_timeout': 600, 'command_timeout': 120, 'question_timeout': 120,
           'model_concurrency': 4, 'container_concurrency': 4, 'memory': '3g', 'cpus': 2,
           # CM (context manager): on-demand compression of over-budget history.
-          'cm_enabled': True, 'cm_model': 'glm-5.3-flash', 'cm_provider': 'zhipu',
+          'cm_enabled': True, 'cm_model': 'deepseek-v4-flash', 'cm_provider': 'deepseek',
           'cm_context_budget': 12000, 'cm_keep_recent': 4,
           'cm_thinking': 'disabled', 'cm_socket_timeout': 120, 'cm_reservation_slack': 8192,
-          'cm_max_tokens': 2048}
+          'cm_max_tokens': 2048,
+          # Revision 7: team-level CM (Lead->worker one-way assembly).
+          'cm_team_memory': True, 'cm_scout_distill': True, 'cm_bootstrap_package': True,
+          'cm_package_budget': 6000}
 MODEL_SLOTS = threading.BoundedSemaphore(LIMITS['model_concurrency'])
 CONTAINER_SLOTS = threading.BoundedSemaphore(LIMITS['container_concurrency'])
 RESOURCE_FAILURE = threading.Event()
@@ -117,20 +121,33 @@ class Worker:
     future: object = None
     delivery: dict | None = None
     reviewed: bool = False
+    memory_seen: set = field(default_factory=set)
+    context_package: str | None = None
 
 
 class SweRun:
     def __init__(self, batch_dir, entry, *, transport_factory=SweTransport,
                  environment_factory=SWEEnvironment, control_factory=SweControl):
-        if entry.get('condition') not in ('solo', 'fixed_team'):
-            raise ValueError('This runner accepts only solo or fixed_team conditions')
+        if entry.get('condition') not in ('solo', 'fixed_team', 'hetero_team'):
+            raise ValueError('This runner accepts only solo, fixed_team or hetero_team conditions')
+        self.lead_model = entry.get('lead_model') or 'gpt-5.6-sol'
+        if self.lead_model not in MODELS:
+            raise ValueError('lead_model must come from the experiment catalog')
         if entry['condition'] == 'fixed_team' and entry.get('worker_model') not in MODELS:
             raise ValueError('fixed_team requires one exact worker_model from the experiment catalog')
-        if entry['condition'] == 'solo' and entry.get('worker_model') is not None:
+        if entry['condition'] == 'hetero_team':
+            models = entry.get('worker_models')
+            if (not isinstance(models, list) or len(models) != 2
+                    or any(model not in MODELS for model in models) or models[0] == models[1]):
+                raise ValueError('hetero_team requires two distinct worker_models from the catalog')
+        if entry['condition'] == 'solo' and (entry.get('worker_model') is not None
+                                             or entry.get('worker_models')):
             raise ValueError('solo must not select a worker model')
         self.batch_dir, self.entry = Path(batch_dir), dict(entry)
         self.run_id, self.instance = entry['run_id'], entry['instance']
-        self.fixed_team_requested = entry['condition'] == 'fixed_team'
+        self.fixed_team_requested = entry['condition'] in ('fixed_team', 'hetero_team')
+        self.worker_models = (entry.get('worker_models')
+                              or ([entry['worker_model']] * 2 if self.fixed_team_requested else []))
         self.bootstrap_admitted = False
         self.activation_source = 'experiment_protocol' if self.fixed_team_requested else None
         self.folder = self.batch_dir / 'results' / self.run_id
@@ -140,19 +157,29 @@ class SweRun:
         self.transport = transport_factory(self.folder)
         self.environment_factory = environment_factory
         self.control = control_factory(self.folder, self.instance['instance_id'],
-                                       lead_model='gpt-5.6-sol', max_workers=2)
+                                       lead_model=self.lead_model, max_workers=2)
         self.budget = RunBudget(LIMITS['max_calls'], LIMITS['token_limit'], LIMITS['wall_seconds'])
         self.lock, self.cancel = threading.RLock(), threading.Event()
         self.draining = False
         self.workers, self.questions, self.calls = {}, {}, []
         self.cm_calls = []
         self.call_agents = {}
+        self.team_scope = 'team:' + self.run_id
+        self.memory = MemoryService(sink=self._memory_event) if LIMITS['cm_team_memory'] else None
         self.pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix='swe-worker')
         self.lead_env = None
         self.started_at, self.start_clock = utc(), time.monotonic()
         self.protocol_errors = 0
         self.cleanup_errors = []
         self.event('run_started', entry=entry, limits=LIMITS, root_handle=asdict(self.control.lead))
+
+    def _memory_event(self, kind, payload):
+        """Memory lifecycle -> run event journal + durable memory.jsonl (§5.6)."""
+        record = {'event': kind, 'at': utc(), **payload}
+        with self.lock:
+            with (self.folder / 'memory.jsonl').open('a', encoding='utf-8') as stream:
+                stream.write(json.dumps(record, ensure_ascii=False, allow_nan=False) + '\n')
+            self.event(kind, **payload)
 
     def event(self, kind, **payload):
         with self.lock:
@@ -241,11 +268,11 @@ class SweRun:
         if not self.fixed_team_requested:
             return
         self.event('team_activation_requested', source='experiment_protocol',
-                   mechanism='derive', requested_workers=2, worker_model=self.entry['worker_model'])
+                   mechanism='derive', requested_workers=2, worker_models=self.worker_models)
         baseline = self.lead_env.export_patch()
         with self.lock:
             for ordinal, assignment in enumerate(FIXED_ASSIGNMENTS, 1):
-                request = {'model': self.entry['worker_model'], **assignment}
+                request = {'model': self.worker_models[ordinal - 1], **assignment}
                 handle = self.control.delegate(self.control.lead, request)[0]
                 child = Worker('worker-' + str(ordinal), handle, request, baseline)
                 self.workers[child.worker_id] = child
@@ -253,8 +280,23 @@ class SweRun:
                            worker_id=child.worker_id, handle=asdict(handle), request=request,
                            baseline_patch_sha256=sha(baseline))
             self.bootstrap_admitted = True
-            for child in self.workers.values():
-                child.future = self.pool.submit(self.worker_run, child, self.lead_env)
+
+    def start_workers(self):
+        """Activate admitted workers after the scout note is in team memory.
+
+        Revision 7: workers bootstrap from an assembled context package instead
+        of cold-starting, so their submission waits for the Lead's scout round.
+        """
+        if not self.fixed_team_requested:
+            return
+        for child in self.workers.values():
+            if child.future is not None:
+                continue
+            if LIMITS['cm_bootstrap_package'] and self.memory is not None:
+                child.context_package = self.assemble_worker_package(child)
+            child.future = self.pool.submit(self.worker_run, child, self.lead_env)
+        self.event('workers_started_after_scout', worker_ids=sorted(self.workers),
+                   scout_note_ready=bool(self.memory is not None and self.memory.retrieve(self.team_scope, limit=1)))
 
     def _call(self, handle, messages, declarations, cancel):
         self._acquire(MODEL_SLOTS, cancel)
@@ -327,6 +369,17 @@ class SweRun:
         materials = [f"[turn {index + 1}, role {message.get('role')}]\n"
                      + json.dumps(message, ensure_ascii=False)
                      for index, message in enumerate(source)]
+        # Revision 7, one-way team memory: workers pull unseen Lead notes as
+        # extra materials; the Lead never reads worker notes here.
+        memory_hits = []
+        if worker is not None and self.memory is not None:
+            for entry in self.memory.retrieve(self.team_scope,
+                                              query=worker.request['task'], limit=4):
+                if entry.memory_id not in worker.memory_seen:
+                    worker.memory_seen.add(entry.memory_id)
+                    memory_hits.append(f"[memory:{entry.memory_id}]\n{entry.content}")
+        if memory_hits:
+            materials = memory_hits + materials
         brief = AssemblerBrief(
             task_intent=(worker.request['task'] if worker else self.instance['problem_statement'])[:2000],
             select=['decision', 'error', 'test', 'patch', 'file', 'command', 'result'],
@@ -335,25 +388,8 @@ class SweRun:
         evidence.parent.mkdir(parents=True, exist_ok=True)
         dump(evidence, messages)
 
-        class _Usage:
-            pass
-
-        def complete_fn(route, prompt_messages):
-            record = self._cm_call(call_id, handle, prompt_messages, trigger)
-            result = _Usage()
-            result.text = ((record.get('action') or {}).get('text')
-                           if isinstance(record.get('action'), dict) else None)
-            result.stop_reason = record.get('stop_reason')
-            usage = _Usage()
-            usage.input_tokens = record.get('input_tokens')
-            usage.output_tokens = record.get('output_tokens')
-            usage.cost_usd = None
-            result.usage = usage
-            result.record = record
-            return result
-
         try:
-            manager = ContextManagerLLM(complete_fn, ModelRoute(
+            manager = ContextManagerLLM(self._cm_complete_fn(call_id, handle, trigger), ModelRoute(
                 LIMITS['cm_provider'], LIMITS['cm_model'], Level.B))
             summary_text, _account = manager.compress(materials, brief)
         except LedgerError as exc:
@@ -371,7 +407,166 @@ class SweRun:
         after = len(json.dumps(messages, ensure_ascii=False)) // 3
         self.event('cm_compression', call_id=call_id, trigger=trigger,
                    before_est_tokens=estimated, after_est_tokens=after,
-                   dropped_messages=len(source), kept_messages=len(messages))
+                   dropped_messages=len(source), kept_messages=len(messages),
+                   memory_materials=len(memory_hits))
+        # Revision 7: the Lead's durable summary is promoted to team memory so
+        # later worker assemblies see it (one-way: workers never write).
+        if worker is None and self.memory is not None:
+            entry = self.memory.add_candidate(
+                'Lead 阶段纪要：\n' + summary_text, scope=self.team_scope,
+                source_ids=[call_id], accepted_by='lead')
+            self.memory.promote(entry.memory_id)
+
+    def _cm_complete_fn(self, call_id, handle, trigger):
+        """Duck-typed complete_fn for ContextManagerLLM over the real CM call."""
+        class _Result:
+            pass
+
+        def complete_fn(route, prompt_messages):
+            record = self._cm_call(call_id, handle, prompt_messages, trigger)
+            result = _Result()
+            result.text = ((record.get('action') or {}).get('text')
+                           if isinstance(record.get('action'), dict) else None)
+            result.stop_reason = record.get('stop_reason')
+            usage = _Result()
+            usage.input_tokens = record.get('input_tokens')
+            usage.output_tokens = record.get('output_tokens')
+            usage.cost_usd = None
+            result.usage = usage
+            result.record = record
+            return result
+
+        return complete_fn
+
+    def assemble_worker_package(self, child):
+        """§5.2/§5.3/§5.4: deterministic bootstrap assembly for one worker.
+
+        Materials are the Lead's team-memory notes (one-way); the package is a
+        durable artifact with manifest. Compression only fires when the
+        deterministic layout exceeds the budget (§5.1 code-decided).
+        """
+        brief = AssemblerBrief(task_intent=child.request['task'],
+                               select=['file', 'path', 'command', 'test', 'error', 'risk', 'decision'],
+                               token_budget=LIMITS['cm_package_budget'],
+                               scope=self.team_scope)
+        call_id = 'cm-' + str(uuid4())
+        trigger = {'agent': child.worker_id, 'node_id': child.handle.node_id,
+                   'item_id': child.handle.item_id, 'role': 'worker', 'phase': 'bootstrap'}
+
+        def compress_fn(materials, brief):
+            self.event('cm_call_started', call_id=call_id, trigger=trigger, model=LIMITS['cm_model'],
+                       before_est_tokens=sum(est_tokens(m) for m in materials),
+                       compressible_messages=len(materials))
+            try:
+                manager = ContextManagerLLM(self._cm_complete_fn(call_id, child.handle, trigger),
+                                            ModelRoute(LIMITS['cm_provider'], LIMITS['cm_model'], Level.B))
+                text, _account = manager.compress(materials, brief)
+                return text
+            except Exception:
+                return ''  # §5.2 silent degrade: the deterministic skeleton stays usable
+
+        assembler = ContextAssembler(memory=self.memory, artifacts={}, compress_fn=compress_fn)
+        package = assembler.assemble(brief, ModelRoute(LIMITS['cm_provider'], child.handle.model, Level.B),
+                                     heterogeneous=True)
+        package_ref, package_sha = assembler.write_package(
+            package, self.folder / child.worker_id / 'context_package')
+        memory_ids = sorted({pointer.split(':', 1)[1] for pointer in package.source_pointers
+                             if str(pointer).startswith('memory:')})
+        for memory_id in memory_ids:
+            child.memory_seen.add(memory_id)
+        self.event('cm_assembly', worker_id=child.worker_id, phase='bootstrap', memory_ids=memory_ids,
+                   package_est_tokens=est_tokens(package.content), package_ref=package_ref,
+                   package_sha256=package_sha)
+        return package.content
+
+    def _scout_round(self):
+        """Lead's first work round, distilled into team memory before workers start.
+
+        The call is the Lead's normal first round (real declarations, real bash
+        batch); afterwards a CM note is promoted to team memory and workers
+        bootstrap from it. Returns (messages_to_continue_with, failure) where
+        failure is None unless the call could not be admitted at all.
+        """
+        declarations = BASE_TOOLS + (LEAD_TOOLS if self.fixed_team_requested else [])
+        banner = {'local_call': 1, 'local_limit': LIMITS['max_calls'] - 1, 'scout': True,
+                  'global_budget': self.budget.summary(),
+                  'remaining_wall_seconds': round(self.remaining_time(), 1)}
+        messages = [
+            {'role': 'system', 'content': self.prompt(worker=None)},
+            {'role': 'user', 'content': 'Runtime status (scout round; calls include errors; finish explicitly):\n'
+             + json.dumps(banner, ensure_ascii=False)},
+        ]
+        history = self.folder / 'lead' / 'history.json'
+        try:
+            record = self._call(self.control.lead, messages, declarations, self.cancel)
+        except LedgerError as exc:
+            return None, {'status': 'budget_exhausted', 'summary': str(exc)}
+        if record.get('error') or record.get('protocol_error'):
+            # The scout round produced nothing usable; degrade to the old
+            # fully-parallel protocol (fresh loop, workers cold-start).
+            self.event('scout_round_degraded', call_id=record['call_id'],
+                       error=record.get('error'), protocol_error=record.get('protocol_error'))
+            return None, None
+        assistant = record.get('assistant_message')
+        if assistant:
+            messages.append(assistant)
+        action = record.get('action') or {'kind': 'no_action', 'calls': []}
+        for call in action.get('calls', []):
+            if self.cancel.is_set() or self.cancel.is_set() or self.remaining_time() <= 0:
+                break
+            if call.get('name') not in ('bash', 'finish'):
+                result = {'error': 'SCOUT_TOOL_UNAVAILABLE', 'executed': False}
+            else:
+                self.event('tool_started', handle=asdict(self.control.lead),
+                           call_id=record['call_id'], tool_call=call)
+                try:
+                    result = self.execute_tool(call['name'], call.get('arguments') or {},
+                                               self.control.lead, self.lead_env, None)
+                except Exception as exc:
+                    result = {'error': type(exc).__name__, 'message': str(exc), 'executed': False}
+            self.event('tool_completed', handle=asdict(self.control.lead), call_id=record['call_id'],
+                       tool_call_id=call.get('id'), tool=call.get('name'), result=result)
+            messages.append({'role': 'user', 'content': 'Tool result: ' + json.dumps(
+                {'id': call.get('id'), 'name': call.get('name'), 'result': result}, ensure_ascii=False)})
+        dump(history, messages)
+        self.event('scout_round_completed', call_id=record['call_id'],
+                   tools=len(action.get('calls', [])))
+        self._distill_scout_note(record, messages)
+        return messages, None
+
+    def _distill_scout_note(self, record, messages):
+        """CM-distill the scout round into one durable team-memory note."""
+        if self.memory is None or not LIMITS['cm_scout_distill']:
+            return
+        materials = [json.dumps(message, ensure_ascii=False)
+                     for message in messages[1:] if message.get('role') != 'system']
+        call_id = 'cm-' + str(uuid4())
+        trigger = {'agent': 'lead', 'role': 'lead', 'phase': 'scout_distill',
+                   'node_id': self.control.lead.node_id}
+        self.event('cm_call_started', call_id=call_id, trigger=trigger, model=LIMITS['cm_model'],
+                   before_est_tokens=sum(est_tokens(m) for m in materials),
+                   compressible_messages=len(materials))
+        brief = AssemblerBrief(
+            task_intent='为两名 worker 准备侦察纪要：定位到的文件/符号、风险点、可运行的复现或测试命令；零新增事实',
+            select=['file', 'path', 'command', 'test', 'error', 'risk'], token_budget=2000)
+        try:
+            manager = ContextManagerLLM(self._cm_complete_fn(call_id, self.control.lead, trigger),
+                                        ModelRoute(LIMITS['cm_provider'], LIMITS['cm_model'], Level.B))
+            note, _account = manager.compress(materials, brief)
+        except LedgerError as exc:
+            self.event('cm_call_not_admitted', call_id=call_id, reason=str(exc))
+            return
+        except Exception as exc:
+            self.event('cm_call_failed', call_id=call_id, error=type(exc).__name__ + ': ' + str(exc)[:400])
+            return
+        if not note.strip():
+            self.event('cm_call_failed', call_id=call_id, error='empty scout note')
+            return
+        entry = self.memory.add_candidate('Lead 侦察纪要：\n' + note, scope=self.team_scope,
+                                          source_ids=[record['call_id']], accepted_by='lead')
+        self.memory.promote(entry.memory_id)
+        self.event('scout_distilled', memory_id=entry.memory_id, cm_call_id=call_id,
+                   note_est_tokens=est_tokens(note), source_call_id=record['call_id'])
 
     def _cm_call(self, call_id, handle, prompt_messages, trigger):
         """One real on-demand CM model call: own identity, shared budget/slots.
@@ -399,13 +594,18 @@ class SweRun:
         finally:
             MODEL_SLOTS.release()
 
-    def loop(self, handle, env, *, worker=None):
+    def loop(self, handle, env, *, worker=None, initial_messages=None, start_ordinal=1, limit=None):
         cancel = worker.cancel if worker else self.cancel
         declarations = BASE_TOOLS + (WORKER_TOOLS if worker else LEAD_TOOLS if self.fixed_team_requested else [])
-        messages = [{'role': 'system', 'content': self.prompt(worker=worker)}]
+        if initial_messages is not None:
+            messages = list(initial_messages)
+        else:
+            messages = [{'role': 'system', 'content': self.prompt(worker=worker)}]
         history = self.folder / (worker.worker_id if worker else 'lead') / 'history.json'
-        limit, no_actions = (LIMITS['worker_calls'] if worker else LIMITS['max_calls']), 0
-        for ordinal in range(1, limit + 1):
+        if limit is None:
+            limit = LIMITS['worker_calls'] if worker else LIMITS['max_calls']
+        no_actions = 0
+        for ordinal in range(start_ordinal, limit + 1):
             if cancel.is_set() or self.cancel.is_set() or self.remaining_time() <= 0:
                 return {'status': 'cancelled_or_deadline', 'summary': 'No further calls admitted'}
             banner = {'local_call': ordinal, 'local_limit': limit, 'global_budget': self.budget.summary(),
@@ -433,7 +633,7 @@ class SweRun:
                 with self.lock:
                     self.protocol_errors += 1
                 calls = (assistant or {}).get('tool_calls')
-                native = handle.model.startswith('glm-')
+                native = handle.model.startswith(('glm-', 'deepseek-'))
                 ids = [c.get('id') if isinstance(c, dict) else None for c in calls] if isinstance(calls, list) else []
                 if native and (record.get('history_continuation_safe') is False or not ids
                                or any(not isinstance(i, str) or not i.strip() for i in ids)
@@ -476,7 +676,7 @@ class SweRun:
                                tool_call_id=call['id'], tool=call['name'], result=result)
                     if call['name'] == 'finish' and result.get('finished'):
                         finished = result
-                if handle.model.startswith('glm-'):
+                if handle.model.startswith(('glm-', 'deepseek-')):
                     messages.append({'role': 'tool', 'tool_call_id': call['id'], 'content': json.dumps(result, ensure_ascii=False)})
                 else:
                     messages.append({'role': 'user', 'content': 'Tool result: ' + json.dumps({'id': call['id'], 'name': call['name'], 'result': result}, ensure_ascii=False)})
@@ -629,7 +829,11 @@ class SweRun:
             self.control.activate(child.handle)
             self.event('worker_activated', source='runtime', activation_source='experiment_protocol',
                        worker_id=child.worker_id, handle=asdict(child.handle))
-            outcome = self.loop(child.handle, env, worker=child)
+            initial = None
+            if child.context_package:
+                initial = [{'role': 'system', 'content': self.prompt(worker=child)},
+                           {'role': 'user', 'content': child.context_package}]
+            outcome = self.loop(child.handle, env, worker=child, initial_messages=initial)
             patch = env.export_patch(delta=True)
             patch_path = directory / 'delta.patch'
             patch_path.write_bytes(patch.encode('utf-8'))
@@ -666,7 +870,21 @@ class SweRun:
                 **({'grader_contract': self.entry['grader_contract']} if 'grader_contract' in self.entry else {}))
             self.lead_env.start()
             self.bootstrap_team()
-            outcome = self.loop(self.control.lead, self.lead_env)
+            # Revision 7: the Lead scouts first; workers then bootstrap from the
+            # distilled team note instead of cold-starting (solo runs skip this).
+            scout_messages, scout_failure = (None, None)
+            if self.fixed_team_requested and LIMITS['cm_scout_distill']:
+                scout_messages, scout_failure = self._scout_round()
+            if scout_failure is not None:
+                outcome = scout_failure
+            else:
+                self.start_workers()
+                if scout_messages is not None:
+                    outcome = self.loop(self.control.lead, self.lead_env,
+                                        initial_messages=scout_messages, start_ordinal=2,
+                                        limit=LIMITS['max_calls'] - 1)
+                else:
+                    outcome = self.loop(self.control.lead, self.lead_env)
             # Budget exhaustion forbids NEW admissions; calls already admitted
             # and still in flight get one bounded window to settle real usage
             # instead of being killed mid-flight. An external stop request or a

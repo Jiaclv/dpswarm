@@ -22,6 +22,7 @@ TOOLS = [{'type': 'function', 'function': {'name': 'write', 'description': 'fixt
     'parameters': {'type': 'object', 'properties': {'path': {'type': 'string'}, 'content': {'type': 'string'}},
                    'required': ['path', 'content'], 'additionalProperties': False}}}]
 FAKE_KEY = 'sk-fixture-credential-123456'
+FAKE_DS_KEY = 'sk-fixture-deepseek-987654'
 
 
 @pytest.fixture
@@ -31,6 +32,7 @@ def adapter(tmp_path, monkeypatch):
         module = original_loader()
         module.original._keyconfig = lambda name: {
             'GLM_API_KEY': FAKE_KEY, 'GLM_BASE_URL': 'https://fixture.invalid/api/coding/paas/v4',
+            'DEEPSEEK_API_KEY': FAKE_DS_KEY, 'DEEPSEEK_BASE_URL': 'https://fixture.invalid',
         }.get(name)
         return module
     monkeypatch.setattr(transport, '_load_v2', load)
@@ -229,7 +231,7 @@ def test_call_identity_cannot_overwrite_and_concurrent_calls_have_separate_setti
         complete(adapter, call_id=transport.MODELS[0])
     assert (adapter.root / 'calls.jsonl').read_bytes() == events_before
     events = [json.loads(line) for line in events_before.decode().splitlines()]
-    assert len(events) == 10 and len(list((adapter.root / 'calls').iterdir())) == 5
+    assert len(events) == 2 * len(transport.MODELS) and len(list((adapter.root / 'calls').iterdir())) == len(transport.MODELS)
     assert {record['model_requested'] for record in records} == set(transport.MODELS)
     assert all(record['error'] is None for record in records)
 
@@ -400,3 +402,47 @@ def test_cm_native_call_disables_thinking_and_uses_short_socket_timeout(adapter,
     assert record['glm_thinking'] == {'type': 'disabled'} and record['socket_timeout_seconds'] == 120
     assert record['action']['kind'] == 'no_action' and record['action']['text'] == 'zero-loss summary'
     assert record['error'] is None and record['total_tokens'] == 170 or record['total_tokens'] is None
+
+
+def test_deepseek_native_wire_usage_echo_and_cm_settings(adapter, monkeypatch):
+    seen = []
+    fake_process(monkeypatch, json.dumps(native_response(model='deepseek-v4-flash')[0]), seen)
+    record = adapter.complete('deepseek-v4-flash', [{'role': 'user', 'content': 'fixture'}],
+        tools=TOOLS, run_id='fixture-run', role='worker', task_id='fixture-instance', call_id='ds-fixture-1')
+    wire = json.loads(json.loads(seen[0]['input'])['payload'])
+    body = json.loads(Path(record['raw_artifacts']['request']).read_text(encoding='utf-8'))['body']
+    assert wire['model'] == 'deepseek-v4-flash' and wire['thinking'] == {'type': 'enabled'}
+    assert wire['reasoning_effort'] == 'max' and wire['temperature'] == 1.0 and wire['max_tokens'] == 32768
+    assert wire['tool_choice'] == 'auto' and body == wire
+    assert record['adapter_mode'] == 'deepseek_native_tools_swe' and record['cap_enforced'] is True
+    assert record['model_reported'] == 'deepseek-v4-flash'
+    assert record['action']['calls'] == [{'id': 'write-1', 'name': 'write',
+        'arguments': {'path': 'a.py', 'content': 'pass'}}]
+    assert record['usage'] == dict(input_tokens=130, cached_input_tokens=100, output_tokens=40,
+                                   reasoning_tokens=30, total_tokens=170)
+    assert record['history_continuation_safe'] is True and record['error'] is None
+
+    # cm role: thinking disabled, short socket timeout, capped output
+    seen.clear()
+    text_only = {'http_status': 200, 'raw': json.dumps({'model': 'deepseek-v4-flash', 'choices': [
+        {'finish_reason': 'stop', 'message': {'role': 'assistant', 'content': 'summary'}}]})}
+    fake_process(monkeypatch, json.dumps(text_only), seen)
+    cm = adapter.complete('deepseek-v4-flash', [{'role': 'user', 'content': 'summarize'}],
+        tools=[], run_id='fixture-run', role='cm', task_id='fixture-instance',
+        call_id='ds-fixture-cm', max_tokens=2048)
+    job = json.loads(seen[0]['input'])
+    wire_cm = json.loads(job['payload'])
+    assert wire_cm['thinking'] == {'type': 'disabled'} and wire_cm['max_tokens'] == 2048
+    assert job['socket_timeout_seconds'] == 120 and cm['socket_timeout_seconds'] == 120
+    assert cm['action']['kind'] == 'no_action' and cm['action']['text'] == 'summary'
+
+    # legacy usage field names (prompt_cache_hit_tokens) map to cached_input_tokens
+    legacy = {'http_status': 200, 'raw': json.dumps({'model': 'deepseek-v4-flash', 'choices': [
+        {'finish_reason': 'stop', 'message': {'role': 'assistant', 'content': 'ok'}}],
+        'usage': {'prompt_tokens': 10, 'completion_tokens': 5, 'total_tokens': 15,
+                  'prompt_cache_hit_tokens': 4}})}
+    fake_process(monkeypatch, json.dumps(legacy))
+    rec = adapter.complete('deepseek-v4-flash', [{'role': 'user', 'content': 'legacy usage shape'}],
+        tools=TOOLS, run_id='fixture-run', role='worker', task_id='fixture-instance', call_id='ds-fixture-legacy')
+    assert rec['cached_input_tokens'] == 4 and rec['total_tokens'] == 15 and rec['error'] is None
+    assert FAKE_DS_KEY not in json.dumps(rec)

@@ -11,7 +11,7 @@ from pathlib import Path
 import os
 import uuid
 
-MODELS = ('glm-5.3', 'glm-5.3-flash', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna')
+MODELS = ('glm-5.3', 'glm-5.3-flash', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'deepseek-v4-flash')
 FIELDS = ('input_tokens', 'cached_input_tokens', 'output_tokens', 'reasoning_tokens', 'total_tokens')
 ECHO_FIELDS = ('model_requested', 'model_reported', 'effort_requested', 'effort_reported',
                'service_tier_requested', 'service_tier_reported', 'adapter_mode')
@@ -158,7 +158,7 @@ def report(batch: Path) -> dict:
             if value.get('run_id') != entry['run_id'] or value.get('task_id') != result['instance_id']:
                 raise ValueError('Call metadata identity mismatch')
             if value.get('role') == 'cm':
-                if value.get('model_requested') != ((entry.get('limits') or {}).get('cm_model') or 'glm-5.3-flash'):
+                if value.get('model_requested') != ((manifest.get('limits') or {}).get('cm_model') or 'glm-5.3-flash'):
                     raise ValueError('Unknown role/model in call metadata')
             elif value.get('model_requested') not in MODELS or value.get('role') not in ('lead', 'worker'):
                 raise ValueError('Unknown role/model in call metadata')
@@ -194,7 +194,7 @@ def report(batch: Path) -> dict:
             'graded': sum(r['graded'] for r in selected), 'resolved': sum(r['resolved'] is True for r in selected),
             'infrastructure_errors': sum(bool(r['infrastructure_error']) for r in selected),
             'team_execution_valid_runs': sum(r['team_execution_valid'] is True for r in selected),
-            'expected_worker_instances_completed_runs': sum(r['condition'] == 'fixed_team' for r in selected) * 2,
+            'expected_worker_instances_completed_runs': sum(r['condition'] in ('fixed_team', 'hetero_team') for r in selected) * 2,
             'worker_instances_with_actual_calls': sum(r['coverage']['workers_with_actual_calls'] for r in selected),
             'worker_instances_with_unknown_attempt_records': sum(r['coverage']['workers_with_unknown_attempt_records'] for r in selected),
             'models': role_models(per_arm[arm]), **counts}

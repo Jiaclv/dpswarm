@@ -30,7 +30,7 @@ from dpswarm.types import (DelegationKind, Level, ModelCatalog, ModelFacts, Mode
                            RootExecutionSpec, RouteSource, SealPhase)
 
 
-MODELS = ("gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna", "glm-5.3", "glm-5.3-flash")
+MODELS = ("gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna", "glm-5.3", "glm-5.3-flash", "deepseek-v4-flash")
 TERMINAL = {"adopted", "discarded", "failed", "finished"}
 
 
@@ -39,7 +39,11 @@ def _error(code, message):
 
 
 def _provider(model):
-    return "glm-coding" if model.startswith("glm-") else "codex-chatgpt"
+    if model.startswith("glm-"):
+        return "glm-coding"
+    if model.startswith("deepseek-"):
+        return "deepseek-api"
+    return "codex-chatgpt"
 
 
 def _write(path, value):

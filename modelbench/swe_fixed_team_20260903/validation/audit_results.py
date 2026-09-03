@@ -19,7 +19,7 @@ import sys
 HERE = Path(__file__).resolve().parents[1]
 REPO = HERE.parents[1]
 FIELDS = ('input_tokens', 'cached_input_tokens', 'output_tokens', 'reasoning_tokens', 'total_tokens')
-MODELS = ('glm-5.3', 'glm-5.3-flash', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna')
+MODELS = ('glm-5.3', 'glm-5.3-flash', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'deepseek-v4-flash')
 
 
 def canonical(value):
@@ -197,13 +197,22 @@ class Audit:
         for key, expected in (('run_id', entry['run_id']), ('task_id', entry['instance']['instance_id'])):
             self.equal(record.get(key), expected, 'call_identity_mismatch', path, key)
         cm_model = self.limits.get('cm_model') or 'glm-5.3-flash'
+        lead_model = entry.get('lead_model') or 'gpt-5.6-sol'
+        worker_models = entry.get('worker_models') or ([entry['worker_model']] * 2 if entry.get('worker_model') else [])
         if model not in MODELS or record.get('role') not in ('lead', 'worker', 'cm'):
             self.issue('unrecognized_call_route', path)
-        expected_model = ('gpt-5.6-sol' if record.get('role') == 'lead'
+        expected_model = (lead_model if record.get('role') == 'lead'
                           else cm_model if record.get('role') == 'cm'
-                          else entry.get('worker_model'))
-        self.equal(model, expected_model, 'fixed_role_model_mismatch', path)
-        if record.get('role') == 'worker' and entry.get('condition') != 'fixed_team':
+                          else entry.get('worker_model') if entry.get('condition') == 'fixed_team'
+                          else None)
+        if expected_model is None and record.get('role') == 'worker':
+            # hetero_team: either worker model is valid; per-worker identity is
+            # enforced at the admission check below.
+            if model not in worker_models:
+                self.issue('fixed_role_model_mismatch', path)
+        elif expected_model is not None:
+            self.equal(model, expected_model, 'fixed_role_model_mismatch', path)
+        if record.get('role') == 'worker' and entry.get('condition') not in ('fixed_team', 'hetero_team'):
             self.issue('worker_call_in_solo_arm', path)
         if not isinstance(call_id, str) or not call_id.strip():
             self.issue('invalid_call_id', path)
@@ -218,7 +227,7 @@ class Audit:
         for sub, total in (('cached_input_tokens', 'input_tokens'), ('reasoning_tokens', 'output_tokens')):
             if integer(record.get(sub)) is not None and integer(record.get(total)) is not None and record[sub] > record[total]:
                 self.issue('usage_subdimension_exceeds_total', path, field=sub)
-        native = str(model).startswith('glm-')
+        native = str(model).startswith(('glm-', 'deepseek-'))
         cm_max_tokens = self.limits.get('cm_max_tokens') or 32768  # rev<=5 CM cap
         expected_max_tokens = cm_max_tokens if record.get('role') == 'cm' else 32768
         for key, expected in (('effort_requested', 'max'), ('service_tier_requested', None if native else 'fast'),
@@ -340,7 +349,10 @@ class Audit:
                    'result_cm_call_count_mismatch', run / 'result.json')
         if pending:
             self.issue('completed_run_has_pending_calls', path, observed=len(pending))
-        for model in MODELS:
+        observed_models = sorted(
+            {m for m in ((result.get('model_usage') or {}).keys())
+             | {r.get('model_requested') for r in records if r.get('role') != 'cm'} if m})
+        for model in observed_models:
             rows = [r for r in records if r.get('model_requested') == model and r.get('role') != 'cm']
             sums = aggregate(rows)
             actual = (result.get('model_usage') or {}).get(model, {})
@@ -492,7 +504,7 @@ class Audit:
         admitted = [e for e in runtime if e.get('event') == 'worker_admitted']
         activated = [e for e in runtime if e.get('event') == 'worker_activated']
         first_calls = [e for e in runtime if e.get('event') == 'worker_first_call_completed']
-        fixed = entry.get('condition') == 'fixed_team'
+        fixed = entry.get('condition') in ('fixed_team', 'hetero_team')
         self.equal(result.get('fixed_team_requested'), fixed, 'fixed_team_requested_mismatch', run / 'result.json')
         self.equal(result.get('activation_source'), 'experiment_protocol' if fixed else None,
                    'activation_source_mismatch', run / 'result.json')
@@ -502,8 +514,14 @@ class Audit:
             self.issue('fixed_team_missing_request_event', path)
         for event in requested:
             for key, expected in (('source', 'experiment_protocol'), ('requested_workers', 2),
-                                  ('mechanism', 'derive'), ('worker_model', entry.get('worker_model'))):
+                                  ('mechanism', 'derive')):
                 self.equal(event.get(key), expected, 'bootstrap_request_mismatch', path, key)
+            if 'worker_models' in event:
+                self.equal(sorted(event.get('worker_models') or []),
+                           sorted(entry.get('worker_models') or []), 'bootstrap_request_mismatch', path, 'worker_models')
+            else:
+                self.equal(event.get('worker_model'), entry.get('worker_model'),
+                           'bootstrap_request_mismatch', path, 'worker_model')
         cp_admitted = {e['payload']['handle']['node_id']: e['payload'] for e in rich
                        if e.get('kind') == 'worker_reserved'}
         cp_activated = {e['payload']['handle']['node_id'] for e in rich if e.get('kind') == 'worker_activated'}
@@ -514,7 +532,11 @@ class Audit:
         for event in admitted:
             handle = event.get('handle') or {}
             self.equal(event.get('source'), 'experiment_protocol', 'bootstrap_admission_source_mismatch', path)
-            self.equal(handle.get('model'), entry.get('worker_model'), 'bootstrap_worker_model_mismatch', path)
+            if entry.get('condition') == 'hetero_team':
+                if handle.get('model') not in (entry.get('worker_models') or []):
+                    self.issue('bootstrap_worker_model_mismatch', path)
+            else:
+                self.equal(handle.get('model'), entry.get('worker_model'), 'bootstrap_worker_model_mismatch', path)
             self.equal(handle.get('role'), 'worker', 'bootstrap_worker_role_mismatch', path)
             cp = cp_admitted.get(handle.get('node_id'), {})
             self.equal(handle, cp.get('handle'), 'bootstrap_handle_mismatch', path)
@@ -636,7 +658,7 @@ class Audit:
             'outcome': outcome.get('status'), 'infrastructure_error_type': (result.get('infrastructure_error') or {}).get('type'),
             'transport_errors': sum(bool(r.get('error')) for r in records),
             'protocol_errors': sum(bool(r.get('protocol_error')) for r in records),
-            'requested_settings': [{'model': m, 'effort': 'max', 'tier': None if m.startswith('glm-') else 'fast'}
+            'requested_settings': [{'model': m, 'effort': 'max', 'tier': None if m.startswith(('glm-', 'deepseek-')) else 'fast'}
                                    for m in MODELS if any(r.get('model_requested') == m for r in records)],
             'echo_unknown_counts': {field: sum(r.get(field) is None for r in records)
                                     for field in ('model_reported', 'effort_reported', 'service_tier_reported')},

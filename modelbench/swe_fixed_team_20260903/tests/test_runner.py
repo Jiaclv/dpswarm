@@ -49,11 +49,14 @@ def make_run(tmp_path, monkeypatch):
 
     def create(*, condition='fixed_team', model='glm-5.3', lead=None,
                workers=None, failure=None, baseline='', unknown_worker=None,
-               attempt_counts=None):
+               attempt_counts=None, worker_models=None, lead_model=None):
         references, trace = {}, []
         scripts = {'lead': list(lead if lead is not None else [settle('worker-1') + settle('worker-2') + [done()]]),
                    'worker-1': [[action('bash', command='edit-production'), done()]],
                    'worker-2': [[action('bash', command='edit-regression'), done()]]}
+        if condition != 'solo':
+            # Revision 7: the Lead's first scripted call is the scout round.
+            scripts['lead'] = [[action('bash', command='scout-locate')]] + scripts['lead']
         if workers:
             scripts.update(workers)
 
@@ -62,13 +65,29 @@ def make_run(tmp_path, monkeypatch):
                 self.seen, self.records, self.lock = [], [], threading.Lock()
 
             def complete(self, requested_model, messages, *, role, run_id, task_id, call_id, tools, **kwargs):
+                if role == 'cm':
+                    with self.lock:
+                        self.seen.append({'actor': 'cm', 'model': requested_model,
+                                          'messages': deepcopy(messages), 'tools': deepcopy(tools),
+                                          'call_id': call_id})
+                        self.records.append({'call_id': call_id, 'model_requested': requested_model,
+                            'run_id': run_id, 'role': 'cm', 'task_id': task_id,
+                            'input_tokens': 300, 'output_tokens': 80, 'total_tokens': 380,
+                            'cached_input_tokens': 0, 'reasoning_tokens': 0, 'wall_seconds': 0.01,
+                            'error': None, 'protocol_error': None, 'transport_attempt_count': 1,
+                            'stop_reason': 'fixture',
+                            'assistant_message': {'role': 'assistant', 'content': 'scout note: relevant files located'},
+                            'action': {'kind': 'no_action', 'calls': [],
+                                       'text': 'scout note: relevant files located; run tests/test_ext_autodoc.py'}})
+                    return self.records[-1]
                 prompt = messages[0]['content']
                 actor = 'lead' if role == 'lead' else ('worker-1' if 'Own the production-code' in prompt else 'worker-2')
                 with self.lock:
                     run = references['run']
                     if condition == 'fixed_team':
                         assert run.bootstrap_admitted and len(run.workers) == 2
-                        assert all(child.future is not None for child in run.workers.values())
+                        # Revision 7: admission precedes the Lead scout; worker futures
+                        # are submitted only after the scout note is distilled.
                         # Both items must be genuinely in this CP tree before any model runs.
                         assert all(child.handle.item_id in run.control.cp.proj.work_items
                                    for child in run.workers.values())
@@ -176,10 +195,18 @@ def make_run(tmp_path, monkeypatch):
 
         instance = {'instance_id': 'sympy__sympy-12345', 'repo': 'sympy/sympy',
                     'problem_statement': 'Full original issue with rare constraint and exact requested behavior.'}
-        entry = {'run_id': 'fixture-' + str(len(created)), 'condition': condition, 'instance': instance,
-                 'arm': 'fixed_' + model if condition == 'fixed_team' else 'solo'}
         if condition == 'fixed_team':
-            entry['worker_model'] = model
+            entry = {'run_id': 'fixture-' + str(len(created)), 'condition': condition, 'instance': instance,
+                     'arm': 'fixed_' + model, 'worker_model': model, 'worker_models': [model, model]}
+        elif condition == 'hetero_team':
+            pair = worker_models or ['glm-5.3', 'gpt-5.6-terra']
+            entry = {'run_id': 'fixture-' + str(len(created)), 'condition': condition, 'instance': instance,
+                     'arm': 'hetero_' + pair[0] + '__' + pair[1], 'worker_model': None,
+                     'worker_models': pair, 'lead_model': lead_model or 'gpt-5.6-sol'}
+        else:
+            entry = {'run_id': 'fixture-' + str(len(created)), 'condition': condition, 'instance': instance,
+                     'arm': 'solo_' + model if lead_model else 'solo', 'worker_model': None,
+                     'worker_models': [], 'lead_model': lead_model or 'gpt-5.6-sol'}
         run = runner.SweRun(tmp_path, entry, transport_factory=Transport,
                             environment_factory=Environment, control_factory=control_factory)
         references['run'] = run
@@ -200,10 +227,13 @@ def events(run):
 
 
 def assert_clean(run, env, result, count):
+    """Revision 7: agent calls + scout-distill CM call(s) share the budget."""
+    cm = result.get('cm_call_count', 0)
     assert result['infrastructure_error'] is None
-    assert result['call_count'] == result['budget']['completed_call_count'] == count
+    assert result['call_count'] == count
+    assert result['call_count'] + cm == result['budget']['completed_call_count'] == count + cm
     assert result['budget']['pending_call_count'] == 0
-    assert result['cp_result']['usage']['total']['calls'] == count
+    assert result['cp_result']['usage']['total']['calls'] == count  # CP records agent calls only
     assert result['cp_result']['official_resolved'] is None
     assert result['score'] == {'completed': True, 'resolved': False, 'test_only': True}
     assert run.control.cp.proj.active_points == run.control.cp.proj.open_worker_slots_used == 0
@@ -238,11 +268,11 @@ def test_solo_has_no_workers_and_identical_general_environment_hint(make_run):
 def test_fixed_team_admits_two_real_derive_workers_before_lead_and_accounts_every_agent(make_run, model):
     run, env, trace = make_run(model=model)
     result = run.run()
-    assert_clean(run, env, result, 3)
+    assert_clean(run, env, result, 4)
     assert result['arm'] == 'fixed_' + model and result['worker_model'] == model
     assert result['fixed_team_requested'] is result['bootstrap_admitted'] is True
     assert result['bootstrap_admitted_workers'] == result['workers_with_actual_calls'] == result['delegations'] == 2
-    assert result['transport_record_count'] == result['transport_attempt_count'] == result['calls_with_measured_usage'] == 3
+    assert result['transport_record_count'] == result['transport_attempt_count'] == result['calls_with_measured_usage'] == 4
     assert result['activation_source'] == 'experiment_protocol'
     assert result['team_execution_status'] == 'workers_completed' and result['team_execution_valid'] is True
     assert result['mechanism_coverage'] == {'derive': 'fixed', 'split': 'not_exposed',
@@ -258,6 +288,8 @@ def test_fixed_team_admits_two_real_derive_workers_before_lead_and_accounts_ever
     assert {t['function']['name'] for t in lead['tools']} == {'bash', 'finish', 'collect', 'review_worker', 'reply_worker'}
     assert 'Already-admitted worker assignments' in lead['messages'][0]['content']
     for record in run.transport.seen:
+        if record['actor'] == 'cm':
+            continue  # CM prompts are summarization tasks, not the issue
         prompt = record['messages'][0]['content']
         assert run.instance['problem_statement'] in prompt
         assert 'does not guarantee apply_patch is installed' in prompt
@@ -282,7 +314,7 @@ def test_two_workers_keep_independent_same_snapshot_while_lead_changes(make_run)
     lead = [[action('bash', command='edit-lead')] + settle('worker-1') + settle('worker-2') + [done()]]
     run, env, _ = make_run(baseline=BASELINE, lead=lead)
     result = run.run()
-    assert_clean(run, env, result, 3)
+    assert_clean(run, env, result, 4)
     children = [item for item in env.instances if item.actor != 'lead']
     assert len(children) == 2 and children[0] is not children[1]
     assert {item.baseline for item in children} == {BASELINE}
@@ -297,7 +329,7 @@ def test_extra_delegate_is_absent_and_rejected_even_if_scripted_directly(make_ru
     lead = [[illegal] + (settle('worker-1') + settle('worker-2') if condition == 'fixed_team' else []) + [done()]]
     run, env, _ = make_run(condition=condition, lead=lead)
     result = run.run()
-    assert_clean(run, env, result, 3 if condition == 'fixed_team' else 1)
+    assert_clean(run, env, result, 4 if condition == 'fixed_team' else 1)
     assert result['delegations'] == (2 if condition == 'fixed_team' else 0)
     denied = [e for e in events(run) if e['event'] == 'tool_completed' and e['tool'] == 'delegate']
     assert len(denied) == 1 and denied[0]['result']['executed'] is False
@@ -308,7 +340,7 @@ def test_worker_transport_failure_is_counted_and_never_masquerades_as_valid_team
     run, env, _ = make_run(workers={'worker-1': [{'error': 'fixture transport failure'}]},
         lead=[settle('worker-1', 'discard') + settle('worker-2') + [done()]])
     result = run.run()
-    assert_clean(run, env, result, 3)
+    assert_clean(run, env, result, 4)
     assert result['bootstrap_admitted'] and result['workers_with_actual_calls'] == 2
     assert result['team_execution_status'] == 'worker_failure' and result['team_execution_valid'] is False
     assert result['workers'][0]['status'] == 'transport_error'
@@ -323,11 +355,11 @@ def test_local_failure_record_without_transport_attempt_is_not_actual_worker_cal
         lead=[settle('worker-1', 'discard') + settle('worker-2') + [done()]],
         attempt_counts={'worker-1': 0}, unknown_worker='worker-1')
     result = run.run()
-    assert_clean(run, env, result, 3)
+    assert_clean(run, env, result, 4)
     assert result['workers_with_call_records'] == 2 and result['workers_with_actual_calls'] == 1
     assert result['workers_with_measured_usage'] == 1
-    assert result['transport_record_count'] == 3 and result['transport_attempt_count'] == 2
-    assert result['calls_with_transport_attempts'] == result['calls_with_measured_usage'] == 2
+    assert result['transport_record_count'] == 4 and result['transport_attempt_count'] == 3
+    assert result['calls_with_transport_attempts'] == result['calls_with_measured_usage'] == 3
     assert result['team_execution_status'] == 'worker_failure' and result['team_execution_valid'] is False
     usage = result['agent_usage']['worker-1']
     assert usage['calls'] == usage['transport_record_count'] == 1
@@ -340,11 +372,11 @@ def test_local_failure_record_without_transport_attempt_is_not_actual_worker_cal
 def test_missing_attempt_metadata_is_unknown_and_does_not_imply_an_attempt(make_run):
     run, env, _ = make_run(attempt_counts={'worker-1': None})
     result = run.run()
-    assert_clean(run, env, result, 3)
+    assert_clean(run, env, result, 4)
     assert result['workers_with_call_records'] == 2 and result['workers_with_actual_calls'] == 1
     assert result['transport_attempt_count'] is None
     assert result['transport_attempt_count_unknown_records'] == 1
-    assert result['transport_attempt_count_known_subtotal'] == 2
+    assert result['transport_attempt_count_known_subtotal'] == 3
     # Completion evidence and transport-attempt coverage are separate facts.
     assert result['team_execution_status'] == 'workers_completed' and result['team_execution_valid'] is True
     assert result['agent_usage']['worker-1']['transport_attempt_count'] is None
@@ -354,7 +386,7 @@ def test_worker_fork_failure_records_zero_calls_for_that_identity(make_run):
     run, env, _ = make_run(failure='fork-worker-1',
         lead=[settle('worker-1', 'discard') + settle('worker-2') + [done()]])
     result = run.run()
-    assert_clean(run, env, result, 2)
+    assert_clean(run, env, result, 3)
     assert result['bootstrap_admitted'] and result['workers_with_actual_calls'] == 1
     assert result['team_execution_status'] == 'worker_failure' and not result['team_execution_valid']
     assert result['agent_usage']['worker-1']['calls'] == 0
@@ -384,14 +416,14 @@ def test_result_is_written_exactly_once_after_final_grading_and_accounting(make_
         return original(path, value)
     monkeypatch.setattr(runner, 'dump', capture)
     result = run.run()
-    assert_clean(run, env, result, 3)
+    assert_clean(run, env, result, 4)
     assert saved == [result]
 
 
 def test_unknown_usage_is_retained_per_agent_instead_of_becoming_zero(make_run):
     run, env, _ = make_run(unknown_worker='worker-2')
     result = run.run()
-    assert_clean(run, env, result, 3)
+    assert_clean(run, env, result, 4)
     assert result['agent_usage']['worker-1']['total_tokens'] == 120
     assert result['agent_usage']['worker-2']['total_tokens'] is None
     assert result['agent_usage']['worker-2']['unknown_counts']['total_tokens'] == 1
@@ -473,11 +505,11 @@ def test_budget_exhaustion_drains_in_flight_worker_and_blocks_new_calls(make_run
     run, env, _ = make_run(workers=scripts)
     original_loop = run.loop
 
-    def loop(handle, env, *, worker=None):
+    def loop(handle, env, *, worker=None, **kwargs):
         if worker is None:
             assert started.wait(timeout=30)  # worker-1's first call is genuinely in flight
             return {'status': 'budget_exhausted', 'summary': 'fixture Lead reservation failure'}
-        return original_loop(handle, env, worker=worker)
+        return original_loop(handle, env, worker=worker, **kwargs)
 
     monkeypatch.setattr(run, 'loop', loop)
     outcome = {}

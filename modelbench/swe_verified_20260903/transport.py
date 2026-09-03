@@ -32,7 +32,7 @@ from dpswarm.team_runtime.protocol import (
     ProtocolError, normalize_tool_declarations, parse_native_response, parse_text_response,
 )
 
-MODELS = ('glm-5.3', 'glm-5.3-flash', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna')
+MODELS = ('glm-5.3', 'glm-5.3-flash', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'deepseek-v4-flash')
 _LOG_LOCK = threading.Lock()
 _USAGE_FIELDS = ('input_tokens', 'cached_input_tokens', 'output_tokens',
                  'reasoning_tokens', 'total_tokens')
@@ -339,11 +339,13 @@ class SweTransport:
         original._redact = lambda value, extra=(): _redact(value, secrets + tuple(extra))
         started, clock_start = original._now(), time.monotonic()
         native = model in ('glm-5.3', 'glm-5.3-flash')
+        deepseek = str(model).startswith('deepseek-')
+        wire_native = native or deepseek
         record = {
             'call_id': call_id, 'run_id': run_id, 'role': role, 'task_id': task_id,
             'model_requested': model, 'model_reported': None,
             'effort_requested': 'max', 'effort_reported': None,
-            'service_tier_requested': None if native else 'fast', 'service_tier_reported': None,
+            'service_tier_requested': None if wire_native else 'fast', 'service_tier_reported': None,
             'assistant_message': None, 'text': '', 'action': None, 'parsed_calls': [],
             'response_kind': None, 'protocol_error': None, 'error': None,
             'history_continuation_safe': False,
@@ -351,15 +353,18 @@ class SweTransport:
             'usage_source': None, 'total_tokens_source': None, 'input_tokens_includes_cached': True,
             'stop_reason': None, 'wall_seconds': None, 'started_at': started, 'completed_at': None,
             'timestamps': {'started_at': started, 'completed_at': None},
-            'max_tokens_requested': max_tokens, 'cap_enforced': native,
+            'max_tokens_requested': max_tokens, 'cap_enforced': wire_native,
             'glm_thinking': ({'type': 'disabled'} if native and role == 'cm' else None),
+            'deepseek_thinking': ({'type': 'disabled'} if deepseek and role == 'cm'
+                                  else {'type': 'enabled'} if deepseek else None),
             'total_deadline_seconds': timeout_seconds if isinstance(timeout_seconds, (int, float))
                 and math.isfinite(timeout_seconds) else None,
-            'socket_timeout_seconds': (120 if role == 'cm' else 300) if native else None,
+            'socket_timeout_seconds': (120 if role == 'cm' else 300) if wire_native else None,
             'timeout_kind': None, 'cancellation': None, 'tools_used': 0,
             'transport_attempt_count': 0, 'attempt_count': 1, 'retry_attempted': False,
             'reconnect_detected': False, 'reconnect_events': [],
-            'adapter_mode': 'glm_native_tools_swe' if native else 'codex_text_tools_swe',
+            'adapter_mode': ('glm_native_tools_swe' if native else 'deepseek_native_tools_swe'
+                             if deepseek else 'codex_text_tools_swe'),
             'raw_artifacts': {'directory': str(folder)}, 'artifacts_redacted': True,
             'redaction_policy': 'known-secrets-exact; provider-diagnostic-auth-headers-only-v2',
         }
@@ -377,16 +382,24 @@ class SweTransport:
                 raise v2.TransportError('invalid_request', 'messages must be a list of objects')
             declarations = normalize_tool_declarations(tools)
             wire_messages = deepcopy(messages)
+            key = None
             try:
                 key = original._keyconfig('GLM_API_KEY')
             except Exception:
                 if native:
                     raise
-                key = None
             secrets = (key,) if isinstance(key, str) and key else ()
             if native and not key:
                 raise v2.TransportError('missing_credentials', 'GLM_API_KEY is missing')
-            if not native:
+            if deepseek:
+                try:
+                    ds_key = original._keyconfig('DEEPSEEK_API_KEY')
+                except Exception:
+                    ds_key = None
+                if not ds_key:
+                    raise v2.TransportError('missing_credentials', 'DEEPSEEK_API_KEY is missing')
+                secrets = secrets + (ds_key,)
+            if not wire_native:
                 wire_messages.append({'role': 'user', 'content': text_tool_prompt(declarations)})
             _write_once(folder / 'prompt.json', original._redact({
                 'model': model, 'messages': messages, 'wire_messages': wire_messages,
@@ -410,40 +423,101 @@ class SweTransport:
                     exc.stderr = _diagnostic_redact(exc.stderr, secrets)
                     raise
 
+            def exchange(endpoint, payload, key, *, socket_timeout_seconds, deadline_seconds):
+                job = json.dumps({'endpoint': endpoint, 'payload': payload, 'key': key,
+                                  'socket_timeout_seconds': socket_timeout_seconds}, ensure_ascii=True)
+                cwd = folder / 'empty-cwd'
+                cwd.mkdir()
+                try:
+                    process = run([sys.executable, '-I', str(V2_SOURCE), '--http-worker'], input=job, cwd=cwd)
+                    stdout, stderr = process.stdout, process.stderr
+                    record['http_worker_returncode'] = process.returncode
+                except _Interrupted as exc:
+                    stdout, stderr = exc.stdout or '', exc.stderr or ''
+                    process = None
+                if isinstance(stdout, bytes):
+                    stdout = stdout.decode('utf-8', errors='replace')
+                if isinstance(stderr, bytes):
+                    stderr = stderr.decode('utf-8', errors='replace')
+                _write_once(folder / 'http-worker.stdout.json', original._redact(stdout, secrets))
+                _write_once(folder / 'http-worker.stderr.txt', original._redact(stderr, secrets))
+                record['raw_artifacts'].update(http_worker_stdout=str(folder / 'http-worker.stdout.json'),
+                    http_worker_stderr=str(folder / 'http-worker.stderr.txt'))
+                try:
+                    value = json.loads(stdout)
+                except ValueError:
+                    raise v2.TransportError(interruption.get('code', 'http_worker_error'),
+                                            'HTTP worker did not return a complete response') from None
+                if not isinstance(value, dict) or (process is not None and process.returncode):
+                    raise v2.TransportError('http_worker_error', 'HTTP worker response is invalid')
+                return value
+
             if native:
-                def exchange(endpoint, payload, key, *, socket_timeout_seconds, deadline_seconds):
-                    job = json.dumps({'endpoint': endpoint, 'payload': payload, 'key': key,
-                                      'socket_timeout_seconds': socket_timeout_seconds}, ensure_ascii=True)
-                    cwd = folder / 'empty-cwd'
-                    cwd.mkdir()
-                    try:
-                        process = run([sys.executable, '-I', str(V2_SOURCE), '--http-worker'], input=job, cwd=cwd)
-                        stdout, stderr = process.stdout, process.stderr
-                        record['http_worker_returncode'] = process.returncode
-                    except _Interrupted as exc:
-                        stdout, stderr = exc.stdout or '', exc.stderr or ''
-                        process = None
-                    if isinstance(stdout, bytes):
-                        stdout = stdout.decode('utf-8', errors='replace')
-                    if isinstance(stderr, bytes):
-                        stderr = stderr.decode('utf-8', errors='replace')
-                    _write_once(folder / 'http-worker.stdout.json', original._redact(stdout, secrets))
-                    _write_once(folder / 'http-worker.stderr.txt', original._redact(stderr, secrets))
-                    record['raw_artifacts'].update(http_worker_stdout=str(folder / 'http-worker.stdout.json'),
-                        http_worker_stderr=str(folder / 'http-worker.stderr.txt'))
-                    try:
-                        value = json.loads(stdout)
-                    except ValueError:
-                        raise v2.TransportError(interruption.get('code', 'http_worker_error'),
-                                                'HTTP worker did not return a complete response') from None
-                    if not isinstance(value, dict) or (process is not None and process.returncode):
-                        raise v2.TransportError('http_worker_error', 'HTTP worker response is invalid')
-                    return value
                 v2._http_exchange = exchange
                 if role == 'cm':  # shorter read timeout: summarization must not hold the run
                     v2.SOCKET_TIMEOUT_SECONDS = 120
                 v2.V2Transport._glm_v2(self, record, wire_messages, declarations, folder, secrets,
                                       deadline_at - time.monotonic())
+            elif deepseek:
+                base = (original._keyconfig('DEEPSEEK_BASE_URL') or 'https://api.deepseek.com').rstrip('/')
+                endpoint = base + '/chat/completions'
+                payload = {'model': model, 'messages': deepcopy(wire_messages), 'tools': declarations,
+                           'tool_choice': 'auto', 'thinking': record['deepseek_thinking'],
+                           'reasoning_effort': 'max', 'temperature': 1.0,
+                           'max_tokens': max_tokens, 'stream': False}
+                serialized = json.dumps(payload, ensure_ascii=False, allow_nan=False)
+                _write_once(folder / 'wire.request.json', original._redact(
+                    {'endpoint': endpoint, 'body': payload}, secrets))
+                record['request_body_sha256'] = hashlib.sha256(serialized.encode('utf-8')).hexdigest()
+                record['raw_artifacts']['request'] = str(folder / 'wire.request.json')
+                response = exchange(endpoint, serialized, ds_key,
+                                    socket_timeout_seconds=(120 if role == 'cm' else 300),
+                                    deadline_seconds=deadline_at - time.monotonic())
+                record['http_status'] = response.get('http_status')
+                if 'raw' in response:
+                    (folder / 'wire.response.raw.json').write_text(
+                        original._redact(response['raw'], secrets), encoding='utf-8')
+                    record['raw_artifacts']['response'] = str(folder / 'wire.response.raw.json')
+                if response.get('error_code'):
+                    raise v2.TransportError('provider_rejected',
+                        f"DeepSeek HTTP {response.get('http_status')}: {response.get('error_code')}")
+                try:
+                    value = json.loads(response.get('raw') or '{}')
+                except ValueError:
+                    raise v2.TransportError('invalid_provider_response', 'DeepSeek returned invalid JSON') from None
+                choice = (value.get('choices') or [{}])[0]
+                message = choice.get('message') or {}
+                assistant = {'role': 'assistant', 'content': message.get('content'),
+                             'reasoning_content': message.get('reasoning_content'),
+                             'tool_calls': deepcopy(message.get('tool_calls') or [])}
+                if not isinstance(assistant['content'], str) and not assistant['tool_calls']:
+                    raise v2.TransportError('empty_response',
+                                            'DeepSeek returned neither content nor tool calls')
+                record['assistant_message'] = assistant
+                record['text'] = assistant['content'] or ''
+                echoed = value.get('model')
+                if isinstance(echoed, str) and echoed:
+                    record['model_reported'] = echoed
+                    if echoed != model and not echoed.startswith(model):
+                        raise v2.TransportError('model_echo_mismatch',
+                                                'DeepSeek reported a different model than requested')
+                usage = value.get('usage') or {}
+                details_in = usage.get('prompt_tokens_details')
+                cached = details_in.get('cached_tokens') if isinstance(details_in, dict) else None
+                if cached is None:
+                    cached = usage.get('prompt_cache_hit_tokens')
+                details_out = usage.get('completion_tokens_details')
+                reasoning = details_out.get('reasoning_tokens') if isinstance(details_out, dict) else None
+                record.update(input_tokens=usage.get('prompt_tokens'),
+                              output_tokens=usage.get('completion_tokens'),
+                              cached_input_tokens=cached, reasoning_tokens=reasoning,
+                              total_tokens=usage.get('total_tokens'))
+                if record['total_tokens'] is None and record['input_tokens'] is not None \
+                        and record['output_tokens'] is not None:
+                    record['total_tokens'] = record['input_tokens'] + record['output_tokens']
+                    record['total_tokens_derived'] = True
+                record['usage_source'] = 'deepseek.usage' if usage else None
+                record['stop_reason'] = choice.get('finish_reason') or 'stop'
             else:
                 original.TIMEOUT_SECONDS = timeout_seconds
                 terminal = {'text': None, 'stdout': None, 'capture_error': None}
@@ -511,9 +585,9 @@ class SweTransport:
             assistant = record['assistant_message']
             if _exact_redact(assistant, secrets) != assistant:
                 raise v2.TransportError('action_redaction_mismatch', 'Redaction would change response history or actions')
-            record['history_continuation_safe'] = _native_history_safe(assistant) if native else True
+            record['history_continuation_safe'] = _native_history_safe(assistant) if wire_native else True
             try:
-                action = (parse_native_response(assistant, declarations) if native
+                action = (parse_native_response(assistant, declarations) if wire_native
                           else parse_text_response(record['text'], declarations))
                 record.update(action=action, parsed_calls=deepcopy(action['calls']), response_kind=action['kind'])
             except ProtocolError as exc:

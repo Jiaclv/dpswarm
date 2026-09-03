@@ -18,7 +18,7 @@ REPO = HERE.parents[1]
 PRIOR = REPO / 'modelbench/swe_verified_20260903'
 OFFICIAL = PRIOR / 'official'
 ENV_SOURCE = 'modelbench/swe_verified_20260903/environment.py'
-GATE_PATH = HERE / 'validation/gate_revision6.json'
+GATE_PATH = HERE / 'validation/gate_revision8.json'
 INPUT_NAMES = ('versions.json', 'selection.json', 'selected_public.json', 'verified.parquet',
     'grader_controller.json', 'grader.Dockerfile', 'resource_limits.json',
     'grader/test_specs_provenance.json', 'grader/test_specs.json', 'grader/selected.json')
@@ -40,7 +40,7 @@ def sources():
 def input_artifacts():
     return {name: sha(OFFICIAL / name) for name in INPUT_NAMES}
 
-def prepare(batch, only_instances=None, reverse_arms=False, only_arms=None):
+def prepare(batch, only_instances=None, reverse_arms=False, only_arms=None, wave=None):
     gate_path = GATE_PATH
     gate = read(gate_path)
     assert gate['status'] == 'PASS' and gate['runtime_sources'] == sources(), 'Validation missing or sources changed'
@@ -61,6 +61,15 @@ def prepare(batch, only_instances=None, reverse_arms=False, only_arms=None):
     versions = read(OFFICIAL / 'versions.json')
     assert sha(OFFICIAL / 'verified.parquet') == versions['dataset_sha256']
     arms = ['solo'] + ['fixed_' + model for model in MODELS]
+    lead_model_default = 'gpt-5.6-sol'
+    if wave == 'hetero16':
+        # NEXT_EXPERIMENT_PLAN §3: solo + fixed anchors + curated hetero teams.
+        hetero_pairs = [('gpt-5.6-terra', 'gpt-5.6-luna'), ('gpt-5.6-terra', 'glm-5.3'),
+                        ('glm-5.3', 'gpt-5.6-luna'), ('gpt-5.6-terra', 'glm-5.3-flash'), ('gpt-5.6-terra', 'deepseek-v4-flash'),
+                        ('gpt-5.6-sol', 'glm-5.3'), ('glm-5.3', 'gpt-5.6-sol')]
+        arms = (['solo_' + model for model in MODELS]
+                + ['fixed_' + model for model in MODELS]
+                + ['hetero_' + a + '__' + b for a, b in hetero_pairs])
     if only_arms:
         arms = [arm for arm in arms if arm in set(only_arms)]
         assert arms, 'No scheduled arm matches --only-arm'
@@ -68,9 +77,20 @@ def prepare(batch, only_instances=None, reverse_arms=False, only_arms=None):
     for ordinal, instance in enumerate(selected):
         order = list(reversed(arms)) if (ordinal % 2 == 1) != reverse_arms else arms
         for arm in order:
-            worker_model = None if arm == 'solo' else arm.removeprefix('fixed_')
-            schedule.append({'run_id': instance['instance_id'] + '__' + arm, 'arm': arm,
-                'condition': 'solo' if arm == 'solo' else 'fixed_team', 'worker_model': worker_model,
+            if arm.startswith('solo_'):
+                entry = {'condition': 'solo', 'worker_model': None, 'worker_models': [],
+                         'lead_model': arm.removeprefix('solo_')}
+            elif arm.startswith('hetero_'):
+                pair = arm.removeprefix('hetero_').split('__')
+                entry = {'condition': 'hetero_team', 'worker_model': None,
+                         'worker_models': pair, 'lead_model': lead_model_default}
+            else:
+                worker_model = None if arm == 'solo' else arm.removeprefix('fixed_')
+                entry = {'condition': 'solo' if arm == 'solo' else 'fixed_team',
+                         'worker_model': worker_model,
+                         'worker_models': [] if arm == 'solo' else [worker_model] * 2,
+                         'lead_model': lead_model_default}
+            schedule.append({'run_id': instance['instance_id'] + '__' + arm, 'arm': arm, **entry,
                 'instance': instance, 'image': image_name(instance['instance_id'])})
     manifest = {'created_at': utc(), 'experiment': 'SWE fixed DERIVE teams across five worker models',
         'selection': {'selected': [{'instance_id': r['instance_id'], 'repo': r['repo']} for r in selected],
@@ -83,7 +103,7 @@ def prepare(batch, only_instances=None, reverse_arms=False, only_arms=None):
         'grader_controller': read(OFFICIAL / 'grader_controller.json'),
         'public_instances_sha256': sha(OFFICIAL / 'selected_public.json'),
         'lead_model': 'gpt-5.6-sol', 'candidate_worker_models': MODELS, 'arms': arms,
-        'conditions': ['solo', 'fixed_team'], 'schedule': schedule,
+        'conditions': sorted({e['condition'] for e in schedule}), 'schedule': schedule,
         'limits': LIMITS, 'scheduled_runs': len(schedule), 'fixed_workers_per_team': 2,
         'worker_roles': ['production implementation', 'independent regression tests'],
         'activation_source': 'experiment_protocol; not a model decision',
@@ -243,13 +263,15 @@ def main():
                         help='Revision-3 rerun: restrict the batch to the named instance(s)')
     parser.add_argument('--only-arm', action='append', default=None,
                         help='Restrict the batch to the named arm(s), e.g. solo or fixed_gpt-5.6-sol')
+    parser.add_argument('--wave', default=None,
+                        help='Named experiment wave, e.g. hetero16 (NEXT_EXPERIMENT_PLAN section 3)')
     parser.add_argument('--reverse-arms', action='store_true',
                         help='Use the reversed arm order for every selected instance')
     args = parser.parse_args()
     batch = args.batch.resolve()
     if args.command == 'prepare':
         value = prepare(batch, only_instances=args.only_instance, reverse_arms=args.reverse_arms,
-                        only_arms=args.only_arm)
+                        only_arms=args.only_arm, wave=args.wave)
         print(json.dumps({'batch': str(batch), 'runs': len(value['schedule']), 'manifest_sha256': sha(batch / 'manifest.json')}))
     elif args.command == 'run':
         run(batch)

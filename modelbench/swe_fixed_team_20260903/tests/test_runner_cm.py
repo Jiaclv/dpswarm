@@ -45,7 +45,10 @@ def cm_events(run, name):
     return [e for e in events(run) if e['event'] == name]
 
 
-def test_cm_not_triggered_below_threshold(make_run):
+def test_cm_not_triggered_below_threshold(make_run, monkeypatch):
+    monkeypatch.setitem(runner.LIMITS, 'cm_scout_distill', False)  # old fully-parallel protocol
+    monkeypatch.setitem(runner.LIMITS, 'cm_team_memory', False)
+    monkeypatch.setitem(runner.LIMITS, 'cm_bootstrap_package', False)
     run, env, _ = make_run()
     result = run.run()
     assert result['infrastructure_error'] is None
@@ -63,20 +66,20 @@ def test_cm_compresses_over_budget_history_without_breaking_the_loop(make_run, m
     install_cm_transport(run, seen_cm=seen_cm)
     result = run.run()
     assert result['infrastructure_error'] is None
-    assert result['cm_call_count'] == 1 and len(run.cm_calls) == 1
-    assert run.cm_calls[0]['role'] == 'cm' and run.cm_calls[0]['total_tokens'] == 1000
+    # Revision 7: scout distill + possible Lead compression join worker compressions.
     started = cm_events(run, 'cm_call_started')
     settled = cm_events(run, 'cm_call_settled')
     compression = cm_events(run, 'cm_compression')
-    assert len(started) == 1 and len(settled) == 1 and len(compression) == 1
-    trigger = started[0]['trigger']
-    assert trigger['role'] == 'worker' and trigger['agent'] == 'worker-1'
-    assert trigger['node_id'] == next(iter(run.workers.values())).handle.node_id
-    assert compression[0]['after_est_tokens'] < compression[0]['before_est_tokens']
+    assert len(run.cm_calls) == result['cm_call_count'] == len(settled) == len(started)
+    worker_started = [e for e in started if e['trigger']['role'] == 'worker']
+    assert worker_started and all(e['trigger']['agent'] == 'worker-1' for e in worker_started)
+    assert any(e['trigger'].get('phase') == 'scout_distill' for e in started)
+    assert len(compression) >= 1 and all(c['after_est_tokens'] < c['before_est_tokens'] for c in compression)
+    assert len(cm_events(run, 'scout_distilled')) == 1
     # CM call is in the budget but not in any agent's call list.
     assert result['cm_call_ids'][0] not in [cid for usage in result['agent_usage'].values()
                                             for cid in usage['call_ids']]
-    assert result['budget']['completed_call_count'] == result['call_count'] + 1
+    assert result['budget']['completed_call_count'] == result['call_count'] + result['cm_call_count']
     # The compressed summary replaced the middle of the history for later calls.
     later = [s for s in run.transport.seen if s['actor'] != 'lead']
     assert any('Context summary' in json.dumps(s['messages'], ensure_ascii=False) for s in later)
@@ -93,9 +96,9 @@ def test_cm_failure_degrades_silently_to_uncompressed_history(make_run, monkeypa
     install_cm_transport(run, error={'type': 'TransportError', 'code': 'socket_timeout', 'message': 'fixture'})
     result = run.run()
     assert result['infrastructure_error'] is None
-    assert result['cm_call_count'] == 1  # the call happened and was accounted
+    assert result['cm_call_count'] >= 1  # failed CM calls are still accounted
     assert cm_events(run, 'cm_compression') == []
-    assert len(cm_events(run, 'cm_call_failed')) == 1
+    assert len(cm_events(run, 'cm_call_failed')) >= 1
     later = json.dumps([s for s in run.transport.seen], ensure_ascii=False)
     assert 'Context summary' not in later
     assert run.workers['worker-1'].delivery['status'] == 'completed'
@@ -112,5 +115,5 @@ def test_cm_skips_when_call_budget_is_low(make_run, monkeypatch):
                         lambda *a, **k: {**real_summary(), 'remaining_calls': 3})
     result = run.run()
     assert result['infrastructure_error'] is None
-    assert result['cm_call_count'] == 0
+    assert cm_events(run, 'cm_compression') == []
     assert len(cm_events(run, 'cm_skipped')) >= 1

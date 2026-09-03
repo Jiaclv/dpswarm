@@ -294,7 +294,7 @@ class Accounting:
                 'cost_usd': None, 'includes_child_usage': False,
                 'handle_manifest_path': handle.get('manifest_path'), 'handle_manifest_sha256': handle.get('manifest_hash')})
         model_requested = sum(c.get('name') == 'delegate' for r in records.values() for c in (r.get('action') or {}).get('calls', []))
-        exposed = entry['condition'] == 'fixed_team'
+        exposed = entry['condition'] in ('fixed_team', 'hetero_team')
         protocol_requests = [e for e in runtime if e.get('event') == 'team_activation_requested'
                              and e.get('source') == 'experiment_protocol']
         requested = sum(e.get('requested_workers', 0) for e in protocol_requests)
