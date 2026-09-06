@@ -110,7 +110,7 @@ class ControlPlane:
         self.store = EventStore(store_path)
         self.catalog = catalog or ModelCatalog()
         self.proj = state.replay(self.store.read_all())
-        self._lock = threading.Lock()  # 单写者进程内的防御性互斥
+        self._lock = threading.RLock()  # 方法级身份校验与嵌套事务共享可重入锁
         self._root_started_at: float = 0.0
         if self.store.last_seq < 0:
             self._bootstrap(spec or RootExecutionSpec(), root_level)
@@ -147,6 +147,8 @@ class ControlPlane:
                 for i, (kind, payload) in enumerate(pairs):
                     ev = Event(seq=base_seq + 1 + i, kind=kind, payload=payload)
                     cand = invariants.check_event(cand, ev)
+                    if kind == "work_item_accepted":
+                        self._verify_submission_artifact(cand.packages[payload["package_id"]])
                     staged.append(ev)
             except InvariantViolation as iv:
                 # 控制面拒绝统一以 ControlPlaneError 面向调用方（结构化 code 保留）；
@@ -160,6 +162,8 @@ class ControlPlane:
 
     # 事件内容是纯记录类（无不变量约束）时的直通通道。
     def _record(self, kind: str, payload: Dict[str, Any]) -> Event:
+        if kind in ("package_stored", "node_execution_bound") or kind.startswith("work_item_"):
+            return self._transact((kind, payload))[0]
         with self._lock:
             ev = self.store.append(kind, payload)
             state.apply_event(self.proj, ev)
@@ -424,6 +428,29 @@ class ControlPlane:
         }))
         return self.proj.nodes[node_id]
 
+    def bind_execution_session(self, item_id: str, node_id: str, *, attempt: int,
+                               context_epoch: int, reservation_session_id: str,
+                               execution_session_id: str, parent_session_id: str,
+                               execution_provider: str, execution_route: Optional[ModelRoute] = None) -> Node:
+        """宿主发布 handle 后一次性绑定真实 run；模型参数不可替代宿主身份。"""
+        if execution_route is not None:
+            facts = self.catalog.resolve(execution_route.provider, execution_route.model)
+            if facts is None or not facts.available or facts.level != execution_route.level:
+                raise ControlPlaneError("EXECUTION_ROUTE_INVALID", "执行根路由必须匹配可信目录的模型与等级")
+        pairs = [("node_execution_bound", {
+            "item_id": item_id, "node_id": node_id, "attempt": attempt,
+            "context_epoch": context_epoch, "reservation_session_id": reservation_session_id,
+            "execution_session_id": execution_session_id, "parent_session_id": parent_session_id,
+            "execution_provider": execution_provider,
+            **({"execution_route": _route_dict(execution_route)} if execution_route is not None else {}),
+        })]
+        if execution_provider == "dsh-root" and self.proj.nodes[node_id].execution_binding is None:
+            pairs.append(("token_usage_recorded", {"node_id": node_id, "input": None, "output": None,
+                "cache_read": None, "cache_write": None, "cost": None,
+                "source": "dsh-parent-session-usage-unavailable"}))
+        self._transact(*pairs)
+        return self.proj.nodes[node_id]
+
     def fail_node(self, node_id: str, reason: str) -> None:
         """provisioning failed = 启动事务失败，不耗重试预算，配对释放 lease（§8/§9.3）。
 
@@ -614,80 +641,141 @@ class ControlPlane:
             return None
         d = Path(self.store.path).parent / "artifacts"
         d.mkdir(parents=True, exist_ok=True)
-        (d / f"{sha}.txt").write_text(content, encoding="utf-8")
+        (d / f"{sha}.txt").write_bytes(content.encode("utf-8"))
         return sha
+
+    def _submission_package(self, item_id: str, package_id: str, content: str,
+                            binding: Dict[str, Any], **extra: Any) -> Dict[str, Any]:
+        digest = hashlib.sha256(content.encode("utf-8")).hexdigest()
+        self.write_artifact(content)
+        payload = {
+            "package_id": package_id, "item_id": item_id,
+            "content_hash": digest, "content_preview": content[:200],
+            "source_refs": [], "size": len(content),
+            "artifact_ref": f"{digest}.txt", "stage": "submission",
+            **binding, **extra,
+        }
+        # 无磁盘的控制面也保留可验证的全文；磁盘事件仍只记引用。
+        if self.store.path is None:
+            payload["content"] = content
+        return payload
 
     def submit(self, item_id: str, node_id: str, output: str = "",
                *, context_epoch: Optional[int] = None,
                session_id: Optional[str] = None) -> Event:
-        """worker 提交（§5.7）。output 即时内容寻址落盘并绑定证据包（P1-3：
-        后续 review 只准引用该 package，不再另行提供正文）。fence（P1-2）：
-        context_epoch/session_id 与节点当前值不符即拒；None = 同进程单写者
-        自查豁免（server 层对 dsh 路径强制携带）。协助者不得独立提交。"""
-        item = self.proj.work_items[item_id]
-        node = self.proj.nodes[node_id]
-        if context_epoch is None:
-            context_epoch = node.context_epoch
-        if session_id is None:
-            session_id = node.session_id
-        pairs: List[Tuple[str, Dict[str, Any]]] = []
-        pkg_id = None
-        sha = ""
-        if output:
-            sha = hashlib.sha256(output.encode("utf-8")).hexdigest()
-            pkg_id = f"dep-{item_id[:10]}-{sha[:8]}"
-            self.write_artifact(output)  # 链外先落盘，链上只记 hash/ref
-            pairs.append(("package_stored", {
-                "package_id": pkg_id, "item_id": item_id,
-                "content_hash": sha, "content_preview": output[:200],
-                "source_refs": [], "size": len(output),
-                "artifact_ref": f"{sha}.txt", "stage": "submission",
+        """提交绑定 item/node/attempt/epoch/session 与独立 submission_id。
+
+        空正文仅登记待落盘提交；兼容显式 store_evidence_package 延迟交付，
+        不能引用其他提交或上下文包通过验收。
+        """
+        with self._lock:
+            item = self.proj.work_items[item_id]
+            node = self.proj.nodes[node_id]
+            if ((context_epoch is not None and int(context_epoch) != node.context_epoch)
+                    or (session_id is not None and session_id != node.session_id)):
+                raise ControlPlaneError("FENCE_VIOLATION", "提交 epoch/session 与节点当前身份不符")
+            binding = {
+                "submission_id": new_id("submission"), "node_id": node_id,
+                "attempt": item.attempt,
+                "context_epoch": node.context_epoch if context_epoch is None else context_epoch,
+                "session_id": node.session_id if session_id is None else session_id,
+            }
+            pairs: List[Tuple[str, Dict[str, Any]]] = []
+            pkg_id, sha = None, ""
+            if output:
+                pkg_id = new_id("dep")
+                package = self._submission_package(item_id, pkg_id, output, binding)
+                sha = package["content_hash"]
+                pairs.append(("package_stored", package))
+            pairs.append(("work_item_submitted", {
+                "item_id": item_id, **binding,
+                "output_sha256": sha, "package_id": pkg_id,
             }))
-        pairs.append(("work_item_submitted", {
-            "item_id": item_id, "attempt": item.attempt, "node_id": node_id,
-            "context_epoch": context_epoch, "session_id": session_id,
-            "output_sha256": sha, "package_id": pkg_id,
-        }))
-        return self._transact(*pairs)[0]
+            return self._transact(*pairs)[0]
 
     def begin_finalize(self, item_id: str) -> Event:
-        """Lead 决定通过 → finalizing；证据/package 提交在链外异步完成（§9.2）。"""
+        """显式延迟落盘流程：submitted → finalizing；完成前必须绑定证据。"""
         return self._transact(("work_item_finalizing", {"item_id": item_id}))[0]
 
     def store_evidence_package(self, item_id: str, package_id: str,
                                content: str, source_refs: Optional[List[str]] = None) -> Event:
-        """§4 结案第 2 步（链外，finalizing 之后、accepted 之前）：原始过程、产物
-        及其 hash 写入 evidence / artifact store，提交供后继读取的 dependency
-        package。accepted 前必须调用——invariant 校验 package 已落盘，杜绝
-        evidence_ready 自证。正文经 write_artifact 内容寻址落盘（P1-3：事件
-        只记 hash/预览/ref，全文以 artifact 文件为准）。"""
-        digest = hashlib.sha256(content.encode("utf-8")).hexdigest()
-        self.write_artifact(content)
-        return self._record("package_stored", {
-            "package_id": package_id, "item_id": item_id,
-            "content_hash": digest, "content_preview": content[:200],
-            "source_refs": source_refs or [], "size": len(content),
-            "artifact_ref": f"{digest}.txt",
-        })
+        """为当前空正文提交一次性补充证据，不覆盖或重新命名已有提交。
 
-    def complete_accept(self, item_id: str, package_id: str, *,
-                        evidence_ready: bool = False,
-                        accepted_by: Optional[Dict[str, Any]] = None) -> Event:
-        """accepted 原子发布（§4 五步压缩为链上事务）：同事务 drain 同 item 全部
-        节点 → 释放 lease → accepted。evidence_ready 须由调用方在证据与 package
-        真实落盘（store_evidence_package）后显式置 True——invariant 会校验
-        package 在投影中存在，自证会被拒。落盘后：后继解锁由投影派生
-        （deps 全 accepted）、槽位与点数全额归还。"""
-        if not evidence_ready:
-            raise ControlPlaneError("EVIDENCE_NOT_READY",
-                                    "complete_accept 需要 evidence_ready=True（先 store_evidence_package）")
-        pairs: List[Tuple[str, Dict[str, Any]]] = self._channel_close_pairs(item_id)
-        pairs += self._drain_pairs(item_id)
+        绑定与落盘事件同事务完成；包身份不变且正文完全相同的重复调用幂等。
+        """
+        with self._lock:
+            item = self.proj.work_items.get(item_id)
+            if item is None:
+                raise ControlPlaneError("ITEM_UNKNOWN", f"work item {item_id} 不存在")
+            binding = {
+                "submission_id": item.submission_id,
+                "node_id": item.submission_node_id,
+                "attempt": item.submission_attempt,
+                "context_epoch": item.submission_context_epoch,
+                "session_id": item.submission_session_id,
+            }
+            payload = self._submission_package(
+                item_id, package_id, content, binding,
+                bind_submission=True, source_refs=source_refs or [])
+            existing = self.proj.packages.get(package_id)
+            if existing is not None:
+                # 已绑定正文的正常重放不得因 bind_submission 标记差别被视作替换。
+                if (item.submission_package_id == package_id
+                        and all(existing.get(k) == v for k, v in payload.items()
+                                if k != "bind_submission")):
+                    payload = dict(existing)
+            return self._transact(("package_stored", payload))[0]
+
+    def _accept_pairs(self, item_id: str, package_id: str,
+                      accepted_by: Optional[Dict[str, Any]]) -> List[Tuple[str, Dict[str, Any]]]:
+        try:
+            invariants.bound_submission_package(self.proj, item_id, package_id)
+        except InvariantViolation as iv:
+            raise ControlPlaneError(iv.code, str(iv)) from iv
+        pairs = self._channel_close_pairs(item_id) + self._drain_pairs(item_id)
         pairs.append(("work_item_accepted", {
             "item_id": item_id, "evidence_ready": True, "package_id": package_id,
             "accepted_by": accepted_by or {},
         }))
-        return self._transact(*pairs)[-1]
+        return pairs
+
+    def _verify_submission_artifact(self, package: Dict[str, Any]) -> None:
+        # 每个 accepted 事务均检查全文，包含直接事件入口及 root seal。
+        digest = package["content_hash"]
+        try:
+            if self.store.path is None:
+                content = package["content"]
+            else:
+                content = (Path(self.store.path).parent / "artifacts" /
+                           f"{digest}.txt").read_bytes().decode("utf-8")
+        except (OSError, UnicodeError, KeyError) as exc:
+            raise ControlPlaneError("EVIDENCE_NOT_READABLE", "提交证据正文不可读") from exc
+        if (not isinstance(content, str) or not content
+                or hashlib.sha256(content.encode("utf-8")).hexdigest() != digest
+                or len(content) != package.get("size")):
+            raise ControlPlaneError("EVIDENCE_CORRUPT", "提交证据正文与绑定 hash/size 不符")
+
+    def complete_accept(self, item_id: str, package_id: str, *,
+                        evidence_ready: bool = False,
+                        accepted_by: Optional[Dict[str, Any]] = None) -> Event:
+        """完成显式 finalizing 流程；校验绑定及全文后原子释放资源并 accepted。"""
+        if not evidence_ready:
+            raise ControlPlaneError("EVIDENCE_NOT_READY",
+                                    "complete_accept 需要 evidence_ready=True（先提交证据）")
+        with self._lock:
+            return self._transact(*self._accept_pairs(item_id, package_id, accepted_by))[-1]
+
+    def accept_submission(self, item_id: str, package_id: Optional[str] = None, *,
+                          accepted_by: Optional[Dict[str, Any]] = None) -> Event:
+        """对已落盘提交一次性验收；任何失败均不残留 finalizing 或释放资源。"""
+        with self._lock:
+            item = self.proj.work_items.get(item_id)
+            if item is None:
+                raise ControlPlaneError("ITEM_UNKNOWN", f"work item {item_id} 不存在")
+            package_id = package_id or item.submission_package_id
+            pairs = self._accept_pairs(item_id, package_id, accepted_by)
+            pairs.insert(0, ("work_item_finalizing", {"item_id": item_id}))
+            return self._transact(*pairs)[-1]
 
     def reject(self, item_id: str, reason: str,
                attribution: RejectAttribution,
@@ -1021,24 +1109,21 @@ class ControlPlane:
                         # 结算快照 = root 证据：观测/投影摘要内容寻址落盘
                         summary = json.dumps(self.snapshot(), ensure_ascii=False,
                                              default=str)
-                        sha = hashlib.sha256(summary.encode("utf-8")).hexdigest()
-                        pkg = f"dep-root-{sha[:8]}"
-                        self.write_artifact(summary)
+                        binding = {
+                            "submission_id": new_id("submission"),
+                            "attempt": root_item.attempt, "node_id": lead.node_id,
+                            "context_epoch": lead.context_epoch, "session_id": lead.session_id,
+                        }
+                        pkg = new_id("dep-root")
+                        package = self._submission_package(
+                            root_item.item_id, pkg, summary, binding, source="seal-settlement")
+                        pairs.append(("package_stored", package))
                         pairs.append(("work_item_submitted", {
-                            "item_id": root_item.item_id, "attempt": root_item.attempt,
-                            "node_id": lead.node_id,
-                            "context_epoch": lead.context_epoch,
-                            "session_id": lead.session_id,
-                            "output_sha256": sha, "package_id": pkg,
+                            "item_id": root_item.item_id, **binding,
+                            "output_sha256": package["content_hash"], "package_id": pkg,
                         }))
                         pairs.append(("work_item_finalizing",
                                       {"item_id": root_item.item_id}))
-                        pairs.append(("package_stored", {
-                            "package_id": pkg, "item_id": root_item.item_id,
-                            "content_hash": sha, "content_preview": summary[:200],
-                            "source_refs": [], "size": len(summary),
-                            "artifact_ref": f"{sha}.txt", "stage": "settlement",
-                        }))
                         pairs += self._drain_pairs(root_item.item_id)
                         pairs.append(("work_item_accepted", {
                             "item_id": root_item.item_id, "evidence_ready": True,
@@ -1169,11 +1254,20 @@ class ControlPlane:
             "spec_revision": p.spec.revision,
             "work_items": {i: {"kind": w.kind.value, "depth": w.depth,
                                "acceptance": w.acceptance.value if w.acceptance else None,
-                               "attempt": w.attempt, "team": w.team}
+                               "attempt": w.attempt, "team": w.team,
+                               "submission_id": w.submission_id,
+                               "submission_package_id": w.submission_package_id,
+                               "submission_session_id": w.submission_session_id}
                            for i, w in p.work_items.items()},
             "nodes": {n.node_id: {"item": n.item_id, "role": n.role.value,
                                   "lifecycle": n.lifecycle.value, "blocked": n.blocked.value,
-                                  "epoch": n.context_epoch, "terminated": n.terminated}
+                                  "epoch": n.context_epoch, "terminated": n.terminated,
+                                  "execution_session_id": (n.execution_binding or {}).get("execution_session_id"),
+                                  "execution_parent_session_id": (n.execution_binding or {}).get("parent_session_id"),
+                                  "execution_provider": (n.execution_binding or {}).get("execution_provider"),
+                                  "requested_provider": n.route.provider if n.route else None,
+                                  "requested_model": n.route.model if n.route else None,
+                                  "level": n.level.value}
                       for n in p.nodes.values()},
             "open_worker_slots_used": p.open_worker_slots_used,
             "active_points": p.active_points,

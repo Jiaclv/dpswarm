@@ -18,6 +18,11 @@ import sys
 
 HERE = Path(__file__).resolve().parents[1]
 REPO = HERE.parents[1]
+if str(REPO) not in sys.path:
+    sys.path.insert(0, str(REPO))
+from modelbench.swe_fixed_team_20260903.reporting import (expected_routes, validate_result_routes,
+                                                       effective_mechanisms, schema_groups,
+                                                       DEATH_PHASE_SEMANTICS, death_phase_evidence)
 FIELDS = ('input_tokens', 'cached_input_tokens', 'output_tokens', 'reasoning_tokens', 'total_tokens')
 MODELS = ('glm-5.3', 'glm-5.3-flash', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'deepseek-v4-flash')
 
@@ -74,10 +79,9 @@ class Audit:
         self.snapshot_only = snapshot_only
         self.findings = []
         self.scope = 'manifest'
-        # Manifest-level limits are the authoritative CM expectations; schedule
-        # entries do not carry them.
-        self.limits = (json.loads((self.batch / 'manifest.json').read_text(encoding='utf-8')).get('limits') or {}) \
-            if (self.batch / 'manifest.json').exists() else {}
+        self.manifest = (json.loads((self.batch / 'manifest.json').read_text(encoding='utf-8'))
+                         if (self.batch / 'manifest.json').exists() else {})
+        self.limits = self.manifest.get('limits') or {}
 
     def issue(self, code, path, *, severity='error', field=None, observed=None, expected=None):
         item = {'scope': self.scope, 'severity': severity, 'code': code, 'path': str(path)}
@@ -196,19 +200,14 @@ class Audit:
         call_id, model = record.get('call_id'), record.get('model_requested')
         for key, expected in (('run_id', entry['run_id']), ('task_id', entry['instance']['instance_id'])):
             self.equal(record.get(key), expected, 'call_identity_mismatch', path, key)
-        cm_model = self.limits.get('cm_model') or 'glm-5.3-flash'
-        lead_model = entry.get('lead_model') or 'gpt-5.6-sol'
-        worker_models = entry.get('worker_models') or ([entry['worker_model']] * 2 if entry.get('worker_model') else [])
-        if model not in MODELS or record.get('role') not in ('lead', 'worker', 'cm'):
+        routes = expected_routes(entry, self.manifest)
+        limits = routes['limits']
+        cm_model, lead_model, worker_models = routes['cm_model'], routes['lead_model'], routes['worker_models']
+        if not isinstance(model, str) or not model or record.get('role') not in ('lead', 'worker', 'cm'):
             self.issue('unrecognized_call_route', path)
-        expected_model = (lead_model if record.get('role') == 'lead'
-                          else cm_model if record.get('role') == 'cm'
-                          else entry.get('worker_model') if entry.get('condition') == 'fixed_team'
-                          else None)
-        if expected_model is None and record.get('role') == 'worker':
-            # hetero_team: either worker model is valid; per-worker identity is
-            # enforced at the admission check below.
-            if model not in worker_models:
+        expected_model = lead_model if record.get('role') == 'lead' else cm_model if record.get('role') == 'cm' else None
+        if record.get('role') == 'worker':
+            if worker_models is not None and model not in worker_models:
                 self.issue('fixed_role_model_mismatch', path)
         elif expected_model is not None:
             self.equal(model, expected_model, 'fixed_role_model_mismatch', path)
@@ -228,7 +227,7 @@ class Audit:
             if integer(record.get(sub)) is not None and integer(record.get(total)) is not None and record[sub] > record[total]:
                 self.issue('usage_subdimension_exceeds_total', path, field=sub)
         native = str(model).startswith(('glm-', 'deepseek-'))
-        cm_max_tokens = self.limits.get('cm_max_tokens') or 32768  # rev<=5 CM cap
+        cm_max_tokens = limits.get('cm_max_tokens') or 32768  # rev<=5 CM cap
         expected_max_tokens = cm_max_tokens if record.get('role') == 'cm' else 32768
         for key, expected in (('effort_requested', 'max'), ('service_tier_requested', None if native else 'fast'),
                               ('max_tokens_requested', expected_max_tokens), ('cap_enforced', native)):
@@ -260,7 +259,7 @@ class Audit:
         observed_usage, echoed_model, echoed_tier = None, None, None
         if native and request:
             body = request.get('body') or {}
-            expected_thinking = ({'type': 'disabled'} if self.limits.get('cm_thinking') == 'disabled'
+            expected_thinking = ({'type': 'disabled'} if limits.get('cm_thinking') == 'disabled'
                                  else {'type': 'enabled'}) if record.get('role') == 'cm' else {'type': 'enabled'}
             expected_wire_max_tokens = cm_max_tokens if record.get('role') == 'cm' else 32768
             for key, expected in (('model', model), ('reasoning_effort', 'max'), ('temperature', 1.0),
@@ -335,12 +334,24 @@ class Audit:
         unknown = counted['unknown_counts']['total_tokens']
         held = sum(t.get('reserved_tokens', 0) for t in pending)
         held += sum(t.get('reserved_tokens', 0) for t in completed if (t.get('usage') or {}).get('total_tokens') is None)
+        # Pre-rev9 snapshots (version 1) count every ticket, CM included,
+        # against max_calls. Version 2 snapshots carry cm_call_allowance and
+        # move role=='cm' tickets to their own pool (rev9 plan section 1.2);
+        # the audit reads the semantics from the snapshot itself so historical
+        # batches keep their original accounting.
+        allowance = saved.get('cm_call_allowance')
+        cm_tickets = [t for t in tickets.values() if t.get('role') == 'cm' and allowance is not None]
         expected = {'call_count': len(tickets), 'completed_call_count': len(completed), 'pending_call_count': len(pending),
             'unknown_call_count': unknown, 'known_subtotal': known, 'total_tokens': None if unknown or pending else known,
             'reserved_tokens': held, 'committed_tokens': known + held,
-            'remaining_calls': max(0, saved.get('max_calls', 0) - len(tickets)),
+            'remaining_calls': max(0, saved.get('max_calls', 0) - (len(tickets) - len(cm_tickets))),
             'remaining_tokens': max(0, saved.get('token_limit', 0) - known - held),
             'over_token_limit': known + held > saved.get('token_limit', 0)}
+        if allowance is not None:
+            # Only rev9 (version-2) results carry the CM-pool fields; older
+            # results must not be expected to report keys they never had.
+            expected.update(cm_call_allowance=allowance, cm_call_count=len(cm_tickets),
+                            remaining_cm_calls=max(0, allowance - len(cm_tickets)))
         for key, value in expected.items():
             self.equal((result.get('budget') or {}).get(key), value, 'result_budget_mismatch', run / 'result.json', key)
         self.equal(result.get('call_count') + result.get('cm_call_count', 0), len(records),
@@ -495,6 +506,36 @@ class Audit:
         return {'completed': score.get('completed'), 'resolved': score.get('resolved'),
                 'failure_kind': score.get('failure_kind'), 'reports_checked': len(reports)}
 
+    def identity(self, run, entry, result, manifest):
+        try:
+            routes = validate_result_routes(entry, result, manifest)
+        except ValueError as exc:
+            self.issue('result_route_identity_mismatch', run / 'result.json', observed=str(exc))
+            return
+        for code in routes['compatibility_warnings']:
+            field = 'lead_model' if code == 'legacy_hardcoded_lead_model_label' else 'worker_pool'
+            self.issue(code, run / 'result.json', severity='warning', field=field,
+                       observed='known legacy serializer label; frozen route and admission/call checks still apply')
+        expected = routes['worker_models']
+        if expected is not None:
+            by_worker = {f'worker-{i + 1}': model for i, model in enumerate(expected)}
+            for worker in result.get('workers') or []:
+                name = worker.get('worker_id')
+                if name not in by_worker:
+                    self.issue('result_worker_identity_mismatch', run / 'result.json', observed=name)
+                    continue
+                self.equal(worker.get('model'), by_worker[name], 'result_worker_model_mismatch', run / 'result.json', name)
+                if (worker.get('handle') or {}).get('model') is not None:
+                    self.equal(worker['handle']['model'], by_worker[name], 'result_worker_handle_model_mismatch', run / 'result.json', name)
+        if result.get('schema_version') == 12:
+            health = result.get('execution_health')
+            if not isinstance(health, dict) or health.get('status') not in ('ok', 'host_error') or not isinstance(health.get('errors'), list):
+                self.issue('schema12_execution_health_missing_or_invalid', run / 'result.json')
+            elif bool(result.get('infrastructure_error')) != (health['status'] == 'host_error'):
+                self.issue('schema12_execution_health_disagreement', run / 'result.json')
+            if not isinstance(result.get('lead_worktree'), dict):
+                self.issue('schema12_lead_worktree_missing', run / 'result.json')
+
     def activation(self, run, entry, result, records):
         """Cross-check fixed protocol events, real CP handles and agent billing."""
         path = run / 'events.jsonl'
@@ -505,6 +546,7 @@ class Audit:
         activated = [e for e in runtime if e.get('event') == 'worker_activated']
         first_calls = [e for e in runtime if e.get('event') == 'worker_first_call_completed']
         fixed = entry.get('condition') in ('fixed_team', 'hetero_team')
+        worker_models = expected_routes(entry, self.manifest)['worker_models']
         self.equal(result.get('fixed_team_requested'), fixed, 'fixed_team_requested_mismatch', run / 'result.json')
         self.equal(result.get('activation_source'), 'experiment_protocol' if fixed else None,
                    'activation_source_mismatch', run / 'result.json')
@@ -517,8 +559,8 @@ class Audit:
                                   ('mechanism', 'derive')):
                 self.equal(event.get(key), expected, 'bootstrap_request_mismatch', path, key)
             if 'worker_models' in event:
-                self.equal(sorted(event.get('worker_models') or []),
-                           sorted(entry.get('worker_models') or []), 'bootstrap_request_mismatch', path, 'worker_models')
+                self.equal(event.get('worker_models'), worker_models,
+                           'bootstrap_request_mismatch', path, 'worker_models')
             else:
                 self.equal(event.get('worker_model'), entry.get('worker_model'),
                            'bootstrap_request_mismatch', path, 'worker_model')
@@ -532,11 +574,13 @@ class Audit:
         for event in admitted:
             handle = event.get('handle') or {}
             self.equal(event.get('source'), 'experiment_protocol', 'bootstrap_admission_source_mismatch', path)
-            if entry.get('condition') == 'hetero_team':
-                if handle.get('model') not in (entry.get('worker_models') or []):
-                    self.issue('bootstrap_worker_model_mismatch', path)
-            else:
-                self.equal(handle.get('model'), entry.get('worker_model'), 'bootstrap_worker_model_mismatch', path)
+            if worker_models is not None:
+                by_worker = {f'worker-{i + 1}': model for i, model in enumerate(worker_models)}
+                worker_id = event.get('worker_id')
+                if worker_id not in by_worker:
+                    self.issue('bootstrap_worker_identity_mismatch', path, observed=worker_id)
+                else:
+                    self.equal(handle.get('model'), by_worker[worker_id], 'bootstrap_worker_model_mismatch', path, worker_id)
             self.equal(handle.get('role'), 'worker', 'bootstrap_worker_role_mismatch', path)
             cp = cp_admitted.get(handle.get('node_id'), {})
             self.equal(handle, cp.get('handle'), 'bootstrap_handle_mismatch', path)
@@ -551,6 +595,10 @@ class Audit:
             if event.get('kind') == 'call_recorded':
                 payload = event['payload']
                 bindings[payload['record']['call_id']] = payload['handle']
+        for ident, handle in bindings.items():
+            if ident in by_id and by_id[ident].get('role') == 'worker':
+                self.equal(by_id[ident].get('model_requested'), handle.get('model'),
+                           'worker_call_bound_model_mismatch', path, ident)
         worker_records = {handle['node_id'] for ident, handle in bindings.items()
                           if ident in by_id and by_id[ident].get('role') == 'worker'}
         worker_nodes = {handle['node_id'] for ident, handle in bindings.items()
@@ -614,16 +662,146 @@ class Audit:
                 'team_execution_status': result.get('team_execution_status'),
                 'team_execution_valid': result.get('team_execution_valid')}
 
+    def worktree_evidence(self, run, result):
+        """Schema 12 claims bind to saved observations; legacy attempts stay separate."""
+        if result.get('schema_version') != 12:
+            return None
+        events = [event for event in self.jsonl(run / 'events.jsonl', optional=True)
+                  if event.get('event') == 'worktree_observed']
+        latest = {}
+        for event in events:
+            path = self.path(run, event.get('evidence_path'))
+            snapshot = self.read(path) or {}
+            for field, expected in (('schema_version', 12), ('actor', event.get('actor')),
+                                    ('state_sha256', event.get('state_sha256')),
+                                    ('current_nonempty_delta', event.get('current_nonempty_delta')),
+                                    ('observed_persisted_change', event.get('observed_persisted_change'))):
+                self.equal(snapshot.get(field), expected, 'worktree_observation_evidence_mismatch', path or run, field)
+            if snapshot:
+                latest[event.get('actor')] = {key: value for key, value in snapshot.items()
+                    if key not in ('schema_version', 'actor', 'call_id', 'ordinal', 'origin')}
+        actors = {'lead': result.get('lead_worktree') or {}}
+        actors.update({worker.get('worker_id'): worker.get('worktree') or {}
+                       for worker in result.get('workers') or [] if isinstance(worker, dict)})
+        for actor, state in actors.items():
+            if state:
+                self.equal(state, latest.get(actor), 'result_worktree_observation_mismatch', run / 'result.json', actor)
+        return {'observation_events': len(events), 'actors_with_saved_observations': sorted(latest),
+                'scope': 'saved observation, event, and result equality; no container state replay'}
+
+    def death_phases(self, run, result, events):
+        evidence = death_phase_evidence(result)
+        for code in evidence['findings']:
+            self.issue(code, run / 'result.json')
+        if result.get('death_phase_semantics') != DEATH_PHASE_SEMANTICS:
+            return evidence
+        artifact = result.get('lead_artifact') or {}
+        if artifact.get('status') == 'present':
+            patch = run / 'model.patch'
+            measured = patch.stat().st_size if patch.is_file() else None
+            self.equal(artifact.get('bytes'), measured, 'lead_artifact_size_evidence_mismatch', patch)
+            self.fingerprint(patch, artifact.get('sha256'), 'lead_artifact_hash_evidence_mismatch')
+        frozen = [e for e in events if e.get('event') == 'patch_frozen']
+        if frozen:
+            self.equal(result.get('lead_edit_attempted'), frozen[0].get('lead_edit_detected'),
+                       'lead_command_attempt_evidence_mismatch', run / 'result.json')
+        decisions = {}
+        for event in events:
+            if event.get('event') == 'tool_completed' and event.get('tool') == 'review_worker':
+                value = event.get('result') or {}
+                if value.get('decision') in ('adopt', 'discard'):
+                    decisions[value.get('worker_id')] = value['decision']
+            elif event.get('event') == 'worker_cleanup_discarded' and event.get('status') == 'completed':
+                decisions[event.get('worker_id')] = 'discard'
+        cp_decisions = {}
+        for event in self.jsonl(run / 'control-plane/ledger/execution.jsonl', optional=True):
+            if event.get('kind') == 'worker_decided':
+                payload = event.get('payload') or {}
+                cp_decisions[(payload.get('worker') or {}).get('node_id')] = payload.get('decision')
+        for worker in result.get('workers') or []:
+            worker_id = worker.get('worker_id')
+            declared = worker.get('review_decision')
+            recorded = decisions.get(worker_id)
+            node = (worker.get('handle') or {}).get('node_id')
+            cp_recorded = cp_decisions.get(node)
+            for actual in (recorded, cp_recorded):
+                if actual is not None:
+                    self.equal(declared, actual, 'worker_review_decision_evidence_mismatch',
+                               run / 'result.json', worker_id)
+            if declared in ('adopt', 'discard') and recorded is None and cp_recorded is None:
+                self.issue('worker_review_decision_evidence_missing', run / 'result.json', field=worker_id)
+            delta = self.path(run, str(worker_id) + '/delta.patch')
+            measured = delta.stat().st_size if delta is not None and delta.is_file() else None
+            self.equal(worker.get('delta_bytes'), measured, 'worker_delta_size_evidence_mismatch',
+                       run / 'result.json', worker_id)
+            if worker.get('delta_status') == 'present' and measured is None:
+                self.issue('worker_declared_delivery_missing', delta or run, field=worker_id)
+            elif worker.get('delta_status') == 'missing' and measured is not None:
+                self.issue('worker_missing_delivery_has_artifact', delta, field=worker_id)
+        return evidence
+
+    def forensics(self, run, result):
+        """rev11 F4/F5 delivery forensics: discarded delta bytes, lead edit
+        detection, worker death phases and cm_skipped counts.
+
+        Pre-rev11 batches never wrote these fields; absent values stay null and
+        never raise, so historical re-audits keep their original verdicts.
+        """
+        events = self.jsonl(run / 'events.jsonl', optional=True)
+
+        def flag(event, key):
+            value = event.get(key) if isinstance(event, dict) else None
+            return value if isinstance(value, bool) else None
+
+        frozen = [e for e in events if e.get('event') == 'patch_frozen']
+        reasons = Counter(e.get('reason') for e in events
+                          if e.get('event') == 'cm_skipped' and isinstance(e.get('reason'), str))
+        schema12 = result.get('schema_version') == 12
+        return {
+            'schema_version': result.get('schema_version'),
+            'death_phase_evidence': self.death_phases(run, result, events),
+            'edit_evidence_semantics': 'observed_worktree_delta' if schema12 else 'legacy_command_attempt_heuristic',
+            'lead_edit_detected_semantics': 'command_attempt_heuristic',
+            'lead_first_edit_ordinal_semantics': 'first_command_attempt_heuristic',
+            'lead_edit_attempted': flag(frozen[0] if frozen else {}, 'lead_edit_detected'),
+            'lead_observed_persisted_change': flag(result.get('lead_worktree'), 'observed_persisted_change') if schema12 else None,
+            'worker_edit_attempts': {w.get('worker_id'): flag(w, 'edit_attempted') if schema12 else flag(w, 'edit_detected')
+                                    for w in result.get('workers') or [] if isinstance(w, dict)},
+            'worker_observed_persisted_changes': {w.get('worker_id'): flag(w.get('worktree'), 'observed_persisted_change') if schema12 else None
+                                                for w in result.get('workers') or [] if isinstance(w, dict)},
+            'execution_health': result.get('execution_health') if schema12 else None,
+            'cleanup_discards': [{'worker_id': e.get('worker_id'), 'status': e.get('status'),
+                                  'delta_bytes': integer(e.get('delta_bytes'))}
+                                 for e in events if e.get('event') == 'worker_cleanup_discarded'],
+            'patch_bytes': integer(frozen[0].get('patch_bytes')) if frozen else None,
+            'lead_edit_detected': flag(frozen[0] if frozen else {}, 'lead_edit_detected'),
+            'lead_first_edit_ordinal': integer(frozen[0].get('lead_first_edit_ordinal')) if frozen else None,
+            'cm_skipped_count': sum(reasons.values()),
+            'cm_skipped_reasons': dict(reasons),
+            'lead_death_phase': result.get('lead_death_phase'),
+            'worker_death_phases': {w.get('worker_id'): w.get('death_phase')
+                                    for w in result.get('workers') or [] if isinstance(w, dict)},
+        }
+
     def run(self, entry, manifest):
         run = self.batch / 'results' / entry['run_id']
         self.scope = entry['run_id']
         initial = len(self.findings)
         result = self.read(run / 'result.json') or {}
+        self.identity(run, entry, result, manifest)
         self.equal(result.get('run_id'), entry['run_id'], 'result_run_identity_mismatch', run / 'result.json')
         self.equal(result.get('instance_id'), entry['instance']['instance_id'], 'result_task_identity_mismatch', run / 'result.json')
         self.equal(result.get('condition'), entry['condition'], 'result_condition_mismatch', run / 'result.json')
         for field in ('arm', 'worker_model'):
             self.equal(result.get(field), entry.get(field), 'result_arm_identity_mismatch', run / 'result.json', field)
+        if entry.get('effective_limits'):
+            # rev9: the manifest-declared per-entry limits must be exactly what
+            # the runtime merged and journaled at run start.
+            started = [e for e in self.jsonl(run / 'events.jsonl', optional=True)
+                       if e.get('event') == 'run_started']
+            if started:
+                self.equal(started[0].get('limits'), entry['effective_limits'],
+                           'run_started_limits_mismatch', run / 'events.jsonl')
         paths = sorted((run / 'calls').glob('*/metadata.json'))
         records = []
         for path in paths:
@@ -654,17 +832,25 @@ class Audit:
         # Transport failures are valid observations, not automatically audit corruption.
         return {'run_id': entry['run_id'], 'instance_id': entry['instance']['instance_id'], 'condition': entry['condition'],
             'arm': entry.get('arm'), 'worker_model': entry.get('worker_model'),
+            'worker_pool': result.get('worker_pool'), 'lead_model': result.get('lead_model'),
+            'schema_version': result.get('schema_version'), 'execution_health': result.get('execution_health'),
+            'lead_worktree': result.get('lead_worktree'),
+            'mechanism_coverage': effective_mechanisms(entry, result, manifest),
             'result_sha256': sha(run / 'result.json'), 'calls': len(records), 'call_ids': ids, 'usage': accounting,
             'outcome': outcome.get('status'), 'infrastructure_error_type': (result.get('infrastructure_error') or {}).get('type'),
             'transport_errors': sum(bool(r.get('error')) for r in records),
             'protocol_errors': sum(bool(r.get('protocol_error')) for r in records),
-            'requested_settings': [{'model': m, 'effort': 'max', 'tier': None if m.startswith(('glm-', 'deepseek-')) else 'fast'}
-                                   for m in MODELS if any(r.get('model_requested') == m for r in records)],
+            'requested_settings': [dict(zip(('model', 'role', 'effort', 'tier', 'adapter_mode'), values))
+                                   for values in dict.fromkeys((r.get('model_requested'), r.get('role'), r.get('effort_requested'),
+                                       r.get('service_tier_requested'), r.get('adapter_mode')) for r in records)],
             'echo_unknown_counts': {field: sum(r.get(field) is None for r in records)
                                     for field in ('model_reported', 'effort_reported', 'service_tier_reported')},
-            'model_usage': {m: aggregate([r for r in records if r.get('model_requested') == m]) for m in MODELS},
+            'model_usage': {m: aggregate([r for r in records if r.get('model_requested') == m])
+                            for m in dict.fromkeys((*MODELS, *(r.get('model_requested') for r in records if isinstance(r.get('model_requested'), str))))},
             'sum_call_wall_seconds': sum(r.get('wall_seconds') or 0 for r in records),
             'control': control, 'grading': grading, 'activation': activation,
+            'delivery_forensics': self.forensics(run, result),
+            'worktree_evidence': self.worktree_evidence(run, result),
             'audit_error_count': sum(f['severity'] == 'error' for f in self.findings[initial:])}
 
     def all(self):
@@ -702,6 +888,7 @@ class Audit:
             'known_total_tokens': sum(r['usage']['known_subtotals']['total_tokens'] for r in runs),
             'unknown_total_usage_calls': sum(r['usage']['unknown_counts']['total_tokens'] for r in runs),
             'error_count': errors, 'warning_count': len(self.findings) - errors, 'runs': runs, 'findings': self.findings,
+            'evidence_schema_groups': schema_groups(runs),
             'scope': {'models_called': False, 'grader_rerun': False, 'original_evidence_modified': False,
                 'private_inputs': 'opaque SHA256 only; gold patches and private tests are not decoded',
                 'cp': 'raw journal/handle/token mapping and rich hash chain checked; no invariant replay or correctness claim',

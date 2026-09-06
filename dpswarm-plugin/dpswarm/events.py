@@ -68,6 +68,7 @@ EVENT_KINDS = {
     # 节点物理生命周期（§9.3）与通知（§9.4）
     "node_provisioning",
     "node_activated",
+    "node_execution_bound",
     "node_failed",
     "node_blocked",
     "node_unblocked",
@@ -123,7 +124,7 @@ class EventStore:
     - 一次事务 = 一行 envelope（{"txn": id, "events": [...]}），单次 write +
       flush + fsync——崩溃只可能留下**残缺尾行**，不存在半个事务
     - 磁盘写成功后才推进内存（旧实现相反，磁盘异常会造成内存/盘面分叉）
-    - 回放 fail-closed：尾行残缺丢弃并告警；文件中段损坏、seq 不严格 +1
+    - 回放 fail-closed：无换行残尾在验证前缀后截断并 fsync；完整行损坏、seq 不严格 +1
       连续 → 直接抛错（宁可不启动，不带着脏账本启动）
     - 跨进程文件锁（<path>.lock，标准库 msvcrt/fcntl）：单写者纪律的物理
       兜底——第二个进程对同一日志建 ControlPlane 即刻失败，而不是各写各的
@@ -139,15 +140,22 @@ class EventStore:
         self._events: List[Event] = []
         self._txn_id = 0
         self._lock_fh = None
+        self._closed = False
+        self._write_failed = False
         if path is not None:
             self._acquire_writer_lock(Path(path))
-            if Path(path).exists():
-                self._load()
+            try:
+                if Path(path).exists():
+                    self._load()
+            except BaseException:
+                self.close()
+                raise
 
     # -- 单写者文件锁 -------------------------------------------------------
 
     def _acquire_writer_lock(self, path: Path) -> None:
         lock_path = path.with_suffix(path.suffix + ".lock")
+        fh = None
         try:
             lock_path.parent.mkdir(parents=True, exist_ok=True)
             fh = open(lock_path, "a+b")
@@ -166,7 +174,7 @@ class EventStore:
                 pass
             raise RuntimeError(
                 f"EVENT_LOG_LOCKED: {path} 已被另一个写者进程持有（单写者纪律，§9.2）。"
-                f"若确无其他进程，删除 {lock_path} 后重试。({e})") from e
+                f"请先关闭现有写者再重试；不要删除锁文件。({e})") from e
         try:
             fh.seek(0)
             fh.truncate(0)
@@ -178,6 +186,7 @@ class EventStore:
 
     def close(self) -> None:
         """释放写者锁（测试里同进程重建 ControlPlane 复盘时用）。"""
+        self._closed = True
         if self._lock_fh is not None:
             try:
                 if os.name == "nt":
@@ -217,6 +226,10 @@ class EventStore:
 
         事件序号由调用方按 last_seq+1 连续编好；这里做最后核对（防线）。
         磁盘成功后才推进内存。"""
+        if self._closed:
+            raise RuntimeError("EVENT_LOG_CLOSED: 写者已关闭，请重新打开日志")
+        if self._write_failed:
+            raise RuntimeError("EVENT_LOG_WRITE_FAILED: 上次写入结果不确定，请关闭并重新恢复日志")
         if not events:
             return []
         for i, ev in enumerate(events):
@@ -226,37 +239,52 @@ class EventStore:
                 raise RuntimeError(
                     f"TXN_SEQ_GAP: 事件 seq 不连续（期望 {self.last_seq + 1 + i}，"
                     f"得到 {ev.seq}）——事务拒绝落盘")
-        self._txn_id += 1
+        next_txn_id = self._txn_id + 1
         if self.path is not None:
-            envelope = {"txn": self._txn_id, "events": [e.to_dict() for e in events]}
-            line = json.dumps(envelope, ensure_ascii=False, default=_json_default) + "\n"
-            with open(self.path, "a", encoding="utf-8") as f:
-                f.write(line)
-                f.flush()
-                os.fsync(f.fileno())
+            envelope = {"txn": next_txn_id, "events": [e.to_dict() for e in events]}
+            line = (json.dumps(envelope, ensure_ascii=False, default=_json_default) + "\n").encode("utf-8")
+            try:
+                with open(self.path, "ab") as f:
+                    f.write(line)
+                    f.flush()
+                    os.fsync(f.fileno())
+            except BaseException:
+                # Partial writes and fsync failures leave an unknown disk head.
+                # Require recovery before acknowledging any later transaction.
+                self._write_failed = True
+                raise
+        self._txn_id = next_txn_id
         self._events.extend(events)
         return events
 
     # -- 恢复 ---------------------------------------------------------------
 
     def _load(self) -> None:
-        raw_lines: List[str] = []
-        with open(self.path, "r", encoding="utf-8") as f:
-            for line in f:
-                raw_lines.append(line)
-        # fail-closed：仅允许**尾行**残缺（崩溃窗口）；中段损坏必须炸
+        # Byte offsets matter: text offsets and partial UTF-8 characters cannot
+        # safely identify a truncation boundary. The lifetime writer lock is held.
         parsed: List[Dict[str, Any]] = []
-        for i, line in enumerate(raw_lines):
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                parsed.append(json.loads(line))
-            except json.JSONDecodeError:
-                if i == len(raw_lines) - 1:
-                    print(f"[dpswarm] 事件日志尾行残缺（崩溃残留），整事务丢弃: {line[:80]}…")
-                    break
-                raise RuntimeError(f"EVENT_LOG_CORRUPT: 第 {i + 1} 行不是合法 JSON")
+        truncate_at = None
+        needs_newline = False
+        offset = 0
+        with open(self.path, "rb") as f:
+            for row, raw in enumerate(f, 1):
+                terminated = raw.endswith(b"\n")
+                try:
+                    line = raw.decode("utf-8").strip()
+                    if line:
+                        parsed.append(json.loads(line))
+                    if not terminated:
+                        if line:
+                            needs_newline = True  # Preserve valid legacy EOF records.
+                        else:
+                            truncate_at = offset
+                except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+                    if not terminated:
+                        truncate_at = offset
+                        break
+                    raise RuntimeError(f"EVENT_LOG_CORRUPT: 第 {row} 行不是合法 UTF-8 JSON") from exc
+                offset += len(raw)
+        recovered: List[Event] = []
         expect_seq = 0
         for d in parsed:
             events = d.get("events") if isinstance(d, dict) and "events" in d else [d]
@@ -264,6 +292,8 @@ class EventStore:
                 raise RuntimeError("EVENT_LOG_CORRUPT: envelope 缺 events 数组")
             for ed in events:
                 try:
+                    if not isinstance(ed, dict):
+                        raise TypeError("事件必须是对象")
                     ev = Event.from_dict(ed)
                 except (KeyError, TypeError) as e:
                     raise RuntimeError(f"EVENT_LOG_CORRUPT: 事件字段缺失 {e}") from e
@@ -272,7 +302,21 @@ class EventStore:
                         f"EVENT_LOG_CORRUPT: seq 不连续（期望 {expect_seq}，"
                         f"得到 {ev.seq}）——拒绝带脏账本启动")
                 expect_seq += 1
-                self._events.append(ev)
+                recovered.append(ev)
+        # Do not alter bytes until the entire retained prefix has passed
+        # structural and sequence validation. Repair must be durable before use.
+        if truncate_at is not None or needs_newline:
+            with open(self.path, "r+b") as f:
+                if truncate_at is not None:
+                    f.truncate(truncate_at)
+                else:
+                    f.seek(0, os.SEEK_END)
+                    f.write(b"\n")
+                f.flush()
+                os.fsync(f.fileno())
+            if truncate_at is not None:
+                print(f"[dpswarm] 事件日志残尾已截断至合法字节边界 {truncate_at}")
+        self._events = recovered
         self._txn_id = len(parsed)
 
 

@@ -65,14 +65,28 @@ dsh web
 
 ## 已知实现层决策
 
-- **worker 并行**：dpswarm_delegate 对多 item 用 `Promise.allSettled` 物理并行
-  （§7 fission 本义）；单个 worker 失败不中断其余、不伪造 submit——失败清单
-  经 `failed` 字段回传 Lead。已等待真实 `run.result` 和 `dispose()` 后才提交；
-  失败后的 CP 节点尚未自动转成可重试状态，需显式 terminate 释放资源。
-  server 当前仅在请求 `/api/tick` 时巡检，没有后台定时器，不能承诺自动回收。
-  真实宿主 session 与 root/node 的绑定、完整主 agent/worker 用量采集仍待接入；
-  当前观测账的零值不能当作实际消耗。审查与验收条件见
-  [复审记录](../modelbench/postrepair_review_20260903/REVIEW.md)。
+- **执行合同（2026-09-05）**：worker 用 `Promise.allSettled` 并行；`onPublished`
+  将公开 `SubagentRun.id` 绑定为真实执行 session，后续 submit 使用这一身份，不能用
+  原准入 session 冒充执行。交付须等待 `run.result` 和 `dispose()` 成功，再由 Lead 验收。
+- **根归属和模型**：仅支持顶层 DSH Agent。读取公开 `session.header.delegationDepth`
+  与 `options.subagentDepth` 拒绝嵌套调用；要求公开 `options.provider/model` 明确，
+  经 CP 可信模型目录校验后绑定根 requested 路由及其等级。不同根会话、模型改变或
+  未知模型均明确拒绝，需要独立 sidecar workspace。requested 模型不是上游响应模型的实测证明。
+- **失败收束**：已发布子 run 的失败、取消、绑定失败和 dispose 失败都会向带 fence 的
+  `/api/execution/fail` 报告，原错误和清理错误分别保留，并终止对应 CP item、释放逻辑资源。
+  若物理清理尚未确认，根准入在同事务中封存，重启后仍阻断新执行；不可通过换 item 绕过。
+  未发布的启动失败不误封根。无自动解除这一封存的接口：先确认旧进程停止，再用新的独立 workspace。
+  sidecar 失联导致结算失败时，`control_settlement.ok=false` 明确保留，不声称已经释放资源。
+- **用量证据**：当前已安装公共 `SubagentResult` 仅声明 output/structured/diagnostic/stopReason，
+  不提供 token usage。根会话、worker 和协助者未知用量显式记录为 null；报告分别给出完整总额、
+  已知小计和未知事件数，不把 null 合计成零或免费。没有采集完整真实宿主调用账。
+- **设置和端口**：Host 使用 `installSettingsSection` 提供的当前 source；每次工具调用固定
+  一个设置快照，运行中修改设置不会将交付投向另一 sidecar。浏览器读取公共 `settingsScope`
+  的同一 URL；无可用设置时不猜地址。默认端口统一 8791，仅支持本地 HTTP origin。
+  Windows 自动启动使用独立 argv、`shell:false`、`windowsHide:true`。
+- **本地验证范围**：公开模块和类型从已安装 DSH 读取。mock 生命周期合同、真实 loopback
+  Python sidecar + 假 SubagentRun 已验证委派、真实 handle 绑定、提交、验收、重启恢复、
+  根冲突和清理失败封存。未启动真实模型，未完成实际 DSH Web 会话/浏览器点击验证。
 - **AA 评分数据源**（§8 V1 选型依据）：`dpswarm-plugin/dpswarm/data/aa_scores.json`
   是外部榜单快照（2026-09-01，AA Intelligence Index v4.1.1 + Coding Index，
   37 条，来源 AA 官网 FAQ + BenchLM 镜像）。真实模型委派注册时按模型名匹配

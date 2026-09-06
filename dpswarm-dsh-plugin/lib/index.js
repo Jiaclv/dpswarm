@@ -1,6 +1,4 @@
-import { spawn } from 'node:child_process'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { Sidecar } from './sidecar.js'
 import { pathToFileURL } from 'node:url'
 import { runSubagentToCompletion } from './subagent-run.js'
 
@@ -32,88 +30,21 @@ export const Config = z.object({
   subagentProvider: z.string().default('spawn'),
 })
 
-/** Sidecar 会话：探测、自动拉起、带超时 JSON 调用。 */
-class Sidecar {
-  constructor(cfg) {
-    this.cfg = cfg}
-
-  async ensure() {
-    if (await this.probe()) return
-    if (!this.cfg.autoStart) {
-      throw new Error(`DPSwarm sidecar 未启动（${this.cfg.sidecarUrl}）。`
-        + ` 启动：cd ${this.cfg.dpswarmDir || '<dpswarm-plugin 目录>'} && python -m dpswarm.server`)
-    }
-    const url = new URL(this.cfg.sidecarUrl)
-    const port = Number(url.port) || 8791
-    const child = spawn(this.cfg.pythonCmd,
-      ['-m', 'dpswarm.server', '--port', String(port)],
-      { cwd: this.cfg.dpswarmDir || undefined, detached: true, stdio: 'ignore',
-        shell: process.platform === 'win32' })
-    child.unref()
-    for (let i = 0; i < 30; i++) {
-      await new Promise(r => setTimeout(r, 500))
-      if (await this.probe()) return
-    }
-    throw new Error(`DPSwarm sidecar 自动拉起失败（python ${this.cfg.pythonCmd}，`
-      + `dir=${this.cfg.dpswarmDir}）。请手动启动后重试。`)
-  }
-
-  async probe() {
-    try { return (await this.call('GET', '/api/status', undefined, 2500)) !== undefined }
-    catch { return false }
-  }
-
-  /** 写接口 bearer token：sidecar 启动时写 workspace/.dpswarm-token（P0 修复配套）。
-   *  autoStart 与手动启动共用同一 workspace 约定（README），按约定路径读取。
-   *  读不到不缓存（sidecar 可能刚被拉起还没写完），下一次调用再试。 */
-  _token() {
-    if (this._tok) return this._tok
-    try {
-      this._tok = readFileSync(
-        join(this.cfg.dpswarmDir || '.', '.dpswarm-panel', '.dpswarm-token'),
-        'utf8').trim()
-    } catch (e) { this._tok = '' }
-    return this._tok
-  }
-
-  async call(method, path, body, timeoutMs = 20000, _retried = false) {
-    const ctrl = new AbortController()
-    const timer = setTimeout(() => ctrl.abort(), timeoutMs)
-    try {
-      const headers = {}
-      if (body !== undefined) headers['Content-Type'] = 'application/json'
-      const tok = this._token()
-      if (tok) headers.Authorization = 'Bearer ' + tok
-      const res = await fetch(this.cfg.sidecarUrl + path, {
-        method,
-        signal: ctrl.signal,
-        headers,
-        body: body === undefined ? undefined : JSON.stringify(body),
-      })
-      // sidecar 换过 token（workspace 重建）→ 清缓存重试一次（防无限递归）
-      if (res.status === 401 && !_retried) {
-        this._tok = ''
-        return this.call(method, path, body, timeoutMs, true)
-      }
-      const text = await res.text()
-      let json
-      try { json = JSON.parse(text) } catch { throw new Error(`sidecar ${path} 非 JSON: ${text.slice(0, 200)}`) }
-      if (!res.ok && json?.ok === false && json?.error) {
-        const err = new Error(`${json.error}${json.message ? ' — ' + json.message : ''}`)
-        err.code = json.error
-        throw err
-      }
-      if (!res.ok) throw new Error(`sidecar ${path} → HTTP ${res.status}`)
-      return json
-    } finally {
-      clearTimeout(timer)
-    }
-  }
+export function requireRootCaller(parent) {
+        if (!parent?.session?.header || typeof parent.session.id !== 'string'
+            || parent.id !== parent.session.id) {
+          throw new Error('PARENT_IDENTITY_REQUIRED: trusted DSH session header is required')
+        }
+        if (!['provider', 'model'].every(key => typeof parent.options?.[key] === 'string' && parent.options[key].trim())) {
+          throw new Error('ROOT_MODEL_REQUIRED: trusted DSH parent requested provider/model must be explicit')
+        }
+        const depths = [parent.session.header.delegationDepth ?? 0, parent.options?.subagentDepth ?? 0]
+        if (depths.some(depth => !Number.isSafeInteger(depth) || depth < 0 || depth > 0)) {
+          throw new Error('NESTED_DELEGATION_UNSUPPORTED: DPSwarm bridge currently supports root callers only')
+        }
 }
 
 export function apply(ctx, config) {
-  const sidecar = new Sidecar(config)
-
   // 机制一（§3）+ 设置卡片的 Host 半：注册 settings namespace。
   // 卡片编辑 sidecar 连接参数；DPSwarm 运行时参数在控制面 Spec（revision）里。
   let source = () => config
@@ -123,6 +54,9 @@ export function apply(ctx, config) {
   })
   const entry = { sidecarUrl: config.sidecarUrl, subagentProvider: config.subagentProvider }
   const hooks = { setSource: (current) => { source = current }, onChange: () => {} }
+  // Freeze one settings snapshot per tool call; an in-flight worker must finish
+  // against the same sidecar that admitted it even if settings change meanwhile.
+  const sidecarForCall = () => new Sidecar({ ...config, ...source() })
   // npm 版：独立函数（自管 inject）；repo 源码版：settingsCtx.settings.installSection
   try {
     if (process.env.DPSWARM_SKIP_SETTINGS === '1') {
@@ -148,6 +82,7 @@ export function apply(ctx, config) {
           '## DPSwarm 按需协作能力（dpswarm_* 工具）',
           '你是当前主 agent，默认单干。理解任务后或执行途中，根据任务可分性、上下文交接成本和资源事实，自主判断是否调用 DPSwarm；插件可用不代表必须委派。',
           '在已有任务授权与运行边界内，无需用户另说“开启多 agent”或点击团队开关。需要协作时由你兼任 Lead，按需分工与验收，收回结果后继续原任务；用户明确指定的模型、协作方式和限制始终优先。',
+          '当前桥接仅支持顶层 DSH agent 委派，子 agent 内不得再次调用 dpswarm_delegate。',
           '需要委派时按以下纪律使用 DPSwarm：',
           '1. 委派前先调 dpswarm_models 拿事实（模型级别/AA 分维/价格/当前槽位与点数容量），据此选精确 provider/model；不要凭记忆猜路由。', 
           '2. dpswarm_delegate：derive=单子任务外派；fission=多 worker 团队（需 S 级）；split=1主1副同构。硬准入（级别方向/深度/槽位/点数）不过会返回结构化原因——改路由或等容量，不得绕过。', 
@@ -173,6 +108,7 @@ export function apply(ctx, config) {
           render: (_args, value) => [{ type: 'text', text: String.fromCharCode(96,96,96) + 'json' + String.fromCharCode(10) + JSON.stringify(value, null, 2) + String.fromCharCode(10) + String.fromCharCode(96,96,96) }],
         },
       async execute() {
+        const sidecar = sidecarForCall()
         await sidecar.ensure()
         const s = await sidecar.call('GET', '/api/status')
         const spec = s.spec
@@ -221,8 +157,13 @@ export function apply(ctx, config) {
       },
       async execute(args, exec) {
         const parent = exec.agent
-        if (!parent) throw new Error('dpswarm_delegate 需要调用方 agent（exec.agent 缺失）')
+        requireRootCaller(parent)
+        const sidecar = sidecarForCall()
         await sidecar.ensure()
+        await sidecar.call('POST', '/api/execution/root', {
+          parent_session_id: parent.session.id, delegation_depth: 0,
+          provider: parent.options.provider, model: parent.options.model,
+        })
         const rerun = Boolean(args.item_id)
         let admission
         if (rerun) {
@@ -254,6 +195,23 @@ export function apply(ctx, config) {
         // 单个 worker 失败不中断其余，失败清单回报 Lead 裁决 review/重跑；
         // 节点已激活，失败后的 CP 状态仍须显式处置）。
         const runOne = async (it, st) => {
+          let currentNode = it.node_id
+          let reservation = it
+          let currentRun = null
+          let boundFence = null
+          let physicalCleanupConfirmed = false
+          const unknownUsage = { input_tokens: null, output_tokens: null,
+            cache_read_tokens: null, cache_write_tokens: null, cost_usd: null }
+          const published = async run => {
+            currentRun = run.id
+            boundFence = await sidecar.call('POST', '/api/execution/bind', {
+              item_id: it.item_id, node_id: currentNode, attempt: reservation.attempt,
+              context_epoch: reservation.context_epoch, reservation_session_id: reservation.session_id,
+              execution_session_id: run.id, parent_session_id: parent.session.id,
+              execution_provider: sidecar.cfg.subagentProvider,
+            })
+          }
+          try {
           const agentOptions = {}
           if (st.provider) agentOptions.provider = st.provider
           if (st.model) agentOptions.model = st.model
@@ -264,35 +222,66 @@ export function apply(ctx, config) {
           // split：协助者是独立执行 session（§7）——先跑协助者（写范围后半），
           // 回报经 peer 通道入账（§9.5，消息账本即 evidence），主执行者再开工。
           if (it.assistant_node_id && it.channel_id) {
-            const assistOut = await runSubagentToCompletion(runtimeCtx.subagents, config.subagentProvider, {
+            currentNode = it.assistant_node_id
+            reservation = it.assistant_fence
+            if (!reservation) throw new Error('ASSISTANT_FENCE_REQUIRED: sidecar contract is outdated')
+            const assistOut = await runSubagentToCompletion(runtimeCtx.subagents, sidecar.cfg.subagentProvider, {
               label: `dpswarm:assist:${st.title ?? it.item_id}`,
               prompt: [{ type: 'text', text: '协助分工（写范围后半）：' + basePrompt }],
               parent,
               signal: exec.signal,
               ...opts,
-            })
+            }, { onPublished: published })
+            physicalCleanupConfirmed = true
             await sidecar.call('POST', '/api/peer', {
               channel_id: it.channel_id, from_node: it.assistant_node_id, body: assistOut.text,
+              context_epoch: boundFence.context_epoch, session_id: boundFence.session_id, token_usage: unknownUsage,
             })
             prompt = basePrompt + '\n\n## 协助者回报（经 peer 通道）\n' + assistOut.text
           }
-          const out = await runSubagentToCompletion(runtimeCtx.subagents, config.subagentProvider, {
+          currentNode = it.node_id
+          reservation = it
+          currentRun = null
+          boundFence = null
+          physicalCleanupConfirmed = false
+          const out = await runSubagentToCompletion(runtimeCtx.subagents, sidecar.cfg.subagentProvider, {
             label: `dpswarm:${st.title ?? it.item_id}`,
             prompt: [{ type: 'text', text: prompt }],
             parent,
             signal: exec.signal,
             ...opts,
-          })
+          }, { onPublished: published })
+          physicalCleanupConfirmed = true
           await sidecar.call('POST', '/api/submit', {
             item_id: it.item_id, node_id: it.node_id, output: out.text,
             stop_reason: out.stopReason,
             // P1-2 fence：delegate 返回的 epoch/session 原样回带（旧 session 拒写）
-            context_epoch: it.context_epoch, session_id: it.session_id,
+            context_epoch: boundFence.context_epoch, session_id: boundFence.session_id,
+            token_usage: unknownUsage,
           })
           return {
             item_id: it.item_id, title: st.title, kind: it.kind,
             level: it.level, stop_reason: out.stopReason, output: out.text,
-            execution_session_id: out.sessionId,
+            execution_session_id: out.sessionId, token_usage: unknownUsage,
+          }
+          } catch (error) {
+            let settlement
+            try {
+              settlement = await sidecar.call('POST', '/api/execution/fail', {
+                item_id: it.item_id, node_id: currentNode, attempt: reservation?.attempt,
+                context_epoch: reservation?.context_epoch, reservation_session_id: reservation?.session_id,
+                execution_session_id: currentRun, published: currentRun !== null || error?.details?.published === true,
+                code: error?.code,
+                error: String(error?.message ?? error), details: error?.details ?? {},
+                stop_reason: error?.details?.stopReason ?? (exec.signal?.aborted ? 'aborted' : 'error'),
+                physical_cleanup_confirmed: error?.details?.physicalCleanupConfirmed ?? physicalCleanupConfirmed,
+              })
+            } catch (settlementError) {
+              settlement = { ok: false, error: String(settlementError?.message ?? settlementError) }
+            }
+            const failure = error instanceof Error ? error : new Error(String(error))
+            failure.controlSettlement = settlement
+            throw failure
           }
         }
         const settled = await Promise.allSettled(admission.items.map((it, i) => {
@@ -309,11 +298,12 @@ export function apply(ctx, config) {
             item_id: it.item_id,
             code: s.reason?.code ?? 'SUBAGENT_EXECUTION_FAILED',
             error: String(s.reason?.message ?? s.reason).slice(0, 300),
+            details: s.reason?.details ?? {}, control_settlement: s.reason?.controlSettlement,
           })
         })
         if (failed.length > 0) {
-          // 执行失败 ≠ 交付：不伪造 submit。失败节点留待 Lead review/terminate
-          // 处置；server 当前没有周期 tick，不能承诺无人处理也会自动回收。
+          // Failure settlement is explicit and fenced; failed HTTP settlement
+          // remains visible to the Lead rather than claiming resource release.
           const reasons = failed.map(f => `${f.item_id}: ${f.error}`).join('；')
           console.error('dpswarm: worker 失败（未提交）— ' + reasons)
         }
@@ -324,10 +314,8 @@ export function apply(ctx, config) {
           failed,
           pending,
           next: failed.length
-            ? '有 worker 执行失败（见 failed，节点已激活但未提交）：对相应 item 用'
-              + ' dpswarm_review(verdict=terminate) 明确放弃并释放资源。当前失败尚未'
-              + '自动同步成可重试状态，直接重跑可能返回 ITEM_ALREADY_RUNNING；'
-              + '不要假定后台时间护栏会自动处置。'
+            ? '执行失败详情见 failed；control_settlement.ok=true 表示已终止控制面任务并释放资源。'
+              + '若结算失败，需处理 sidecar 连接并明确终止该 item。物理清理结果单独记录；不可把 dispose 失败当作子进程已退出。'
             : pending.length
               ? 'deps 未就绪的 item 列在 pending（waiting_on）；上游 accept 后用'
                 + ' dpswarm_delegate(item_id=…, subtask=…) 启动。'
@@ -358,8 +346,14 @@ export function apply(ctx, config) {
           schema: { type: 'object', additionalProperties: true },
           render: (_args, value) => [{ type: 'text', text: String.fromCharCode(96,96,96) + 'json' + String.fromCharCode(10) + JSON.stringify(value, null, 2) + String.fromCharCode(10) + String.fromCharCode(96,96,96) }],
         },
-      async execute(args) {
+      async execute(args, exec) {
+        requireRootCaller(exec?.agent)
+        const sidecar = sidecarForCall()
         await sidecar.ensure()
+        await sidecar.call('POST', '/api/execution/root', {
+          parent_session_id: exec.agent.session.id, delegation_depth: 0,
+          provider: exec.agent.options.provider, model: exec.agent.options.model,
+        })
         const r = await sidecar.call('POST', '/api/review', {
           item_id: args.item_id, verdict: args.verdict, reason: args.reason,
           attribution: args.attribution, // P1-3：accept 引用 submit 落盘证据，不再传正文
@@ -379,6 +373,7 @@ export function apply(ctx, config) {
           render: (_args, value) => [{ type: 'text', text: String.fromCharCode(96,96,96) + 'json' + String.fromCharCode(10) + JSON.stringify(value, null, 2) + String.fromCharCode(10) + String.fromCharCode(96,96,96) }],
         },
       async execute() {
+        const sidecar = sidecarForCall()
         await sidecar.ensure()
         const [s, o] = await Promise.all([
           sidecar.call('GET', '/api/status'),
@@ -390,6 +385,7 @@ export function apply(ctx, config) {
 
     ctx.effect(() => {
       // 连接体检（异步、不阻塞装载）：失败仅记日志，工具首次调用会再 ensure。
+      const sidecar = sidecarForCall()
       void sidecar.probe().then(ok => {
         if (!ok) void sidecar.ensure().catch((e) =>
           ctx.logger?.warn?.(`dpswarm sidecar: ${e.message}`))

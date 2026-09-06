@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "profile_id": "new-experiment-memory-1g-20260905",
+  "candidate_memory": "1g",
+  "evaluation_memory": "1g",
+  "auxiliary_memory_ceiling": "1g",
+  "preserve_lower_auxiliary_limits": true,
+  "existing_controller_and_parser_memory": "768m",
+  "memory_swap_equals_memory": true,
+  "scope": "Fresh independent experiment and qualification processes; limits apply at container creation",
+  "existing_trial": "The running parallel trial uses a separately recorded dynamic enforcer; it is a mid-run resource variation",
+  "qualification_cache": "Reuse only qualifications bound to this profile and their unchanged summary hash; otherwise choose an explicit new attempt"
+}

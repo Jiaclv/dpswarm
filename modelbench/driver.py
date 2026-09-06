@@ -405,10 +405,10 @@ def _collect_accepted_texts(events, artifacts_dir: Path) -> List[str]:
     """从控制面收集 accepted 的 worker 产出：work_item_accepted 的 item 的
     证据包正文（package_stored 的 artifact_ref → artifacts/<sha>.txt）。
 
-    只收证据包（store_evidence_package，无 stage 字段）；submit 阶段的包
-    （stage="submission"，含被打回的历史版本）不收。按 content_hash 去重。
+    精确引用 accepted 事件绑定的 (item_id, package_id)，避免混入该 item
+    被打回的历史提交；同时支持旧版独立证据包。按 content_hash 去重。
     """
-    accepted = {e.payload.get("item_id") for e in events
+    accepted = {(e.payload.get("item_id"), e.payload.get("package_id")) for e in events
                 if e.kind == "work_item_accepted"}
     texts: List[str] = []
     seen_hash = set()
@@ -416,7 +416,7 @@ def _collect_accepted_texts(events, artifacts_dir: Path) -> List[str]:
         if e.kind != "package_stored":
             continue
         p = e.payload
-        if p.get("item_id") not in accepted or p.get("stage") == "submission":
+        if (p.get("item_id"), p.get("package_id")) not in accepted:
             continue
         digest = p.get("content_hash")
         ref = p.get("artifact_ref")

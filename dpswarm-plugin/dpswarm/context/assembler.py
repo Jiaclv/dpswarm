@@ -29,8 +29,6 @@ from .memory import MemoryEntry, MemoryService
 # 由上层注入（典型实现 = ContextManagerLLM.compress 的第一返回值包装）。
 CompressFn = Callable[[List[str], "AssemblerBrief"], str]
 
-# 裁剪下限：剩余预算低于此值不再塞半截材料（避免无意义碎片）
-MIN_MATERIAL_TOKENS = 64
 # 同构"近阈值"口径（§5.8 软阈值约 70% 的量级参考）
 NEAR_THRESHOLD_RATIO = 0.70
 # retrieve 默认拉取的记忆条数上限（确定性骨架的固定窗口）
@@ -64,7 +62,6 @@ class _Material:
     ref: str            # 引用（memory:<id> 或共享工作区 ref）
     content: str
     description: str = ""
-    truncated: bool = False
 
 
 class ContextAssembler:
@@ -93,8 +90,9 @@ class ContextAssembler:
         1. 选材：select 关键词驱动 memory.retrieve + artifacts 匹配；
            exclude 命中 ref 或正文的材料一律排除。
         2. 排列：稳定内容（durable memory）在前、任务特定（artifacts）在后。
-        3. 预算：est = len//3；超预算时截断保留顺序靠前者，放不下的降级为
-           optional 条目（pull 兜底可达，§5.4）。
+        3. 预算：est = len//3，包含任务骨架、标题和全部来源引用；仅完整材料
+           可标 required，放不下的降级 optional（pull 兜底可达，§5.4）。
+           骨架与引用也放不下时抛 ValueError，不生成可落盘包。
         4. 压缩触发（代码判断，§5.1）：heterogeneous（目标模型与源材料
            生产者不同模型）且确定性裁剪发生信息损失（选材总量超预算）→
            调 compress_fn 产出摘要层；纯同构且未近阈值（总量 < 70% 预算）
@@ -102,27 +100,50 @@ class ContextAssembler:
         5. inline：整包 est ≤ inline_token_limit → entries 全部 inline；
            否则 entries 标 inline=False（大包只传不可变引用，§5.3）。
         """
+        if (not isinstance(brief.token_budget, int) or isinstance(brief.token_budget, bool)
+                or brief.token_budget <= 0):
+            raise ValueError("CONTEXT_BUDGET_INVALID: token_budget must be a positive integer")
         matched = self._select(brief)
         raw_est = sum(est_tokens(m.content) for m in matched)
+        full_content = self._render(brief, target_route, heterogeneous, "", matched, [])
+        needs_trim = est_tokens(full_content) > brief.token_budget
+        if needs_trim:
+            # Task instructions and all original pull references are indivisible.
+            # Reject impossible framing before spending a compression call.
+            minimum = self._render(brief, target_route, heterogeneous, "", [], matched)
+            if est_tokens(minimum) > brief.token_budget:
+                raise ValueError(
+                    "CONTEXT_BUDGET_TOO_SMALL: task framing and source references need "
+                    f"{est_tokens(minimum)} estimated tokens; budget is {brief.token_budget}")
 
         near_threshold = raw_est >= int(brief.token_budget * NEAR_THRESHOLD_RATIO)
-        needs_trim = raw_est > brief.token_budget
-        # §5.1：纯同构且未近阈值 → 直连；异构 + 超预算 → 压缩
         trigger_compress = needs_trim and (heterogeneous or near_threshold)
-
         summary_text = ""
         if trigger_compress and self.compress_fn is not None:
             materials = [f"[{m.ref}]\n{m.content}" for m in matched]
             summary_text = self.compress_fn(materials, brief) or ""
+            if not isinstance(summary_text, str):
+                raise ValueError("CONTEXT_COMPRESSION_INVALID: compressor must return text")
+            # Never truncate a semantic summary: removing its conclusion may
+            # change its meaning. Discard an oversized summary as a whole.
+            if est_tokens(self._render(brief, target_route, heterogeneous,
+                                       summary_text, [], matched)) > brief.token_budget:
+                summary_text = ""
 
         if summary_text:
-            included, optional = self._layout_with_summary(brief, matched, summary_text)
+            included, optional = self._layout_with_summary(
+                brief, matched, summary_text, target_route, heterogeneous)
+        elif needs_trim:
+            included, optional = self._trim_to_budget(brief, matched, target_route, heterogeneous)
         else:
-            included, optional = self._trim_to_budget(brief, matched)
+            included, optional = matched, []
 
         content = self._render(brief, target_route, heterogeneous,
                                summary_text, included, optional)
         est = est_tokens(content)
+        if est > brief.token_budget:
+            raise ValueError(f"CONTEXT_BUDGET_EXCEEDED: rendered package needs {est} estimated tokens; "
+                             f"budget is {brief.token_budget}")
         inline_all = est <= brief.inline_token_limit
 
         entries: List[PackageEntry] = []
@@ -131,11 +152,8 @@ class ContextAssembler:
                 ref=f"summary:{brief.scope}", required=True, inline=inline_all,
                 description="语义压缩摘要层（context manager，零新增事实）"))
         for m in included:
-            desc = m.description
-            if m.truncated:
-                desc = (desc + " " if desc else "") + "超预算截断，全文经 pull 可达"
             entries.append(PackageEntry(
-                ref=m.ref, required=True, inline=inline_all, description=desc))
+                ref=m.ref, required=True, inline=inline_all, description=m.description))
         for m in optional:
             entries.append(PackageEntry(
                 ref=m.ref, required=False, inline=False,
@@ -227,46 +245,35 @@ class ContextAssembler:
 
     # -- 内部：预算裁剪 ------------------------------------------------------
 
-    def _trim_to_budget(self, brief: AssemblerBrief,
-                        matched: List[_Material]) -> Tuple[List[_Material], List[_Material]]:
-        """超预算截断，保留顺序靠前者；放不下的降级 optional（§5.3/§5.4）。"""
+    def _trim_to_budget(self, brief: AssemblerBrief, matched: List[_Material],
+                        route: ModelRoute, heterogeneous: bool
+                        ) -> Tuple[List[_Material], List[_Material]]:
+        """完整选材并逐次核对最终正文，放不下的整项降级 optional。"""
         included: List[_Material] = []
-        optional: List[_Material] = []
-        used = 0
-        for i, m in enumerate(matched):
-            est = est_tokens(m.content)
-            if used + est <= brief.token_budget:
-                included.append(m)
-                used += est
-                continue
-            remaining = brief.token_budget - used
-            if remaining >= MIN_MATERIAL_TOKENS and not included:
-                # 边界截断：首条即超预算时截断保头（保留顺序靠前者）
-                cut = _Material(m.ref, m.content[: remaining * 3],
-                                m.description, truncated=True)
-                included.append(cut)
-                used += est_tokens(cut.content)
-                optional.extend(matched[i + 1:])
-                break
-            optional.extend(matched[i:])
-            break
-        return included, optional
+        for i, material in enumerate(matched):
+            candidate = self._render(brief, route, heterogeneous, "",
+                                     included + [material], matched[i + 1:])
+            if est_tokens(candidate) > brief.token_budget:
+                return included, matched[i:]
+            included.append(material)
+        return included, []
 
     def _layout_with_summary(self, brief: AssemblerBrief, matched: List[_Material],
-                             summary_text: str) -> Tuple[List[_Material], List[_Material]]:
-        """压缩触发后的布局：摘要层为主干，剩余预算只保留稳定记忆；
-        任务材料全部转引用（pull 可达），避免重复计费（§5.1/§5.2）。"""
-        remaining = brief.token_budget - est_tokens(summary_text)
+                             summary_text: str, route: ModelRoute, heterogeneous: bool
+                             ) -> Tuple[List[_Material], List[_Material]]:
+        """摘要层为主干，仅在最终正文仍合规时额外保留完整稳定记忆。
+
+        任务材料转原始引用，所有引用开销也在整体预算内。
+        """
         included: List[_Material] = []
         optional: List[_Material] = []
-        for m in matched:
-            is_stable = m.ref.startswith("memory:")
-            est = est_tokens(m.content)
-            if is_stable and remaining - est >= 0:
-                included.append(m)
-                remaining -= est
+        for i, material in enumerate(matched):
+            candidate = self._render(brief, route, heterogeneous, summary_text,
+                                     included + [material], optional + matched[i + 1:])
+            if material.ref.startswith("memory:") and est_tokens(candidate) <= brief.token_budget:
+                included.append(material)
             else:
-                optional.append(m)
+                optional.append(material)
         return included, optional
 
     # -- 内部：正文渲染 ------------------------------------------------------
@@ -280,7 +287,7 @@ class ContextAssembler:
             f"- 任务意图：{brief.task_intent}",
             f"- 目标路由：{route.provider}/{route.model} [level {route.level.value}]",
             f"- 异构分发：{'是（检索裁剪策略）' if heterogeneous else '否（可直连统一前缀）'}",
-            f"- 语义压缩：{'已触发（摘要层）' if summary_text else '未触发'}",
+            f"- 语义压缩：{'已采用（摘要层）' if summary_text else '未采用'}",
             f"- 选材关键词：{', '.join(brief.select) or '(无)'}",
             f"- 排除项：{', '.join(brief.exclude) or '(无)'}",
         ]

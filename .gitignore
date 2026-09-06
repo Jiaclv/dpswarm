@@ -20,6 +20,7 @@ __pycache__/
 .tmp/
 .workbuddy/
 .flowmap/
+test-artifacts/
 nul
 
 # ===== 实验证据与大数据(本地保留,可由脚本重建) =====

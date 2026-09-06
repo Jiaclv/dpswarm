@@ -241,6 +241,16 @@ def _seal_team_of(payload: Dict[str, Any]) -> str:
     return payload.get("team") or payload.get("team_id") or ROOT_TEAM_ID
 
 
+def _clear_submission(item: WorkItem) -> None:
+    item.submission_package_id = None
+    item.submission_sha256 = ""
+    item.submission_id = None
+    item.submission_node_id = None
+    item.submission_attempt = None
+    item.submission_context_epoch = None
+    item.submission_session_id = None
+
+
 def apply_event(proj: Projection, event: Event) -> None:
     """原地增量应用一个事件；纯投影，不做任何合法性判断。
 
@@ -311,10 +321,13 @@ def apply_event(proj: Projection, event: Event) -> None:
         item = proj.work_items[payload["item_id"]]
         item.acceptance = AcceptanceState.SUBMITTED
         item.attempt = int(payload.get("attempt", item.attempt))
-        if payload.get("package_id"):
-            item.submission_package_id = payload["package_id"]
-        if payload.get("output_sha256"):
-            item.submission_sha256 = payload["output_sha256"]
+        item.submission_package_id = payload.get("package_id")
+        item.submission_sha256 = payload.get("output_sha256", "")
+        item.submission_id = payload.get("submission_id")
+        item.submission_node_id = payload.get("node_id")
+        item.submission_attempt = item.attempt
+        item.submission_context_epoch = payload.get("context_epoch")
+        item.submission_session_id = payload.get("session_id")
     elif kind == "work_item_finalizing":
         proj.work_items[payload["item_id"]].acceptance = AcceptanceState.FINALIZING
     elif kind == "work_item_accepted":
@@ -330,11 +343,13 @@ def apply_event(proj: Projection, event: Event) -> None:
         item = proj.work_items[payload["item_id"]]
         item.acceptance = None
         item.attempt = int(payload["attempt"])
+        _clear_submission(item)
     elif kind == "work_item_timeout_retried":
         # §7 时间护栏①：超时重试计预算——只推进 attempt，acceptance 不变
         # （超时发生在执行中，item 尚无裁决；与打回重试的 REJECTED→None 复位不同）
         item = proj.work_items[payload["item_id"]]
         item.attempt = int(payload["attempt"])
+        _clear_submission(item)
     elif kind == "work_item_escalated":
         item = proj.work_items[payload["item_id"]]
         item.acceptance = AcceptanceState.ESCALATED
@@ -375,6 +390,7 @@ def apply_event(proj: Projection, event: Event) -> None:
             existing.team = payload.get("team", existing.team)
             existing.context_epoch = int(payload.get("context_epoch", existing.context_epoch))
             existing.session_id = None
+            existing.execution_binding = None
             existing.activated_seq = None
             existing.activated_at = None
             existing.package_ref = payload.get("package_ref", existing.package_ref)
@@ -406,6 +422,13 @@ def apply_event(proj: Projection, event: Event) -> None:
         node.session_id = payload.get("session_id")
         node.activated_seq = seq  # 超时时钟从 active 起算（§9.3）
         node.activated_at = event.ts  # 投影缓存激活时间：tick 直接读，不再反扫日志
+    elif kind == "node_execution_bound":
+        node = proj.nodes[payload["node_id"]]
+        node.execution_binding = dict(payload)
+        node.session_id = payload["execution_session_id"]
+        if payload.get("execution_route"):
+            node.route = route_from_dict(payload["execution_route"])
+            node.level = node.route.level
     elif kind == "node_failed":
         node = proj.nodes[payload["node_id"]]
         node.lifecycle = LifecycleState.FAILED
@@ -533,6 +556,10 @@ def apply_event(proj: Projection, event: Event) -> None:
         package_id = payload.get("package_id")
         if package_id:
             proj.packages[package_id] = dict(payload)
+            if payload.get("bind_submission") is True:
+                item = proj.work_items[payload["item_id"]]
+                item.submission_package_id = package_id
+                item.submission_sha256 = payload["content_hash"]
     elif kind == "human_directive":
         proj.human_directives.append(HumanDirective(
             kind=payload.get("kind", "immediate"),

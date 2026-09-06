@@ -49,7 +49,8 @@ def make_run(tmp_path, monkeypatch):
 
     def create(*, condition='fixed_team', model='glm-5.3', lead=None,
                workers=None, failure=None, baseline='', unknown_worker=None,
-               attempt_counts=None, worker_models=None, lead_model=None):
+               attempt_counts=None, worker_models=None, lead_model=None,
+               limits_override=None):
         references, trace = {}, []
         scripts = {'lead': list(lead if lead is not None else [settle('worker-1') + settle('worker-2') + [done()]]),
                    'worker-1': [[action('bash', command='edit-production'), done()]],
@@ -138,9 +139,15 @@ def make_run(tmp_path, monkeypatch):
             def run(self, command, timeout):
                 assert self.started and not self.closed
                 patches = {'edit-production': PRODUCTION, 'edit-regression': REGRESSION, 'edit-lead': LEAD_PATCH}
+                if command == 'python -c "open(\'f.py\',\'w\').write(\'fix\')"':
+                    self.delta += PRODUCTION
                 self.delta += patches.get(command, '')
                 trace.append(('bash', self.actor))
                 return {'exit_code': 0, 'stdout': 'offline', 'stderr': ''}
+
+            def observe_worktree(self):
+                return {'nonempty_delta': bool(self.delta), 'state_sha256': hashlib.sha256(self.delta.encode()).hexdigest(),
+                        'baseline_sha256': hashlib.sha256(b'').hexdigest(), 'changed_files': {}, 'measurement': 'fixture'}
 
             def export_patch(self, delta=False):
                 assert self.started
@@ -207,6 +214,8 @@ def make_run(tmp_path, monkeypatch):
             entry = {'run_id': 'fixture-' + str(len(created)), 'condition': condition, 'instance': instance,
                      'arm': 'solo_' + model if lead_model else 'solo', 'worker_model': None,
                      'worker_models': [], 'lead_model': lead_model or 'gpt-5.6-sol'}
+        if limits_override is not None:
+            entry['limits_override'] = limits_override  # merged inside SweRun.__init__
         run = runner.SweRun(tmp_path, entry, transport_factory=Transport,
                             environment_factory=Environment, control_factory=control_factory)
         references['run'] = run
@@ -276,7 +285,7 @@ def test_fixed_team_admits_two_real_derive_workers_before_lead_and_accounts_ever
     assert result['activation_source'] == 'experiment_protocol'
     assert result['team_execution_status'] == 'workers_completed' and result['team_execution_valid'] is True
     assert result['mechanism_coverage'] == {'derive': 'fixed', 'split': 'not_exposed',
-                                           'fission': 'not_exposed', 'cm': 'not_integrated'}
+                                           'fission': 'not_exposed', 'cm': 'integrated_on_demand'}
     assert {item['model'] for item in result['workers']} == {model}
     assert result['agent_usage']['worker-1']['total_tokens'] == 120
     assert result['agent_usage']['worker-2']['total_tokens'] == 120
@@ -386,8 +395,9 @@ def test_worker_fork_failure_records_zero_calls_for_that_identity(make_run):
     run, env, _ = make_run(failure='fork-worker-1',
         lead=[settle('worker-1', 'discard') + settle('worker-2') + [done()]])
     result = run.run()
-    assert_clean(run, env, result, 3)
-    assert result['bootstrap_admitted'] and result['workers_with_actual_calls'] == 1
+    assert result['infrastructure_error'] and result['execution_health']['status'] == 'host_error'
+    assert result['score'] is None and env.grade_calls == 0
+    assert result['bootstrap_admitted'] and result['workers_with_actual_calls'] <= 1
     assert result['team_execution_status'] == 'worker_failure' and not result['team_execution_valid']
     assert result['agent_usage']['worker-1']['calls'] == 0
     assert result['workers'][0]['status'] == 'worker_error'

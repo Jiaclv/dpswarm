@@ -276,6 +276,11 @@ class WorkItem:
     summary: str = ""                    # 退化回流：结论落盘、主 agent 只收摘要（§7）
     submission_package_id: Optional[str] = None  # submit 落盘证据包；review 只准引用（P1-3）
     submission_sha256: str = ""          # submit 正文内容寻址哈希
+    submission_id: Optional[str] = None  # 一次真实提交的身份；旧日志缺失时不推测
+    submission_node_id: Optional[str] = None
+    submission_attempt: Optional[int] = None
+    submission_context_epoch: Optional[int] = None
+    submission_session_id: Optional[str] = None
 
 
 @dataclass
@@ -297,6 +302,7 @@ class Node:
     start_type: StartType = StartType.NEW
     assistant_of: Optional[str] = None    # 分裂主从：协助者记主执行者 node_id
     session_id: Optional[str] = None
+    execution_binding: Optional[Dict[str, Any]] = None  # 可信宿主 run 身份；准入 session 不等于已执行
     package_ref: Optional[str] = None     # 预装包（启动协议只提交不拼装 §5.8）
     package_hash: Optional[str] = None
     predecessor_session: Optional[str] = None  # rollover 专用

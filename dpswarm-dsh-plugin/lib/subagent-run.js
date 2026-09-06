@@ -77,15 +77,23 @@ export async function runSubagentToCompletion(subagents, provider, request, { on
     aborted(request.signal)
   } catch (error) {
     failure = error
+    if (failure && typeof failure === 'object') failure.details = { ...failure.details, published: run != null }
   } finally {
     if (typeof run?.dispose === 'function') {
       try {
         await run.dispose()
+        if (failure && typeof failure === 'object') {
+          failure.details = { ...failure.details, physicalCleanupConfirmed: true }
+        }
       } catch (error) {
-        failure = new SubagentRunError('SUBAGENT_DISPOSAL_FAILED',
-          'Child quiescence could not be established; delivery cannot be submitted',
-          { sessionId: run.id, cause: String(error?.message ?? error),
-            ...(failure ? { originalError: String(failure?.message ?? failure) } : {}) })
+        if (failure && typeof failure === 'object') {
+          failure.details = { ...failure.details, sessionId: run.id,
+            disposalError: String(error?.message ?? error), physicalCleanupConfirmed: false }
+        } else {
+          failure = new SubagentRunError('SUBAGENT_DISPOSAL_FAILED',
+            'Child quiescence could not be established; delivery cannot be submitted',
+            { sessionId: run.id, cause: String(error?.message ?? error), physicalCleanupConfirmed: false })
+        }
       }
     }
   }

@@ -70,35 +70,39 @@ class ObservationSink:
     def delegation_records(self) -> List[DelegationRecord]:
         """全部委派记录：谁委派给谁、路由、拓扑、验收者、终局、token 账。"""
         return [_record_from_payload(e.payload)
-                for e in self._iter("observation_recorded")]
+                for e in self._iter("observation_recorded")
+                if "execution_failure" not in e.payload]
 
     # -- token 分账（§4）---------------------------------------------------
 
-    def token_ledger(self) -> Dict[str, Dict[str, float]]:
-        """node_id → {input, output, cache_read, cache_write, cost} 分账合计。
-
-        ``token_usage_recorded`` 是分账正源；委派记录（observation_recorded）
-        的 token 字段仅用于补齐没有单独 token 事件的节点，避免双计。
-        """
-        ledger: Dict[str, Dict[str, float]] = {}
-        for e in self._iter("token_usage_recorded"):
-            node_id = e.payload.get("node_id") or "<unknown>"
-            row = ledger.setdefault(node_id, _new_ledger_row())
+    def token_accounting(self) -> tuple:
+        """完整值、已知小计和逐字段未知事件数分别保留，null 不能变成免费。"""
+        known, unknown = {}, {}
+        for event in self._iter("token_usage_recorded"):
+            node_id = event.payload.get("node_id") or "<unknown>"
+            row = known.setdefault(node_id, _new_ledger_row())
+            counts = unknown.setdefault(node_id, {key: 0 for key in _LEDGER_KEYS})
             for key in _LEDGER_KEYS:
-                value = e.payload.get(key)
-                if value is not None:
+                value = event.payload.get(key)
+                if value is None:
+                    counts[key] += 1
+                else:
                     row[key] += float(value)
         for record in self.delegation_records():
-            if record.node_id and record.node_id in ledger:
+            if record.node_id in known:
                 continue
-            ledger[record.node_id] = {
-                "input": float(record.token_input),
-                "output": float(record.token_output),
-                "cache_read": float(record.token_cache_read),
-                "cache_write": float(record.token_cache_write),
-                "cost": float(record.cost_usd),
-            }
-        return ledger
+            values = dict(zip(_LEDGER_KEYS, (record.token_input, record.token_output,
+                record.token_cache_read, record.token_cache_write, record.cost_usd)))
+            known[record.node_id] = {key: float(value) if value is not None else 0.0
+                                     for key, value in values.items()}
+            unknown[record.node_id] = {key: int(value is None) for key, value in values.items()}
+        totals = {node: {key: None if unknown[node][key] else value
+                         for key, value in row.items()} for node, row in known.items()}
+        return totals, known, unknown
+
+    def token_ledger(self) -> Dict[str, Dict[str, Optional[float]]]:
+        """每节点账本：任一组成事件未知，该字段总额为 None；已知小计另列。"""
+        return self.token_accounting()[0]
 
     # -- 失败清单（§4 failure audit 数据源）--------------------------------
 
@@ -119,8 +123,8 @@ class ObservationSink:
             elif e.kind == "work_item_escalated":
                 out.append(self._failure_entry(e, outcome="escalated"))
             elif e.kind == "observation_recorded":
-                outcome = e.payload.get("outcome")
-                if outcome in _FAILURE_OUTCOMES:
+                outcome = "execution-failed" if "execution_failure" in e.payload else e.payload.get("outcome")
+                if outcome in _FAILURE_OUTCOMES or outcome == "execution-failed":
                     out.append(self._failure_entry(e, outcome=str(outcome)))
         return out
 
@@ -189,24 +193,21 @@ class ObservationSink:
         """
         ledger = self.token_ledger()
         roles = self.node_roles()
-        lead_tokens = worker_tokens = cm_tokens = 0
+        buckets = {"lead_tokens": 0, "worker_tokens": 0, "cm_tokens": 0}
         for node_id, row in ledger.items():
-            total = int(sum(row[k] for k in ("input", "output", "cache_read", "cache_write")))
+            values = [row[key] for key in ("input", "output", "cache_read", "cache_write")]
             role = roles.get(node_id, "")
-            if role in _CM_ROLES:
-                cm_tokens += total
-            elif role in _LEAD_ROLES:
-                lead_tokens += total
-            else:
-                worker_tokens += total
+            bucket = "cm_tokens" if role in _CM_ROLES else "lead_tokens" if role in _LEAD_ROLES else "worker_tokens"
+            if any(value is None for value in values):
+                buckets[bucket] = None
+            elif buckets[bucket] is not None:
+                buckets[bucket] += int(sum(values))
         events: List[dict] = [dict(e.payload)
                               for e in self._iter("delegation_economics_recorded")]
         savings = [float(e["estimated_savings"]) for e in events
                    if e.get("estimated_savings") is not None]
         return {
-            "lead_tokens": lead_tokens,
-            "worker_tokens": worker_tokens,
-            "cm_tokens": cm_tokens,
+            **buckets,
             "est_saved": sum(savings) if savings else None,
             "events": events,
         }
@@ -225,11 +226,10 @@ def summarize_events(events: List[Event]) -> dict:
         stop_dist = Counter(
             e.payload.get("stop_reason") for e in events
             if e.kind == "stop_reason_recorded" and e.payload.get("stop_reason"))
-    ledger = sink.token_ledger()
-    totals = _new_ledger_row()
-    for row in ledger.values():
-        for key in _LEDGER_KEYS:
-            totals[key] += row[key]
+    ledger, known, unknown = sink.token_accounting()
+    known_totals = {key: sum(row[key] for row in known.values()) for key in _LEDGER_KEYS}
+    unknown_counts = {key: sum(row[key] for row in unknown.values()) for key in _LEDGER_KEYS}
+    totals = {key: None if unknown_counts[key] else known_totals[key] for key in _LEDGER_KEYS}
     return {
         "events": len(events),
         "delegations": len(records),
@@ -237,6 +237,10 @@ def summarize_events(events: List[Event]) -> dict:
         "stop_reason_distribution": dict(stop_dist),
         "token_totals": dict(totals),
         "token_by_node": ledger,
+        "token_known_subtotals": known_totals,
+        "token_unknown_counts": unknown_counts,
+        "token_known_by_node": known,
+        "token_unknown_by_node": unknown,
         "failures": len(sink.failures()),
         "economics": sink.economics_summary(),
     }

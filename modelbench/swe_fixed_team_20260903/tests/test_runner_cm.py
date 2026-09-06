@@ -58,6 +58,7 @@ def test_cm_not_triggered_below_threshold(make_run, monkeypatch):
 
 
 def test_cm_compresses_over_budget_history_without_breaking_the_loop(make_run, monkeypatch):
+    monkeypatch.setitem(runner.LIMITS, 'cm_edit_curfew', False)  # Test compression independently of observed-edit curfew.
     monkeypatch.setitem(runner.LIMITS, 'cm_context_budget', 200)
     monkeypatch.setitem(runner.LIMITS, 'cm_keep_recent', 2)
     scripts = {'worker-1': [[action('bash', command='edit-production')]] * 2 + [[done()]]}
@@ -66,16 +67,15 @@ def test_cm_compresses_over_budget_history_without_breaking_the_loop(make_run, m
     install_cm_transport(run, seen_cm=seen_cm)
     result = run.run()
     assert result['infrastructure_error'] is None
-    # Revision 7: scout distill + possible Lead compression join worker compressions.
+    # rev10: assembly defaults off, so this is pure on-demand compression.
     started = cm_events(run, 'cm_call_started')
     settled = cm_events(run, 'cm_call_settled')
     compression = cm_events(run, 'cm_compression')
     assert len(run.cm_calls) == result['cm_call_count'] == len(settled) == len(started)
     worker_started = [e for e in started if e['trigger']['role'] == 'worker']
     assert worker_started and all(e['trigger']['agent'] == 'worker-1' for e in worker_started)
-    assert any(e['trigger'].get('phase') == 'scout_distill' for e in started)
+    assert all(e['trigger'].get('phase') != 'scout_distill' for e in started)
     assert len(compression) >= 1 and all(c['after_est_tokens'] < c['before_est_tokens'] for c in compression)
-    assert len(cm_events(run, 'scout_distilled')) == 1
     # CM call is in the budget but not in any agent's call list.
     assert result['cm_call_ids'][0] not in [cid for usage in result['agent_usage'].values()
                                             for cid in usage['call_ids']]
@@ -83,7 +83,7 @@ def test_cm_compresses_over_budget_history_without_breaking_the_loop(make_run, m
     # The compressed summary replaced the middle of the history for later calls.
     later = [s for s in run.transport.seen if s['actor'] != 'lead']
     assert any('Context summary' in json.dumps(s['messages'], ensure_ascii=False) for s in later)
-    assert seen_cm and seen_cm[0]['max_tokens'] == runner.LIMITS['cm_max_tokens'] == 2048
+    assert seen_cm and seen_cm[0]['max_tokens'] == runner.LIMITS['cm_max_tokens'] == 4096  # rev11 F2
     worker1_delivery = run.workers['worker-1'].delivery
     assert worker1_delivery['status'] == 'completed'
 

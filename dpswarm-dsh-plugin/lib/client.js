@@ -30,7 +30,17 @@ window.__ModuleLoader__.load({
     const { useEffect, useState, useRef, useCallback } = React
     const h = React.createElement
 
-    const PANEL_URL = 'http://127.0.0.1:8791'
+    let settingsScope
+    function panelUrl() {
+      const value = settingsScope?.getSnapshot()?.value?.sidecarUrl
+      if (typeof value !== 'string') return null
+      try {
+        const url = new URL(value)
+        return url.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(url.hostname)
+          && !url.username && !url.password && url.pathname === '/' && !url.search && !url.hash
+          ? url.origin : null
+      } catch { return null }
+    }
     const NS = 'settings.dpswarm.card'
     const STYLE_ID = 'dpswarm-dsh-plugin-style'
 
@@ -196,7 +206,9 @@ window.__ModuleLoader__.load({
     function probe() {
       try {
         if (typeof fetch !== 'function') return Promise.resolve(null)
-        return fetch(PANEL_URL + '/api/status', { mode: 'cors' })
+        const url = panelUrl()
+        if (!url) return Promise.resolve(null)
+        return fetch(url + '/api/status', { mode: 'cors' })
           .then(r => (r && r.ok && r.json ? r.json() : null)).catch(() => null)
       } catch (e) { return Promise.resolve(null) }
     }
@@ -276,8 +288,10 @@ window.__ModuleLoader__.load({
     }
 
     function openPanelLink() {
-      return h('a', { className: 'dps-btn dps-btnPrimary', href: PANEL_URL + '/',
-        target: '_blank', rel: 'noreferrer', title: PANEL_URL }, L.open)
+      const url = panelUrl()
+      if (!url) return h('span', { className: 'dps-hint' }, 'Sidecar URL unavailable in host settings')
+      return h('a', { className: 'dps-btn dps-btnPrimary', href: url + '/',
+        target: '_blank', rel: 'noreferrer', title: url }, L.open)
     }
 
     /** Plugins 设置页的 DPSwarm 卡片：chrome 镜像官方 PluginCard。 */
@@ -359,9 +373,10 @@ window.__ModuleLoader__.load({
         open ? h('div', { className: 'dps-pop' }, h(DpswarmPanel, null)) : null)
     }
 
-    const inject = ['slots', 'locale', 'connection']
+    const inject = ['slots', 'locale', 'connection', 'settingsScope']
 
     function apply(ctx) {
+      settingsScope = ctx.settingsScope.bind({ namespace: 'dpswarm' })
       // Plugins 设置页卡片（keyed：key = Host 侧 namespace 'dpswarm'）
       try {
         ctx.slots.inject('settings.plugin.item', () => ctx.slots.register({

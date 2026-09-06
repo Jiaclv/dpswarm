@@ -382,6 +382,75 @@ def _pre_work_item_dependency_added(p: Projection, payload: Dict[str, Any]) -> N
         raise _v("SEALED_ADMISSION", "已封存，拒绝新增依赖边（§9.6 决策 11）")
 
 
+_SUBMISSION_FIELDS = ("submission_id", "node_id", "attempt", "context_epoch", "session_id")
+
+
+def _submission_identity(item: WorkItem) -> Dict[str, Any]:
+    return {
+        "submission_id": item.submission_id, "node_id": item.submission_node_id,
+        "attempt": item.submission_attempt, "context_epoch": item.submission_context_epoch,
+        "session_id": item.submission_session_id,
+    }
+
+
+def _check_submission_package(p: Projection, item: WorkItem, package: Dict[str, Any],
+                              expected: Dict[str, Any]) -> None:
+    if (package.get("stage") != "submission" or package.get("item_id") != item.item_id
+            or not expected.get("submission_id")
+            or any(package.get(k) != expected.get(k) for k in _SUBMISSION_FIELDS)):
+        raise _v("EVIDENCE_MISMATCH", "证据包必须绑定同一次真实提交的 item/node/attempt/epoch/session")
+    node = _get_node(p, expected.get("node_id"))
+    if (node.item_id != item.item_id or node.assistant_of is not None
+            or expected.get("attempt") != item.attempt
+            or expected.get("context_epoch") != node.context_epoch
+            or expected.get("session_id") != node.session_id):
+        raise _v("EVIDENCE_MISMATCH", "提交证据的执行身份已失效（重试或 rollover）")
+    digest = package.get("content_hash")
+    if (not isinstance(digest, str) or len(digest) != 64
+            or any(c not in "0123456789abcdef" for c in digest)
+            or package.get("artifact_ref") != f"{digest}.txt"
+            or not isinstance(package.get("size"), int) or package["size"] <= 0):
+        raise _v("EVIDENCE_NOT_READY", "提交证据必须包含非空正文的完整 hash/size/artifact 引用")
+
+
+def bound_submission_package(p: Projection, item_id: str, package_id: str) -> Dict[str, Any]:
+    """所有验收入口共享的提交归属检查；只读，供控制面和事件 invariant 调用。"""
+    item = _get_item(p, item_id)
+    if not item.submission_package_id:
+        raise _v("PACKAGE_MISSING", "当前提交尚未绑定证据包")
+    if package_id != item.submission_package_id:
+        raise _v("EVIDENCE_MISMATCH", "验收只准引用当前提交绑定的证据包")
+    package = p.packages.get(package_id)
+    if package is None:
+        raise _v("PACKAGE_NOT_STORED", f"accepted 引用的 package {package_id} 未落盘")
+    _check_submission_package(p, item, package, _submission_identity(item))
+    if package.get("content_hash") != item.submission_sha256:
+        raise _v("EVIDENCE_MISMATCH", "提交证据的 hash 与提交记录不符")
+    return package
+
+
+def _pre_package_stored(p: Projection, payload: Dict[str, Any]) -> None:
+    package_id = _req(payload, "package_id")
+    existing = p.packages.get(package_id)
+    if existing is not None and existing != payload:
+        raise _v("PACKAGE_IMMUTABLE", f"证据包 {package_id} 已存在，不可覆盖内容或归属")
+    if payload.get("stage") == "submission":
+        item = _get_item(p, _req(payload, "item_id"))
+        _check_submission_package(p, item, payload, payload)
+        node = _get_node(p, payload.get("node_id"))
+        if node.terminated or node.lifecycle != LifecycleState.ACTIVE:
+            raise _v("NODE_NOT_ACTIVE", "提交证据要求原执行节点仍 active")
+    if payload.get("bind_submission") is True:
+        item = _get_item(p, _req(payload, "item_id"))
+        if item.acceptance not in (AcceptanceState.SUBMITTED, AcceptanceState.FINALIZING):
+            raise _v("ILLEGAL_TRANSITION", "延迟证据只可绑定 submitted/finalizing 的当前提交")
+        _check_submission_package(p, item, payload, _submission_identity(item))
+        if item.submission_package_id and item.submission_package_id != package_id:
+            raise _v("EVIDENCE_MISMATCH", "已有提交证据不可重新命名或替换")
+        if item.submission_sha256 and item.submission_sha256 != payload.get("content_hash"):
+            raise _v("EVIDENCE_MISMATCH", "已有提交正文不可替换")
+
+
 def _pre_work_item_submitted(p: Projection, payload: Dict[str, Any]) -> None:
     item = _get_item(p, _req(payload, "item_id"))
     node = _get_node(p, _req(payload, "node_id"))
@@ -400,6 +469,11 @@ def _pre_work_item_submitted(p: Projection, payload: Dict[str, Any]) -> None:
     if node.assistant_of is not None:
         raise _v("ASSISTANT_SUBMIT",
                  f"协助者 {node.node_id} 依附主执行者，不独立提交验收（§7 决策 7）")
+    root_team = p.teams.get("root")
+    root_node = p.nodes.get(root_team.lead_node) if root_team else None
+    if (root_node and (root_node.execution_binding or {}).get("execution_provider") == "dsh-root"
+            and node.execution_binding is None):
+        raise _v("EXECUTION_NOT_BOUND", "DSH 管理的节点必须先绑定真实宿主 run，准入 session 不能提交")
     # fence（P1-2）：旧 session 禁写——epoch/session 与节点当前值不符即拒。
     # 未携带时放行（同进程单写者自查场景；server 层对 dsh 路径强制携带）。
     f_epoch = payload.get("context_epoch")
@@ -411,6 +485,18 @@ def _pre_work_item_submitted(p: Projection, payload: Dict[str, Any]) -> None:
     if f_sess and node.session_id and f_sess != node.session_id:
         raise _v("FENCE_VIOLATION",
                  f"提交 session 与节点当前 session 不符（旧 session 禁写）")
+    if not payload.get("submission_id"):
+        raise _v("SUBMISSION_UNBOUND", "新提交必须携带独立 submission_id")
+    package_id = payload.get("package_id")
+    if package_id:
+        package = p.packages.get(package_id)
+        if package is None:
+            raise _v("PACKAGE_NOT_STORED", "提交引用的证据包尚未落盘")
+        _check_submission_package(p, item, package, payload)
+        if package.get("content_hash") != payload.get("output_sha256"):
+            raise _v("EVIDENCE_MISMATCH", "提交正文 hash 与证据包不符")
+    elif payload.get("output_sha256"):
+        raise _v("PACKAGE_MISSING", "非空提交 hash 必须绑定证据包")
     # 决策 15：SETTLEMENT 期仍允许已准入操作完成；封存完结后不再接受
     if _path_phase_in(p, item.team, {SealPhase.COMPLETED, SealPhase.TIMED_OUT}):
         raise _v("SEALED_ADMISSION", "封存已完结，拒绝 submitted（§9.6）")
@@ -428,11 +514,7 @@ def _pre_work_item_accepted(p: Projection, payload: Dict[str, Any]) -> None:
     _acceptance_transition(item, AcceptanceState.ACCEPTED)  # 只能从 FINALIZING 来（决策 9）
     if payload.get("evidence_ready") is not True:
         raise _v("EVIDENCE_NOT_READY", "accepted 要求 evidence_ready == True（§4 决策 9）")
-    # §4 第 2/3 步竞态保证："accepted 对外可见时依赖材料已可读"——
-    # package 必须先经 package_stored 落盘（evidence_ready 不允许自证）。
-    if payload.get("package_id") not in p.packages:
-        raise _v("PACKAGE_NOT_STORED",
-                 f"accepted 引用的 package {payload.get('package_id')} 未落盘（§4）")
+    bound_submission_package(p, item.item_id, payload.get("package_id"))
     if _path_phase_in(p, item.team, {SealPhase.COMPLETED, SealPhase.TIMED_OUT}):
         raise _v("SEALED_ADMISSION", "封存已完结，拒绝 accepted（§9.6）")
 
@@ -655,6 +737,36 @@ def _pre_node_activated(p: Projection, payload: Dict[str, Any]) -> None:
                  f"team {node.team} 已封存，cutoff 后不得再激活节点（§9.6 决策 15）")
 
 
+def _pre_node_execution_bound(p: Projection, payload: Dict[str, Any]) -> None:
+    node = _get_node(p, _req(payload, "node_id"))
+    item = _get_item(p, _req(payload, "item_id"))
+    if node.item_id != item.item_id or node.terminated or node.lifecycle != LifecycleState.ACTIVE:
+        raise _v("EXECUTION_NOT_ACTIVE", "执行绑定要求当前任务的 active 节点")
+    if item.acceptance is not None or payload.get("attempt") != item.attempt:
+        raise _v("ATTEMPT_MISMATCH", "执行只能绑定尚未提交的当前 attempt")
+    if payload.get("context_epoch") != node.context_epoch:
+        raise _v("FENCE_VIOLATION", "执行绑定 epoch 已过期")
+    for field in ("execution_session_id", "execution_provider", "parent_session_id"):
+        if not isinstance(payload.get(field), str) or not payload[field].strip():
+            raise _v("BAD_PAYLOAD", f"{field} 必须是宿主提供的非空身份")
+    if payload.get("execution_route"):
+        route = route_from_dict(payload["execution_route"])
+        if node.role != NodeRole.ROOT_LEAD or route.point_weight != p.leases[node.lease_id].points:
+            raise _v("EXECUTION_ROUTE_INVALID", "真实根路由绑定只适用于 root lead 且不能改变已持有点数")
+    if node.execution_binding is not None:
+        if node.execution_binding != payload:
+            raise _v("EXECUTION_ALREADY_BOUND", "本 epoch 的执行身份不可替换")
+        return
+    if payload.get("reservation_session_id") != node.session_id:
+        raise _v("FENCE_VIOLATION", "执行绑定准入 session 不匹配")
+    identity = tuple(payload[field] for field in ("execution_provider", "parent_session_id", "execution_session_id"))
+    for other in p.nodes.values():
+        binding = other.execution_binding
+        if other.node_id != node.node_id and binding and tuple(binding.get(field) for field in
+                ("execution_provider", "parent_session_id", "execution_session_id")) == identity:
+            raise _v("EXECUTION_REUSED", "同一宿主 run 不能绑定两个控制节点")
+
+
 def _pre_node_failed(p: Projection, payload: Dict[str, Any]) -> None:
     # 决策 15：node_failed 恒合法（封存/终态后仍可失败收尾），仅要求节点存在且未终止
     node = _get_node(p, _req(payload, "node_id"))
@@ -865,6 +977,7 @@ _PRE_CHECKS: Dict[str, Callable[[Projection, Dict[str, Any]], None]] = {
     "spec_published": _pre_spec_published,
     "work_item_created": _pre_work_item_created,
     "work_item_dependency_added": _pre_work_item_dependency_added,
+    "package_stored": _pre_package_stored,
     "work_item_submitted": _pre_work_item_submitted,
     "work_item_finalizing": _pre_work_item_finalizing,
     "work_item_accepted": _pre_work_item_accepted,
@@ -876,6 +989,7 @@ _PRE_CHECKS: Dict[str, Callable[[Projection, Dict[str, Any]], None]] = {
     "work_item_aborted_finalize": _pre_work_item_aborted_finalize,
     "node_provisioning": _pre_node_provisioning,
     "node_activated": _pre_node_activated,
+    "node_execution_bound": _pre_node_execution_bound,
     "node_failed": _pre_node_failed,
     "node_blocked": _pre_node_blocked,
     "node_unblocked": _pre_node_unblocked,
@@ -898,7 +1012,7 @@ _PRE_CHECKS: Dict[str, Callable[[Projection, Dict[str, Any]], None]] = {
     "peer_channel_closed": _pre_peer_channel_closed,
     "route_resolved": _pre_route_resolved,
     "human_directive": _pre_human_directive,
-    # package_stored / observation_* / token_usage_* / stop_reason_* / memory_* /
+    # observation_* / token_usage_* / stop_reason_* / memory_* /
     # watchdog_suggested / delegation_economics_recorded：纯记录，无 pre 检查
 }
 

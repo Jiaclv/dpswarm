@@ -318,13 +318,11 @@ class ExperimentControl:
                 "source_commit": _FROZEN_SOURCE_COMMIT, "raw_score": raw}
 
     def _accept(self, item_id: str, content: dict[str, Any], source_refs: list[str]) -> None:
-        self.cp.begin_finalize(item_id)
-        text = _json(content)
-        package_id = "experiment-evidence-" + _sha(text)[:24]
-        self.cp.store_evidence_package(item_id, package_id, text, source_refs=source_refs)
-        self.cp.complete_accept(item_id, package_id, evidence_ready=True,
+        package_id = self.cp.proj.work_items[item_id].submission_package_id
+        self.cp.accept_submission(item_id, package_id,
             accepted_by={"via": "external-oracle-grader", "scope": "run-level evidence",
-                         "individual_role_capability_verdict": False})
+                         "individual_role_capability_verdict": False,
+                         "review_evidence": json.loads(_json(content)), "source_refs": list(source_refs)})
 
     def _stop_unaccepted(self, reason: str) -> None:
         terminal = invariants.TERMINAL_ACCEPTANCE

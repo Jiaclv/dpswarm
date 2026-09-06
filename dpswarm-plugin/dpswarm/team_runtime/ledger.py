@@ -6,6 +6,7 @@ this module never executes or automatically retries it.
 """
 from __future__ import annotations
 
+from contextlib import contextmanager
 from copy import deepcopy
 import hashlib
 import json
@@ -65,9 +66,16 @@ class RunBudget:
     """
 
     def __init__(self, max_calls: int = 20, token_limit: int = 600_000,
-                 deadline_seconds: float | None = None, *, clock: Callable[[], float] = time.time):
+                 deadline_seconds: float | None = None, *,
+                 cm_call_allowance: int | None = None,
+                 clock: Callable[[], float] = time.time):
         self.max_calls = nonnegative(max_calls, "max_calls")
         self.token_limit = nonnegative(token_limit, "token_limit")
+        # None keeps the pre-rev9 semantics: every ticket, CM included, spends
+        # one max_calls slot. An allowance moves CM tickets to a separate call
+        # pool; the shared token pool still sees their reservations.
+        self.cm_call_allowance = (None if cm_call_allowance is None
+                                  else nonnegative(cm_call_allowance, "cm_call_allowance"))
         self.clock = clock
         self.created_at = clock()
         self.deadline_at = deadline(self.created_at, deadline_seconds)
@@ -80,13 +88,18 @@ class RunBudget:
             completed = [v for v in self.tickets.values() if v["status"] == "completed"]
             unknown = [v for v in completed if v["usage"]["total_tokens"] is None]
             pending = [v for v in self.tickets.values() if v["status"] == "reserved"]
+            cm = [v for v in self.tickets.values()
+                  if v["role"] == "cm" and self.cm_call_allowance is not None]
             known = sum(v["usage"]["total_tokens"] for v in completed if v["usage"]["total_tokens"] is not None)
             held = sum(v["reserved_tokens"] for v in pending + unknown)
             return {"call_count": len(self.tickets), "completed_call_count": len(completed),
                     "pending_call_count": len(pending), "unknown_call_count": len(unknown),
                     "known_subtotal": known, "total_tokens": None if unknown or pending else known,
                     "reserved_tokens": held, "committed_tokens": known + held,
-                    "remaining_calls": max(0, self.max_calls - len(self.tickets)),
+                    "cm_call_allowance": self.cm_call_allowance, "cm_call_count": len(cm),
+                    "remaining_cm_calls": (None if self.cm_call_allowance is None
+                                           else max(0, self.cm_call_allowance - len(cm))),
+                    "remaining_calls": max(0, self.max_calls - (len(self.tickets) - len(cm))),
                     "remaining_tokens": max(0, self.token_limit - known - held),
                     "over_token_limit": known + held > self.token_limit,
                     "deadline_at": self.deadline_at,
@@ -107,7 +120,10 @@ class RunBudget:
             status = self.summary()
             if status["deadline_exceeded"]:
                 raise LedgerError("DEADLINE_EXCEEDED", "Run deadline elapsed")
-            if not status["remaining_calls"]:
+            if role == "cm" and self.cm_call_allowance is not None:
+                if not status["remaining_cm_calls"]:
+                    raise LedgerError("CM_CALL_BUDGET_EXHAUSTED", "No CM pool calls remain")
+            elif not status["remaining_calls"]:
                 raise LedgerError("CALL_BUDGET_EXHAUSTED", "No model calls remain")
             if status["over_token_limit"] or reserved_tokens > status["remaining_tokens"]:
                 raise LedgerError("TOKEN_BUDGET_EXHAUSTED", "Reservation exceeds remaining token budget")
@@ -163,7 +179,8 @@ class RunBudget:
 
     def snapshot(self) -> dict:
         with self._lock:
-            value = {"version": 1, "max_calls": self.max_calls, "token_limit": self.token_limit,
+            value = {"version": 2, "max_calls": self.max_calls, "token_limit": self.token_limit,
+                     "cm_call_allowance": self.cm_call_allowance,
                      "created_at": self.created_at, "deadline_at": self.deadline_at,
                      "frozen": self.frozen, "tickets": clone(self.tickets)}
             return {**value, "snapshot_hash": digest(value)}
@@ -172,13 +189,19 @@ class RunBudget:
     def from_snapshot(cls, snapshot: dict, *, clock: Callable[[], float] = time.time) -> "RunBudget":
         value = clone(snapshot)
         saved_hash = value.pop("snapshot_hash", None)
-        if saved_hash != digest(value) or value.get("version") != 1:
+        version = value.get("version")
+        if version not in (1, 2) or saved_hash != digest(value):
             raise LedgerError("SNAPSHOT_CORRUPT", "Budget snapshot hash or version is invalid")
         # Restoring evidence is not a new admission. Replaying reserve() would
         # reject expired runs or genuine provider overshoot, and dictionary
         # serialization need not preserve the original admission order.
         try:
-            obj = cls(value["max_calls"], value["token_limit"], clock=clock)
+            allowance = None
+            if version == 2:
+                allowance = value["cm_call_allowance"]
+                if allowance is not None:
+                    nonnegative(allowance, "cm_call_allowance")
+            obj = cls(value["max_calls"], value["token_limit"], cm_call_allowance=allowance, clock=clock)
             created, expires = value["created_at"], value["deadline_at"]
             for stamp in (created, expires):
                 if stamp is not None and (isinstance(stamp, bool) or not isinstance(stamp, (int, float)) or not math.isfinite(stamp)):
@@ -186,7 +209,13 @@ class RunBudget:
             if created is None or (expires is not None and expires <= created):
                 raise LedgerError("SNAPSHOT_CORRUPT", "Invalid run deadline")
             tickets = value["tickets"]
-            if not isinstance(tickets, dict) or len(tickets) > obj.max_calls or not isinstance(value["frozen"], bool):
+            # Version 1 counts every ticket (CM included) against max_calls;
+            # version 2 counts CM tickets only against their own allowance.
+            cm_tickets = [t for t in tickets.values()
+                          if version == 2 and t["role"] == "cm" and allowance is not None]
+            if not isinstance(tickets, dict) or len(tickets) - len(cm_tickets) > obj.max_calls \
+                    or (allowance is not None and len(cm_tickets) > allowance) \
+                    or not isinstance(value["frozen"], bool):
                 raise LedgerError("SNAPSHOT_CORRUPT", "Invalid ticket count or frozen state")
             call_ids = set()
             for key, ticket in tickets.items():
@@ -217,7 +246,15 @@ class RunBudget:
 
 
 class ExecutionStore:
-    """Hash-chained single-writer journal plus atomic checkpoint acceleration."""
+    """Hash-chained journal with one writer per transaction across processes.
+
+    Restored instances may coexist as views of their last observed head. Every
+    disk read or mutation takes a nonblocking OS lock; freshness validation and
+    the entire write/checkpoint transaction share that lock. Contention raises
+    WRITER_BUSY; a view whose head changed raises STALE_WRITER and must be reopened
+    and reconciled. No automatic merging or retrying of side effects occurs.
+    Locks are released on scope exit/process death, without deleting lock files.
+    """
 
     def __init__(self, directory: Path, *, clock: Callable[[], float] = time.time):
         self.directory = Path(directory).resolve()
@@ -226,10 +263,48 @@ class ExecutionStore:
         self.snapshot_path = self.directory / "execution.snapshot.json"
         self.clock = clock
         self._lock = threading.RLock()
-        self._events = self._read_events()
-        self._tools: dict[str, dict] = {}
-        for event in self._events:
-            self._apply_tool(event)
+        self._writer_depth = 0
+        with self._writer_guard():
+            self._events = self._read_events()
+            self._tools: dict[str, dict] = {}
+            for event in self._events:
+                self._apply_tool(event)
+
+    @contextmanager
+    def _writer_guard(self):
+        # The instance RLock serializes threads and allows helpers such as
+        # save_snapshot -> append to share a single OS-lock acquisition.
+        with self._lock:
+            if self._writer_depth:
+                self._writer_depth += 1
+                try:
+                    yield
+                finally:
+                    self._writer_depth -= 1
+                return
+            lock_path = self.journal.with_suffix(self.journal.suffix + ".lock")
+            with lock_path.open("a+b") as stream:
+                try:
+                    if os.name == "nt":
+                        import msvcrt
+                        stream.seek(0)
+                        msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
+                    else:
+                        import fcntl
+                        fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                except OSError as exc:
+                    raise LedgerError("WRITER_BUSY", "Another writer holds this journal transaction; "
+                                      "wait for it to finish, then reopen and reconcile") from exc
+                self._writer_depth = 1
+                try:
+                    yield
+                finally:
+                    self._writer_depth = 0
+                    if os.name == "nt":
+                        stream.seek(0)
+                        msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
+                    else:
+                        fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
 
     def _read_events(self) -> list[dict]:
         if not self.journal.exists():
@@ -262,7 +337,7 @@ class ExecutionStore:
         identifier(kind, "event kind")
         if not isinstance(payload, dict):
             raise LedgerError("INVALID_EVENT", "Event payload must be an object")
-        with self._lock:
+        with self._writer_guard():
             self._assert_current()
             value = {"seq": len(self._events) + 1, "at": self.clock(), "kind": kind,
                      "payload": clone(payload), "prev_hash": self._events[-1]["hash"] if self._events else "0" * 64}
@@ -312,7 +387,7 @@ class ExecutionStore:
         identifier(operation_id, "operation_id")
         if not isinstance(request, dict):
             raise LedgerError("INVALID_REQUEST", "Tool request must be an object")
-        with self._lock:
+        with self._writer_guard():
             self._assert_current()
             old = self._tools.get(operation_id)
             if old:
@@ -323,7 +398,7 @@ class ExecutionStore:
             return self.tool_state(operation_id)
 
     def start_tool(self, operation_id: str) -> dict:
-        with self._lock:
+        with self._writer_guard():
             old = self.tool_state(operation_id)
             if old is None:
                 raise LedgerError("UNKNOWN_TOOL", "Plan a tool before starting it")
@@ -335,7 +410,7 @@ class ExecutionStore:
             return self.tool_state(operation_id)
 
     def complete_tool(self, operation_id: str, result: Any) -> dict:
-        with self._lock:
+        with self._writer_guard():
             self._assert_current()
             old = self.tool_state(operation_id)
             if old and old["status"] == "completed":
@@ -358,7 +433,7 @@ class ExecutionStore:
     def save_snapshot(self, state: dict) -> dict:
         if not isinstance(state, dict):
             raise LedgerError("INVALID_SNAPSHOT", "Execution state must be an object")
-        with self._lock:
+        with self._writer_guard():
             event = self.append("execution.checkpoint", {"state": state})
             value = {"version": 1, "event_seq": event["seq"], "event_hash": event["hash"], "state": clone(state)}
             envelope = {**value, "snapshot_hash": digest(value)}
@@ -376,7 +451,7 @@ class ExecutionStore:
             return clone(envelope)
 
     def load_snapshot(self) -> dict | None:
-        with self._lock:
+        with self._writer_guard():
             self._assert_current()
             if self.snapshot_path.exists():
                 try:

@@ -92,8 +92,9 @@ class TestTxnEnvelope:
 
     def test_second_writer_cross_process_blocked(self, tmp_path):
         cp = _cp(tmp_path)
+        store = str(tmp_path / "e.jsonl")
         code = ("from dpswarm.control import ControlPlane;"
-                f"ControlPlane(store_path=r'{tmp_path}\\e.jsonl')")
+                f"ControlPlane(store_path={store!r})")
         r = subprocess.run([sys.executable, "-c", code], capture_output=True,
                            text=True, cwd=Path(__file__).resolve().parents[1])
         assert r.returncode != 0 and "EVENT_LOG_LOCKED" in r.stderr

@@ -323,11 +323,10 @@ class SweControl:
             return deepcopy(saved)
 
     def _accept(self, handle, evidence, refs, via):
-        self.cp.begin_finalize(handle.item_id)
-        package_id = "swe-evidence-" + digest(evidence)[:24]
-        self.cp.store_evidence_package(handle.item_id, package_id, canonical(evidence), source_refs=refs)
-        self.cp.complete_accept(handle.item_id, package_id, evidence_ready=True,
-            accepted_by={"via": via, "lead_node_id": self.lead.node_id, "official_resolved": None})
+        package_id = self.cp.proj.work_items[handle.item_id].submission_package_id
+        self.cp.accept_submission(handle.item_id, package_id,
+            accepted_by={"via": via, "lead_node_id": self.lead.node_id, "official_resolved": None,
+                         "review_evidence": clone(evidence), "source_refs": list(refs)})
 
     def validate_decision(self, caller, worker, decision, reason, evidence=None):
         """Read-only preflight before the host applies a proposed patch.

@@ -14,7 +14,15 @@ from modelbench.swe_fixed_team_20260903 import runner
 from modelbench.swe_fixed_team_20260903.tests.test_runner import action, done, events, make_run
 
 
-def test_scout_distilled_before_workers_and_packages_assembled(make_run):
+def assembly_on(monkeypatch):
+    """rev10 defaults assembly off; rev7-era tests opt in explicitly."""
+    monkeypatch.setitem(runner.LIMITS, 'cm_team_memory', True)
+    monkeypatch.setitem(runner.LIMITS, 'cm_scout_distill', True)
+    monkeypatch.setitem(runner.LIMITS, 'cm_bootstrap_package', True)
+
+
+def test_scout_distilled_before_workers_and_packages_assembled(make_run, monkeypatch):
+    assembly_on(monkeypatch)
     run, env, _ = make_run()
     result = run.run()
     assert result['infrastructure_error'] is None
@@ -40,6 +48,7 @@ def test_scout_distilled_before_workers_and_packages_assembled(make_run):
 
 
 def test_team_memory_is_one_way_lead_writes_workers_never_do(make_run, monkeypatch):
+    assembly_on(monkeypatch)
     monkeypatch.setitem(runner.LIMITS, 'cm_context_budget', 200)  # force compressions
     monkeypatch.setitem(runner.LIMITS, 'cm_keep_recent', 2)
     run, env, _ = make_run(workers={'worker-1': [[action('bash', command='edit-production')]] * 2 + [[done()]]})
@@ -52,6 +61,8 @@ def test_team_memory_is_one_way_lead_writes_workers_never_do(make_run, monkeypat
 
 
 def test_worker_compression_pulls_unseen_team_memory(make_run, monkeypatch):
+    monkeypatch.setitem(runner.LIMITS, 'cm_edit_curfew', False)  # Test compression independently of observed-edit curfew.
+    assembly_on(monkeypatch)
     monkeypatch.setitem(runner.LIMITS, 'cm_context_budget', 200)
     monkeypatch.setitem(runner.LIMITS, 'cm_keep_recent', 2)
     run, env, _ = make_run(workers={'worker-1': [[action('bash', command='edit-production')]] * 3 + [[done()]]})

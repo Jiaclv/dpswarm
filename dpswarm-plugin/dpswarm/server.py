@@ -21,8 +21,8 @@
   POST /api/peer              分裂对 peer 通道投递（§9.5：queued+delivered，
                                消息账本即 evidence）
 
-用法：python -m dpswarm.server [--port 8790] [--workspace .dpswarm-panel]
-页面：http://127.0.0.1:8790/  （dph Web UI 入口见 apps/web/public/dpswarm.html）
+用法：python -m dpswarm.server [--port 8791] [--workspace .dpswarm-panel]
+页面：http://127.0.0.1:8791/  （dph Web UI 入口见 apps/web/public/dpswarm.html）
 """
 from __future__ import annotations
 
@@ -313,7 +313,9 @@ class PanelState:
         n = self.cp.proj.nodes.get(node_id)
         if n is None:
             return {}
-        return {"context_epoch": n.context_epoch, "session_id": n.session_id}
+        return {"context_epoch": n.context_epoch, "session_id": n.session_id,
+                "attempt": self.cp.proj.work_items[n.item_id].attempt,
+                "execution_binding": n.execution_binding}
 
     def delegate(self, body: Dict[str, Any]) -> Tuple[bool, Dict[str, Any]]:
         """拓扑动作 + 硬准入（§7）：两模式——
@@ -323,6 +325,11 @@ class PanelState:
         from dpswarm.types import DelegationKind
         if not isinstance(body, dict):
             return False, {"ok": False, "error": "BAD_REQUEST", "message": "body must be an object"}
+        if any(event.kind == "observation_recorded" and event.payload.get("execution_failure", {}).get("published")
+               and not event.payload["execution_failure"].get("physical_cleanup_confirmed")
+               for event in self.cp.store.read_all()):
+            return False, {"ok": False, "error": "EXECUTION_CLEANUP_UNCONFIRMED",
+                           "message": "A published DSH child has unconfirmed cleanup; root admission remains sealed"}
         if body.get("item_id"):
             return self._delegate_rerun(body)
         kind_map = {"derive": DelegationKind.DERIVE, "fission": DelegationKind.FISSION,
@@ -398,6 +405,7 @@ class PanelState:
                     self.cp.confirm_node(assistant.node_id)
                     results.append({"item_id": item_id, "node_id": primary.node_id,
                                     "assistant_node_id": assistant.node_id,
+                                    "assistant_fence": self._fence_of(assistant.node_id),
                                     "channel_id": chan, "kind": "split",
                                     "level": route.level.value, "subtask_index": i,
                                     **self._fence_of(primary.node_id)})
@@ -510,6 +518,95 @@ class PanelState:
         except ControlPlaneError as e:
             return False, {"ok": False, "error": e.code, "message": str(e), **e.context}
 
+    def bind_execution_root(self, body: Dict[str, Any]) -> Tuple[bool, Dict[str, Any]]:
+        parent = body.get("parent_session_id")
+        if (not isinstance(parent, str) or not parent.strip()
+                or type(body.get("delegation_depth")) is not int or body["delegation_depth"] != 0):
+            return False, {"ok": False, "error": "ROOT_CALLER_REQUIRED"}
+        if not all(isinstance(body.get(key), str) and body[key].strip() for key in ("provider", "model")):
+            return False, {"ok": False, "error": "ROOT_MODEL_REQUIRED"}
+        with self.cp._lock:
+            root = self.cp.proj.nodes[self.cp.root_lead_node]
+            existing = root.execution_binding
+            if existing:
+                route = existing.get("execution_route", {})
+                if (existing.get("execution_provider") != "dsh-root" or existing.get("execution_session_id") != parent
+                        or route.get("provider") != body["provider"] or route.get("model") != body["model"]):
+                    return False, {"ok": False, "error": "ROOT_EXECUTION_CONFLICT",
+                                   "message": "This sidecar root belongs to a different DSH session or requested model"}
+                return True, {"ok": True, **self._fence_of(root.node_id), "requested_route": route}
+            try:
+                _, selected = self._route_from_subtask({"provider": body["provider"], "model": body["model"]})
+                self._register_agent_routes([selected])
+                # Root already owns one control lease; route binding changes its known
+                # capability level, not the reserved-resource contract.
+                selected = dataclasses.replace(selected, point_weight=self.cp.proj.leases[root.lease_id].points)
+                self.cp.bind_execution_session(root.item_id, root.node_id,
+                    attempt=self.cp.proj.work_items[root.item_id].attempt, context_epoch=root.context_epoch,
+                    reservation_session_id=root.session_id, execution_session_id=parent,
+                    parent_session_id=parent, execution_provider="dsh-root", execution_route=selected)
+                return True, {"ok": True, **self._fence_of(root.node_id),
+                              "requested_route": dataclasses.asdict(selected)}
+            except ControlPlaneError as exc:
+                return False, {"ok": False, "error": exc.code, "message": str(exc)}
+
+    def bind_execution(self, body: Dict[str, Any]) -> Tuple[bool, Dict[str, Any]]:
+        try:
+            root_binding = self.cp.proj.nodes[self.cp.root_lead_node].execution_binding
+            if (body.get("node_id") != self.cp.root_lead_node and root_binding
+                    and body.get("parent_session_id") != root_binding.get("execution_session_id")):
+                return False, {"ok": False, "error": "ROOT_EXECUTION_CONFLICT"}
+            node = self.cp.bind_execution_session(
+                body.get("item_id"), body.get("node_id"), attempt=body.get("attempt"),
+                context_epoch=body.get("context_epoch"),
+                reservation_session_id=body.get("reservation_session_id"),
+                execution_session_id=body.get("execution_session_id"),
+                parent_session_id=body.get("parent_session_id"),
+                execution_provider=body.get("execution_provider"))
+            return True, {"ok": True, **self._fence_of(node.node_id)}
+        except ControlPlaneError as exc:
+            return False, {"ok": False, "error": exc.code, "message": str(exc)}
+
+    def fail_execution(self, body: Dict[str, Any]) -> Tuple[bool, Dict[str, Any]]:
+        """宿主明确终止本次执行的控制权，保留原错误和物理清理是否确认。"""
+        from .invariants import TERMINAL_ACCEPTANCE
+        with self.cp._lock:
+            item = self.cp.proj.work_items.get(body.get("item_id"))
+            node = self.cp.proj.nodes.get(body.get("node_id"))
+            if not item or not node or node.item_id != item.item_id:
+                return False, {"ok": False, "error": "NODE_ITEM_MISMATCH"}
+            binding = node.execution_binding or {}
+            if (body.get("attempt") != item.attempt or body.get("context_epoch") != node.context_epoch
+                    or body.get("reservation_session_id") != binding.get("reservation_session_id", node.session_id)
+                    or (binding and body.get("execution_session_id") != binding.get("execution_session_id"))):
+                return False, {"ok": False, "error": "FENCE_VIOLATION"}
+            if item.acceptance in TERMINAL_ACCEPTANCE:
+                return True, {"ok": True, "outcome": item.acceptance.value, "already_terminal": True}
+            error = {"code": str(body.get("code") or "SUBAGENT_EXECUTION_FAILED"),
+                     "message": str(body.get("error") or "DSH execution failed")[:2000],
+                     "details": body.get("details") if isinstance(body.get("details"), dict) else {},
+                     "physical_cleanup_confirmed": body.get("physical_cleanup_confirmed") is True,
+                     "published": body.get("published") is True or bool(body.get("execution_session_id"))}
+            pairs = [("stop_reason_recorded", {"node_id": node.node_id,
+                                               "stop_reason": body.get("stop_reason") or "error"}),
+                     ("token_usage_recorded", {"node_id": node.node_id, "input": None, "output": None,
+                                               "cache_read": None, "cache_write": None, "cost": None}),
+                     ("observation_recorded", {"node_id": node.node_id, "item_id": item.item_id,
+                                                "execution_failure": error})]
+            if error["published"] and not error["physical_cleanup_confirmed"]:
+                from .types import SealPhase
+                if self.cp.proj.seal_phase.get("root", SealPhase.OPEN) == SealPhase.OPEN:
+                    pairs.append(("seal_admission_cutoff", {"team_id": "root", "reason": "execution-cleanup-unconfirmed"}))
+            pairs += self.cp._channel_close_pairs(item.item_id) + self.cp._drain_pairs(item.item_id)
+            pairs.append(("work_item_terminated", {"item_id": item.item_id, "reason": "manual-stopped",
+                                                    "summary": error["message"]}))
+            pairs += self.cp._successor_invalidate_pairs(item.item_id)
+            try:
+                self.cp._transact(*pairs)
+                return True, {"ok": True, "outcome": "terminated", "failure": error}
+            except ControlPlaneError as exc:
+                return False, {"ok": False, "error": exc.code, "message": str(exc)}
+
     def submit_output(self, body: Dict[str, Any]) -> Tuple[bool, Dict[str, Any]]:
         """worker（dsh subagent）交付回控制面：记观测 + submitted（§5.7）。
         output 即时内容寻址落盘并绑定证据包（P1-3）；fence 必填（P1-2）：
@@ -532,9 +629,9 @@ class PanelState:
             if (body or {}).get("token_usage"):
                 u = body["token_usage"]
                 self.cp.record_token_usage(
-                    node_id or "", u.get("input_tokens", 0), u.get("output_tokens", 0),
-                    u.get("cache_read_tokens", 0), u.get("cache_write_tokens", 0),
-                    u.get("cost_usd", 0.0))
+                    node_id or "", u.get("input_tokens"), u.get("output_tokens"),
+                    u.get("cache_read_tokens"), u.get("cache_write_tokens"),
+                    u.get("cost_usd"))
             return True, {"ok": True}
         except ControlPlaneError as e:
             return False, {"ok": False, "error": e.code, "message": str(e)}
@@ -568,7 +665,7 @@ class PanelState:
                 # P1-3 引用制：accept 只准引用 submit 落盘的证据包，正文不再
                 # 由 review 提供（防替换）。缺包（如 submit 未带 output）= 拒绝。
                 pkg = (body or {}).get("package_id") or item.submission_package_id
-                if not pkg:
+                if not item.submission_package_id:
                     return False, {"ok": False, "error": "PACKAGE_MISSING",
                                    "message": "accept 需引用 submit 落盘的证据包"
                                               "（package_id）；review 不再接收正文（P1-3）"}
@@ -576,9 +673,8 @@ class PanelState:
                     return False, {"ok": False, "error": "EVIDENCE_MISMATCH",
                                    "message": f"package {pkg} != submit 绑定的 "
                                               f"{item.submission_package_id}（证据不可替换）"}
-                self.cp.begin_finalize(item_id)
-                self.cp.complete_accept(
-                    item_id, package_id=pkg, evidence_ready=True,
+                self.cp.accept_submission(
+                    item_id, package_id=pkg,
                     accepted_by={"node": "dsh-lead", "via": "dpswarm-dsh-plugin"})
                 return True, {"ok": True, "outcome": "accepted"}
             if verdict == "terminate":
@@ -617,8 +713,17 @@ class PanelState:
         if not channel_id or not from_node or text is None:
             return False, {"ok": False, "error": "channel_id / from_node / body 必填"}
         try:
+            node = self.cp.proj.nodes.get(from_node)
+            if node and node.execution_binding and (body.get("session_id") != node.session_id
+                    or body.get("context_epoch") != node.context_epoch):
+                return False, {"ok": False, "error": "FENCE_VIOLATION"}
             message_id = self.cp.peer_send(channel_id, from_node, text)
             self.cp.peer_deliver(message_id)
+            if isinstance(body.get("token_usage"), dict):
+                usage = body["token_usage"]
+                self.cp.record_token_usage(from_node, usage.get("input_tokens"), usage.get("output_tokens"),
+                    usage.get("cache_read_tokens"), usage.get("cache_write_tokens"), usage.get("cost_usd"))
+                self.cp.record_stop_reason(from_node, "completed")
             return True, {"ok": True, "message_id": message_id}
         except ControlPlaneError as e:
             return False, {"ok": False, "error": e.code, "message": str(e)}
@@ -800,6 +905,15 @@ class Handler(BaseHTTPRequestHandler):
             elif self.path == "/api/delegate":
                 ok, resp = st.delegate(body)
                 self._json(resp, 200 if ok else 400)
+            elif self.path == "/api/execution/root":
+                ok, resp = st.bind_execution_root(body)
+                self._json(resp, 200 if ok else 400)
+            elif self.path == "/api/execution/bind":
+                ok, resp = st.bind_execution(body)
+                self._json(resp, 200 if ok else 400)
+            elif self.path == "/api/execution/fail":
+                ok, resp = st.fail_execution(body)
+                self._json(resp, 200 if ok else 400)
             elif self.path == "/api/submit":
                 ok, resp = st.submit_output(body)
                 self._json(resp, 200 if ok else 400)
@@ -818,7 +932,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"ok": False, "error": "INTERNAL_ERROR", "message": type(e).__name__}, 500)
 
 
-def serve(port: int = 8790, workspace: Optional[Path] = None) -> None:
+def serve(port: int = 8791, workspace: Optional[Path] = None) -> None:
     # 单实例守卫：HTTPServer 默认 SO_REUSEADDR，Windows 上允许多进程双绑同一
     # 端口、旧进程抢流量（实测踩坑）。connect 探测占用即拒绝启动。
     import socket
@@ -839,7 +953,7 @@ def serve(port: int = 8790, workspace: Optional[Path] = None) -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser(prog="dpswarm-panel")
-    ap.add_argument("--port", type=int, default=8790)
+    ap.add_argument("--port", type=int, default=8791)
     ap.add_argument("--workspace", default=".dpswarm-panel")
     args = ap.parse_args()
     serve(args.port, Path(args.workspace))

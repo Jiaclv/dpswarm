@@ -308,11 +308,9 @@ class Orchestrator:
             result.usage.cost_usd)
         self.cp.record_stop_reason(self.cp.root_lead_node, result.stop_reason.value)
         self.cp.submit(root_item, self.cp.root_lead_node, result.text)
-        self.cp.begin_finalize(root_item)
-        pkg_id = f"single-{new_id('pkg')}"
-        self.cp.store_evidence_package(root_item, pkg_id, result.text)
-        ev = self.cp.complete_accept(
-            root_item, package_id=pkg_id, evidence_ready=True,
+        pkg_id = self.cp.proj.work_items[root_item].submission_package_id
+        ev = self.cp.accept_submission(
+            root_item, package_id=pkg_id,
             accepted_by={"node": self.cp.root_lead_node,
                          "route": f"{self.lead_route.provider}/{self.lead_route.model}",
                          "level": self.lead_route.level.value})
@@ -642,11 +640,9 @@ class Orchestrator:
         record_outcome = None
         for _attempt in range(self.cp.proj.spec.max_attempts):
             if verdict.get("verdict") == "accept":
-                self.cp.begin_finalize(item_id)
-                package_id = f"dep-{new_id('pkg')}"
-                self.cp.store_evidence_package(item_id, package_id, submission)
-                self.cp.complete_accept(
-                    item_id, package_id=package_id, evidence_ready=True,
+                package_id = self.cp.proj.work_items[item_id].submission_package_id
+                self.cp.accept_submission(
+                    item_id, package_id=package_id,
                     accepted_by={"node": self.cp.root_lead_node,
                                  "route": f"{self.lead_route.provider}/{self.lead_route.model}",
                                  "level": self.lead_route.level.value})

@@ -1,0 +1,161 @@
+{
+  "schema": "api-equivalent-cost-rates-v1",
+  "verified_on": "2026-09-04",
+  "valuation_kind": "Public API list-price equivalent: requested GPT Fast, domestic GLM metered equivalent, DeepSeek historical time band. Not actual subscription charges.",
+  "output_currency": "USD",
+  "token_unit": 1000000,
+  "fx": {
+    "cny_per_usd": 6.726,
+    "rate_date": "2026-08-28",
+    "release_date": "2026-08-31",
+    "source_url": "https://www.federalreserve.gov/releases/h10/current/",
+    "source_title": "Federal Reserve H.10, August 31 2026 release, CHINA P.R. YUAN, Aug.28 observation",
+    "purpose": "Fixed common reporting conversion, not an observed account conversion or September 3 spot quote"
+  },
+  "models": {
+    "gpt-5.6-sol": {
+      "provider": "OpenAI",
+      "currency": "USD",
+      "standard": {
+        "input": 4,
+        "cached_input": 0.4,
+        "output": 20
+      },
+      "fast": {
+        "input": 8,
+        "cached_input": 0.8,
+        "output": 40
+      },
+      "cache_write_multiplier": 1.25,
+      "short_context_max_input": 272000,
+      "actual_transport": "Codex CLI; public API-equivalent repricing",
+      "source_urls": [
+        "https://developers.openai.com/api/docs/pricing",
+        "https://developers.openai.com/api/docs/models/gpt-5.6-sol",
+        "https://developers.openai.com/api/docs/guides/fast-mode"
+      ]
+    },
+    "gpt-5.6-terra": {
+      "provider": "OpenAI",
+      "currency": "USD",
+      "standard": {
+        "input": 2,
+        "cached_input": 0.2,
+        "output": 12
+      },
+      "fast": {
+        "input": 4,
+        "cached_input": 0.4,
+        "output": 24
+      },
+      "cache_write_multiplier": 1.25,
+      "short_context_max_input": 272000,
+      "actual_transport": "Codex CLI; public API-equivalent repricing",
+      "source_urls": [
+        "https://developers.openai.com/api/docs/pricing",
+        "https://developers.openai.com/api/docs/models/gpt-5.6-terra"
+      ]
+    },
+    "gpt-5.6-luna": {
+      "provider": "OpenAI",
+      "currency": "USD",
+      "standard": {
+        "input": 0.2,
+        "cached_input": 0.02,
+        "output": 1.2
+      },
+      "fast": {
+        "input": 0.4,
+        "cached_input": 0.04,
+        "output": 2.4
+      },
+      "cache_write_multiplier": 1.25,
+      "short_context_max_input": 272000,
+      "actual_transport": "Codex CLI; public API-equivalent repricing",
+      "source_urls": [
+        "https://developers.openai.com/api/docs/pricing",
+        "https://developers.openai.com/api/docs/models/gpt-5.6-luna"
+      ]
+    },
+    "glm-5.3": {
+      "provider": "BigModel China",
+      "currency": "CNY",
+      "standard": {
+        "input": 8,
+        "cached_input": 2,
+        "output": 28
+      },
+      "cache_write_multiplier": 1,
+      "actual_transport": "Domestic Coding Plan endpoint; domestic metered API-equivalent repricing",
+      "notes": "The official table says cache storage is temporarily free. No separate cache-write surcharge is added; uncached input remains charged at the ordinary input rate.",
+      "source_urls": [
+        "https://bigmodel.cn/pricing",
+        "https://docs.bigmodel.cn/cn/guide/models/text/glm-5.3"
+      ]
+    },
+    "glm-5.3-flash": {
+      "provider": "BigModel China",
+      "currency": "CNY",
+      "standard": {
+        "input": 0.4,
+        "cached_input": 0.115,
+        "output": 1.4
+      },
+      "regular_unpromoted": {
+        "input": 0.8,
+        "cached_input": 0.23,
+        "output": 2.8
+      },
+      "cache_write_multiplier": 1,
+      "actual_transport": "Domestic Coding Plan endpoint; domestic metered API-equivalent repricing",
+      "notes": "50 percent limited promotion confirmed in domestic pricing asset last modified 2026-09-03; exact domestic promotion end not established. Do not substitute international Z.AI rates.",
+      "source_urls": [
+        "https://bigmodel.cn/pricing"
+      ]
+    },
+    "deepseek-v4-flash": {
+      "provider": "DeepSeek official API",
+      "currency": "USD",
+      "standard": {
+        "input": 0.22,
+        "cached_input": 0.007,
+        "output": 0.66
+      },
+      "cache_write_multiplier": 1,
+      "peak_schedule": {
+        "effective_from_utc": "2026-08-16T16:00:00Z",
+        "weekdays_utc": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "hours_utc": [
+          [
+            1,
+            4
+          ],
+          [
+            6,
+            10
+          ]
+        ],
+        "multiplier": 2
+      },
+      "actual_transport": "Official native API; price band selected using recorded call started_at",
+      "source_urls": [
+        "https://api-docs.deepseek.com/quick_start/pricing",
+        "https://api-docs.deepseek.com/guides/kv_cache"
+      ]
+    }
+  },
+  "new_experiment_valuation_policy": {
+    "type": "fixed_dated_scenario",
+    "pricing_observed_on": "2026-09-04",
+    "source_file": "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\validation\\consolidated_v14_20260904\\data\\api_rate_card.json",
+    "current_price_reverification": false,
+    "actual_billed_cash_verified": false,
+    "note": "Fixed previously reviewed rate card for comparable valuations; not a claim about current or invoiced subscription rates."
+  }
+}

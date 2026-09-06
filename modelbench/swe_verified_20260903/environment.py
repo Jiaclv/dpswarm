@@ -400,6 +400,14 @@ chmod 777 /tmp/agent-home
         return result
 
     def run(self, command: str, timeout: int | None = None) -> dict:
+        """Return bounded command output and explicit character-count evidence.
+
+        exit_code is the outer command status (Bash on ordinary completion),
+        never a test-runner status inferred from output. Existing timeout and
+        capture-limit status flags retain their meaning. captured_chars counts
+        the stored capture, not output lost if output_limit_exceeded is true;
+        returned_chars counts the text sent to the caller, using Python len.
+        """
         with self._lock:
             if not isinstance(command, str) or not command.strip():
                 raise ValueError("command must be nonempty text")
@@ -408,13 +416,47 @@ chmod 777 /tmp/agent-home
             if result["timed_out"]:
                 self.close()
             _json(self.run_dir / "commands" / f"{self._command_seq:05d}.json", {"command": command, **result})
-            # Full output remains in the host-only command record.
-            return {**result, "stdout": result["stdout"][-40000:], "stderr": result["stderr"][-12000:]}
+            # Full captured output remains in the host-only command record.
+            visible = dict(result)
+            for field, limit in (("stdout", 40000), ("stderr", 12000)):
+                captured = result[field]
+                visible[field] = captured[-limit:]
+                visible[field + "_truncated"] = bool(result.get(field + "_truncated")) or len(captured) > limit
+                visible[field + "_captured_chars"] = len(captured)
+                visible[field + "_returned_chars"] = len(visible[field])
+            return visible
 
     def _tree(self) -> str:
         index = f"/tmp/dpswarm-index-{uuid.uuid4().hex}"
         script = f"export GIT_INDEX_FILE={index}; trap 'rm -f {index}' EXIT; git read-tree {self.base_commit}; git add -A; git write-tree"
         return self._exec(script, check=True)["stdout"].strip().splitlines()[-1]
+
+    def observe_worktree(self) -> dict:
+        """Observe direct file bytes relative to the first post-start observation.
+
+        The runner calls this once before candidate tools, then after possible
+        changes. This does not stage files, export a patch or invoke Git filters.
+        """
+        # The grader runs this file alone, without the candidate-only probe.
+        # Load it only for observation; legacy callers import environment directly.
+        if __package__:
+            from .worktree_probe import PROBE_SCRIPT
+        else:
+            from worktree_probe import PROBE_SCRIPT
+        with self._lock:
+            response = self._exec('python -I -c ' + shlex.quote(PROBE_SCRIPT), timeout=120, check=True)
+            current = json.loads(response['stdout'])
+            if not isinstance(current, dict):
+                raise EnvironmentError('Invalid worktree observation')
+            if not hasattr(self, '_observation_baseline'):
+                self._observation_baseline = current
+            baseline = self._observation_baseline
+            changes = {name: {'before': baseline.get(name), 'after': current.get(name)}
+                       for name in sorted(set(baseline) | set(current)) if baseline.get(name) != current.get(name)}
+            fingerprint = lambda value: _sha(json.dumps(value, sort_keys=True, ensure_ascii=True))
+            return {'nonempty_delta': bool(changes), 'baseline_sha256': fingerprint(baseline),
+                    'state_sha256': fingerprint(current), 'changed_files': changes,
+                    'measurement': 'direct_file_bytes_v1'}
 
     def export_patch(self, delta: bool = False) -> str:
         with self._lock:
