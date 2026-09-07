@@ -1,0 +1,205 @@
+--- coding_execution.py
++++ mvp_execution.py
+@@ -253,6 +253,69 @@
+         'policy':'exclude every prior admission across all generations; preserve scored, interrupted, unknown and pending separately; never retry'}
+ 
+ 
++def _mvp_details(authorization, schedule, batch):
++    """One explicitly approved six-cell addendum; original solver identities stay intact."""
++    auth = authorization
++    if (auth.get('protocol') != 'big_budget_core_mvp_v1' or auth.get('approved') is not True
++            or auth.get('maximum_new_generation_admissions') != 6
++            or auth.get('automatic_generation_retry') is not False):
++        raise ValueError('MVP requires explicit authorization for exactly six fresh attempts')
++    tasks = {'pylint-dev__pylint-6386', 'pydata__xarray-6992'}
++    chosen = [e for e in schedule if e['rep'] == 1 and e['instance']['instance_id'] in tasks
++              and e['condition_id'] in ('T00', 'T11', 'S-S')]
++    ids = [e['run_id'] for e in chosen]
++    if len(chosen) != 6 or auth.get('selected_run_ids') != ids:
++        raise ValueError('MVP selection must be the fixed two tasks by three conditions in original order')
++    predecessor = Path(auth['predecessor_batch']).resolve()
++    batch = Path(batch).resolve()
++    if predecessor == batch:
++        raise ValueError('MVP fresh attempts require a separate new batch')
++    source = read(predecessor/'manifest.json')
++    if source['schedule'] != schedule:
++        raise ValueError('MVP source entries must retain their qualified solver configuration')
++    current = [e['run_id'] for e in schedule if e['block_id'] == 'b1-r1-q05']
++    if auth.get('predecessor_run_ids') != current or len(current) != 10:
++        raise ValueError('MVP prerequisite must be the current ten admitted Matplotlib attempts')
++    manifest_sha = sha(predecessor/'manifest.json')
++    if auth.get('predecessor_manifest_sha256') != manifest_sha:
++        raise ValueError('MVP authorization predecessor manifest binding changed')
++    if (predecessor/'manifest.sha256').read_text(encoding='ascii').strip() != manifest_sha:
++        raise ValueError('MVP predecessor manifest hash changed')
++    return {'protocol':'big_budget_core_mvp_dispatch_v1', 'predecessor_batch':str(predecessor),
++        'predecessor_manifest_sha256':manifest_sha, 'predecessor_run_ids':current,
++        'dispatch_run_ids':ids, 'automatic_generation_retry':False,
++        'fresh_attempts':[{'fresh_attempt_id':str(batch)+'::'+e['run_id'],
++            'source_entry':{'batch':str(predecessor), 'manifest_sha256':manifest_sha,
++                'run_id':e['run_id'], 'configuration_sha256':e['configuration_sha256']},
++            'identity_scope':'batch absolute path plus canonical run_id',
++            'reason':'explicitly authorized fresh Coding Plan attempt; retain prior standard API results separately'}
++            for e in chosen]}
++
++
++def _mvp_ready(manifest):
++    """No child or controller starts until all ten predecessor grades are durable."""
++    details = manifest.get('mvp')
++    if details is None:
++        return
++    source = Path(details['predecessor_batch'])
++    state = read(source/'state.json')
++    ids = details['predecessor_run_ids']
++    if (state.get('status') not in ('stopped_incomplete', 'completed')
++            or state.get('stop_reason') not in (None, 'operator_stop')
++            or (state.get('status') == 'stopped_incomplete' and state.get('stop_reason') != 'operator_stop')
++            or state.get('active') or state.get('grading_run_id')
++            or any(state.get(k) != 10 for k in ('admitted', 'generated', 'scored'))
++            or {p.stem for p in (source/'admissions').glob('*.json')} != set(ids)):
++        raise ValueError('MVP prerequisite: current ten must finish generation and official scoring first')
++    for rid in ids:
++        result = read(source/'results'/rid/'episode_result.json')
++        if (result.get('run_id') != rid or result.get('grading_pending') is not False
++                or type(result.get('official_resolved')) is not bool
++                or result.get('cleanup_confirmed') is not True
++                or result.get('infrastructure_error') or result.get('grading_error')):
++            raise ValueError('MVP prerequisite result is not a clean official terminal: '+rid)
++
++
+ def verify(batch, *, _lineage_seen=None):
+     batch = Path(batch).resolve()
+     seen=set(_lineage_seen or ())
+@@ -294,7 +357,19 @@
+     validate_schedule(m['schedule'])
+     dispatched = dispatch_schedule(m)
+     continuation = m.get('continuation')
+-    if continuation is not None:
++    if m.get('mvp') is not None:
++        if continuation is not None:
++            raise ValueError('MVP fresh attempts cannot also be a no-repeat continuation')
++        observed = _mvp_details(read(batch/'preflight/mvp-authorization.json'), m['schedule'], batch)
++        if observed != m['mvp'] or m.get('dispatch_run_ids') != observed['dispatch_run_ids']:
++            raise ValueError('MVP frozen selection or fresh-attempt identity changed')
++        limits = {'generation_attempt_limit':6,
++            'token_admission_sum_limit':sum(e['limits_override']['token_limit'] for e in dispatched),
++            'ordinary_ticket_limit':sum(e['limits_override']['max_calls'] for e in dispatched),
++            'cm_ticket_limit':sum(e['limits_override']['cm_call_allowance'] for e in dispatched)}
++        if any(m.get(k) != v for k,v in limits.items()) or m.get('automatic_generation_retry') is not False:
++            raise ValueError('MVP exact admission limits or no-retry rule changed')
++    elif continuation is not None:
+         if Path(continuation.get('source_batch', batch)).resolve() == batch:
+             raise ValueError('A continuation cannot refer to itself')
+         if continuation.get('protocol')==LEGACY_CONTINUATION_PROTOCOL:
+@@ -320,12 +395,14 @@
+ 
+ 
+ def prepare(batch, *, continue_from=None, offline_validation=None, offline_tests=None,
+-            transport_probes=None, source_qualification=None):
++            transport_probes=None, source_qualification=None, mvp_authorization=None):
+     from .contracts import build_entry, load_cells, load_plan, validate_schedule
+     from modelbench.minimal_value_20260905.environment import capture_grader_contract
+     batch = Path(batch).resolve()
+     if batch.exists():
+         raise ValueError('No implicit overwrite of a prepared batch')
++    if continue_from is not None and mvp_authorization is not None:
++        raise ValueError('MVP fresh attempts and continuation are mutually exclusive')
+     plan = load_plan()
+     source = runtime_sources()
+     paths = {
+@@ -333,6 +410,8 @@
+         'offline-tests.xml': Path(offline_tests or HERE/'preflight/offline-tests.xml').resolve(),
+         'transport-probes.json': Path(transport_probes or HERE/'preflight/transport-probes.json').resolve(),
+         'source_qualification_review.json': Path(source_qualification or HERE/'preflight/source_qualification_review.json').resolve()}
++    if mvp_authorization is not None:
++        paths['mvp-authorization.json'] = Path(mvp_authorization).resolve()
+     evidence_input_hashes = {name:sha(path) for name,path in paths.items()}
+     gate = read(paths['offline-validation.json'])
+     if gate.get('passed') is not True or gate.get('runtime_sources') != source:
+@@ -369,7 +448,9 @@
+             raise ValueError('Actual candidate inputs differ from qualified baseline')
+     continuation = continuation_details(continue_from, entries) if continue_from is not None else None
+     excluded = set(continuation['excluded_run_ids']) if continuation else set()
+-    dispatched = [entry for entry in entries if entry['run_id'] not in excluded]
++    mvp = _mvp_details(read(paths['mvp-authorization.json']), entries, batch) if mvp_authorization is not None else None
++    dispatched = [entry for entry in entries if entry['run_id'] not in excluded
++                  and (mvp is None or entry['run_id'] in mvp['dispatch_run_ids'])]
+     if not dispatched:
+         raise ValueError('No unstarted cells remain for continuation')
+     inputs = freeze.input_files(OFFICIAL)
+@@ -388,8 +469,7 @@
+         if sha(target) != expected:
+             raise ValueError('Input changed while freezing')
+     evidence = {}
+-    for name in ['offline-validation.json','offline-tests.xml','transport-probes.json',
+-                 'source_qualification_review.json']:
++    for name in paths:
+         target = batch/'preflight'/name
+         target.parent.mkdir(exist_ok=True)
+         shutil.copyfile(paths[name],target)
+@@ -418,6 +498,9 @@
+         'qualification_reuse':'byte-identical prior official inputs, adapter and image IDs; see bound evidence',
+         'valuation':'frozen dated API-equivalent scenario, not subscription cash invoice',
+         'automatic_generation_retry':False}
++    if mvp is not None:
++        manifest.update(mvp=mvp, dispatch_run_ids=mvp['dispatch_run_ids'],
++            result_comparison_policy='core MVP fresh Coding attempts and prior standard attempts are separate strata')
+     if continuation is not None:
+         manifest.update(continuation=continuation, dispatch_run_ids=[x['run_id'] for x in dispatched],
+                         result_comparison_policy='report original and streaming continuation as separate transport strata')
+@@ -464,6 +547,10 @@
+         instance_id=entry['instance']['instance_id'],controller_completed_at=utc(),
+         api_equivalent_usd=account['api_equivalent_usd'],
+         api_equivalent_known_subtotal_usd=account['api_equivalent_known_subtotal_usd'])
++    manifest = read(Path(batch)/'manifest.json') if (Path(batch)/'manifest.json').exists() else {}
++    if manifest.get('mvp'):
++        attempt = next(a for a in manifest['mvp']['fresh_attempts'] if a['source_entry']['run_id'] == entry['run_id'])
++        result.update(fresh_attempt_id=attempt['fresh_attempt_id'], source_entry=attempt['source_entry'])
+     result.update(reporting.result_status(result,entry))
+     atomic_json(directory/'episode_result.json',result)
+     return result
+@@ -479,6 +566,7 @@
+     freeze.assert_import_origins(snapshot)
+     entry=next((entry for entry in dispatch_schedule(m) if entry['run_id']==run_id),None)
+     if entry is None:raise ValueError('Run is outside this batch dispatch subset')
++    _mvp_ready(m)
+     directory=batch/'results'/run_id
+     if directory.exists():
+         raise ValueError('Existing generation attempt; no implicit rerun')
+@@ -684,6 +772,7 @@
+     batch=Path(batch).resolve();m,snapshot=verify(batch)
+     freeze.assert_import_origins(snapshot)
+     if (batch/'state.json').exists():raise ValueError('Existing controller state; reconcile before resume')
++    _mvp_ready(m)
+     schedule=dispatch_schedule(m)
+     groupdir=batch/'group'
+     if resources.stopped(groupdir):raise ValueError('Group has a stop marker')
+@@ -849,6 +938,7 @@
+     batch=Path(batch).resolve();m,snapshot=verify(batch)
+     if (batch/'launch.json').exists() or (batch/'state.json').exists():
+         raise ValueError('Existing launch; no implicit duplicate controller')
++    _mvp_ready(m)
+     env=child_env(snapshot)
+     credentials=freeze.credential_environment(REPO)
+     for key in ('GLM_API_KEY','GLM_BASE_URL','DEEPSEEK_API_KEY','DEEPSEEK_BASE_URL'):
+@@ -866,17 +956,17 @@
+     parser=argparse.ArgumentParser()
+     parser.add_argument('command',choices=['prepare','launch','run','generate','grade','status'])
+     parser.add_argument('--batch',required=True);parser.add_argument('--run-id')
+-    parser.add_argument('--continue-from')
++    parser.add_argument('--continue-from');parser.add_argument('--mvp-authorization')
+     parser.add_argument('--offline-validation');parser.add_argument('--offline-tests')
+     parser.add_argument('--transport-probes');parser.add_argument('--source-qualification')
+     args=parser.parse_args()
+     if args.command!='prepare' and any(getattr(args,name) is not None for name in (
+-            'continue_from','offline_validation','offline_tests','transport_probes','source_qualification')):
++            'continue_from','mvp_authorization','offline_validation','offline_tests','transport_probes','source_qualification')):
+         parser.error('Continuation and qualification input flags apply only to prepare; launch/run use the frozen manifest')
+     if args.command=='prepare':
+         result=prepare(args.batch,continue_from=args.continue_from,offline_validation=args.offline_validation,
+             offline_tests=args.offline_tests,transport_probes=args.transport_probes,
+-            source_qualification=args.source_qualification)
++            source_qualification=args.source_qualification,mvp_authorization=args.mvp_authorization)
+     elif args.command=='status':result=read(Path(args.batch)/'state.json')
+     elif args.command in ('generate','grade'):result=globals()[args.command](args.batch,args.run_id)
+     else:result=globals()[args.command](args.batch)

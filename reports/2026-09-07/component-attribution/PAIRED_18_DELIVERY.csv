@@ -1,0 +1,19 @@
+task,s_delivery,t_delivery,s_pass,t_pass,s_episode,t_episode,delivery_group
+astropy__astropy-14995,True,True,True,True,A1::a1-v2::a1-01-S,A1::a1-v2::a1-01-T,两侧均交付
+pydata__xarray-7229,False,True,False,False,A1::a1-v2::a1-02-S,A1::a1-v2::a1-02-T,仅 T 交付
+sympy__sympy-13852,True,True,False,False,A2::a2-v1::a2-01-S,A2::a2-v1::a2-01-T,两侧均交付
+django__django-10880,True,True,True,True,A2::a2-v1::a2-02-S,A2::a2-v1::a2-02-T,两侧均交付
+matplotlib__matplotlib-23412,True,True,True,True,A2::a2-v1::a2-03-S,A2::a2-recovery-b-v1::a2-03-T,两侧均交付
+django__django-12050,True,True,True,True,A2::a2-recovery-b-v1::a2-04-S,A2::a2-recovery-b-v1::a2-04-T,两侧均交付
+psf__requests-1142,True,True,True,True,A2::a2-resume-v2::a2-06-S,A2::a2-resume-v2::a2-06-T,两侧均交付
+matplotlib__matplotlib-20826,False,True,False,True,A2::a2-resume-v2::a2-07-S,A2::a2-resume-v2::a2-07-T,仅 T 交付
+pydata__xarray-7233,True,True,True,True,A2::a2-resume-v2::a2-08-S,A2::a2-resume-v2::a2-08-T,两侧均交付
+sympy__sympy-22456,True,True,True,True,A2::a2-resume-v3::a2-10-S,A2::a2-resume-v3::a2-10-T,两侧均交付
+pytest-dev__pytest-10051,True,True,True,True,A2::a2-resume-v3::a2-11-S,A2::a2-resume-v3::a2-11-T,两侧均交付
+mwaskom__seaborn-3187,False,True,False,False,A2::a2-resume-v3::a2-12-S,A2::a2-resume-v3::a2-12-T,仅 T 交付
+astropy__astropy-8872,True,True,True,True,A2::a2-resume-v3::a2-13-S,A2::a2-resume-v3::a2-13-T,两侧均交付
+sphinx-doc__sphinx-8548,False,False,False,False,A2::a2-resume-v3::a2-14-S,A2::a2-resume-v3::a2-14-T,两侧均未交付
+pydata__xarray-6992,True,True,False,False,A2::a2-resume-v3::a2-15-S,A2::a2-resume-v3::a2-15-T,两侧均交付
+pytest-dev__pytest-7982,True,True,True,True,A2::a2-resume-v3::a2-16-S,A2::a2-resume-v3::a2-16-T,两侧均交付
+scikit-learn__scikit-learn-14496,True,True,True,True,A2::a2-backfill-v1::a2-05-S,A2::a2-backfill-v1::a2-05-T,两侧均交付
+pylint-dev__pylint-6386,False,True,False,True,A2::a2-backfill-v1::a2-09-S,A2::a2-backfill-v1::a2-09-T,仅 T 交付

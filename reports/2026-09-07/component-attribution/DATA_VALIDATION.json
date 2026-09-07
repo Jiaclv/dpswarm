@@ -1,0 +1,42 @@
+{
+  "passed": true,
+  "new_provider_calls": 0,
+  "new_grader_runs": 0,
+  "comparison_strata": 6,
+  "positive_team_episodes": 10,
+  "distinct_solo_episodes": 8,
+  "distinct_positive_tasks": 3,
+  "a1_a2_pairs": 18,
+  "a1_a2_production_s_t": [
+    13,
+    17
+  ],
+  "a1_a2_pass_s_t": [
+    11,
+    13
+  ],
+  "production_origin_counts": [
+    {
+      "origin": "实现者初稿加 Lead 补修",
+      "episodes": 2
+    },
+    {
+      "origin": "实现者失败后 Lead 接管",
+      "episodes": 4
+    },
+    {
+      "origin": "实现者生产改动直接保留",
+      "episodes": 4
+    }
+  ],
+  "all_matched_solo_empty": true,
+  "all_matched_solo_budget_exhausted": true,
+  "pylint_test_failure_before_repair": true,
+  "official_test_static_semantic_alignment": true,
+  "cm_calls_reconciled": 550,
+  "cm_raw_metadata_hashes_verified": 550,
+  "sources_hashed": 706,
+  "sources_changed": [],
+  "review_type": "Local self-check; no new independent reviewer",
+  "boundary": "Positive strata are outcome-selected and include shared solo controls. Patch origin is not causal contribution. Prior all-history scope is retained separately."
+}

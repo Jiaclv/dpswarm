@@ -1,0 +1,33 @@
+{
+  "on_total_tokens": 3747917,
+  "off_total_tokens": 3950377,
+  "ordinary_input_delta": -894455,
+  "ordinary_output_delta": 61,
+  "ordinary_total_delta": -894394,
+  "cm_total_tokens": 691934,
+  "net_token_delta": -202460,
+  "net_token_pct": -5.125080467003529,
+  "net_cost_delta": -2.946712122600058,
+  "net_cost_pct": -20.3733531677764,
+  "cost_by_role": [
+    {
+      "role": "Lead",
+      "api_equivalent_usd_delta": -3.1492240000000002
+    },
+    {
+      "role": "Implementer",
+      "api_equivalent_usd_delta": 0.0013968242640507167
+    },
+    {
+      "role": "Tester",
+      "api_equivalent_usd_delta": -0.0037511388641088897
+    },
+    {
+      "role": "CM",
+      "api_equivalent_usd_delta": 0.2048661919999993
+    }
+  ],
+  "ordinary_calls_on": 244,
+  "ordinary_calls_off": 247,
+  "cm_calls": 59
+}

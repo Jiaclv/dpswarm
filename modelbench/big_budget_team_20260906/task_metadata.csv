@@ -1,0 +1,7 @@
+﻿instance_id,repo,base_commit,old_a2_block,a2_passes,a2_total,a2_winning_arms,frozen_difficulty_rank,problem_type_analyst_label,diagnostic_focus_analysis_only,leaderboard_status,solver_mount_allowed
+sympy__sympy-13852,sympy/sympy,c935e1d106743efd5bf0705fbeedbd18fadff4dc,a2-01,0,5,,1,符号运算与完整语义范围,公开样例与完整语义覆盖,not_revalidated_for_B1,False
+mwaskom__seaborn-3187,mwaskom/seaborn,22cdfb0c93f8ec78492d87edb810f10cb7f57a31,a2-12,0,5,,2,绘图刻度与格式行为,交付与实际执行及复测,not_revalidated_for_B1,False
+sphinx-doc__sphinx-8548,sphinx-doc/sphinx,dd1615c59dc6fff633e27dbb3861f2d27e1fb976,a2-14,0,5,,3,文档生成与类关系,探索到生产编辑的进展,not_revalidated_for_B1,False
+pydata__xarray-6992,pydata/xarray,45c0a114e2b7b27b83c9618bc05b36afac82183c,a2-15,0,5,,4,多操作状态一致性,多节点目标测试及公开自测差距,not_revalidated_for_B1,False
+matplotlib__matplotlib-20826,matplotlib/matplotlib,a0d2e399729d36499a1924e5ca5bc067c8396810,a2-07,1,5,T,5,绘图状态与回归,独赢重复性与角色降级,not_revalidated_for_B1,False
+pylint-dev__pylint-6386,pylint-dev/pylint,754b487f4d892e3d4872b6fc7468a71db4e31c13,a2-09,2,5,R2|T,6,静态检查规则,预算预约与交付采用,not_revalidated_for_B1,False

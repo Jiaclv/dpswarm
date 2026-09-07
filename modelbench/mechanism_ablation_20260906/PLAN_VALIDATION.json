@@ -1,0 +1,224 @@
+{
+  "validation_scope": "Planning documents and matrix arithmetic only. No runtime tests, model probes, generation or Docker grading executed.",
+  "created_at": "2026-09-06T12:17:00.216708+00:00",
+  "revision": "DeepSeek CM restored at user request; worker roster and run matrix unchanged.",
+  "all_passed": true,
+  "passed": 40,
+  "total": 40,
+  "runtime_qualification": "not_performed",
+  "model_probe_status": "not_performed",
+  "experiments_started": false,
+  "checks": [
+    {
+      "name": "plan_only",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "C1_exactly_18",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "C1_unique_run_ids",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "C1_unique_cells",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "C1_three_repeats_per_task_arm",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "C1_nine_complete_adjacent_pairs",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "C1_six_pilot_rows",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "C1_pilot_covers_every_task_arm_once",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "C1_shared_caps",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "C1_ON_OFF_correct",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "C1_total_token_cap",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "C1_total_calls",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "workers_prefer_flash_unchanged",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "explicit_deepseek_CM_everywhere",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "CM_independent_deepseek_route",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "three_provider_pools",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "CM_not_in_Coding_quota",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "CM_summary_target_distinct_from_API_max",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "preflight_three_correct_identities",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "B1_optional_exactly_36",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "B1_three_repeats_per_task_arm",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "B1_roles_match_json",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "B1_28_calls_per_episode",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "B1_no_phantom_tester",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "B1_caps_70point2M_1440_calls",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "M1_three_rosters_27_fresh",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "M1_terra_luna_max",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "M1_correct_caps",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "M1_two_arm_is_alternative",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "R0_counts_and_unknown_qualification",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "efficiency_requires_balanced_complete_exposure",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "source_report_hash_unchanged",
+      "passed": true,
+      "detail": "54630fc9738378dc914f3e40c751b52ffb8ead261a905e458f22dff5051a1876"
+    },
+    {
+      "name": "task_identities_complete",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "document_has_current_model_and_counts",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "document_has_balanced_exposure_and_independent_CM_pool",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "document_request_effort_not_backend_confirmation",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "document_no_unresolved_placeholders",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "restored_nonstreaming_CM_request",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "no_current_glm53_CM_assignments_in_documents",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "six_episode_target_unchanged",
+      "passed": true,
+      "detail": null
+    }
+  ],
+  "file_sha256": {
+    "PLAN_ZH.md": "75381075665ccbf05d81326d343fbe58f0d2dc7b5af6de5327196e39b40d5e13",
+    "PLAN.json": "f847c5d445e3ac7897701b987c2c569626782c5717d79ad85d187450f877b453",
+    "C1_PLANNED_RUNS.csv": "1639c679e0f5e2a057df7b71da8d3ad91e9874366590025e226b37f899c33930",
+    "B1_OPTIONAL_RUNS.csv": "9134b89a69d110d7b7a19582ebbde858edd4b6f3665d2c6cbfe5ecabeab422e6",
+    "README.md": "22d1c7e7fc5bc349a6b3f968d8b59741858672052be6c9fc27178cf107c2fa0a"
+  },
+  "independent_review": {
+    "scope": "Read-only verification of original DeepSeek CM route, request settings and provider pool",
+    "findings": "DeepSeek-v4-flash, actual endpoint, thinking disabled, non-streaming, temperature 1, 120/600 timeouts, independent DeepSeek pool 4 verified from existing code and historical request evidence. New experiment qualification remains pending."
+  }
+}

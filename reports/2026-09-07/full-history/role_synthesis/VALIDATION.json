@@ -1,0 +1,24 @@
+{
+  "status": "PASS",
+  "unique_roles": 340,
+  "isolated_workers": 248,
+  "scripted_phases": 92,
+  "phase_unknowns_preserved": true,
+  "c1_all_production_deltas_failed_xarray": true,
+  "budget_growth_reconciles": true,
+  "a2_nonempty_status": {
+    "completed": 42,
+    "blocked": 3
+  },
+  "a2_eligible_deliveries": 42,
+  "legacy_adoption_known": 106,
+  "source_hash_scope": "Reused detailed audit tables hashed; targeted raw worker/events/patch reads only, no full artifact rescan",
+  "coverage_rows_292_are_subset_of_306": true,
+  "empty_b1_sources_truthfully_marked": 2,
+  "legacy_adoption_provenance": {
+    "completed_review_worker": 103,
+    "adopt": 61,
+    "discard": 42,
+    "terminal_false": 3
+  }
+}

@@ -1,0 +1,5 @@
+# Evidence snapshot byte hashes must survive checkout on every platform.
+reports/** -text
+reports/**/*.png binary
+# Stored unified diffs use a literal space to prefix unchanged blank lines.
+reports/**/B1_CONTROLLER_DIFF.txt whitespace=-blank-at-eol

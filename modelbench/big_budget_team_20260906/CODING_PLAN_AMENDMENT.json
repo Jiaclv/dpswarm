@@ -1,0 +1,74 @@
+{
+  "protocol": "coding_plan_execution_amendment_v1",
+  "created_at": "2026-09-06T06:56:23.812719+00:00",
+  "authorization": "User explicitly requested all GLM calls use Coding Plan and continue experiments.",
+  "original_plan_contract_retained_for_cell_identity": true,
+  "original_plan_sha256": "96637422c65673596169282dbe86bc718a20cb5d96538330d9c41a74617fae50",
+  "current_glm_channel": "bigmodel_coding_plan",
+  "current_glm_base_url": "https://open.bigmodel.cn/api/coding/paas/v4",
+  "automatic_channel_fallback": false,
+  "provider_limits": {
+    "codex_account": 4,
+    "glm_coding_plan": 4,
+    "deepseek": 4
+  },
+  "glm_models_share_one_coding_bucket": true,
+  "coding_concurrency_is_operator_conservative_not_provider_entitlement": true,
+  "global_model_slots": 16,
+  "per_episode_model_slots": 4,
+  "candidate_containers": 12,
+  "candidate_memory_gib": 1,
+  "candidate_cpus": 2,
+  "quota_policy": {
+    "read_before_generation_wave": true,
+    "source": "official read-only quota/limit endpoint",
+    "credits_are_not_raw_tokens": true,
+    "estimate": "sum episode token limits times maximum GLM model output credit factor divided by 10000",
+    "output_credit_factors": {
+      "glm-5.3": 24,
+      "glm-5.3-flash": 8
+    },
+    "offpeak_discount_assumed": false,
+    "ordered_prefix_allowed": true,
+    "insufficient_quota": "wait until reset with finite dispatch deadline; recheck before admission",
+    "guarantee_boundary": "Does not reserve provider-side balance or account for outside clients spending concurrently."
+  },
+  "continuation": {
+    "source_batches": [
+      "b1-v1",
+      "b1-stream-continuation-v1"
+    ],
+    "exclude_all_prior_admissions": true,
+    "prior_admitted": 10,
+    "prior_scored": 8,
+    "prior_interrupted": 2,
+    "remaining": {
+      "entries": 170,
+      "tokens": 316200000,
+      "ordinary": 20468,
+      "cm": 8228,
+      "first": [
+        "b1-r1-q05-F-S",
+        "b1-r1-q05-T10",
+        "b1-r1-q05-T00",
+        "b1-r1-q05-S-S",
+        "b1-r1-q05-D00",
+        "b1-r1-q05-S-FF",
+        "b1-r1-q05-F-T",
+        "b1-r1-q05-T01",
+        "b1-r1-q05-T11",
+        "b1-r1-q05-D11"
+      ]
+    },
+    "automatic_retry_of_started_cells": false
+  },
+  "stop_policy": "preserve first stop reason; block new calls and dispatch; bounded drain for in-flight result persistence; hard termination only watchdog/safety/final grace bound",
+  "comparison_policy": "Historical standard buffered, standard streaming, and new Coding streaming results are distinct transport strata; interrupted cells remain missing, not solver failure.",
+  "valuation": "Preserve dated API-equivalent scenario for comparison; separately record Coding credit snapshots; no claim of actual cash bill.",
+  "sources": [
+    "https://docs.bigmodel.cn/cn/coding-plan/overview",
+    "https://docs.bigmodel.cn/cn/coding-plan/usage-notes",
+    "https://docs.bigmodel.cn/cn/api/rate-limit",
+    "https://docs.bigmodel.cn/cn/coding-plan/extension/usage-query-plugin"
+  ]
+}

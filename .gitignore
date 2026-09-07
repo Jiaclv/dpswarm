@@ -74,3 +74,22 @@ modelbench/team_eval20260903/*
 # ===== validation 根目录下的批量数据导出 =====
 modelbench/swe_fixed_team_20260903/validation/pilot_v*.csv
 modelbench/swe_fixed_team_20260903/validation/pilot_v*.json
+
+# ===== 公开报告使用 reports/；完整分析与运行状态留本地 =====
+/artifacts/
+modelbench/**/batches/
+modelbench/**/diagnostics/
+modelbench/**/preflight/
+modelbench/**/analysis/
+modelbench/cumulative_analysis_*/
+modelbench/component_attribution_*/
+modelbench/glm_flash_concurrency_20260906/
+modelbench/**/.test-tmp/
+modelbench/**/.r2-tmp-*/
+modelbench/minimal_value_20260905/operations/*/
+!modelbench/minimal_value_20260905/operations/tests/
+modelbench/big_budget_team_20260906/validation/
+modelbench/mechanism_ablation_20260906/authorization.json
+modelbench/mechanism_ablation_20260906/recovery_tools/
+.dpswarm-token
+.demo/

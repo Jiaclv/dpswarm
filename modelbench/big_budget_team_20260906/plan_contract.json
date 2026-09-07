@@ -1,0 +1,427 @@
+{
+  "protocol": "big_budget_team_20260906_plan_v1",
+  "status": "design_saved_not_execution_frozen",
+  "execution_started": false,
+  "created_date": "2026-09-06",
+  "timezone": "Australia/Sydney",
+  "seed": 20260906,
+  "scope": {
+    "tasks": 6,
+    "conditions": 10,
+    "repetitions": 3,
+    "generation_attempts": 180,
+    "generation_retries": 0,
+    "diagnostic_posthoc_selection": true,
+    "general_benchmark_inference_allowed": false
+  },
+  "arms": [
+    {
+      "condition_id": "D00",
+      "base_arm": "D",
+      "lead_model": "gpt-5.6-sol",
+      "worker_specs": [
+        {
+          "role": "test",
+          "model": "glm-5.3"
+        }
+      ],
+      "token_factor": 0,
+      "call_bundle_factor": 0,
+      "limits_override": {
+        "token_limit": 600000,
+        "max_calls": 28,
+        "worker_calls": 8,
+        "cm_call_allowance": 12,
+        "lead_reserve_calls": 2,
+        "wall_seconds": 7200
+      },
+      "container_slots": 2
+    },
+    {
+      "condition_id": "D11",
+      "base_arm": "D",
+      "lead_model": "gpt-5.6-sol",
+      "worker_specs": [
+        {
+          "role": "test",
+          "model": "glm-5.3"
+        }
+      ],
+      "token_factor": 1,
+      "call_bundle_factor": 1,
+      "limits_override": {
+        "token_limit": 2400000,
+        "max_calls": 160,
+        "worker_calls": 48,
+        "cm_call_allowance": 64,
+        "lead_reserve_calls": 2,
+        "wall_seconds": 7200
+      },
+      "container_slots": 2
+    },
+    {
+      "condition_id": "T00",
+      "base_arm": "T",
+      "lead_model": "gpt-5.6-sol",
+      "worker_specs": [
+        {
+          "role": "implementation",
+          "model": "gpt-5.6-terra"
+        },
+        {
+          "role": "test",
+          "model": "glm-5.3"
+        }
+      ],
+      "token_factor": 0,
+      "call_bundle_factor": 0,
+      "limits_override": {
+        "token_limit": 600000,
+        "max_calls": 28,
+        "worker_calls": 8,
+        "cm_call_allowance": 12,
+        "lead_reserve_calls": 2,
+        "wall_seconds": 7200
+      },
+      "container_slots": 3
+    },
+    {
+      "condition_id": "T10",
+      "base_arm": "T",
+      "lead_model": "gpt-5.6-sol",
+      "worker_specs": [
+        {
+          "role": "implementation",
+          "model": "gpt-5.6-terra"
+        },
+        {
+          "role": "test",
+          "model": "glm-5.3"
+        }
+      ],
+      "token_factor": 1,
+      "call_bundle_factor": 0,
+      "limits_override": {
+        "token_limit": 2400000,
+        "max_calls": 28,
+        "worker_calls": 8,
+        "cm_call_allowance": 12,
+        "lead_reserve_calls": 2,
+        "wall_seconds": 7200
+      },
+      "container_slots": 3
+    },
+    {
+      "condition_id": "T01",
+      "base_arm": "T",
+      "lead_model": "gpt-5.6-sol",
+      "worker_specs": [
+        {
+          "role": "implementation",
+          "model": "gpt-5.6-terra"
+        },
+        {
+          "role": "test",
+          "model": "glm-5.3"
+        }
+      ],
+      "token_factor": 0,
+      "call_bundle_factor": 1,
+      "limits_override": {
+        "token_limit": 600000,
+        "max_calls": 160,
+        "worker_calls": 48,
+        "cm_call_allowance": 64,
+        "lead_reserve_calls": 2,
+        "wall_seconds": 7200
+      },
+      "container_slots": 3
+    },
+    {
+      "condition_id": "T11",
+      "base_arm": "T",
+      "lead_model": "gpt-5.6-sol",
+      "worker_specs": [
+        {
+          "role": "implementation",
+          "model": "gpt-5.6-terra"
+        },
+        {
+          "role": "test",
+          "model": "glm-5.3"
+        }
+      ],
+      "token_factor": 1,
+      "call_bundle_factor": 1,
+      "limits_override": {
+        "token_limit": 2400000,
+        "max_calls": 160,
+        "worker_calls": 48,
+        "cm_call_allowance": 64,
+        "lead_reserve_calls": 2,
+        "wall_seconds": 7200
+      },
+      "container_slots": 3
+    },
+    {
+      "condition_id": "F-S",
+      "base_arm": "S",
+      "lead_model": "glm-5.3-flash",
+      "worker_specs": [],
+      "token_factor": 1,
+      "call_bundle_factor": 1,
+      "limits_override": {
+        "token_limit": 2400000,
+        "max_calls": 160,
+        "worker_calls": 48,
+        "cm_call_allowance": 64,
+        "lead_reserve_calls": 2,
+        "wall_seconds": 7200
+      },
+      "container_slots": 1
+    },
+    {
+      "condition_id": "F-T",
+      "base_arm": "T",
+      "lead_model": "glm-5.3-flash",
+      "worker_specs": [
+        {
+          "role": "implementation",
+          "model": "glm-5.3-flash"
+        },
+        {
+          "role": "test",
+          "model": "glm-5.3-flash"
+        }
+      ],
+      "token_factor": 1,
+      "call_bundle_factor": 1,
+      "limits_override": {
+        "token_limit": 2400000,
+        "max_calls": 160,
+        "worker_calls": 48,
+        "cm_call_allowance": 64,
+        "lead_reserve_calls": 2,
+        "wall_seconds": 7200
+      },
+      "container_slots": 3
+    },
+    {
+      "condition_id": "S-FF",
+      "base_arm": "T",
+      "lead_model": "gpt-5.6-sol",
+      "worker_specs": [
+        {
+          "role": "implementation",
+          "model": "glm-5.3-flash"
+        },
+        {
+          "role": "test",
+          "model": "glm-5.3-flash"
+        }
+      ],
+      "token_factor": 1,
+      "call_bundle_factor": 1,
+      "limits_override": {
+        "token_limit": 2400000,
+        "max_calls": 160,
+        "worker_calls": 48,
+        "cm_call_allowance": 64,
+        "lead_reserve_calls": 2,
+        "wall_seconds": 7200
+      },
+      "container_slots": 3
+    },
+    {
+      "condition_id": "S-S",
+      "base_arm": "S",
+      "lead_model": "gpt-5.6-sol",
+      "worker_specs": [],
+      "token_factor": 1,
+      "call_bundle_factor": 1,
+      "limits_override": {
+        "token_limit": 2400000,
+        "max_calls": 160,
+        "worker_calls": 48,
+        "cm_call_allowance": 64,
+        "lead_reserve_calls": 2,
+        "wall_seconds": 7200
+      },
+      "container_slots": 1
+    }
+  ],
+  "task_ids": [
+    "sympy__sympy-13852",
+    "mwaskom__seaborn-3187",
+    "sphinx-doc__sphinx-8548",
+    "pydata__xarray-6992",
+    "matplotlib__matplotlib-20826",
+    "pylint-dev__pylint-6386"
+  ],
+  "shared_mechanism": {
+    "cm_enabled": true,
+    "cm_model": "deepseek-v4-flash",
+    "cm_provider": "deepseek",
+    "cm_context_budget": 12000,
+    "cm_keep_recent": 4,
+    "cm_max_tokens": 4096,
+    "cm_reservation_slack": 8192,
+    "cm_thinking": "disabled",
+    "cm_edit_curfew": false,
+    "cm_team_memory": false,
+    "cm_scout_distill": false,
+    "cm_bootstrap_package": false,
+    "edit_status_banner": false,
+    "closing_call_reserve_exempt": true,
+    "ordinary_call_max_tokens": 32768,
+    "ordinary_token_reservation_formula": "ceil(len(JSON(messages))/3) + 32768",
+    "cm_token_reservation_formula": "ceil(len(JSON(cm_messages))/3) + 4096 + 8192",
+    "lead_resume_after_budget_rejection": false
+  },
+  "budget_semantics": {
+    "scope": "entire episode including lead, all workers and CM",
+    "worker_finish_calls_share_ordinary_pool": true,
+    "worker_finish_only_after_normal_loop_exhaustion": true,
+    "lead_reserve_is_hard_partition": false,
+    "token_admission_includes_unknown_and_pending_reservations": true,
+    "api_actual_usage_can_exceed_reservation": true,
+    "ordinary_calls_and_cm_calls_are_disjoint_pools": true,
+    "call_bundle_changes_ordinary_worker_and_cm_limits": true
+  },
+  "totals": {
+    "token_admission": 334800000,
+    "ordinary_call_tickets": 21672,
+    "cm_call_tickets": 8712,
+    "preflight_probe_max_calls": 8,
+    "preflight_probe_token_admission": 100000,
+    "all_in_token_admission": 334900000,
+    "max_dispatch_days": 7,
+    "final_drain_hours": 48
+  },
+  "planned_resources": {
+    "single_shared_resource_group": true,
+    "episode_slots": 12,
+    "candidate_container_slots": 12,
+    "candidate_memory_gib": 1,
+    "candidate_cpu_limit": 2,
+    "evaluation_memory_gib": 1,
+    "evaluation_slots": 1,
+    "evaluation_overlaps_generation": false,
+    "provider_limits": {
+      "glm_53_flash_standard_api": 12,
+      "glm_53_standard_api": 4,
+      "codex_account_shared": 4,
+      "deepseek_account_shared": 4
+    },
+    "all_model_requests": 16,
+    "per_episode_requests": 4
+  },
+  "glm_channel": {
+    "observed_current_base_url": "https://open.bigmodel.cn/api/coding/paas/v4",
+    "planned_base_url": "https://open.bigmodel.cn/api/paas/v4",
+    "user_screenshot_limits": {
+      "glm-5.3-flash": 50,
+      "glm-5.3": 6
+    },
+    "account_and_channel_binding_verified": false,
+    "live_model_probe_completed": false,
+    "pricing_channel": "standard_api_account_resources_or_balance_not_coding_subscription",
+    "allow_automatic_channel_fallback": false
+  },
+  "phases": [
+    {
+      "phase": 1,
+      "generation_attempts": 60,
+      "token_admission": 111600000,
+      "ordinary_call_tickets": 7224,
+      "cm_call_tickets": 2904
+    },
+    {
+      "phase": 2,
+      "generation_attempts": 120,
+      "token_admission": 223200000,
+      "ordinary_call_tickets": 14448,
+      "cm_call_tickets": 5808
+    }
+  ],
+  "source_evidence": [
+    {
+      "path": "modelbench/minimal_value_20260905/contracts.py",
+      "sha256": "769a0d2cb7f2b26bf5a3e4f8c82117cd998e652d21e4c21bc690a874a6df7358"
+    },
+    {
+      "path": "modelbench/minimal_value_20260905/runner.py",
+      "sha256": "b2b682b6277b801d63fa0841ab21245782ce9f3b24958ae6bdfb53d28be03f3c"
+    },
+    {
+      "path": "modelbench/minimal_value_20260905/cli.py",
+      "sha256": "20a357e96aec4152a49eccffe0f843abdc99afefe12dcda07f29a4586304a958"
+    },
+    {
+      "path": "modelbench/minimal_value_20260905/official/selection.json",
+      "sha256": "f1be288462203bc4ba6b4574e0131c57c611a742b2549f644284ca60463f56f1"
+    },
+    {
+      "path": "modelbench/minimal_value_20260905/official/selected_public.json",
+      "sha256": "896964042be03d985b19df43e3889352c66fcaac769b984759c450b3dac56f69"
+    },
+    {
+      "path": "modelbench/minimal_value_20260905/official/public_checks.json",
+      "sha256": "3e92cb271ca79a610ff412f4156614aebbdfd0b4b3b8fc41afbfde0db5dfbe80"
+    },
+    {
+      "path": "modelbench/minimal_value_20260905/analysis/a2_complete_20260906_v2/data/episodes.csv",
+      "sha256": "9d332edbdad2f2a88c96281b25af8fa24455e91659988874da175397f80bf22f"
+    },
+    {
+      "path": "modelbench/minimal_value_20260905/analysis/a2_complete_20260906_v2/data/task_difficulty.csv",
+      "sha256": "ad5a3f81ca2836b1714d84d71b0832963cfdb8d880fa07a07a0015e73e8b9d7a"
+    }
+  ],
+  "artifacts": {
+    "PLAN_ZH.md": {
+      "sha256": "8bf2888da08aae5c52582eb7e20806e48d62e2d725e6dc4f69adb72efa40fa08"
+    },
+    "task_metadata.csv": {
+      "sha256": "e8ee5d1f61b77103fa7f444faaacd459ed04a0f3c365024e2d8f95517dd7c016"
+    },
+    "planned_cells.csv": {
+      "sha256": "7b6f9d0440b94bcce67b46986f4bf16883dac0d5052ed17c79975f3860069c89"
+    }
+  },
+  "prelaunch_pending": [
+    "new runtime configuration support",
+    "budget propagation and semaphore offline verification",
+    "GLM account and channel binding",
+    "bounded transport probes",
+    "public checks and official grading qualification",
+    "pricing, prompt, model-effort, image and source freeze",
+    "execution manifest and asynchronous supervisor"
+  ],
+  "official_sources": [
+    {
+      "url": "https://docs.bigmodel.cn/cn/api/rate-limit",
+      "checked_date": "2026-09-06"
+    },
+    {
+      "url": "https://docs.bigmodel.cn/cn/coding-plan/faq",
+      "checked_date": "2026-09-06"
+    },
+    {
+      "url": "https://docs.bigmodel.cn/cn/guide/develop/http/introduction",
+      "checked_date": "2026-09-06"
+    }
+  ],
+  "task_difficulty_definition": {
+    "metric": "1 - old A2 five-arm resolved fraction",
+    "tied_hardest_tasks": 4,
+    "tie_break": "fixed display order, not additional evidence of difficulty",
+    "problem_types": "analyst posthoc labels"
+  },
+  "missing_data_policy": {
+    "confirmed_success_lower_bound": "resolved / 3",
+    "conditional_result": "resolved / scored; report separately",
+    "effect_estimate": "complete matrix primary; show logical missing-outcome bounds when incomplete",
+    "missing_is_solver_failure": false
+  }
+}

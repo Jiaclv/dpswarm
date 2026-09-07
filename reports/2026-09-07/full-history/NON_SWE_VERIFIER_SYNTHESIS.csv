@@ -1,0 +1,5 @@
+family,batch,runs,benchmark_pass_observed,benchmark_pass,first_verifier_observed,first_verifier_pass,final_verifier_observed,final_verifier_pass,observed_first_fail_final_pass,observed_first_fail_final_fail,score_caveat
+team_eval20260903,main,12,12,8,10,5,12,8,1,4,Verifier trajectory not randomized review-off; separate from benchmark_pass and SWE official score
+team_eval20260903,native_followup,4,4,4,4,1,4,4,3,0,Verifier trajectory not randomized review-off; separate from benchmark_pass and SWE official score
+team_runtime_v2,regression_20260903_v2,6,6,2,3,0,6,1,1,2,Verifier trajectory not randomized review-off; separate from benchmark_pass and SWE official score
+team_runtime_v2,regression_budget_visible_20260903,4,4,3,4,3,4,3,0,1,Verifier trajectory not randomized review-off; separate from benchmark_pass and SWE official score

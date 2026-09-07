@@ -1,0 +1,111 @@
+{
+  "date": "2026-09-07",
+  "ok": true,
+  "method": "real-time Chromium via Playwright; canonical virtual-time browser certification is not claimed",
+  "results": [
+    {
+      "name": "full-history",
+      "ok": true,
+      "html_sha256": "0e9edb8ca9b156f96a9e03475642ce0921f0ac0ba6ce2caf385d22eabafc3c43",
+      "title_matches": true,
+      "blocks_observed": 53,
+      "blocks_expected": 53,
+      "views": [
+        {
+          "width": 1440,
+          "color_scheme": "light",
+          "document_width": 1440,
+          "outer_overflow": false
+        },
+        {
+          "width": 390,
+          "color_scheme": "light",
+          "document_width": 390,
+          "outer_overflow": false
+        },
+        {
+          "width": 1440,
+          "color_scheme": "dark",
+          "document_width": 1440,
+          "outer_overflow": false
+        }
+      ],
+      "frame_images": 26,
+      "frame_images_loaded": true,
+      "frame_image_count_note": "Includes canonical fallback and interactive iframe copies; not the count of distinct figures",
+      "page_errors": [],
+      "external_requests": 0,
+      "keyboard_source_menu": true,
+      "sql_query_visible": true,
+      "screenshots": [
+        {
+          "local_archive": "full-history-1440-light.jpg",
+          "sha256": "5549b30bf310469fb5ea2fc47389109ef767c8047c16ea8609dbb6ac650769fb"
+        },
+        {
+          "local_archive": "full-history-390-light.jpg",
+          "sha256": "dd6d351c9a0515d52e345d913067819a04529875af5105a35c4974e2dc441ceb"
+        },
+        {
+          "local_archive": "full-history-1440-dark.jpg",
+          "sha256": "3001856430c60a1964e0aba945f75732ea8eb476cdbef80b52fbe523b95d8c50"
+        }
+      ]
+    },
+    {
+      "name": "component-attribution",
+      "ok": true,
+      "html_sha256": "100ee738941b8be6c65164f3d1871afa1f673ee3229cfe2c2deadc8492cbd337",
+      "title_matches": true,
+      "blocks_observed": 22,
+      "blocks_expected": 22,
+      "views": [
+        {
+          "width": 1440,
+          "color_scheme": "light",
+          "document_width": 1440,
+          "outer_overflow": false
+        },
+        {
+          "width": 390,
+          "color_scheme": "light",
+          "document_width": 390,
+          "outer_overflow": false
+        },
+        {
+          "width": 1440,
+          "color_scheme": "dark",
+          "document_width": 1440,
+          "outer_overflow": false
+        }
+      ],
+      "frame_images": 6,
+      "frame_images_loaded": true,
+      "frame_image_count_note": "Includes canonical fallback and interactive iframe copies; not the count of distinct figures",
+      "page_errors": [],
+      "external_requests": 0,
+      "keyboard_source_menu": true,
+      "sql_query_visible": true,
+      "screenshots": [
+        {
+          "local_archive": "component-attribution-1440-light.jpg",
+          "sha256": "1e1fc53bf4a4ecab61ced9bb8b5387ddb42180350b2c7fe8f69c5681917d38ff"
+        },
+        {
+          "local_archive": "component-attribution-390-light.jpg",
+          "sha256": "668c50e5e9342dba539ed087e5f9607049ac4b262ef3ecd2a67ae301bb6040bb"
+        },
+        {
+          "local_archive": "component-attribution-1440-dark.jpg",
+          "sha256": "d069a99f5d30392ed88ecf0a749ed929fd67eeff59f7eea072b9988a49be266f"
+        }
+      ]
+    }
+  ],
+  "visual_inspection": [
+    "Attribution desktop text and table",
+    "Full-history narrow layout",
+    "Attribution source SQL panel"
+  ],
+  "initial_qa_adjustment": "Initial automation selected a Markdown block without a data-source action; final check targets a source-backed native table. Figures were checked within their iframes. No report product changes were required."
+}

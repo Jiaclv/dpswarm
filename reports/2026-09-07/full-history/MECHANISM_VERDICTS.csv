@@ -1,0 +1,16 @@
+mechanism_id,mechanism,verdict,strongest_observation,limitation,boundary,evidence
+M1,事实注入与模型画像,自主画像和路由净收益未知,人工冻结身份和价格可追溯,无独立画像开关或自主选模对照,配置不是策略；不同后端/adapter不可混,CONTROL_AND_ACCOUNTING_COVERAGE.csv
+M2a,可观测性和账本,已有审计/诊断运行价值，未量质量增益,306库存完整；缺用量保留；跨阶段可重算,无日志开关质量对照,正常评分不等完整usage；来源哈希检查不等独立实验,ALL_ATTEMPTS.csv;context_synthesis/COVERAGE.csv
+M2b,测试者与review,配置依任务；独立贡献和review正确率未知,真实delta/完成/采纳/保留分层；旧61非空采纳,A1+A2 D/S18题配置对照；旧互换/B1；无纯tester-off,角色与预算/模型联动；静止候选官方评分缺失,role_synthesis/UNIFIED_WORKERS.csv;team_synthesis/COMPARISONS.csv
+M3a,CM（C1为DeepSeek）,局部资源收益；无稳定质量提升或普遍最优值,C1 token-5.125%/价卡-20.373%质量同4/9；Flash Lead CM成本74%-77%,C1三题各三次ON/OFF；旧CM池3组另列,ON-only无净反事实；完整调用/已知小计分开,context_synthesis/CM_RESOURCE_SUMMARY.csv;context_synthesis/CONTEXT_COMPARISONS.csv
+M3b,Memory/Scout/Bootstrap装配,组合未见质量增益，各单项效果未知,ON/OFF6/6均通过时间+30.6%；v16均0/4时间+43.3%,同代码v10/v12两题；v16两题独立层,三开关联动；天花板/地板；v16scout故障,context_synthesis/SUMMARY.json
+M3c,F1编辑保护/F2/F3/F5,保护/提醒各自净收益未识别,F1首编辑前CM池耗尽；F3关键保留边界未触及,F1同题ON1/3/OFF2/2；F2/F3/F5无独立开关,名义ON不等实际干预；缺字段非OFF,context_synthesis/CONTEXT_COMPARISONS.csv;context_synthesis/COVERAGE.csv
+M3d,记忆晋升/失效/长期续接,长期质量/资源贡献未知,164memory_promoted仅为事件,无长任务独立对照,晋升不等后续正确使用；摘要不等长期续接,context_synthesis/SUMMARY.json
+M4a,固定团队经济性,具体配置局部正面，通用team结论不成立,Sol/Terra/GLM正向仅3去重题；A1+A2+2/18,92严格序列；38同Lead序列；A1+A2最大18题,共享56基线；同题复用；88对同时换Lead,team_synthesis/SERIES_AGGREGATES.csv;team_synthesis/CROSS_STRATA_TASK_SUPPORT.csv
+M4b,预算/分配/交付纪律,全面放大无稳定收益，最优角色份额未知,T00->T11降1题；D00->D11单题救回；增量33.2%实现32.8%CM,8B1预算/7角色/3CM池/2旧根预算分层,联动资源非纯份额；局部预约与根/调用不同,role_synthesis/BUDGET_COMPARISONS.csv;R2_BUDGET_SCOPES.csv
+M4c,R2双候选与选择,配置小收益，多样性有限，选择正确率未知,14选择中5生产不同；4回退8候选局部受限,同源R2/S18题+1；独立候选评分0,无候选评分；根余额含pending；不能量转移救回,R2_CUMULATIVE.csv;R2_BUDGET_SCOPES.csv
+M5a,固定DERIVE,固定执行成立，自主派生时机价值未知,创建调用交付真实发生,固定团队配置对照，同M4a,强制派生不同自主决定；早期名义team0worker,role_synthesis/UNIFIED_WORKERS.csv
+M5b,SPLIT和共享前缀,前缀复用/分裂净收益未知,R2为独立采样，不能替代SPLIT,无共享前缀净收益对照,设计与执行因素未暴露,MECHANISM_SCOPE.csv
+M5c,FISSION和动态DAG,策略净收益未知,控制可行性部分发生,无公平新题动态拓扑对照,脚本planner阶段不等自主动态拓扑,MECHANISM_SCOPE.csv;CONTROL_AND_ACCOUNTING_COVERAGE.csv
+M6,模型组合/方向/升级,异构成本结构可用，无统一最优角色模型,两Sol worker同题方向冲突；Flash可真实实现但小额常未交付,75同Lead题级对/88换Lead分列；无自动升级阈值对照,模型/adapter/角色预算不能剥离；价卡非实付,team_synthesis/CROSS_STRATA_TASK_SUPPORT.csv;role_synthesis/ROLE_RESOURCES.csv
+M7,一致性/封存/恢复,已观察运行价值，质量净效应和生产边界未知,中断后可恢复并绑定评分；历史错误/未知保留,无全故障分布或恢复开关质量对照,采样无OOMKilled字段；恢复不等高可靠全覆盖,ALL_ATTEMPTS.csv;CONTROL_AND_ACCOUNTING_COVERAGE.csv

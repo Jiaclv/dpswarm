@@ -1,0 +1,10 @@
+family,attempts,qualified_scores,token_total_field_present,price_field_present,prod_delivery_observed,activation_source_observed,activation_source_values,derive_coverage_observed,derive_coverage_values,split_coverage_observed,split_coverage_values,fission_coverage_observed,fission_coverage_values,native_orchestrator_exercised_observed,native_orchestrator_exercised_values,first_verifier_pass_observed,first_verifier_pass_values,final_verifier_pass_observed,final_verifier_pass_values
+A1,11,10,10,10,10,0,{},0,{},0,{},0,{},0,{},0,{},0,{}
+A2,93,80,80,80,80,0,{},0,{},0,{},0,{},0,{},0,{},0,{}
+B1,26,24,20,20,24,0,{},0,{},0,{},0,{},0,{},0,{},0,{}
+C1,18,18,18,18,18,0,{},0,{},0,{},0,{},0,{},0,{},0,{}
+results,9,0,0,0,0,0,{},0,{},0,{},0,{},0,{},0,{},0,{}
+swe_fixed_team_20260903,111,107,104,108,109,64,"{""experiment_protocol"": 64}",111,"{""fixed"": 64, ""not_requested"": 47}",111,"{""not_exposed"": 111}",111,"{""not_exposed"": 111}",0,{},0,{},0,{}
+swe_verified_20260903,12,10,12,0,10,0,{},0,{},0,{},0,{},0,{},0,{},0,{}
+team_eval20260903,16,0,15,0,0,0,{},0,{},0,{},0,{},16,"{""false"": 16}",14,"{""false"": 8, ""true"": 6}",16,"{""true"": 12, ""false"": 4}"
+team_runtime_v2,10,0,10,0,0,0,{},0,{},0,{},0,{},10,"{""false"": 10}",7,"{""false"": 4, ""true"": 3}",10,"{""false"": 6, ""true"": 4}"

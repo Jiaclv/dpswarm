@@ -1,0 +1,19 @@
+{
+  "canonical_structure": {
+    "counts": {
+      "blocks": 22,
+      "charts": 1,
+      "html": 3,
+      "metrics": 0,
+      "tables": 3
+    },
+    "html": "K:\\秋招\\项目\\DPswarm\\reports\\2026-09-07\\component-attribution\\REPORT_ZH.html",
+    "ok": true,
+    "title": "机制提升具体来自哪里：生产交付、验收反馈与上下文成本"
+  },
+  "html_sha256": "100ee738941b8be6c65164f3d1871afa1f673ee3229cfe2c2deadc8492cbd337",
+  "artifact_sha256": "07d5a5d64d3ed3bf5937f4b8474ac4b91dcd0ad6c2469d86cd07a4bb14bcf037",
+  "source_md_sha256": "089b70aca01c8a3d11a0db604ddf464d4c3b180d81af2191a577b68b8f05a867",
+  "scope": "publication copy; original report validation is retained separately",
+  "canonical_browser": "not certified; separate real-time browser check is recorded for this publication"
+}

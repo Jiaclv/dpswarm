@@ -1,0 +1,391 @@
+{
+  "schema": "mechanism_ablation_plan_v1",
+  "status": "authorized_C1_preparing",
+  "created_at": "2026-09-06T11:44:26.548111+00:00",
+  "execution_authorized": true,
+  "execution_started": false,
+  "request_scope": "Execute the 18 planned C1 attempts in parallel after required shared preflight checks. Optional B1/M1 stages remain outside this authorization.",
+  "primary_question": "Net end-to-end effect of DeepSeek-v4-flash history CM under fixed Sol lead plus two GLM-5.3-Flash workers and 600k shared-token budget.",
+  "worker_model_preference": "glm-5.3-flash",
+  "model_change_policy": "Both new CM arms use the same Flash workers; prior Terra/GLM-5.3 attempts are historical, not reused controls.",
+  "source_report": "K:\\秋招\\项目\\DPswarm\\modelbench\\big_budget_team_20260906\\analysis\\mvp_20260906_v1\\REPORT_ZH.md",
+  "source_report_sha256": "54630fc9738378dc914f3e40c751b52ffb8ead261a905e458f22dff5051a1876",
+  "tasks": [
+    {
+      "instance_id": "pydata__xarray-6992",
+      "base_commit": "45c0a114e2b7b27b83c9618bc05b36afac82183c",
+      "repository": "pydata/xarray",
+      "version": "2022.06",
+      "image": "sha256:a70eb8c7e98b984c8c9a75c8e165d564d2f0bd16c1717320dbab40f771691112",
+      "source_configuration_sha256": "f7879c68abf6a2de31a052e6319fddb147d097cf66d800303b2f9ce9eeffa7ab",
+      "known_diagnostic_task": true,
+      "prior_official_results_exposed_to_analyst": true
+    },
+    {
+      "instance_id": "matplotlib__matplotlib-20826",
+      "base_commit": "a0d2e399729d36499a1924e5ca5bc067c8396810",
+      "repository": "matplotlib/matplotlib",
+      "version": "3.4",
+      "image": "sha256:633a9cd8b4ae6e6e82fc6c2b7f1c2b19b72f34c013d9162dd7734b86ad1fdf3a",
+      "source_configuration_sha256": "f29f48bb6e8029d5230b749b8bbcb0ec3333e611a889906862fd2b16eb0093e0",
+      "known_diagnostic_task": true,
+      "prior_official_results_exposed_to_analyst": true
+    },
+    {
+      "instance_id": "pylint-dev__pylint-6386",
+      "base_commit": "754b487f4d892e3d4872b6fc7468a71db4e31c13",
+      "repository": "pylint-dev/pylint",
+      "version": "2.14",
+      "image": "sha256:fda08a7a0a711af33163d53ed09b8401d84b7c9bb76b31e25a81357c98e6aeed",
+      "source_configuration_sha256": "1cb77b11b376426af6ab5ba2471e9f5695bc1ab70defc6c239573bb9c6eb79d2",
+      "known_diagnostic_task": true,
+      "prior_official_results_exposed_to_analyst": true
+    }
+  ],
+  "default_stage": "C1",
+  "default_generation_attempts": 18,
+  "default_common": {
+    "roles": [
+      {
+        "role": "lead",
+        "model": "gpt-5.6-sol"
+      },
+      {
+        "role": "implementation",
+        "model": "glm-5.3-flash"
+      },
+      {
+        "role": "test",
+        "model": "glm-5.3-flash"
+      }
+    ],
+    "token_limit": 600000,
+    "ordinary_call_limit": 28,
+    "worker_work_call_limit": 8,
+    "worker_finish_only_extra_opportunity": 1,
+    "finish_charged_to_root_ordinary": true,
+    "lead_root_reserve_calls": 2,
+    "wall_seconds": 7200,
+    "ordinary_output_max_tokens": 32768,
+    "cm_model": "deepseek-v4-flash",
+    "cm_summary_instruction_target_tokens": 2000,
+    "cm_api_output_max_tokens": 4096,
+    "cm_context_threshold_estimated_tokens": 12000,
+    "cm_keep_recent_messages": 4,
+    "cm_team_memory": false,
+    "cm_scout_distill": false,
+    "cm_bootstrap_package": false,
+    "cm_edit_curfew": false,
+    "automatic_model_retry": false,
+    "model_fallback": false,
+    "container_memory": "1g",
+    "container_cpus": 2,
+    "glm_endpoint": "https://open.bigmodel.cn/api/coding/paas/v4/chat/completions",
+    "provider_request_configuration": {
+      "codex": {
+        "reasoning_effort_requested": "max",
+        "service_tier_requested": "fast",
+        "reasoning_effort_reported": null,
+        "reported_effort_status": "not_confirmed_by_backend_metadata"
+      },
+      "glm_flash": {
+        "thinking": "enabled",
+        "reasoning_effort_requested": "max",
+        "temperature": 1.0,
+        "stream": true,
+        "tool_stream": true,
+        "idle_timeout_seconds": 900,
+        "total_timeout_seconds": 960
+      },
+      "source": "Existing local transport behavior; freeze actual serialized request fields and log reported fields before execution.",
+      "deepseek_cm": {
+        "model": "deepseek-v4-flash",
+        "thinking_requested": "disabled",
+        "reasoning_effort_requested": "max",
+        "max_reasoning_inference_claim_allowed": false,
+        "stream": false,
+        "api_output_max_tokens": 4096,
+        "summary_instruction_target_tokens": 2000,
+        "idle_timeout_seconds": 120,
+        "total_timeout_seconds": 600,
+        "provider_pool": "deepseek",
+        "qualification_status": "prior_CM_route_used_new_stage_qualification_not_performed",
+        "probe_requirements": "Actual role=cm, tools=[], max_tokens=4096, synthetic history, usable summary and full observed usage via the frozen DeepSeek transport and independent DeepSeek lease.",
+        "temperature": 1.0,
+        "tools": []
+      }
+    },
+    "cm_keep_recent_count_unit": "Raw message objects under frozen runner semantics, not four full dialogue rounds; validate protocol message boundaries before execution.",
+    "cm_provider": "deepseek",
+    "cm_provider_pool": "deepseek",
+    "cm_failure_policy": "Preserve uncompressed history and a visible failure event on failed, truncated, malformed or usage-incomplete CM responses; never substitute another model. Record any actual or unknown usage and treat route/transport problems as health issues before new admissions.",
+    "cm_endpoint": "https://api.deepseek.com/chat/completions"
+  },
+  "default_conditions": [
+    {
+      "condition_id": "FCM_ON",
+      "cm_enabled": true,
+      "cm_call_limit": 12
+    },
+    {
+      "condition_id": "FCM_OFF",
+      "cm_enabled": false,
+      "cm_call_limit": 0
+    }
+  ],
+  "pilot_generation_attempts": 6,
+  "remaining_generation_attempts_after_pilot_health_gate": 12,
+  "performance_based_early_stopping": false,
+  "generation_retries": 0,
+  "grading_attempts_per_completed_generation": 1,
+  "preflight_model_probes_max": 3,
+  "preflight_model_probe_identities": [
+    "gpt-5.6-sol",
+    "glm-5.3-flash",
+    "deepseek-v4-flash"
+  ],
+  "default_admission_upper_bounds": {
+    "tokens": 10800000,
+    "ordinary_calls": 504,
+    "cm_calls": 108,
+    "ordinary_plus_cm_calls": 612,
+    "probe_calls_excluded_from_experiment_matrix_max": 3
+  },
+  "dispatch_seed": 20260906,
+  "seed_purpose": "Dispatch ordering only; no claim of provider random seed control.",
+  "fresh_process_and_context_per_attempt": true,
+  "history_cm_off_policy": "Disable history-summary CM only. Preserve common environment/runner output clipping; no substitute summarizer, silent history dropping or model fallback. Context overflow remains an observed failure.",
+  "common_tool_output_bounds": {
+    "environment_stdout_tail_chars": 40000,
+    "environment_stderr_tail_chars": 12000,
+    "runner_clip_above_chars": 18000,
+    "runner_head_chars": 12000,
+    "runner_tail_chars": 6000,
+    "collect_patch_visible_chars": 40000
+  },
+  "scheduler": {
+    "target_active_episodes": 6,
+    "initial_active_full_team_episodes": 4,
+    "candidate_container_cap_proposed": 18,
+    "candidate_memory_bytes": 1073741824,
+    "owned_actual_memory_limit_bytes": 12884901888,
+    "host_available_min_bytes": 2147483648,
+    "docker_remaining_min_bytes": 2147483648,
+    "provider_shared_limits": {
+      "codex_account": 4,
+      "glm_coding_plan": 4,
+      "deepseek": 4
+    },
+    "global_model_slots": 12,
+    "per_episode_model_slots": 4,
+    "resource_ramp_rule": "After at least three healthy 10-second samples, admit the remaining pair only if observed owned usage plus the full memory caps of its six new containers stays within the owned/Docker/host headroom guards. Otherwise retain four-way rolling operation. Cap sums are not actual memory reservations.",
+    "cross_task_rolling": true,
+    "same_pair_adjacent_admission": true,
+    "slot_owner_lease_required": true,
+    "generation_grading_overlap": false,
+    "first_six_health_gate_before_remaining_twelve": true,
+    "quota_query_before_new_admission_wave": true,
+    "no_assumption_of_flash_50_coding_plan_concurrency": true,
+    "stage_admission_deadline_hours": 24,
+    "per_generation_watchdog_seconds": 7500,
+    "grading_watchdog_seconds": 2100,
+    "cm_and_workers_share_glm_lock": false,
+    "quota_enabled_models_only": true,
+    "cm_uses_independent_provider_pool": true,
+    "cm_contributes_to_coding_quota": false,
+    "coding_quota_models_in_C1": [
+      "glm-5.3-flash"
+    ]
+  },
+  "host_observation": {
+    "at": "2026-09-06T11:36:45.821669+00:00",
+    "host_total_GiB": 31.19,
+    "host_available_GiB": 9.09,
+    "docker_total_GiB": 15.21,
+    "logical_cpus": 24,
+    "must_recheck_before_launch": true
+  },
+  "engineering_prerequisites": [
+    "Correct actual pytest status for pipelines without a duplicate execution.",
+    "Constrain Codex native tool exposure/execution to the frozen supported protocol; do not allow all tools to hide errors.",
+    "Introduce a distinct CM-on/off contract; the existing B1 contracts force CM on.",
+    "Freeze the existing DeepSeek-v4-flash CM route in the new ON/OFF contract (provider=deepseek, thinking disabled, non-streaming, output cap 4096), preserve its independent DeepSeek pool and shared-root-token accounting, and qualify the exact CM request. Do not route CM through GLM Coding Plan.",
+    "Record pre-review Lead state, delivery delta, post-apply candidate and hashes without changing solver decisions.",
+    "Implement bounded cross-task dispatch and resource ramp; retain a single provider lock pool."
+  ],
+  "review_audit": {
+    "new_generation_episodes": 0,
+    "new_reviewer_model_calls": 0,
+    "historical_worker_instances": 12,
+    "historical_review_decisions": 11,
+    "nonempty_deliveries": 9,
+    "production_nonempty": 5,
+    "production_adopt": 5,
+    "production_discard": 0,
+    "test_nonempty": 4,
+    "test_adopt": 3,
+    "test_discard": 1,
+    "certified_review_state_pairs": null,
+    "certification_status": "not_yet_established",
+    "optional_official_grade_executions_max": 10,
+    "optional_test_patch_validation_processes_max": 8,
+    "counts_are_caps_not_certified_available_pairs": true,
+    "not_in_default_model_dispatch": true,
+    "effect_categories": [
+      "official_resolution_improved_without_regression",
+      "harmful_resolution_loss_or_new_P2P_regression",
+      "F2P_partial_improvement_without_regression",
+      "no_observed_change",
+      "unidentifiable_or_ungraded"
+    ],
+    "no_overall_review_accuracy_from_existing_cases": true
+  },
+  "optional_budget_allocation_stage": {
+    "status": "optional_not_authorized_not_in_default_dispatch",
+    "default_cm_enabled": true,
+    "default_cm_call_limit": 12,
+    "task_count": 3,
+    "conditions": [
+      {
+        "condition_id": "FB_LOW_EQ",
+        "token_limit": 600000,
+        "role_ordinary_caps": {
+          "lead": 12,
+          "implementation": 8,
+          "test": 8
+        }
+      },
+      {
+        "condition_id": "FB_HIGH_EQ",
+        "token_limit": 2400000,
+        "role_ordinary_caps": {
+          "lead": 12,
+          "implementation": 8,
+          "test": 8
+        }
+      },
+      {
+        "condition_id": "FB_HIGH_TEST",
+        "token_limit": 2400000,
+        "role_ordinary_caps": {
+          "lead": 12,
+          "implementation": 4,
+          "test": 12
+        }
+      },
+      {
+        "condition_id": "FB_HIGH_NO_TEST",
+        "token_limit": 2400000,
+        "role_ordinary_caps": {
+          "lead": 12,
+          "implementation": 16,
+          "test": 0
+        }
+      }
+    ],
+    "replicates_per_cell": 3,
+    "fresh_generation_attempts": 36,
+    "token_admission_upper_bound": 70200000,
+    "ordinary_call_upper_bound": 1008,
+    "cm_call_upper_bound": 432,
+    "total_call_upper_bound": 1440,
+    "role_cap_semantics": "Total admitted ordinary requests per role, including closing requests; no automatic transfer or borrowing. Root token pool remains shared.",
+    "worker_finish_reserve_within_role_cap": 1,
+    "lead_finalization_reserve_within_role_cap": 2,
+    "not_comparable_as_same_runtime_repeats_to_C1": true,
+    "requires_role_specific_cap_and_roster_implementation": true,
+    "cm_model": "deepseek-v4-flash"
+  },
+  "statistics": {
+    "independent_task_types": 3,
+    "replicates_per_task_condition": 3,
+    "general_benchmark_claims_allowed": false,
+    "conditional_delivery_quality_is_descriptive_not_causal": true,
+    "pooled_episode_mcnemar_used_for_promotion": false,
+    "results_counted_from_all_admitted_attempts_with_missingness_separate": true
+  },
+  "efficiency_candidate_gate": {
+    "taskwise_success_count_not_lower": true,
+    "production_delivery_count_not_lower": true,
+    "all_admitted_total_token_ratio_max": 0.85,
+    "median_generation_wall_ratio_max": 1.2,
+    "interpretation": "Engineering follow-up signal only, not significance or equivalence proof; evaluated symmetrically and not a condition for finishing the 18 runs.",
+    "no_material_unknown_usage_or_scores": true,
+    "all_task_condition_cells_have_three_admitted_attempts": true,
+    "official_scores_and_usage_complete": true
+  },
+  "success_metric_scope": "Primary official resolution and final applicable production delivery; secondary F2P/P2P, stop category, tokens, cost scenario, latency, CM usage and worker/review evidence.",
+  "worker_preference_is_exclusive": false,
+  "model_configuration_policy": "Prefer Flash experimental workers; GPT Sol/Terra/Luna may be used for justified, separately frozen comparisons. Do not confound model changes with CM within C1.",
+  "optional_model_control_stage": {
+    "stage": "M1",
+    "status": "optional_not_in_default_dispatch",
+    "trigger": "A separately chosen model-routing decision or unresolved Flash production-delivery limitation; not automatic after C1.",
+    "comparison_type": "Implementation role model plus its reasoning and adapter configuration; not equal hidden compute.",
+    "lead_model": "gpt-5.6-sol",
+    "test_model": "glm-5.3-flash",
+    "implementation_conditions": [
+      {
+        "condition_id": "FM_FLASH",
+        "model": "glm-5.3-flash",
+        "reasoning_effort_requested": "max",
+        "thinking": "enabled"
+      },
+      {
+        "condition_id": "FM_TERRA",
+        "model": "gpt-5.6-terra",
+        "reasoning_effort_requested": "max",
+        "service_tier_requested": "fast"
+      },
+      {
+        "condition_id": "FM_LUNA",
+        "model": "gpt-5.6-luna",
+        "reasoning_effort_requested": "max",
+        "service_tier_requested": "fast"
+      }
+    ],
+    "task_count": 3,
+    "replicates_per_cell": 3,
+    "fresh_generation_attempts": 27,
+    "token_limit": 600000,
+    "ordinary_call_limit": 28,
+    "worker_work_call_limit": 8,
+    "worker_finish_only_extra_opportunity": 1,
+    "finish_charged_to_root_ordinary": true,
+    "cm_enabled": true,
+    "cm_call_limit": 12,
+    "wall_seconds": 7200,
+    "budget_semantics": "Same work-call-plus-root-charged-closing semantics as C1, not the strict B1 role caps.",
+    "token_admission_upper_bound": 16200000,
+    "ordinary_call_upper_bound": 756,
+    "cm_call_upper_bound": 324,
+    "total_call_upper_bound": 1080,
+    "historical_control_reuse": false,
+    "preflight_model_probes_max": 5,
+    "two_arm_alternative": {
+      "implementation_models": [
+        "glm-5.3-flash",
+        "gpt-5.6-terra"
+      ],
+      "fresh_generation_attempts": 18,
+      "preflight_model_probes_max": 4,
+      "replaces_three_arm_design": true,
+      "not_additive": true
+    },
+    "requires_new_contract": true,
+    "luna_in_existing_base_transport_allowlist": true,
+    "luna_in_current_experiment_probe_list": false,
+    "not_required_before_budget_stage": true,
+    "default_new_baseline_even_if_C1_available": true,
+    "cm_model": "deepseek-v4-flash",
+    "preflight_model_probe_identities": [
+      "gpt-5.6-sol",
+      "glm-5.3-flash",
+      "gpt-5.6-terra",
+      "gpt-5.6-luna",
+      "deepseek-v4-flash"
+    ]
+  },
+  "updated_at": "2026-09-06T12:31:27.294478+00:00",
+  "revision_note": "User: 那就并发开始吧. Authorization covers common P0 implementation, at most 3 qualification calls, and the 18 C1 attempts; no automatic generation retries or optional stages."
+}

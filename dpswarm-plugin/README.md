@@ -1,11 +1,13 @@
 # DPswarm 按需协作能力与控制面
 
-> 规格来源：`cursorhandoff/docs/DPswarm-机制架构.md`（共识型文档，六大机制）。
+> 规格来源：[DPswarm-机制架构.md](../DPswarm-机制架构.md)（机制约定与设计目标）。
 > 实现原则：**控制面事件存储独立、harness 只作执行底座**（§9.1
 > "模式照搬，设施自建"），LLM 传输层走 Provider 抽象（MockProvider 可测、
 > OpenAI 兼容网关可接真模型如 GLM Coding Plan）。
 
 产品默认入口是宿主中的单 agent。它在执行任务时自主判断是否调用 DPswarm 插件能力；需要协作时兼任 Lead，分工、验收并收回结果，随后继续原任务。DSH 接入位于 `dpswarm-dsh-plugin`，目前通过系统提示与工具说明提供调用指引。控制面服务就绪与多 agent 任务启动是两个不同事件。
+
+最新实验证据见[全历史报告](../reports/2026-09-07/full-history/REPORT_ZH.md)与[具体贡献拆解](../reports/2026-09-07/component-attribution/REPORT_ZH.md)。下文的接口实现、历史修复记录和实测净收益分开理解；固定团队成功不证明自主选择团队有效。
 
 ## 机制文档 ↔ 模块映射
 
@@ -37,7 +39,7 @@
 
 本轮修复的实验集成接入点是仓库内 `modelbench/team_runtime_v2`：GLM 原生 tools、GPT 严格文本 adapter、显式 `finish_phase`、校验后交接、E 提问后新建 P clarification 工作项、原 E 恢复与全局预算复用。它复用真实 ControlPlane 的准入、fence、提交、证据验收。固定 P/E/V 和下述命令是实验控制条件，不是产品默认入口；修复尚未全部贯通宿主 `dpswarm_*` 委派链路。后续接入应保持“单 agent 默认、按需启用”，不要求把普通任务改成固定团队循环。
 
-上一批实验入口是 `modelbench.team_runtime_v2.revisions.budget_visibility`；它补回逐轮预算提示，并规范化工作区绝对/相对交付物路径，参数见 `modelbench/team_runtime_v2/revisions/PLAN.md`。该批源码与成绩已冻结。本次新增 `ReviewFixedTeamRun` 修复澄清过期与无法配对的原生工具历史；尚未启用新的模型回归。当前 `server.py` 已修改，旧 CLI 的历史核心 hash 检查会拒绝运行，不能通过修改旧 manifest 绕过。新批次须独立冻结当前版本，并保留原始证据。复审缺口及重跑条件见 [复审记录](../modelbench/postrepair_review_20260903/REVIEW.md)。
+上一批实验入口是 `modelbench.team_runtime_v2.revisions.budget_visibility`；它补回逐轮预算提示，并规范化工作区绝对/相对交付物路径，参数见 `modelbench/team_runtime_v2/revisions/PLAN.md`。该批源码与成绩已冻结。本次新增 `ReviewFixedTeamRun` 修复澄清过期与无法配对的原生工具历史；尚未启用新的模型回归。当前 `server.py` 已修改，旧 CLI 的历史核心 hash 检查会拒绝运行，不能通过修改旧 manifest 绕过。新批次须独立冻结当前版本，并保留原始证据。复审缺口及重跑条件见 复审记录（本地归档：`modelbench/postrepair_review_20260903/REVIEW.md`）。
 
 ## 控制面板（挂在 dph Web UI 上）
 
@@ -80,13 +82,12 @@ python -m dpswarm.cli run --task "整理日志并汇总统计" \
 python -m dpswarm.cli status --dir .demo
 python -m dpswarm.cli replay --dir .demo   # 离线全量重验（§9.1 对账）
 
-# 2) 接真模型（OpenAI 兼容网关，如 GLM Coding Plan）
-export DPSWARM_BASE_URL=https://open.bigmodel.cn/api/paas/v4
-export DPSWARM_API_KEY=sk-...
-python -m dpswarm.cli run --task "..." --model bigmodel/glm-4.7 --dir .demo
+# 2) 接真模型：先按实际 Provider 和订阅配置兼容接口。
+# DPSWARM_BASE_URL / DPSWARM_API_KEY 由本地环境提供；不在仓库保存密钥。
+# 普通按量接口与 Coding Plan 接口分开配置。模型名使用实际可用的路由。
+python -m dpswarm.cli run --task "..." --model PROVIDER/MODEL --dir .demo
 
-# 3) 测试（211 个，13 个测试文件：逻辑/案例/控制面/e2e/server/安全/
-#    编排修复/机制锚点/记忆生命周期等）
+# 3) 核心离线测试（当前同步结果见仓库根 README；历史修复计数不累加）
 #    逻辑套件：验收/生命周期转换矩阵穷举（合法边可达、非法边全拒）、
 #              §7 护栏正负例矩阵、CAS/恢复/终态优先、时间护栏
 #    案例套件：完整机制场景（DAG 解锁/分裂全链/升级链/硬切续接/

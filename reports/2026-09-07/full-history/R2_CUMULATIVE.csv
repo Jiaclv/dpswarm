@@ -1,0 +1,4 @@
+scope,parent_tasks,final_passed,selector_reached,fallbacks,different_production_pairs,same_production_nonfallback_pairs,byte_identical_pairs,internal_candidates,independently_graded_candidates
+A1,2,1,1,1,0,1,1,4,0
+A2,16,11,13,3,5,8,3,32,0
+A1+A2,18,12,14,4,5,9,4,36,0

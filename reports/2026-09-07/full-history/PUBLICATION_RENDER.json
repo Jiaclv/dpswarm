@@ -1,0 +1,19 @@
+{
+  "canonical_structure": {
+    "counts": {
+      "blocks": 53,
+      "charts": 1,
+      "html": 13,
+      "metrics": 0,
+      "tables": 5
+    },
+    "html": "K:\\秋招\\项目\\DPswarm\\reports\\2026-09-07\\full-history\\REPORT_ZH.html",
+    "ok": true,
+    "title": "DPswarm 全历史逐机制综合：具体配置、累积证据与适用边界"
+  },
+  "html_sha256": "0e9edb8ca9b156f96a9e03475642ce0921f0ac0ba6ce2caf385d22eabafc3c43",
+  "artifact_sha256": "068dcfe823a256be51de63d02f9de7556f79ad26a10e0e185d58cbca9b4541c1",
+  "source_md_sha256": "f4e65994b27454234f7efd4f2b27e342d39a390e21355bec94e252a9dd271037",
+  "scope": "publication copy; original report validation is retained separately",
+  "canonical_browser": "not certified; separate real-time browser check is recorded for this publication"
+}

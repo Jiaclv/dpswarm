@@ -1,0 +1,205 @@
+{
+  "reviewed_at_utc": "2026-09-07T01:11:35.005090+00:00",
+  "status": "pass",
+  "report_path": "modelbench/cumulative_analysis_20260907_v2/REPORT_ZH.md",
+  "report_sha256": "a5bf4d9d6c16974064ec887dab7d8d8b5635319bf67201f4529d0631734caed2",
+  "hash_basis": "raw file bytes; no newline normalization",
+  "sections_reviewed": [
+    2,
+    4,
+    7,
+    8,
+    12,
+    14,
+    15,
+    17,
+    18
+  ],
+  "dual_role_disclosure": {
+    "context_tables": "Reviewer authored context_synthesis and CM plot; checks against own context artifacts are maker self-check, not independent review. See CONTEXT_REVIEW.json.",
+    "root_integration": "Reviewer did not author or edit root REPORT_ZH.md or MECHANISM_EVIDENCE_MAP; root integration wording, scope boundaries, source references and new non-SWE table were cross-reviewed here.",
+    "prior_team_review": "TEAM_AND_R2_REVIEW.json remains the separate read-only team/R2 cross-review."
+  },
+  "blocking_findings": [],
+  "open_findings": [],
+  "resolved_findings": [
+    {
+      "id": "CR-01",
+      "issue": "Whole-history CM text could be read as all DeepSeek and no GLM CM exposure.",
+      "resolution": "C1 explicitly DeepSeek; historical 24 Flash CM configurations retained; substitution net effect unknown.",
+      "status": "resolved"
+    },
+    {
+      "id": "CR-02",
+      "issue": "Root integrated text used bare context evidence filenames.",
+      "resolution": "Context SUMMARY and comparison references use context_synthesis prefix.",
+      "status": "resolved"
+    },
+    {
+      "id": "CR-03",
+      "issue": "M3c/M3d scope wording could imply unknown flags were OFF.",
+      "resolution": "M3c limited to known F1-off configuration; other missing fields unknown. M3d limited to runs with verifiable configuration.",
+      "status": "resolved"
+    },
+    {
+      "id": "CR-04",
+      "issue": "WideSearch item accuracy wording mismatched the source item_f1 deltas.",
+      "resolution": "Both ws074 and ws079 explicitly named item F1.",
+      "status": "resolved"
+    },
+    {
+      "id": "CR-05",
+      "issue": "219 could be read as count of CM calls.",
+      "resolution": "Summary explicitly says 219 attempts containing CM calls.",
+      "status": "resolved"
+    }
+  ],
+  "checks": {
+    "inventory": {
+      "attempts": 306,
+      "raw_official_score_present": 251,
+      "qualified": 249,
+      "unique_tasks": 26,
+      "unique_repositories_from_task_ids": 12,
+      "top_three_task_attempts": 109
+    },
+    "CM_Memory_curfew_coverage_selfcheck": {
+      "cm_on": {
+        "True": 220,
+        "False": 72,
+        "unknown": 14
+      },
+      "cm_actual_exposure": {
+        "True": 219,
+        "False": 73,
+        "unknown": 14
+      },
+      "cm_team_memory": {
+        "False": 179,
+        "unknown": 85,
+        "True": 42
+      },
+      "cm_edit_curfew": {
+        "True": 27,
+        "unknown": 143,
+        "False": 136
+      }
+    },
+    "historical_Flash_CM_configured_and_exposed_episodes": 24,
+    "context_comparison_rows_selfcheck": 11,
+    "non_SWE_root_table_recomputed_from_frozen_inventory": [
+      {
+        "family": "team_eval20260903",
+        "batch": "main",
+        "runs": 12,
+        "benchmark": {
+          "passed": 8,
+          "observed": 12
+        },
+        "first_verifier": {
+          "passed": 5,
+          "observed": 10
+        },
+        "final_verifier": {
+          "passed": 8,
+          "observed": 12
+        },
+        "observed_first_fail_final_pass": 1,
+        "passed": true
+      },
+      {
+        "family": "team_eval20260903",
+        "batch": "native_followup",
+        "runs": 4,
+        "benchmark": {
+          "passed": 4,
+          "observed": 4
+        },
+        "first_verifier": {
+          "passed": 1,
+          "observed": 4
+        },
+        "final_verifier": {
+          "passed": 4,
+          "observed": 4
+        },
+        "observed_first_fail_final_pass": 3,
+        "passed": true
+      },
+      {
+        "family": "team_runtime_v2",
+        "batch": "regression_20260903_v2",
+        "runs": 6,
+        "benchmark": {
+          "passed": 2,
+          "observed": 6
+        },
+        "first_verifier": {
+          "passed": 0,
+          "observed": 3
+        },
+        "final_verifier": {
+          "passed": 1,
+          "observed": 6
+        },
+        "observed_first_fail_final_pass": 1,
+        "passed": true
+      },
+      {
+        "family": "team_runtime_v2",
+        "batch": "regression_budget_visible_20260903",
+        "runs": 4,
+        "benchmark": {
+          "passed": 3,
+          "observed": 4
+        },
+        "first_verifier": {
+          "passed": 3,
+          "observed": 4
+        },
+        "final_verifier": {
+          "passed": 3,
+          "observed": 4
+        },
+        "observed_first_fail_final_pass": 0,
+        "passed": true
+      }
+    ],
+    "WideSearch_metric_source_check": {
+      "ws_zh_074": {
+        "metric": "item_f1",
+        "baseline": 0.9563,
+        "team": 0.9384,
+        "delta_pp": -1.7900000000000027
+      },
+      "ws_zh_079": {
+        "metric": "item_f1",
+        "baseline": 0.9278,
+        "team": 0.9942,
+        "delta_pp": 6.6400000000000015
+      }
+    },
+    "C1_failure_and_local_budget_boundary": "Checked against original failure_audit/AUDIT_SUMMARY and mechanism/IMPLEMENTER_BUDGET_AUDIT: 10 failures, primary groups 5/1/2/1/1, five budget stops with four resolved, nine explicit finish-only boundaries plus one eighth-call blocked case.",
+    "A1_A2_arithmetic": "Checked FOCUS_AGGREGATES/FOCUS_PAIRED_EFFECTS: A1+A2 T13/S11, production17/13, cost ratio1.001148, token ratio1.304726, median-time ratio1.436409; A2 T/R2 cost0.747298 and median-time1.415590.",
+    "remaining_design_boundaries": "No missing historical controls are recast as confirmed effects: tester/review independence, CM substitution, F2/F3/F5, autonomous DERIVE, SPLIT/FISSION, routing/upgrade and long-memory remain unmeasured or unknown.",
+    "resource_and_provider_caveats": "Original B1 and C1 report evidence retained; no new provider entitlement, rate-limit or OOM-free claim made.",
+    "producer_vs_independent_verification_separated": true
+  },
+  "sources_sha256": {
+    "modelbench/cumulative_analysis_20260907_v2/MECHANISM_EVIDENCE_MAP.csv": "1f23be93dcc7ac29ec21c281a8cefb7128392b6b4b6e1397bbae3aed73d65547",
+    "modelbench/cumulative_analysis_20260907_v2/NON_SWE_VERIFIER_SYNTHESIS.csv": "a034eea295ab2d5cd0466a45505cd71272991d5753f46b33daba402a951bd85e",
+    "modelbench/cumulative_analysis_20260907_v2/CONTROL_AND_ACCOUNTING_COVERAGE.csv": "fe73302592a5417f38dcebd384bbaf893847bea8e9b8400f495654dc8835ded8",
+    "modelbench/cumulative_analysis_20260907_v2/ALL_ATTEMPTS.csv": "9166ab763bebef61466267b66364a9580503068f092a7fe1494ac4a71a51e227",
+    "modelbench/cumulative_analysis_20260907_v2/QUALIFIED_SWE_EPISODES.csv": "5e0ab29c6820fae04577ccc3e543b6c0d7c261aa62e8b17cb8654b3ec6025530",
+    "modelbench/cumulative_analysis_20260907_v2/FOCUS_AGGREGATES.csv": "bb4fc92af4907aeb41865514a3000ed18327fbef12a18a0067af8a7c1e721892",
+    "modelbench/cumulative_analysis_20260907_v2/FOCUS_PAIRED_EFFECTS.csv": "92c9ffddcd157c3024f9214955623d27a4472fce584637a0157c34e322999e95",
+    "modelbench/cumulative_analysis_20260907_v2/context_synthesis/COVERAGE.csv": "1e03940ee63022d1be422970192f77a1a31921e9b19fef36659e522587b8c526",
+    "modelbench/cumulative_analysis_20260907_v2/context_synthesis/CONTEXT_COMPARISONS.csv": "48b297485ee3ea9e1e3ef071f854e322a9ff602e97a77315b5afca88a1a72072",
+    "modelbench/cumulative_analysis_20260907_v1/non_swe_audit/WIDESEARCH_SCORE_SNAPSHOT.csv": "35dc4beb1fe183eaf58771f47aa37fc74a2a57bac4d7b224601e6a8f865ed2ab"
+  },
+  "limitations": [
+    "This is not a second full raw-result/source-tree audit. Frozen v1 evidence and targeted original audit outputs were reused.",
+    "Context source tables have author self-check status; this review adds cross-review only for root integration and independently recomputed root additions.",
+    "Review is valid for the bound Markdown and mapped source bytes; future substantive changes require review refresh."
+  ]
+}

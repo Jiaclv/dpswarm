@@ -1,0 +1,675 @@
+{
+  "attempts": 306,
+  "qualified_swe_episodes": 249,
+  "coverage": {
+    "ALL": {
+      "attempts": 306,
+      "qualified": 249,
+      "tasks": 29,
+      "call_ledger_available": 242,
+      "event_ledger_available": 241,
+      "cm_on": {
+        "on": 220,
+        "off": 72,
+        "unknown": 14
+      },
+      "cm_actual_exposure": {
+        "on": 219,
+        "off": 73,
+        "unknown": 14
+      },
+      "cm_team_memory": {
+        "on": 42,
+        "off": 179,
+        "unknown": 85
+      },
+      "cm_scout_distill": {
+        "on": 42,
+        "off": 63,
+        "unknown": 201
+      },
+      "cm_bootstrap_package": {
+        "on": 42,
+        "off": 63,
+        "unknown": 201
+      },
+      "cm_edit_curfew": {
+        "on": 27,
+        "off": 136,
+        "unknown": 143
+      },
+      "edit_status_banner": {
+        "on": 19,
+        "off": 10,
+        "unknown": 277
+      },
+      "closing_call_reserve_exempt": {
+        "on": 29,
+        "off": 0,
+        "unknown": 277
+      }
+    },
+    "swe_fixed_team_20260903": {
+      "attempts": 111,
+      "qualified": 107,
+      "tasks": 10,
+      "call_ledger_available": 108,
+      "event_ledger_available": 109,
+      "cm_on": {
+        "on": 95,
+        "off": 16,
+        "unknown": 0
+      },
+      "cm_actual_exposure": {
+        "on": 94,
+        "off": 17,
+        "unknown": 0
+      },
+      "cm_team_memory": {
+        "on": 42,
+        "off": 45,
+        "unknown": 24
+      },
+      "cm_scout_distill": {
+        "on": 42,
+        "off": 45,
+        "unknown": 24
+      },
+      "cm_bootstrap_package": {
+        "on": 42,
+        "off": 45,
+        "unknown": 24
+      },
+      "cm_edit_curfew": {
+        "on": 27,
+        "off": 2,
+        "unknown": 82
+      },
+      "edit_status_banner": {
+        "on": 19,
+        "off": 10,
+        "unknown": 82
+      },
+      "closing_call_reserve_exempt": {
+        "on": 29,
+        "off": 0,
+        "unknown": 82
+      }
+    },
+    "swe_verified_20260903": {
+      "attempts": 12,
+      "qualified": 10,
+      "tasks": 5,
+      "call_ledger_available": 0,
+      "event_ledger_available": 0,
+      "cm_on": {
+        "on": 0,
+        "off": 12,
+        "unknown": 0
+      },
+      "cm_actual_exposure": {
+        "on": 0,
+        "off": 12,
+        "unknown": 0
+      },
+      "cm_team_memory": {
+        "on": 0,
+        "off": 0,
+        "unknown": 12
+      },
+      "cm_scout_distill": {
+        "on": 0,
+        "off": 0,
+        "unknown": 12
+      },
+      "cm_bootstrap_package": {
+        "on": 0,
+        "off": 0,
+        "unknown": 12
+      },
+      "cm_edit_curfew": {
+        "on": 0,
+        "off": 0,
+        "unknown": 12
+      },
+      "edit_status_banner": {
+        "on": 0,
+        "off": 0,
+        "unknown": 12
+      },
+      "closing_call_reserve_exempt": {
+        "on": 0,
+        "off": 0,
+        "unknown": 12
+      }
+    },
+    "team_eval20260903": {
+      "attempts": 16,
+      "qualified": 0,
+      "tasks": 2,
+      "call_ledger_available": 0,
+      "event_ledger_available": 0,
+      "cm_on": {
+        "on": 0,
+        "off": 16,
+        "unknown": 0
+      },
+      "cm_actual_exposure": {
+        "on": 0,
+        "off": 16,
+        "unknown": 0
+      },
+      "cm_team_memory": {
+        "on": 0,
+        "off": 0,
+        "unknown": 16
+      },
+      "cm_scout_distill": {
+        "on": 0,
+        "off": 0,
+        "unknown": 16
+      },
+      "cm_bootstrap_package": {
+        "on": 0,
+        "off": 0,
+        "unknown": 16
+      },
+      "cm_edit_curfew": {
+        "on": 0,
+        "off": 0,
+        "unknown": 16
+      },
+      "edit_status_banner": {
+        "on": 0,
+        "off": 0,
+        "unknown": 16
+      },
+      "closing_call_reserve_exempt": {
+        "on": 0,
+        "off": 0,
+        "unknown": 16
+      }
+    },
+    "team_runtime_v2": {
+      "attempts": 10,
+      "qualified": 0,
+      "tasks": 2,
+      "call_ledger_available": 0,
+      "event_ledger_available": 0,
+      "cm_on": {
+        "on": 0,
+        "off": 10,
+        "unknown": 0
+      },
+      "cm_actual_exposure": {
+        "on": 0,
+        "off": 10,
+        "unknown": 0
+      },
+      "cm_team_memory": {
+        "on": 0,
+        "off": 0,
+        "unknown": 10
+      },
+      "cm_scout_distill": {
+        "on": 0,
+        "off": 0,
+        "unknown": 10
+      },
+      "cm_bootstrap_package": {
+        "on": 0,
+        "off": 0,
+        "unknown": 10
+      },
+      "cm_edit_curfew": {
+        "on": 0,
+        "off": 0,
+        "unknown": 10
+      },
+      "edit_status_banner": {
+        "on": 0,
+        "off": 0,
+        "unknown": 10
+      },
+      "closing_call_reserve_exempt": {
+        "on": 0,
+        "off": 0,
+        "unknown": 10
+      }
+    },
+    "results": {
+      "attempts": 9,
+      "qualified": 0,
+      "tasks": 1,
+      "call_ledger_available": 0,
+      "event_ledger_available": 0,
+      "cm_on": {
+        "on": 0,
+        "off": 9,
+        "unknown": 0
+      },
+      "cm_actual_exposure": {
+        "on": 0,
+        "off": 9,
+        "unknown": 0
+      },
+      "cm_team_memory": {
+        "on": 0,
+        "off": 0,
+        "unknown": 9
+      },
+      "cm_scout_distill": {
+        "on": 0,
+        "off": 0,
+        "unknown": 9
+      },
+      "cm_bootstrap_package": {
+        "on": 0,
+        "off": 0,
+        "unknown": 9
+      },
+      "cm_edit_curfew": {
+        "on": 0,
+        "off": 0,
+        "unknown": 9
+      },
+      "edit_status_banner": {
+        "on": 0,
+        "off": 0,
+        "unknown": 9
+      },
+      "closing_call_reserve_exempt": {
+        "on": 0,
+        "off": 0,
+        "unknown": 9
+      }
+    },
+    "A1": {
+      "attempts": 11,
+      "qualified": 10,
+      "tasks": 2,
+      "call_ledger_available": 10,
+      "event_ledger_available": 10,
+      "cm_on": {
+        "on": 10,
+        "off": 0,
+        "unknown": 1
+      },
+      "cm_actual_exposure": {
+        "on": 10,
+        "off": 0,
+        "unknown": 1
+      },
+      "cm_team_memory": {
+        "on": 0,
+        "off": 10,
+        "unknown": 1
+      },
+      "cm_scout_distill": {
+        "on": 0,
+        "off": 0,
+        "unknown": 11
+      },
+      "cm_bootstrap_package": {
+        "on": 0,
+        "off": 0,
+        "unknown": 11
+      },
+      "cm_edit_curfew": {
+        "on": 0,
+        "off": 10,
+        "unknown": 1
+      },
+      "edit_status_banner": {
+        "on": 0,
+        "off": 0,
+        "unknown": 11
+      },
+      "closing_call_reserve_exempt": {
+        "on": 0,
+        "off": 0,
+        "unknown": 11
+      }
+    },
+    "A2": {
+      "attempts": 93,
+      "qualified": 80,
+      "tasks": 16,
+      "call_ledger_available": 80,
+      "event_ledger_available": 80,
+      "cm_on": {
+        "on": 80,
+        "off": 0,
+        "unknown": 13
+      },
+      "cm_actual_exposure": {
+        "on": 80,
+        "off": 0,
+        "unknown": 13
+      },
+      "cm_team_memory": {
+        "on": 0,
+        "off": 80,
+        "unknown": 13
+      },
+      "cm_scout_distill": {
+        "on": 0,
+        "off": 0,
+        "unknown": 93
+      },
+      "cm_bootstrap_package": {
+        "on": 0,
+        "off": 0,
+        "unknown": 93
+      },
+      "cm_edit_curfew": {
+        "on": 0,
+        "off": 80,
+        "unknown": 13
+      },
+      "edit_status_banner": {
+        "on": 0,
+        "off": 0,
+        "unknown": 93
+      },
+      "closing_call_reserve_exempt": {
+        "on": 0,
+        "off": 0,
+        "unknown": 93
+      }
+    },
+    "B1": {
+      "attempts": 26,
+      "qualified": 24,
+      "tasks": 3,
+      "call_ledger_available": 26,
+      "event_ledger_available": 24,
+      "cm_on": {
+        "on": 26,
+        "off": 0,
+        "unknown": 0
+      },
+      "cm_actual_exposure": {
+        "on": 26,
+        "off": 0,
+        "unknown": 0
+      },
+      "cm_team_memory": {
+        "on": 0,
+        "off": 26,
+        "unknown": 0
+      },
+      "cm_scout_distill": {
+        "on": 0,
+        "off": 0,
+        "unknown": 26
+      },
+      "cm_bootstrap_package": {
+        "on": 0,
+        "off": 0,
+        "unknown": 26
+      },
+      "cm_edit_curfew": {
+        "on": 0,
+        "off": 26,
+        "unknown": 0
+      },
+      "edit_status_banner": {
+        "on": 0,
+        "off": 0,
+        "unknown": 26
+      },
+      "closing_call_reserve_exempt": {
+        "on": 0,
+        "off": 0,
+        "unknown": 26
+      }
+    },
+    "C1": {
+      "attempts": 18,
+      "qualified": 18,
+      "tasks": 3,
+      "call_ledger_available": 18,
+      "event_ledger_available": 18,
+      "cm_on": {
+        "on": 9,
+        "off": 9,
+        "unknown": 0
+      },
+      "cm_actual_exposure": {
+        "on": 9,
+        "off": 9,
+        "unknown": 0
+      },
+      "cm_team_memory": {
+        "on": 0,
+        "off": 18,
+        "unknown": 0
+      },
+      "cm_scout_distill": {
+        "on": 0,
+        "off": 18,
+        "unknown": 0
+      },
+      "cm_bootstrap_package": {
+        "on": 0,
+        "off": 18,
+        "unknown": 0
+      },
+      "cm_edit_curfew": {
+        "on": 0,
+        "off": 18,
+        "unknown": 0
+      },
+      "edit_status_banner": {
+        "on": 0,
+        "off": 0,
+        "unknown": 18
+      },
+      "closing_call_reserve_exempt": {
+        "on": 0,
+        "off": 0,
+        "unknown": 18
+      }
+    }
+  },
+  "event_counts": {
+    "swe_fixed_team_20260903": {
+      "worker_admitted": 126,
+      "workers_started_after_scout": 45,
+      "cm_call_started": 895,
+      "cm_call_reserved": 4,
+      "cm_call_settled": 765,
+      "cm_compression": 731,
+      "cm_skipped": 182,
+      "closing_call_started": 24,
+      "closing_call_settled": 20,
+      "patch_frozen": 109,
+      "scout_round_completed": 30,
+      "memory_candidate": 164,
+      "memory_promoted": 164,
+      "scout_distilled": 30,
+      "cm_assembly": 60,
+      "cm_call_not_admitted": 130,
+      "closing_call_not_admitted": 4,
+      "worker_cleanup_discarded": 23,
+      "worker_drain_started": 5,
+      "worker_drain_completed": 5,
+      "cm_call_failed": 4
+    },
+    "swe_verified_20260903": {},
+    "team_eval20260903": {},
+    "team_runtime_v2": {},
+    "results": {},
+    "A1": {
+      "cm_call_started": 89,
+      "cm_call_reserved": 81,
+      "cm_call_settled": 81,
+      "cm_compression": 81,
+      "cm_skipped": 6,
+      "cm_call_not_admitted": 8
+    },
+    "A2": {
+      "cm_call_started": 547,
+      "cm_call_reserved": 517,
+      "cm_call_settled": 517,
+      "cm_compression": 517,
+      "cm_skipped": 44,
+      "cm_call_not_admitted": 30
+    },
+    "B1": {
+      "run_started": 24,
+      "worktree_observed": 1382,
+      "team_activation_requested": 18,
+      "worker_admitted": 32,
+      "workers_started_after_scout": 18,
+      "call_reserved": 1240,
+      "call_settled": 1240,
+      "tool_started": 1598,
+      "tool_completed": 1602,
+      "cm_call_started": 680,
+      "worker_activated": 32,
+      "cm_call_reserved": 669,
+      "worker_first_call_completed": 32,
+      "cm_call_settled": 669,
+      "cm_compression": 669,
+      "closing_call_started": 4,
+      "closing_call_settled": 4,
+      "environment_quiesced": 56,
+      "cm_call_not_admitted": 11,
+      "patch_frozen": 24,
+      "run_result_prepared": 24,
+      "worktree_edit_detected": 36,
+      "worker_drain_started": 2,
+      "worker_drain_completed": 2,
+      "worker_cleanup_discarded": 5,
+      "cm_skipped": 13
+    },
+    "C1": {
+      "cm_compression": 56,
+      "cm_compression_rejected": 3,
+      "cm_call_failed": 3
+    }
+  },
+  "immediate_reduction": {
+    "A1": {
+      "compressions": 81,
+      "reduction_measured_n": 81,
+      "all_shrank": true,
+      "median_immediate_reduction": 0.3827657326827305,
+      "meaning": "Immediate local context reduction; not total token saving or semantic fidelity."
+    },
+    "A2": {
+      "compressions": 517,
+      "reduction_measured_n": 517,
+      "all_shrank": true,
+      "median_immediate_reduction": 0.4172069502074689,
+      "meaning": "Immediate local context reduction; not total token saving or semantic fidelity."
+    }
+  },
+  "assembly_comparability": {
+    "runtime_entries": 52,
+    "same_runtime_hashes": true,
+    "settings_checked": [
+      "limits",
+      "actual_settings",
+      "lead_model",
+      "worker_roles",
+      "gpt_effort_requested",
+      "gpt_service_tier_requested",
+      "glm_thinking_requested",
+      "grading",
+      "versions"
+    ],
+    "setting_differences": [],
+    "mode": "compare recorded frozen source hashes; no repeated filesystem-wide scan"
+  },
+  "assembly_same_code_two_tasks": {
+    "comparison": "same_code_two_task_assembly_v10_v12",
+    "mechanism": "Memory+Scout+Bootstrap bundled",
+    "unit": "equal-weight task means first; repetitions not independent tasks",
+    "tasks": 2,
+    "left": "Assembly OFF, CM ON",
+    "right": "Assembly ON, CM ON",
+    "left_n": 6,
+    "right_n": 6,
+    "left_passed": 6,
+    "right_passed": 6,
+    "task": "sphinx-doc__sphinx-8035;astropy__astropy-14995",
+    "left_mean_token": 471237.3333333334,
+    "right_mean_token": 474746.6666666666,
+    "token_change_pct": 0.744706135337303,
+    "left_mean_cost": 1.7785534756606205,
+    "right_mean_cost": 1.8903487580283476,
+    "cost_change_pct": 6.285741975017212,
+    "left_mean_generation_minutes": 5.251172222222219,
+    "right_mean_generation_minutes": 6.860200000000001,
+    "generation_minutes_change_pct": 30.64130654425319,
+    "left_mean_wall_minutes": 5.909413888888887,
+    "right_mean_wall_minutes": 7.312241666666664,
+    "wall_minutes_change_pct": 23.7388648714457,
+    "caveat": "Both arms CM ON; three assembly switches inseparable; equal quality does not establish equivalence. 52 recorded runtime hashes and relevant settings identical across two tasks."
+  },
+  "assembly_v16_separate": {
+    "comparison": "separate_v16_two_task_assembly_with_scout_tool_failure",
+    "mechanism": "Memory+Scout+Bootstrap bundled",
+    "unit": "equal-weight task means first; repetitions not independent tasks",
+    "tasks": 2,
+    "left": "Assembly OFF, CM ON",
+    "right": "Assembly ON, CM ON",
+    "left_n": 4,
+    "right_n": 4,
+    "left_passed": 0,
+    "right_passed": 0,
+    "task": "pydata__xarray-7229;mwaskom__seaborn-3069",
+    "left_mean_token": 568562.75,
+    "right_mean_token": 564163.5,
+    "token_change_pct": -0.7737492475544672,
+    "left_mean_cost": 2.4982226482476952,
+    "right_mean_cost": 2.2013940274035084,
+    "cost_change_pct": -11.881591941070123,
+    "left_mean_generation_minutes": 8.330579612499967,
+    "right_mean_generation_minutes": 11.941408270416652,
+    "generation_minutes_change_pct": 43.344266856278104,
+    "left_mean_wall_minutes": 9.642270342499978,
+    "right_mean_wall_minutes": 12.639209905416676,
+    "wall_minutes_change_pct": 31.081264644771124,
+    "caveat": "Both arms CM ON; three assembly switches inseparable; equal quality does not establish equivalence. All four ON runs have SCOUT_TOOL_UNAVAILABLE; achieved scout exposure impaired."
+  },
+  "direct_cm_control": {
+    "comparison": "C1_CM_ON_vs_OFF",
+    "mechanism": "CM",
+    "unit": "3 tasks x 3 repetitions per arm; task-stratified",
+    "tasks": 3,
+    "left": "CM OFF",
+    "right": "CM ON",
+    "left_n": 9,
+    "right_n": 9,
+    "left_passed": 4,
+    "right_passed": 4,
+    "left_mean_token": 438930.77777777775,
+    "right_mean_token": 416435.22222222225,
+    "token_change_pct": -5.125080467003529,
+    "cost_change_pct": -20.373353167776397,
+    "generation_change_pct": -2.407456128586538,
+    "cm_tokens": 691934.0,
+    "ordinary_token_change": -894394.0,
+    "total_token_change": -202460.0,
+    "caveat": "CM-only switch under fixed Sol lead + two Flash workers. Memory and curfew OFF. Equal aggregate quality is not equivalence or universal benefit."
+  },
+  "resource_rows": 59,
+  "comparison_rows": 11,
+  "pricing": "Within source frozen public-API-equivalent scenarios, not subscription cash. Do not pool dollar totals across protocols.",
+  "missing_rule": "Empty means unavailable. Known-subtotal fractions are explicitly distinguished from complete fractions. Unobserved events are not zero unless event ledger exists.",
+  "f2_output_cap_coverage": {
+    "4096.0": 29,
+    "None": 215,
+    "2048.0": 62
+  },
+  "actual_assembly_episode_counts": {
+    "memory_promoted": 42,
+    "scout_distilled": 30,
+    "cm_assembly": 30
+  },
+  "runtime_boundary": "Legacy accepted length-truncated summaries in some runs; C1 rejected 3 and accepted 56 of 59 CM calls. Never pool adoption rates as one unchanged implementation."
+}

@@ -1,0 +1,13 @@
+{
+  "protocol": "big_budget_transport_coding_stream_v4",
+  "glm_read_timeout_seconds": 900,
+  "glm_total_timeout_seconds": 960,
+  "other_model_total_timeout_seconds": 600,
+  "cm_read_timeout_seconds": 120,
+  "cm_total_timeout_seconds": 600,
+  "stream": true,
+  "automatic_retry": false,
+  "tool_stream": true,
+  "glm_channel": "bigmodel_coding_plan",
+  "glm_endpoint": "https://open.bigmodel.cn/api/coding/paas/v4/chat/completions"
+}

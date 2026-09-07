@@ -1,0 +1,337 @@
+{
+  "status": "PASS",
+  "reviewer": "team_synthesis_v2",
+  "reviewed_at_utc": "2026-09-07T01:04:19.905567+00:00",
+  "report_path": "modelbench/cumulative_analysis_20260907_v2/REPORT_ZH.md",
+  "report_sha256": "a5bf4d9d6c16974064ec887dab7d8d8b5635319bf67201f4529d0631734caed2",
+  "sections_reviewed": [
+    1,
+    3,
+    5,
+    6,
+    9,
+    10,
+    11,
+    13,
+    16
+  ],
+  "scope": "Read-only content review against already audited team, role and R2 tables; no regrading, models or full raw-source rehash. Figure image correctness outside this review.",
+  "section_sha256": {
+    "1": "269fc94c5b46c586c29afb573fc9efe65a9431fe1adb2e306de233ce9a566063",
+    "2": "86bb6209d8142b621ea82cd1b995b0c9a5d211ebf1c7454963b5e6c1f253d715",
+    "3": "ca19929730c1df5016c9452282da090c400cd2f87c436f355cc9bd90dd4fd3fc",
+    "4": "a9465b204140f7b8daacc69ed20751146973fbd731cdb0a5d0fd75316fe026cd",
+    "5": "611b9be53ef9a85d8e759e485549d4ae203b153f55a08b8822676620c13eadb3",
+    "6": "250047ea0c3113010cb5e2b20aaf5c594078177e26726821a498feb69700ab8e",
+    "7": "31451756dc3199f9dc3bb6b4c4a12b6338f354dedf1544867db5b09cbfdb1507",
+    "8": "90cdc07b7325effc35fb30c277b7de13da89c3687790cf6a26f86c1cbf740a0e",
+    "9": "11c5965e4fec8ae745900ccfdf006ca00342c00a91500f2008dc0f2083bd0a57",
+    "10": "9e76aa390c4275c538c07e7c140e99bd7257d7685e2157a78e31aebafe39a5c8",
+    "11": "a84cb59e73be1c00c5411ab14db46dc46d7cac823c527b123c3723593ad712b5",
+    "12": "fad6f9318d51227499842bd2a03116db89ea6c0e6b250a6aad757b089f4ee103",
+    "13": "7b55369ee8f62868cd1abb15885296d6a0dd0a4d49d3dc40d338a6c11b32e290",
+    "14": "27aeeec4fcc3f1b1cef27c50dc27d3265cfe3f1746a032628428ba18af82f8f5",
+    "15": "77cb9ae2e3e3e3b458947b4a412925bfeb23b2a2e02ea8feaefbadddf202f6e3",
+    "16": "9b5ba7fd1731263e6e5e3ce595183f91fc90dde1de4bd7807be8fd77b870bde2",
+    "17": "53061a887197c819f85262e79b6754fb65a3b3d7e327b6d4ca8c6033867c2448",
+    "18": "8fdc7f76f83529449b82fe4b953b44b0939adfed5f352748b489d748dd9f08ba"
+  },
+  "checks": [
+    {
+      "name": "team_denominator_separation",
+      "passed": true,
+      "evidence": {
+        "task_comparisons": 163,
+        "same_lead_comparisons": 75,
+        "configuration_series": 92,
+        "same_lead_series": 38,
+        "unique_episodes": 147,
+        "unique_tasks": 20,
+        "baseline_source_groups": 56,
+        "report_separates_these_from_independent_samples": true
+      }
+    },
+    {
+      "name": "exact_combination_cross_setting_support",
+      "passed": true,
+      "evidence": {
+        "T_unique_tasks": 19,
+        "T_positive_tasks": [
+          "matplotlib__matplotlib-20826",
+          "pylint-dev__pylint-6386",
+          "sphinx-doc__sphinx-8035"
+        ],
+        "T_negative_tasks": [],
+        "D_unique_tasks": 18,
+        "D_positive_task_under_B1_large_budget": [
+          "matplotlib__matplotlib-20826"
+        ],
+        "not_a_pooled_rate": true
+      }
+    },
+    {
+      "name": "combined_A1_A2_effect_and_mean_statistics",
+      "passed": true,
+      "evidence": {
+        "T_vs_S": "13/18 vs 11/18",
+        "D_vs_S": "11/18 vs 11/18, all task outcomes tied",
+        "token_growth": 0.3047257173692808,
+        "cost_growth": 0.0011480078739007915,
+        "mean_generation_growth": 0.37564646643832744,
+        "time_statistic": "replicate means then equal-task means; report explicitly distinguishes legacy medians"
+      }
+    },
+    {
+      "name": "role_counts_unknowns_and_adoption_provenance",
+      "passed": true,
+      "evidence": {
+        "scripted_unknown_not_zero": true,
+        "legacy_known_adoption": "103 completed decisions (61 adopt /42 discard) +3 terminal false =106/126",
+        "A2_nonempty": "42 completed eligible +3 blocked =45",
+        "review_correctness_and_role_causal_effect_not_inferred": true
+      }
+    },
+    {
+      "name": "role_coverage_subset",
+      "passed": true,
+      "evidence": {
+        "role_source_subset": 292,
+        "all_attempts": 306,
+        "excluded_from_role_subset": "1 A1 infrastructure attempt +13 A2 ineligible/interrupted attempts",
+        "raw_result_missing_inside_subset": 2
+      }
+    },
+    {
+      "name": "budget_totals_and_contrast_types",
+      "passed": true,
+      "evidence": {
+        "extra_tokens": 3064217,
+        "shares": [
+          {
+            "role": "lead",
+            "small_tokens": 663333,
+            "large_tokens": 1128306,
+            "extra_tokens": 464973,
+            "increment_share": 0.15174284327774437
+          },
+          {
+            "role": "implementation",
+            "small_tokens": 431356,
+            "large_tokens": 1447272,
+            "extra_tokens": 1015916,
+            "increment_share": 0.33154179354791125
+          },
+          {
+            "role": "test",
+            "small_tokens": 193343,
+            "large_tokens": 772115,
+            "extra_tokens": 578772,
+            "increment_share": 0.18888087886726038
+          },
+          {
+            "role": "cm",
+            "small_tokens": 195608,
+            "large_tokens": 1200164,
+            "extra_tokens": 1004556,
+            "increment_share": 0.327834484307084
+          }
+        ],
+        "joint_knobs_not_pure_token": true,
+        "raw_call_reconciliation": "See ROLES_REVIEW.json six root episodes with disjoint exhaustive call sets"
+      }
+    },
+    {
+      "name": "R2_parents_candidates_and_budget_ranges",
+      "passed": true,
+      "evidence": {
+        "cumulative": {
+          "scope": "A1+A2",
+          "parent_tasks": "18",
+          "final_passed": "12",
+          "selector_reached": "14",
+          "fallbacks": "4",
+          "different_production_pairs": "5",
+          "same_production_nonfallback_pairs": "9",
+          "byte_identical_pairs": "4",
+          "internal_candidates": "36",
+          "independently_graded_candidates": "0"
+        },
+        "fallback_tasks": [
+          "matplotlib__matplotlib-20826",
+          "mwaskom__seaborn-3187",
+          "pydata__xarray-7229",
+          "sphinx-doc__sphinx-8548"
+        ],
+        "ranges": {
+          "remaining_calls": [
+            3,
+            5
+          ],
+          "local_remaining_tokens": [
+            20871,
+            45895
+          ],
+          "root_remaining_tokens_at_snapshot": [
+            104483,
+            148986
+          ]
+        },
+        "selection_correctness_unknown": true
+      }
+    },
+    {
+      "name": "historical_task_counts",
+      "passed": true,
+      "evidence": {
+        "qualified_inventory_counts": {
+          "pydata__xarray-6992": [
+            14,
+            0
+          ],
+          "pydata__xarray-7229": [
+            17,
+            0
+          ],
+          "mwaskom__seaborn-3069": [
+            9,
+            0
+          ],
+          "sphinx-doc__sphinx-8035": [
+            66,
+            42
+          ],
+          "matplotlib__matplotlib-25122": [
+            7,
+            7
+          ]
+        },
+        "unique_SWE_tasks": 26,
+        "posthoc_types_not_effect_estimates": true
+      }
+    },
+    {
+      "name": "economics_original_medians_and_combined_means_not_conflated",
+      "passed": true,
+      "evidence": {
+        "A2_ratios": {
+          "L": {
+            "tokens": 0.3362356519614673,
+            "cost": -0.9150162771707968,
+            "median_minutes": 0.42412752808350995,
+            "mean_minutes": 0.30182586560524927
+          },
+          "T": {
+            "tokens": 0.3522671948638356,
+            "cost": 0.01923691580355502,
+            "median_minutes": 0.43640944953422367,
+            "mean_minutes": 0.43782587741407375
+          },
+          "R2": {
+            "tokens": 0.33955567753449367,
+            "cost": 0.3638968519671373,
+            "median_minutes": 0.014707014221237102,
+            "mean_minutes": -0.061556004454878854
+          }
+        },
+        "report_explicitly_calls_A2_Luna_and_R2_time_median": true,
+        "T_A1_A2_time_in_sections1_5_13_16_is_mean": true
+      }
+    },
+    {
+      "name": "engineering_choices_qualified",
+      "passed": true,
+      "evidence": {
+        "no_automatic_changes_or_new_experiment_authorization": true,
+        "tester_intrinsic_ability_not_inferred": true,
+        "routing_thresholds_not_claimed_identified": true
+      }
+    }
+  ],
+  "findings": [],
+  "source_sha256": {
+    "team_synthesis/SUMMARY.json": "ac1e53230f7e16c583bd8ffdd510bb02e297b2a44684195e4b2274be1d7862e8",
+    "role_synthesis/SUMMARY.json": "cf6288c81f9ad3c3f88efa1b5f92ede23e941b4827ee9e73eaf6f0d1b2bdca16",
+    "independent_review/ROLES_REVIEW.json": "a1ff83b8072ac3518794c3dd55997d2f2e5467129e7b601a2f31dc79b0af287a",
+    "FOCUS_AGGREGATES.csv": "bb4fc92af4907aeb41865514a3000ed18327fbef12a18a0067af8a7c1e721892",
+    "R2_CUMULATIVE.csv": "3d38792c4c8c30e03c7b8de8731e1eb9cd5bc4717747bbbfdc48a4148b513667",
+    "R2_BUDGET_SCOPES.csv": "9b34bca8eaaaf770b947eb2abd9343e8dccf164c2a538b396e09df6fac266b53",
+    "QUALIFIED_SWE_EPISODES.csv": "5e0ab29c6820fae04577ccc3e543b6c0d7c261aa62e8b17cb8654b3ec6025530",
+    "ALL_ATTEMPTS.csv": "9166ab763bebef61466267b66364a9580503068f092a7fe1494ac4a71a51e227"
+  },
+  "all_numeric_checks_passed": true,
+  "final_recheck_at_utc": "2026-09-07T01:15:39.658175+00:00",
+  "prior_reviewed_report_sha256": "16336105c9189825a9600774c75a466ab8cafbf2b3759df424973e0f10f1b751",
+  "final_revision_changes_reviewed": [
+    {
+      "section": 1,
+      "change": "CM label now covers all CM models and explicitly identifies 24 legacy GLM-5.3-Flash CM-ON rows; DeepSeek-only C1 treatment kept separate.",
+      "passed": true
+    },
+    {
+      "section": 1,
+      "change": "R2 fallback wording now says no eligible candidate rather than no generated candidate.",
+      "passed": true
+    },
+    {
+      "section": 3,
+      "change": "Zero isolated-worker exposure explicitly separated from scripted role calls.",
+      "passed": true
+    },
+    {
+      "section": 5,
+      "change": "Figure13 reference added; numeric table and evidence limits remain consistent with reviewed team outputs. Figure image QA is delegated separately.",
+      "passed": true
+    },
+    {
+      "section": 9,
+      "change": "Latest role prose retains 103 review completion decisions plus 3 terminal false provenance, and scripted unknowns.",
+      "passed": true
+    }
+  ],
+  "binding_note": "PASS bound to the exact byte SHA256 above. Final narrow changes in sections1/5/7/8/9/15 were rechecked; previously reviewed quantitative conclusions remain unchanged. Further MD changes require changed-section recheck.",
+  "binding_history": [
+    {
+      "report_sha256": "243cafa0223d8bc6353e33409f87335ec2ae7c0c05f5e3e06561abdc1f41a196",
+      "status": "PASS",
+      "replaced_at_utc": "2026-09-07T01:15:39.658175+00:00"
+    }
+  ],
+  "previous_report_sha256": "243cafa0223d8bc6353e33409f87335ec2ae7c0c05f5e3e06561abdc1f41a196",
+  "final_byte_revision_review": {
+    "from_sha256": "243cafa0223d8bc6353e33409f87335ec2ae7c0c05f5e3e06561abdc1f41a196",
+    "to_sha256": "a5bf4d9d6c16974064ec887dab7d8d8b5635319bf67201f4529d0631734caed2",
+    "hash_method": "sha256(Path.read_bytes()); no newline normalization",
+    "changed_sections": [
+      1,
+      5,
+      7,
+      8,
+      9,
+      15
+    ],
+    "checks": [
+      {
+        "change": "Section1 distinguishes 220 CM-ON attempts and 219 attempts with CM calls; not 219 individual calls. Mixed CM model population is explicit.",
+        "passed": true
+      },
+      {
+        "change": "Section7 acknowledges 24 legacy GLM-5.3-Flash CM configurations and preserves absence of a controlled CM-model-replacement effect.",
+        "passed": true
+      },
+      {
+        "change": "Sections5/8/9 use the correct synthesis-directory evidence prefixes. Inspected referenced files exist.",
+        "passed": true
+      },
+      {
+        "change": "Section15 ws074 -1.79pp and ws079 +6.64pp are labelled item F1; final text inspected. Root and context reviewers independently checked magnitudes against the original CSV. No new underlying metric calculation was claimed here.",
+        "passed": true
+      },
+      {
+        "change": "Figure13 reference retained and target exists; image QA remains outside this content review.",
+        "passed": true
+      }
+    ],
+    "original_numeric_checks_remain_passed": true,
+    "MD_modified_by_reviewer": false
+  }
+}

@@ -320,6 +320,10 @@ class SweTransport:
                 stream.flush()
                 os.fsync(stream.fileno())
 
+    def total_timeout_limit(self, model, role):
+        """Subclasses may declare a model-specific cap; historical default is 600s."""
+        return 600
+
     def complete(self, model, messages, *, tools, run_id, role, task_id, call_id,
                  max_tokens=32768, timeout_seconds=600, cancel_event=None):
         for name, value in {'run_id': run_id, 'role': role, 'task_id': task_id, 'call_id': call_id}.items():
@@ -375,9 +379,11 @@ class SweTransport:
                 raise v2.TransportError('unsupported_model', 'Model is not in the five-model allowlist')
             if type(max_tokens) is not int or max_tokens <= 0:
                 raise v2.TransportError('invalid_request', 'max_tokens must be a positive integer')
+            timeout_limit = self.total_timeout_limit(model, role)
             if (isinstance(timeout_seconds, bool) or not isinstance(timeout_seconds, (int, float))
-                    or not math.isfinite(timeout_seconds) or timeout_seconds <= 0 or timeout_seconds > 600):
-                raise v2.TransportError('invalid_request', 'timeout_seconds must be finite and in (0, 600]')
+                    or not math.isfinite(timeout_seconds) or timeout_seconds <= 0 or timeout_seconds > timeout_limit):
+                raise v2.TransportError('invalid_request',
+                                        f'timeout_seconds must be finite and in (0, {timeout_limit}]')
             if not isinstance(messages, list) or any(not isinstance(message, dict) for message in messages):
                 raise v2.TransportError('invalid_request', 'messages must be a list of objects')
             declarations = normalize_tool_declarations(tools)

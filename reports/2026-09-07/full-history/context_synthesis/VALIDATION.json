@@ -1,0 +1,39 @@
+{
+  "checks_passed": true,
+  "coverage_unique_attempts": 306,
+  "qualified_members": 249,
+  "resource_rows": 59,
+  "comparison_rows": 11,
+  "fractions_checked": true,
+  "unknown_values_preserved": true,
+  "runtime_config_comparability": {
+    "runtime_entries": 52,
+    "same_runtime_hashes": true,
+    "settings_checked": [
+      "limits",
+      "actual_settings",
+      "lead_model",
+      "worker_roles",
+      "gpt_effort_requested",
+      "gpt_service_tier_requested",
+      "glm_thinking_requested",
+      "grading",
+      "versions"
+    ],
+    "setting_differences": [],
+    "mode": "compare recorded frozen source hashes; no repeated filesystem-wide scan"
+  },
+  "input_hashes": {
+    "modelbench\\cumulative_analysis_20260907_v1\\ALL_ATTEMPTS.csv": "9166ab763bebef61466267b66364a9580503068f092a7fe1494ac4a71a51e227",
+    "modelbench\\cumulative_analysis_20260907_v1\\QUALIFIED_SWE_EPISODES.csv": "5e0ab29c6820fae04577ccc3e543b6c0d7c261aa62e8b17cb8654b3ec6025530",
+    "modelbench\\cumulative_analysis_20260907_v1\\legacy_audit\\cm_exposure.csv": "b9bd9e76924c8c636cc8abaa04ade10c9db3dd767c9072f3912659d019b88896",
+    "modelbench\\cumulative_analysis_20260907_v1\\legacy_audit\\mechanism_events.csv": "01e58830de2080aed35ffce6c1ebae85c12c68f9e0bc636c8df59069ed606907",
+    "modelbench\\cumulative_analysis_20260907_v1\\legacy_audit\\matched_comparisons.csv": "1ff08425445c2b539c5ab28c36aa3ddcf5b6dcbf60032733151dc30b6ff2641e",
+    "modelbench\\cumulative_analysis_20260907_v1\\a2_audit\\cm_events.csv": "a897cc932f19958b8e460fcddd5854096e1695335d853cda343202564221aab2",
+    "modelbench\\cumulative_analysis_20260907_v1\\budget_audit\\calls.csv": "96fa30844989a9f2bad883261a2c4ed186f59e30a6f2a63cc479305b3c3b8d70",
+    "modelbench\\cumulative_analysis_20260907_v1\\budget_audit\\episodes.csv": "e727926e6cfddfba4213f4ba7651c6f646823286e614297702c6bcff3baa9dc2",
+    "modelbench\\cumulative_analysis_20260907_v1\\budget_audit\\role_budget_aggregates.csv": "52ba75aa1660381a397faa597b3d165b3185944469083f83c7a0655020576918"
+  },
+  "scope": "read-only evidence analysis; no model/grading/network calls",
+  "output_ownership": "context_synthesis only"
+}

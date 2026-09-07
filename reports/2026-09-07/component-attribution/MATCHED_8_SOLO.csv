@@ -1,0 +1,9 @@
+episode,task,patch_bytes,official_resolved,outcome,cm_call_count
+A2/a2-backfill-v1/a2-09-S,pylint-dev__pylint-6386,0,False,"{'status': 'budget_exhausted', 'summary': '[TOKEN_BUDGET_EXHAUSTED] Reservation exceeds remaining token budget'}",12
+A2/a2-resume-v2/a2-07-S,matplotlib__matplotlib-20826,0,False,"{'status': 'budget_exhausted', 'summary': '[TOKEN_BUDGET_EXHAUSTED] Reservation exceeds remaining token budget'}",12
+B1/b1-mvp-six-v1/b1-r1-q06-S-S,pylint-dev__pylint-6386,0,False,"{'status': 'budget_exhausted', 'summary': '[TOKEN_BUDGET_EXHAUSTED] Reservation exceeds remaining token budget'}",60
+swe_fixed_team_20260903/pilot_v10/sphinx-doc__sphinx-8035__solo_gpt-5.6-sol,sphinx-doc__sphinx-8035,0,False,"{'status': 'budget_exhausted', 'summary': '[TOKEN_BUDGET_EXHAUSTED] Reservation exceeds remaining token budget'}",12
+swe_fixed_team_20260903/pilot_v10/sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.rep2,sphinx-doc__sphinx-8035,0,False,"{'status': 'budget_exhausted', 'summary': '[TOKEN_BUDGET_EXHAUSTED] Reservation exceeds remaining token budget'}",12
+swe_fixed_team_20260903/pilot_v10/sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.rep3,sphinx-doc__sphinx-8035,0,False,"{'status': 'budget_exhausted', 'summary': '[TOKEN_BUDGET_EXHAUSTED] Reservation exceeds remaining token budget'}",12
+swe_fixed_team_20260903/pilot_v13/sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.cm24,sphinx-doc__sphinx-8035,0,False,"{'status': 'budget_exhausted', 'summary': '[TOKEN_BUDGET_EXHAUSTED] Reservation exceeds remaining token budget'}",16
+swe_fixed_team_20260903/pilot_v13/sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.cm24.rep2,sphinx-doc__sphinx-8035,0,False,"{'status': 'budget_exhausted', 'summary': '[TOKEN_BUDGET_EXHAUSTED] Reservation exceeds remaining token budget'}",17

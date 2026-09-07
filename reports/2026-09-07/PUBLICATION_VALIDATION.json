@@ -1,0 +1,129 @@
+{
+  "date": "2026-09-07",
+  "scope": "publication copy; local recomputation, not a new independent review or experiment",
+  "ok": true,
+  "checks": [
+    {
+      "name": "published_file_hashes",
+      "ok": true,
+      "detail": {
+        "files": 89,
+        "mismatches": []
+      }
+    },
+    {
+      "name": "available_original_hashes",
+      "ok": true,
+      "detail": {
+        "checked": 89,
+        "unavailable": 0,
+        "mismatches": []
+      }
+    },
+    {
+      "name": "inventory_denominators",
+      "ok": true,
+      "detail": {
+        "attempts": 306,
+        "qualified": 249,
+        "unique_tasks": 26
+      }
+    },
+    {
+      "name": "qualified_episode_identity",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "paired_18_totals",
+      "ok": true,
+      "detail": {
+        "s_delivery": 13,
+        "t_delivery": 17,
+        "s_pass": 11,
+        "t_pass": 13
+      }
+    },
+    {
+      "name": "both_delivered_same_results",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "positive_episode_origins",
+      "ok": true,
+      "detail": {
+        "实现者初稿加 Lead 补修": 2,
+        "实现者失败后 Lead 接管": 4,
+        "实现者生产改动直接保留": 4
+      }
+    },
+    {
+      "name": "cm_direct_arms",
+      "ok": true,
+      "detail": {
+        "FCM_OFF": {
+          "n": 9,
+          "passed": 4,
+          "production": 8,
+          "tokens": 3950377.0
+        },
+        "FCM_ON": {
+          "n": 9,
+          "passed": 4,
+          "production": 8,
+          "tokens": 3747917.0
+        }
+      }
+    },
+    {
+      "name": "cm_paired_outcomes",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "cm_token_bridge",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "cm_cost_bridge",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "full-history_canonical_structure_and_binding",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "component-attribution_canonical_structure_and_binding",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "recorded_browser_qa_bound_to_current_html",
+      "ok": true,
+      "detail": "Recorded real-time browser QA, not rerun by this script"
+    },
+    {
+      "name": "published_document_links",
+      "ok": true,
+      "detail": {
+        "documents": 14,
+        "links": 103,
+        "broken": []
+      }
+    }
+  ],
+  "render": {
+    "full-history": {
+      "canonical_structure": true,
+      "browser": "separate real-time QA receipt; not rerun here"
+    },
+    "component-attribution": {
+      "canonical_structure": true,
+      "browser": "separate real-time QA receipt; not rerun here"
+    }
+  }
+}

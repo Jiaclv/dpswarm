@@ -1,0 +1,37 @@
+{
+  "passed": true,
+  "checks_passed": 18,
+  "checks_total": 18,
+  "checks": {
+    "source_hashes_unchanged": true,
+    "all_706_sources_present": true,
+    "paired_18_both_delivery_outcomes_identical": true,
+    "extra_deliveries_4_and_passes_2": true,
+    "positive_origins_10_3tasks": true,
+    "impl_6_adopt_4_discard": true,
+    "tester_7_adopt_1_nonempty_discard_2_empty_discard": true,
+    "canonical_structure": true,
+    "browser_desktop_narrow_dark": true,
+    "keyboard_source_panel": true,
+    "report_input_hash": true,
+    "artifact_title_matches_md": true,
+    "html_final_hash": true,
+    "all_packaged_inputs_unchanged": true,
+    "original_full_report_md_unchanged": true,
+    "original_full_report_html_unchanged": true,
+    "no_new_candidate_or_grader_runs": true,
+    "numeric_and_event_validation": true
+  },
+  "md_sha256": "1a08b96d6b92149831941efb918f9db8fff20d4f07b3303f9a778ce47f096c50",
+  "html_sha256": "0027b79c621b34ada6c180220bf97bde935c6cf66a1c977a590e81b0672c7c00",
+  "artifact_sha256": "8ce8223b9d2a8b2ad2c14833e43c753a018b8d27ddd21c6da520eff84508e4c8",
+  "data_validation_sha256": "da2f23534b90acb2db20fdfdcf409f3631a754c5c6de8aea64abadfaf7983dbc",
+  "source_hash_count": 706,
+  "review_type": "Local self-check, not a new independent review",
+  "outputs": {
+    "sections": 10,
+    "python_figures": 3,
+    "native_chart": 1,
+    "native_tables": 3
+  }
+}

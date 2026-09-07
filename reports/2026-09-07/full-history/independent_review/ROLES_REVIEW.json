@@ -1,0 +1,1428 @@
+{
+  "status": "PASS",
+  "reviewer": "team_synthesis_v2 independent read-only review",
+  "reviewed_at_utc": "2026-09-07T00:58:44.591904+00:00",
+  "scope": "All-history role/budget synthesis; targeted original result and review completion events; no model, grader, network or source-file writes.",
+  "checks": [
+    {
+      "name": "role_units",
+      "passed": true,
+      "details": {
+        "total": 340,
+        "isolated_workers": 248,
+        "scripted_phases": 92,
+        "unit_warning": "Role records are not independent task outcomes."
+      }
+    },
+    {
+      "name": "scripted_unknowns_preserved",
+      "passed": true,
+      "details": {
+        "phases": 92,
+        "fields_checked": [
+          "delta_bytes",
+          "nonempty_delta",
+          "production_delta",
+          "test_delta",
+          "adopted",
+          "hash_bound_adopt",
+          "all_changed_files_exact_final",
+          "worker_completed",
+          "eligible_delivery"
+        ],
+        "summary_unknowns": "Cohort SUMMARY uses null, not zero, for unavailable outcomes."
+      }
+    },
+    {
+      "name": "legacy_adoption_original_evidence",
+      "passed": true,
+      "details": {
+        "workers": 126,
+        "completed_review_worker": 103,
+        "completed_adopt": 61,
+        "completed_discard": 42,
+        "terminal_death_phase_false": 3,
+        "known_total": 106,
+        "unknown": 20,
+        "mismatches": [],
+        "interpretation": "All 61 adopts are completion-event supported. 106 known values comprise 103 completion decisions plus 3 terminal false values; they are not 106 completed review events."
+      }
+    },
+    {
+      "name": "A2_nonempty_is_not_completed_delivery",
+      "passed": true,
+      "details": {
+        "workers": 48,
+        "nonempty": 45,
+        "completed_present_nonempty": 42,
+        "blocked_present_nonempty": 3,
+        "eligible_delivery": 42,
+        "raw_mismatches": []
+      }
+    },
+    {
+      "name": "coverage_is_normalized_subset",
+      "passed": true,
+      "details": {
+        "all_attempts": 306,
+        "normalized_source_subset": 292,
+        "not_in_role_source_subset": 14,
+        "missing_A1_infrastructure": 1,
+        "missing_A2_ineligible_or_interrupted": 13,
+        "source_result_missing_within_subset": 2
+      }
+    },
+    {
+      "name": "missing_source_reads_truthful",
+      "passed": true,
+      "details": {
+        "rows": [
+          {
+            "batch": "b1-stream-continuation-v1",
+            "run_id": "b1-r1-q06-F-T",
+            "source_read": "False"
+          },
+          {
+            "batch": "b1-stream-continuation-v1",
+            "run_id": "b1-r1-q06-T11",
+            "source_read": "False"
+          }
+        ]
+      }
+    },
+    {
+      "name": "budget_contrasts_not_pure_variable_pool",
+      "passed": true,
+      "details": {
+        "types": {
+          "budget_bundle": 8,
+          "role_configuration": 7,
+          "within_version_cm_pool": 3,
+          "cross_batch_budget_bundle": 2
+        },
+        "type_errors": [],
+        "interpretation": "7 same-budget role/model configurations remain separate from 13 budget/CM changes. Legacy root budget comparisons change frozen code and multiple controls; no pure token causal claim is supported."
+      }
+    },
+    {
+      "name": "budget_growth_reconciles_to_original_calls",
+      "passed": true,
+      "details": {
+        "extra_tokens": 3064217,
+        "role_growth": [
+          {
+            "role": "lead",
+            "small_tokens": 663333,
+            "large_tokens": 1128306,
+            "extra_tokens": 464973
+          },
+          {
+            "role": "implementation",
+            "small_tokens": 431356,
+            "large_tokens": 1447272,
+            "extra_tokens": 1015916
+          },
+          {
+            "role": "test",
+            "small_tokens": 193343,
+            "large_tokens": 772115,
+            "extra_tokens": 578772
+          },
+          {
+            "role": "cm",
+            "small_tokens": 195608,
+            "large_tokens": 1200164,
+            "extra_tokens": 1004556
+          }
+        ],
+        "root_reconciliation": [
+          {
+            "task": "matplotlib__matplotlib-20826",
+            "arm": "T00",
+            "tokens_from_disjoint_raw_calls": 568671
+          },
+          {
+            "task": "matplotlib__matplotlib-20826",
+            "arm": "T11",
+            "tokens_from_disjoint_raw_calls": 2356531
+          },
+          {
+            "task": "pydata__xarray-6992",
+            "arm": "T00",
+            "tokens_from_disjoint_raw_calls": 348965
+          },
+          {
+            "task": "pydata__xarray-6992",
+            "arm": "T11",
+            "tokens_from_disjoint_raw_calls": 1016250
+          },
+          {
+            "task": "pylint-dev__pylint-6386",
+            "arm": "T00",
+            "tokens_from_disjoint_raw_calls": 566004
+          },
+          {
+            "task": "pylint-dev__pylint-6386",
+            "arm": "T11",
+            "tokens_from_disjoint_raw_calls": 1175076
+          }
+        ],
+        "method": "Matched agent_usage call IDs and cm_call_ids to original accounting.calls; sets are disjoint and exhaust all calls for all six core episodes."
+      }
+    },
+    {
+      "name": "report_evidence_boundaries_updated",
+      "passed": true,
+      "details": {
+        "coverage_subset_and_adoption_provenance_explicit": true
+      }
+    }
+  ],
+  "open_findings": [],
+  "resolved_during_review": [
+    {
+      "issue": "Two B1 interrupted rows with empty source_result were initially source_read=True",
+      "resolution": "Source owner changed both to False and source_result_missing; independently rechecked."
+    },
+    {
+      "issue": "292-row normalized subset and 106 adoption-known provenance needed explicit boundaries",
+      "resolution": "Report/SUMMARY now identify 14 attempts outside subset and 103 completed-review plus 3 terminal false values; independently rechecked."
+    }
+  ],
+  "legacy_worker_evidence": [
+    {
+      "batch": "hard_canary_20260905",
+      "run_id": "pydata__xarray-7229__hetero_gpt-5.6-terra__glm-5.3",
+      "worker_id": "worker-1",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\hard_canary_20260905\\results\\pydata__xarray-7229__hetero_gpt-5.6-terra__glm-5.3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 186,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "hard_canary_20260905",
+      "run_id": "pydata__xarray-7229__hetero_gpt-5.6-terra__glm-5.3",
+      "worker_id": "worker-2",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\hard_canary_20260905\\results\\pydata__xarray-7229__hetero_gpt-5.6-terra__glm-5.3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 161,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v10",
+      "run_id": "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3",
+      "worker_id": "worker-1",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v10\\results\\sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 143,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v10",
+      "run_id": "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3",
+      "worker_id": "worker-2",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v10\\results\\sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 134,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v10",
+      "run_id": "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3.rep2",
+      "worker_id": "worker-1",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v10\\results\\sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3.rep2\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 156,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v10",
+      "run_id": "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3.rep2",
+      "worker_id": "worker-2",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v10\\results\\sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3.rep2\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 166,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v10",
+      "run_id": "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3.rep3",
+      "worker_id": "worker-1",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v10\\results\\sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3.rep3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 165,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v10",
+      "run_id": "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3.rep3",
+      "worker_id": "worker-2",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v10\\results\\sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3.rep3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 179,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v10",
+      "run_id": "sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3",
+      "worker_id": "worker-1",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v10\\results\\sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 123,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v10",
+      "run_id": "sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3",
+      "worker_id": "worker-2",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v10\\results\\sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 125,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v10",
+      "run_id": "sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.rep2",
+      "worker_id": "worker-1",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v10\\results\\sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.rep2\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 136,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v10",
+      "run_id": "sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.rep2",
+      "worker_id": "worker-2",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v10\\results\\sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.rep2\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 138,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v10",
+      "run_id": "sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.rep3",
+      "worker_id": "worker-1",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v10\\results\\sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.rep3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 140,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v10",
+      "run_id": "sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.rep3",
+      "worker_id": "worker-2",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v10\\results\\sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.rep3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 157,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v11",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_deepseek-v4-flash",
+      "worker_id": "worker-1",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v11\\results\\sphinx-doc__sphinx-8035__fixed_deepseek-v4-flash\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 278,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v11",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_deepseek-v4-flash",
+      "worker_id": "worker-2",
+      "reported_adopted": "",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v11\\results\\sphinx-doc__sphinx-8035__fixed_deepseek-v4-flash\\result.json",
+      "provenance": "unknown"
+    },
+    {
+      "batch": "pilot_v11",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_glm-5.3",
+      "worker_id": "worker-1",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v11\\results\\sphinx-doc__sphinx-8035__fixed_glm-5.3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 245,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v11",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_glm-5.3",
+      "worker_id": "worker-2",
+      "reported_adopted": "",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v11\\results\\sphinx-doc__sphinx-8035__fixed_glm-5.3\\result.json",
+      "provenance": "unknown"
+    },
+    {
+      "batch": "pilot_v11",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_glm-5.3.rep2",
+      "worker_id": "worker-1",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v11\\results\\sphinx-doc__sphinx-8035__fixed_glm-5.3.rep2\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 205,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v11",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_glm-5.3.rep2",
+      "worker_id": "worker-2",
+      "reported_adopted": "",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v11\\results\\sphinx-doc__sphinx-8035__fixed_glm-5.3.rep2\\result.json",
+      "provenance": "unknown"
+    },
+    {
+      "batch": "pilot_v11",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_gpt-5.6-sol",
+      "worker_id": "worker-1",
+      "reported_adopted": "",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v11\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-sol\\result.json",
+      "provenance": "unknown"
+    },
+    {
+      "batch": "pilot_v11",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_gpt-5.6-sol",
+      "worker_id": "worker-2",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v11\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-sol\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 207,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v11",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_gpt-5.6-sol.rep2",
+      "worker_id": "worker-1",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v11\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-sol.rep2\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 214,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v11",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_gpt-5.6-sol.rep2",
+      "worker_id": "worker-2",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v11\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-sol.rep2\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 203,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v11",
+      "run_id": "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3",
+      "worker_id": "worker-1",
+      "reported_adopted": "",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v11\\results\\sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3\\result.json",
+      "provenance": "unknown"
+    },
+    {
+      "batch": "pilot_v11",
+      "run_id": "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3",
+      "worker_id": "worker-2",
+      "reported_adopted": "",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v11\\results\\sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3\\result.json",
+      "provenance": "unknown"
+    },
+    {
+      "batch": "pilot_v11",
+      "run_id": "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3.rep2",
+      "worker_id": "worker-1",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v11\\results\\sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3.rep2\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 217,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v11",
+      "run_id": "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3.rep2",
+      "worker_id": "worker-2",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v11\\results\\sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3.rep2\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 254,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v12",
+      "run_id": "astropy__astropy-14995__hetero_gpt-5.6-terra__glm-5.3",
+      "worker_id": "worker-1",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v12\\results\\astropy__astropy-14995__hetero_gpt-5.6-terra__glm-5.3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 91,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v12",
+      "run_id": "astropy__astropy-14995__hetero_gpt-5.6-terra__glm-5.3",
+      "worker_id": "worker-2",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v12\\results\\astropy__astropy-14995__hetero_gpt-5.6-terra__glm-5.3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 127,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v12",
+      "run_id": "astropy__astropy-14995__hetero_gpt-5.6-terra__glm-5.3.rep2",
+      "worker_id": "worker-1",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v12\\results\\astropy__astropy-14995__hetero_gpt-5.6-terra__glm-5.3.rep2\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 100,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v12",
+      "run_id": "astropy__astropy-14995__hetero_gpt-5.6-terra__glm-5.3.rep2",
+      "worker_id": "worker-2",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v12\\results\\astropy__astropy-14995__hetero_gpt-5.6-terra__glm-5.3.rep2\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 113,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v12",
+      "run_id": "astropy__astropy-14995__hetero_gpt-5.6-terra__glm-5.3.rep3",
+      "worker_id": "worker-1",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v12\\results\\astropy__astropy-14995__hetero_gpt-5.6-terra__glm-5.3.rep3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 131,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v12",
+      "run_id": "astropy__astropy-14995__hetero_gpt-5.6-terra__glm-5.3.rep3",
+      "worker_id": "worker-2",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v12\\results\\astropy__astropy-14995__hetero_gpt-5.6-terra__glm-5.3.rep3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 142,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v12",
+      "run_id": "astropy__astropy-14995__heterooff_gpt-5.6-terra__glm-5.3",
+      "worker_id": "worker-1",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v12\\results\\astropy__astropy-14995__heterooff_gpt-5.6-terra__glm-5.3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 106,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v12",
+      "run_id": "astropy__astropy-14995__heterooff_gpt-5.6-terra__glm-5.3",
+      "worker_id": "worker-2",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v12\\results\\astropy__astropy-14995__heterooff_gpt-5.6-terra__glm-5.3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 130,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v12",
+      "run_id": "astropy__astropy-14995__heterooff_gpt-5.6-terra__glm-5.3.rep2",
+      "worker_id": "worker-1",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v12\\results\\astropy__astropy-14995__heterooff_gpt-5.6-terra__glm-5.3.rep2\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 119,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v12",
+      "run_id": "astropy__astropy-14995__heterooff_gpt-5.6-terra__glm-5.3.rep2",
+      "worker_id": "worker-2",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v12\\results\\astropy__astropy-14995__heterooff_gpt-5.6-terra__glm-5.3.rep2\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 121,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v12",
+      "run_id": "astropy__astropy-14995__heterooff_gpt-5.6-terra__glm-5.3.rep3",
+      "worker_id": "worker-1",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v12\\results\\astropy__astropy-14995__heterooff_gpt-5.6-terra__glm-5.3.rep3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 111,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v12",
+      "run_id": "astropy__astropy-14995__heterooff_gpt-5.6-terra__glm-5.3.rep3",
+      "worker_id": "worker-2",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v12\\results\\astropy__astropy-14995__heterooff_gpt-5.6-terra__glm-5.3.rep3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 123,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v13",
+      "run_id": "sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.cm24",
+      "worker_id": "worker-1",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v13\\results\\sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.cm24\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 156,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v13",
+      "run_id": "sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.cm24",
+      "worker_id": "worker-2",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v13\\results\\sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.cm24\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 166,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v13",
+      "run_id": "sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.cm6",
+      "worker_id": "worker-1",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v13\\results\\sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.cm6\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 152,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v13",
+      "run_id": "sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.cm6",
+      "worker_id": "worker-2",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v13\\results\\sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.cm6\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 137,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v16",
+      "run_id": "mwaskom__seaborn-3069__hetero_gpt-5.6-terra__glm-5.3",
+      "worker_id": "worker-1",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v16\\results\\mwaskom__seaborn-3069__hetero_gpt-5.6-terra__glm-5.3\\result.json",
+      "provenance": "terminal_death_phase",
+      "death_phase": "delivered_not_adopted"
+    },
+    {
+      "batch": "pilot_v16",
+      "run_id": "mwaskom__seaborn-3069__hetero_gpt-5.6-terra__glm-5.3",
+      "worker_id": "worker-2",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v16\\results\\mwaskom__seaborn-3069__hetero_gpt-5.6-terra__glm-5.3\\result.json",
+      "provenance": "terminal_death_phase",
+      "death_phase": "edited_no_delivery"
+    },
+    {
+      "batch": "pilot_v16",
+      "run_id": "mwaskom__seaborn-3069__hetero_gpt-5.6-terra__glm-5.3.rep2",
+      "worker_id": "worker-1",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v16\\results\\mwaskom__seaborn-3069__hetero_gpt-5.6-terra__glm-5.3.rep2\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 178,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v16",
+      "run_id": "mwaskom__seaborn-3069__hetero_gpt-5.6-terra__glm-5.3.rep2",
+      "worker_id": "worker-2",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v16\\results\\mwaskom__seaborn-3069__hetero_gpt-5.6-terra__glm-5.3.rep2\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 180,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v16",
+      "run_id": "mwaskom__seaborn-3069__heterooff_gpt-5.6-terra__glm-5.3",
+      "worker_id": "worker-1",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v16\\results\\mwaskom__seaborn-3069__heterooff_gpt-5.6-terra__glm-5.3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 127,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v16",
+      "run_id": "mwaskom__seaborn-3069__heterooff_gpt-5.6-terra__glm-5.3",
+      "worker_id": "worker-2",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v16\\results\\mwaskom__seaborn-3069__heterooff_gpt-5.6-terra__glm-5.3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 96,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v16",
+      "run_id": "mwaskom__seaborn-3069__heterooff_gpt-5.6-terra__glm-5.3.rep2",
+      "worker_id": "worker-1",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v16\\results\\mwaskom__seaborn-3069__heterooff_gpt-5.6-terra__glm-5.3.rep2\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 154,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v16",
+      "run_id": "mwaskom__seaborn-3069__heterooff_gpt-5.6-terra__glm-5.3.rep2",
+      "worker_id": "worker-2",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v16\\results\\mwaskom__seaborn-3069__heterooff_gpt-5.6-terra__glm-5.3.rep2\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 139,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v16",
+      "run_id": "pydata__xarray-7229__hetero_gpt-5.6-terra__glm-5.3",
+      "worker_id": "worker-1",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v16\\results\\pydata__xarray-7229__hetero_gpt-5.6-terra__glm-5.3\\result.json",
+      "provenance": "terminal_death_phase",
+      "death_phase": "edited_no_delivery"
+    },
+    {
+      "batch": "pilot_v16",
+      "run_id": "pydata__xarray-7229__hetero_gpt-5.6-terra__glm-5.3",
+      "worker_id": "worker-2",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v16\\results\\pydata__xarray-7229__hetero_gpt-5.6-terra__glm-5.3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 179,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v16",
+      "run_id": "pydata__xarray-7229__hetero_gpt-5.6-terra__glm-5.3.rep2",
+      "worker_id": "worker-1",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v16\\results\\pydata__xarray-7229__hetero_gpt-5.6-terra__glm-5.3.rep2\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 171,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v16",
+      "run_id": "pydata__xarray-7229__hetero_gpt-5.6-terra__glm-5.3.rep2",
+      "worker_id": "worker-2",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v16\\results\\pydata__xarray-7229__hetero_gpt-5.6-terra__glm-5.3.rep2\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 149,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v16",
+      "run_id": "pydata__xarray-7229__heterooff_gpt-5.6-terra__glm-5.3",
+      "worker_id": "worker-1",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v16\\results\\pydata__xarray-7229__heterooff_gpt-5.6-terra__glm-5.3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 154,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v16",
+      "run_id": "pydata__xarray-7229__heterooff_gpt-5.6-terra__glm-5.3",
+      "worker_id": "worker-2",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v16\\results\\pydata__xarray-7229__heterooff_gpt-5.6-terra__glm-5.3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 137,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v16",
+      "run_id": "pydata__xarray-7229__heterooff_gpt-5.6-terra__glm-5.3.rep2",
+      "worker_id": "worker-1",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v16\\results\\pydata__xarray-7229__heterooff_gpt-5.6-terra__glm-5.3.rep2\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 144,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v16",
+      "run_id": "pydata__xarray-7229__heterooff_gpt-5.6-terra__glm-5.3.rep2",
+      "worker_id": "worker-2",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v16\\results\\pydata__xarray-7229__heterooff_gpt-5.6-terra__glm-5.3.rep2\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 130,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v16",
+      "run_id": "sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3",
+      "worker_id": "worker-1",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v16\\results\\sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 155,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v16",
+      "run_id": "sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3",
+      "worker_id": "worker-2",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v16\\results\\sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 157,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v16",
+      "run_id": "sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.rep2",
+      "worker_id": "worker-1",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v16\\results\\sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.rep2\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 156,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v16",
+      "run_id": "sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.rep2",
+      "worker_id": "worker-2",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v16\\results\\sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.rep2\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 158,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v2",
+      "run_id": "matplotlib__matplotlib-25122__fixed_glm-5.3",
+      "worker_id": "worker-1",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v2\\results\\matplotlib__matplotlib-25122__fixed_glm-5.3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 132,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v2",
+      "run_id": "matplotlib__matplotlib-25122__fixed_glm-5.3",
+      "worker_id": "worker-2",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v2\\results\\matplotlib__matplotlib-25122__fixed_glm-5.3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 134,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v2",
+      "run_id": "matplotlib__matplotlib-25122__fixed_glm-5.3-flash",
+      "worker_id": "worker-1",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v2\\results\\matplotlib__matplotlib-25122__fixed_glm-5.3-flash\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 119,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v2",
+      "run_id": "matplotlib__matplotlib-25122__fixed_glm-5.3-flash",
+      "worker_id": "worker-2",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v2\\results\\matplotlib__matplotlib-25122__fixed_glm-5.3-flash\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 136,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v2",
+      "run_id": "matplotlib__matplotlib-25122__fixed_gpt-5.6-luna",
+      "worker_id": "worker-1",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v2\\results\\matplotlib__matplotlib-25122__fixed_gpt-5.6-luna\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 85,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v2",
+      "run_id": "matplotlib__matplotlib-25122__fixed_gpt-5.6-luna",
+      "worker_id": "worker-2",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v2\\results\\matplotlib__matplotlib-25122__fixed_gpt-5.6-luna\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 102,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v2",
+      "run_id": "matplotlib__matplotlib-25122__fixed_gpt-5.6-sol",
+      "worker_id": "worker-1",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v2\\results\\matplotlib__matplotlib-25122__fixed_gpt-5.6-sol\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 96,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v2",
+      "run_id": "matplotlib__matplotlib-25122__fixed_gpt-5.6-sol",
+      "worker_id": "worker-2",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v2\\results\\matplotlib__matplotlib-25122__fixed_gpt-5.6-sol\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 72,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v2",
+      "run_id": "matplotlib__matplotlib-25122__fixed_gpt-5.6-terra",
+      "worker_id": "worker-1",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v2\\results\\matplotlib__matplotlib-25122__fixed_gpt-5.6-terra\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 68,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v2",
+      "run_id": "matplotlib__matplotlib-25122__fixed_gpt-5.6-terra",
+      "worker_id": "worker-2",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v2\\results\\matplotlib__matplotlib-25122__fixed_gpt-5.6-terra\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 70,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v2",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_gpt-5.6-luna",
+      "worker_id": "worker-1",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v2\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-luna\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 94,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v2",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_gpt-5.6-luna",
+      "worker_id": "worker-2",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v2\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-luna\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 79,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v2",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_gpt-5.6-terra",
+      "worker_id": "worker-1",
+      "reported_adopted": "",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v2\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-terra\\result.json",
+      "provenance": "unknown"
+    },
+    {
+      "batch": "pilot_v2",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_gpt-5.6-terra",
+      "worker_id": "worker-2",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v2\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-terra\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 123,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v3",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_glm-5.3",
+      "worker_id": "worker-1",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v3\\results\\sphinx-doc__sphinx-8035__fixed_glm-5.3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 142,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v3",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_glm-5.3",
+      "worker_id": "worker-2",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v3\\results\\sphinx-doc__sphinx-8035__fixed_glm-5.3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 138,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v3",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_glm-5.3-flash",
+      "worker_id": "worker-1",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v3\\results\\sphinx-doc__sphinx-8035__fixed_glm-5.3-flash\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 109,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v3",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_glm-5.3-flash",
+      "worker_id": "worker-2",
+      "reported_adopted": "",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v3\\results\\sphinx-doc__sphinx-8035__fixed_glm-5.3-flash\\result.json",
+      "provenance": "unknown"
+    },
+    {
+      "batch": "pilot_v3",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_gpt-5.6-luna",
+      "worker_id": "worker-1",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v3\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-luna\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 124,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v3",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_gpt-5.6-luna",
+      "worker_id": "worker-2",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v3\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-luna\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 107,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v3",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_gpt-5.6-sol",
+      "worker_id": "worker-1",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v3\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-sol\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 108,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v3",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_gpt-5.6-sol",
+      "worker_id": "worker-2",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v3\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-sol\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 95,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v3",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_gpt-5.6-terra",
+      "worker_id": "worker-1",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v3\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-terra\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 108,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v3",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_gpt-5.6-terra",
+      "worker_id": "worker-2",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v3\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-terra\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 110,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v4",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_gpt-5.6-sol",
+      "worker_id": "worker-1",
+      "reported_adopted": "",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v4\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-sol\\result.json",
+      "provenance": "unknown"
+    },
+    {
+      "batch": "pilot_v4",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_gpt-5.6-sol",
+      "worker_id": "worker-2",
+      "reported_adopted": "",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v4\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-sol\\result.json",
+      "provenance": "unknown"
+    },
+    {
+      "batch": "pilot_v5",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_glm-5.3",
+      "worker_id": "worker-1",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v5\\results\\sphinx-doc__sphinx-8035__fixed_glm-5.3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 163,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v5",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_glm-5.3",
+      "worker_id": "worker-2",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v5\\results\\sphinx-doc__sphinx-8035__fixed_glm-5.3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 165,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v5",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_glm-5.3-flash",
+      "worker_id": "worker-1",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v5\\results\\sphinx-doc__sphinx-8035__fixed_glm-5.3-flash\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 147,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v5",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_glm-5.3-flash",
+      "worker_id": "worker-2",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v5\\results\\sphinx-doc__sphinx-8035__fixed_glm-5.3-flash\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 135,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v6",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_glm-5.3",
+      "worker_id": "worker-1",
+      "reported_adopted": "",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v6\\results\\sphinx-doc__sphinx-8035__fixed_glm-5.3\\result.json",
+      "provenance": "unknown"
+    },
+    {
+      "batch": "pilot_v6",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_glm-5.3",
+      "worker_id": "worker-2",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v6\\results\\sphinx-doc__sphinx-8035__fixed_glm-5.3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 124,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v6",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_gpt-5.6-luna",
+      "worker_id": "worker-1",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v6\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-luna\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 124,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v6",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_gpt-5.6-luna",
+      "worker_id": "worker-2",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v6\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-luna\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 126,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v7",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_glm-5.3-flash",
+      "worker_id": "worker-1",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v7\\results\\sphinx-doc__sphinx-8035__fixed_glm-5.3-flash\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 160,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v7",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_glm-5.3-flash",
+      "worker_id": "worker-2",
+      "reported_adopted": "",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v7\\results\\sphinx-doc__sphinx-8035__fixed_glm-5.3-flash\\result.json",
+      "provenance": "unknown"
+    },
+    {
+      "batch": "pilot_v8",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_glm-5.3",
+      "worker_id": "worker-1",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__fixed_glm-5.3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 143,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v8",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_glm-5.3",
+      "worker_id": "worker-2",
+      "reported_adopted": "",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__fixed_glm-5.3\\result.json",
+      "provenance": "unknown"
+    },
+    {
+      "batch": "pilot_v8",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_glm-5.3-flash",
+      "worker_id": "worker-1",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__fixed_glm-5.3-flash\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 139,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v8",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_glm-5.3-flash",
+      "worker_id": "worker-2",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__fixed_glm-5.3-flash\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 153,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v8",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_gpt-5.6-luna",
+      "worker_id": "worker-1",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-luna\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 142,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v8",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_gpt-5.6-luna",
+      "worker_id": "worker-2",
+      "reported_adopted": "",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-luna\\result.json",
+      "provenance": "unknown"
+    },
+    {
+      "batch": "pilot_v8",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_gpt-5.6-sol",
+      "worker_id": "worker-1",
+      "reported_adopted": "",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-sol\\result.json",
+      "provenance": "unknown"
+    },
+    {
+      "batch": "pilot_v8",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_gpt-5.6-sol",
+      "worker_id": "worker-2",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-sol\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 135,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v8",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_gpt-5.6-terra",
+      "worker_id": "worker-1",
+      "reported_adopted": "",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-terra\\result.json",
+      "provenance": "unknown"
+    },
+    {
+      "batch": "pilot_v8",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_gpt-5.6-terra",
+      "worker_id": "worker-2",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-terra\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 126,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v8",
+      "run_id": "sphinx-doc__sphinx-8035__hetero_glm-5.3__gpt-5.6-luna",
+      "worker_id": "worker-1",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__hetero_glm-5.3__gpt-5.6-luna\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 143,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v8",
+      "run_id": "sphinx-doc__sphinx-8035__hetero_glm-5.3__gpt-5.6-luna",
+      "worker_id": "worker-2",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__hetero_glm-5.3__gpt-5.6-luna\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 145,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v8",
+      "run_id": "sphinx-doc__sphinx-8035__hetero_glm-5.3__gpt-5.6-sol",
+      "worker_id": "worker-1",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__hetero_glm-5.3__gpt-5.6-sol\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 137,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v8",
+      "run_id": "sphinx-doc__sphinx-8035__hetero_glm-5.3__gpt-5.6-sol",
+      "worker_id": "worker-2",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__hetero_glm-5.3__gpt-5.6-sol\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 145,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v8",
+      "run_id": "sphinx-doc__sphinx-8035__hetero_gpt-5.6-sol__glm-5.3",
+      "worker_id": "worker-1",
+      "reported_adopted": "",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__hetero_gpt-5.6-sol__glm-5.3\\result.json",
+      "provenance": "unknown"
+    },
+    {
+      "batch": "pilot_v8",
+      "run_id": "sphinx-doc__sphinx-8035__hetero_gpt-5.6-sol__glm-5.3",
+      "worker_id": "worker-2",
+      "reported_adopted": "",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__hetero_gpt-5.6-sol__glm-5.3\\result.json",
+      "provenance": "unknown"
+    },
+    {
+      "batch": "pilot_v8",
+      "run_id": "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3",
+      "worker_id": "worker-1",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 150,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v8",
+      "run_id": "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3",
+      "worker_id": "worker-2",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 152,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v8",
+      "run_id": "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3-flash",
+      "worker_id": "worker-1",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3-flash\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 144,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v8",
+      "run_id": "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3-flash",
+      "worker_id": "worker-2",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3-flash\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 140,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v8",
+      "run_id": "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__gpt-5.6-luna",
+      "worker_id": "worker-1",
+      "reported_adopted": "True",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__gpt-5.6-luna\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 140,
+      "raw_decision": "adopt"
+    },
+    {
+      "batch": "pilot_v8",
+      "run_id": "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__gpt-5.6-luna",
+      "worker_id": "worker-2",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__gpt-5.6-luna\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 142,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v9",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_deepseek-v4-flash",
+      "worker_id": "worker-1",
+      "reported_adopted": "",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v9\\results\\sphinx-doc__sphinx-8035__fixed_deepseek-v4-flash\\result.json",
+      "provenance": "unknown"
+    },
+    {
+      "batch": "pilot_v9",
+      "run_id": "sphinx-doc__sphinx-8035__fixed_deepseek-v4-flash",
+      "worker_id": "worker-2",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v9\\results\\sphinx-doc__sphinx-8035__fixed_deepseek-v4-flash\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 145,
+      "raw_decision": "discard"
+    },
+    {
+      "batch": "pilot_v9",
+      "run_id": "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__deepseek-v4-flash",
+      "worker_id": "worker-1",
+      "reported_adopted": "",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v9\\results\\sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__deepseek-v4-flash\\result.json",
+      "provenance": "unknown"
+    },
+    {
+      "batch": "pilot_v9",
+      "run_id": "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__deepseek-v4-flash",
+      "worker_id": "worker-2",
+      "reported_adopted": "False",
+      "source_result": "modelbench\\swe_fixed_team_20260903\\pilot_v9\\results\\sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__deepseek-v4-flash\\result.json",
+      "provenance": "completed_review_worker",
+      "event_line": 127,
+      "raw_decision": "discard"
+    }
+  ],
+  "reviewed_source_sha256": {
+    "modelbench\\cumulative_analysis_20260907_v2\\role_synthesis\\ALL_BUDGET_CONFIGURATIONS.csv": "3608be859c8dfd7128079fab5f162ece386283f77da68fc77ce2a079c105e881",
+    "modelbench\\cumulative_analysis_20260907_v2\\role_synthesis\\BUDGET_COMPARISONS.csv": "77297bafb47779522b4c1a845667063aef05756922aca493bcef3afca3018c24",
+    "modelbench\\cumulative_analysis_20260907_v2\\role_synthesis\\COHORT_ROLE_SUMMARY.csv": "4d5e0c8508488d2ce2607aa20106c5b7431c47b2de97e766f3e38436ac24d03a",
+    "modelbench\\cumulative_analysis_20260907_v2\\role_synthesis\\COVERAGE.csv": "b5f2d0c7221c1fc4ebb1b906bae1072dcc98d8ca728808c7e2bef0751fcfe866",
+    "modelbench\\cumulative_analysis_20260907_v2\\role_synthesis\\INTEGRATED_ROLES_ZH.md": "40c3dffcf2085e4fc7f294aff5fb8f374f37b0e203edacb98e657dd933ff02aa",
+    "modelbench\\cumulative_analysis_20260907_v2\\role_synthesis\\ROLE_BUDGET_GROWTH.csv": "69caada29272344d60243397ca79df06876d551fbd14d00ace22eaf65caace36",
+    "modelbench\\cumulative_analysis_20260907_v2\\role_synthesis\\ROLE_RESOURCE_SHARES.csv": "b9ae5e7092e298bc3fe0f603ca69610628f50c0b751f58418efbba989d63c14f",
+    "modelbench\\cumulative_analysis_20260907_v2\\role_synthesis\\ROLE_RESOURCES.csv": "0a733d491ab887d656567316afe012be2bb294c539a22b32ee6659f0287284b4",
+    "modelbench\\cumulative_analysis_20260907_v2\\role_synthesis\\SUMMARY.json": "cf6288c81f9ad3c3f88efa1b5f92ede23e941b4827ee9e73eaf6f0d1b2bdca16",
+    "modelbench\\cumulative_analysis_20260907_v2\\role_synthesis\\synthesize_roles.py": "cf7323e62f11298c623e4865286b289df8c715f3c41adeadb59acf2f7844e215",
+    "modelbench\\cumulative_analysis_20260907_v2\\role_synthesis\\UNIFIED_WORKERS.csv": "2d3d7e262d2d3ece82e4ae174dcac15d62052abb4633833fca6255c78dfde0d8",
+    "modelbench\\cumulative_analysis_20260907_v2\\role_synthesis\\VALIDATION.json": "ba9428e0099a7dc863670d7f288ab85a0290d8fc6f28a270629dec82362d2feb",
+    "modelbench\\cumulative_analysis_20260907_v2\\role_synthesis\\write_report.py": "a40368a3a1246f73b63961942e0b6b570feef008c61facdf4a91a6bf3ca0a9fe"
+  },
+  "original_result_files_read": 101,
+  "original_event_files_read": 63
+}

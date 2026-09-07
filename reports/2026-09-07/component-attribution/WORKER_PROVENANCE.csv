@@ -1,0 +1,487 @@
+episode,task,worker,model,status,summary,patch_present,nonempty,files,production_files,test_files,same_changed_lines_in_final,source_patch
+swe_fixed_team_20260903/pilot_v10/sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3,sphinx-doc__sphinx-8035,worker-1,gpt-5.6-terra,completed,"Implemented the production fix in sphinx/ext/autodoc/__init__.py. ModuleDocumenter and ClassDocumenter now parse :private-members: with members_option, preserving no-argument behavior as ALL while accepting comma-separated member names. Updated both private-member filtering paths so an explicit list includes only named private members, while bare :private-members: continues to include all private members. Verification: git diff --check completed cleanly; existing tests/test_ext_autodoc_private_members.py passed (2 passed, 7 warnings). No test files were modified.",True,True,"[""sphinx/ext/autodoc/__init__.py""]","[""sphinx/ext/autodoc/__init__.py""]",[],"[""sphinx/ext/autodoc/__init__.py""]",modelbench\swe_fixed_team_20260903\pilot_v10\results\sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3\worker-1\delta.patch
+swe_fixed_team_20260903/pilot_v10/sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3,sphinx-doc__sphinx-8035,worker-2,glm-5.3,blocked,"Task not completed as a code delta: my call budget was exhausted by exploration before I could write the test file, so no files were modified (`git status --short` was empty at baseline) and no tests were run. Evidence and the ready-to-apply test delta follow.
+
+BASELINE BEHAVIOR (verified by inspection, not execution)
+- `sphinx/ext/autodoc/__init__.py:76-80`: `members_option(arg)` returns `ALL` when `arg is None or arg is True`, else `[x.strip() for x in arg.split(',') if x.strip()]`.
+- `sphinx/ext/autodoc/__init__.py:862` (ClassDocumenter.option_spec) and `:1282` (ModuleDocumenter.option_spec): `'private-members': bool_option`. `bool_option` (lines 119-123) ignores its argument and always returns `True`, so `:private-members: some_name` currently behaves identically to the bare flag and documents ALL private members. `'special-members'` already uses `members_option` and is merged into `:members:` via `merge_special_members_option` (lines 126-134).
+- `filter_members` (~lines 650-660): with `want_all and isprivate`, `keep = self.options.private_members` (when `(namespace, membername) in attr_docs`) or `keep = self.options.private_members and (has_doc or self.options.undoc_members)`. A correct fix must treat a list value as a whitelist (member documented iff `membername in private_members`) while `ALL`/`True` keeps current all-private behavior.
+- Helper: `tests/test_ext_autodoc.py:33-45` `do_autodoc(app, objtype, name, options)` runs options through `process_documenter_options`, so the option_spec converter is exercised by tests (Python values: `None` -> bare flag, `'_private_inst_attr'` -> `:private-members: _private_inst_attr`). Fixture `target.Class` (`tests/roots/test-ext-autodoc/target/__init__.py:37`) has exactly one private member, `_private_inst_attr` (documented via `#:` comment in `__init__`, i.e. it hits the `attr_docs` branch of `filter_members`).
+
+PROPOSED TEST DELTA (append to tests/test_ext_autodoc.py; requires no fixture changes):
+```python
+@pytest.mark.sphinx('html', testroot='ext-autodoc')
+def test_private_members_selection(app):
+    # bare :private-members: documents all private members
+    options = {""members"": None, ""private-members"": None}
+    actual = do_autodoc(app, 'class', 'target.Class', options)
+    assert '   .. py:attribute:: Class._private_inst_attr' in list(actual)
+
+    # listing the private member by name documents it
+    options = {""members"": None, ""private-members"": '_private_inst_attr'}
+    actual = do_autodoc(app, 'class', 'target.Class', options)
+    assert '   .. py:attribute:: Class._private_inst_attr' in list(actual)
+
+    # listing only a public name documents no private members
+    options = {""members"": None, ""private-members"": 'attr'}
+    actual = do_autodoc(app, 'class', 'target.Class', options)
+    assert '   .. py:attribute:: Class._private_inst_attr' not in list(actual)
+```
+Expected outcome on the UNFIXED baseline: first two assertions pass; the third FAILS because `bool_option('attr')` returns `True`, so all private members (including `Class._private_inst_attr`) are emitted. After a correct `members_option`-based fix, all three pass. Note the third case only distinguishes whitelist vs all-privates; a stronger test would need a fixture class with >=2 private members, which would require adding a test-root fixture file (I could not verify how `target.*` is placed on sys.path before budget ran out, so I avoided new fixtures).
+
+EXISTING TESTS TO KEEP GREEN (untouched): `tests/test_ext_autodoc.py:890/915/939` use `'private-members': True` (must keep documenting `_private_inst_attr` after the fix, since `members_option(True)` returns `ALL`), and `:1982` `test_name_mangling` uses `""private-members"": None`.",True,False,[],[],[],[],modelbench\swe_fixed_team_20260903\pilot_v10\results\sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3\worker-2\delta.patch
+swe_fixed_team_20260903/pilot_v10/sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3.rep2,sphinx-doc__sphinx-8035,worker-1,gpt-5.6-terra,blocked,Blocked by the 8-call worker limit. No production file was changed: the attempted update aborted before write because the expected private-member filtering block did not exactly match the repository. An additional inspection/edit call is needed to apply and verify the fix.,True,False,[],[],[],[],modelbench\swe_fixed_team_20260903\pilot_v10\results\sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3.rep2\worker-1\delta.patch
+swe_fixed_team_20260903/pilot_v10/sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3.rep2,sphinx-doc__sphinx-8035,worker-2,glm-5.3,completed,"TEST-ONLY DELTA (no production files touched in /testbed). Files added/changed in my worker copy for the Lead to integrate and run together with the other worker's production fix:
+
+1) NEW tests/roots/test-ext-autodoc/target/private_members.py — private-only members target for the new feature:
+   - `_private_function(name)` and `_other_private_function(name)` (module level, both with docstrings)
+   - class `_PrivateClass` with `_private_method` / `_other_private_method` (docstrings)
+   - class `_PrivateAttributeClass` with documented attributes `_private_attr` / `_other_private_attr` (each via `#:` comment docstrings)
+2) tests/test_ext_autodoc_private_members.py — appended 4 focused regression tests (existing 2 tests untouched), each using `do_autodoc(app, objtype, name, options)` with exact full-output literal comparison, same style as existing tests:
+   - test_private_members_with_specific_member: `{""members"": None, ""private-members"": ""_private_function""}` on module → expects ONLY `_private_function` documented (`_other_private_function` excluded).
+   - test_private_members_with_multiple_specific_members: `:private-members: _private_function, _other_private_function` → both documented.
+   - test_private_methods_with_specific_member: class `_PrivateClass`, `:private-members: _private_method` → only `_private_method` documented.
+   - test_private_attributes_with_specific_member: class `_PrivateAttributeClass`, `:private-members: _private_attr` → only the listed documented attribute kept (`_other_private_attr` excluded). This test additionally requires the `attr_docs` branch of `filter_members` to honor the member list, not just the general `isprivate` branch.
+   - Two no-arg control cases were also written into the file expectations (`:private-members: None` → all private members) only via the pre-existing tests; I did not add separate no-arg cases beyond the ones above.
+   Optional-argument semantics encoded: no argument = ALL (current behavior preserved); explicit comma-separated list = document only those private members; non-listed private members excluded even when they have docstrings.
+
+EVIDENCE / OBSERVED BEHAVIOR:
+- Baseline (unfixed, /testbed): `pytest tests/test_ext_autodoc_private_members.py` → 2 pre-existing tests PASS; my 4 new tests FAIL. Root cause matches production code: `option_spec['private-members'] = bool_option` (both Documenter ~line 862 and ModuleDocumenter ~1282) turns any argument into True, and `filter_members` only checks truthiness (`keep = self.options.private_members` / `keep = self.options.private_members and (has_doc or undoc_members)`), so ALL private members get documented — the feature is absent, tests fail as intended.
+- IMPORTANT CAVEAT: my expected-output literals were constructed by analogy with the existing `target/private.py` testroot patterns and could NOT be machine-verified against a fixed implementation. In a throwaway copy (/tmp/simfix, outside /testbed) with a simulated production fix, autodoc failed with ""No module named 'target'"" (empty result lists) for all cases including a no-arg control, i.e. an environment/srcdir-syspath problem specific to that copy — not a verdict on the fix or on my literals. The existing `target.private` tests do import fine in /testbed, so the Lead should (a) run the suite WITHOUT extra PYTHONPATH and confirm no ""No module named 'target'"" warnings for `target.private_members`, and (b) regenerate/adjust the exact expected literals (directive lines such as `.. py:module:: target.private_members`, `:module:` lines, blank lines) against the merged production fix.
+
+SIMULATED FIX SHAPE I tested against (for cross-checking the other worker's patch; applied only in /tmp/simfix): add `private_members_option(arg)` returning ALL when arg is None else a set of comma-split stripped names; use it for `'private-members'` in both option_specs; in `filter_members` attr_docs branch use `keep = private_members is ALL or membername in private_members` (when want_all and isprivate), and in the general branch `(private_members is ALL or membername in private_members) and (has_doc or undoc_members)`.",True,True,"[""tests/roots/test-ext-autodoc/target/private_members.py"", ""tests/test_ext_autodoc_private_members.py""]",[],"[""tests/roots/test-ext-autodoc/target/private_members.py"", ""tests/test_ext_autodoc_private_members.py""]","[""tests/roots/test-ext-autodoc/target/private_members.py"", ""tests/test_ext_autodoc_private_members.py""]",modelbench\swe_fixed_team_20260903\pilot_v10\results\sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3.rep2\worker-2\delta.patch
+swe_fixed_team_20260903/pilot_v10/sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3.rep3,sphinx-doc__sphinx-8035,worker-1,gpt-5.6-terra,completed,"Implemented production support for argument-bearing :private-members: in sphinx/ext/autodoc/__init__.py. It now uses members_option, merges explicitly requested private members into :members:, and filters private attributes/members so bare :private-members: still includes all while named values include only those names. Verified with pytest -q tests/test_ext_autodoc_private_members.py (2 passed) and git diff --check.",True,True,"[""sphinx/ext/autodoc/__init__.py""]","[""sphinx/ext/autodoc/__init__.py""]",[],"[""sphinx/ext/autodoc/__init__.py""]",modelbench\swe_fixed_team_20260903\pilot_v10\results\sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3.rep3\worker-1\delta.patch
+swe_fixed_team_20260903/pilot_v10/sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3.rep3,sphinx-doc__sphinx-8035,worker-2,glm-5.3,completed,"TASK (tests-only for `:private-members:` taking member names) — files are in place on disk, but I hit a local-work budget wall before any test run could succeed, so the test file is UNVERIFIED and has one known environment issue (import style). Evidence-based report:
+
+FILES WRITTEN (my delta):
+1. NEW fixture `tests/roots/test-ext-autodoc/target/private2.py`:
+   - module-level `_private_function(name)` and `_other_private_function(name)`, both with docstrings.
+   - `class PrivateClass` (docstring) with `_private_attr = 1  #: _private_attr is a docstring().`, `_private_method(self)`, `_other_private_method(self)`, and `public_method(self)` (all docstrings). Public member included so tests prove selection is filter-to-subset, not all-members.
+2. REWRITTEN `tests/test_ext_autodoc_private_members.py` — kept the two baseline tests verbatim (`test_private_field`, `test_private_field_and_private_members`) and added 5 regression tests mirroring the upstream design (issue #8009 / `:members:`-style arguments):
+   - `test_private_members_without_argument`: `{""members"": None, ""private-members"": None}` on `target.private2` → both `_other_private_function` and `_private_function` (alphabetical order) documented; backward compatible.
+   - `test_private_members_with_a_specific_module_function`: `""private-members"": ""_private_function""` → ONLY that private function documented.
+   - `test_private_members_with_a_specific_class_method`: on `target.private2.PrivateClass` with `""_private_method""` → `PrivateClass._private_method` + `public_method` only (not `_other_private_method`/`_private_attr`).
+   - `test_private_members_with_a_specific_class_attribute`: `""_private_attr""` → `.. py:attribute:: PrivateClass._private_attr` with `:value: 1` + `public_method`.
+   - `test_private_members_with_several_specific_members`: `""_private_attr, _other_private_method""` (comma-separated list, with spaces) → both named privates + `public_method` only.
+
+BASELINE BEHAVIOR OBSERVED (unfixed production): in `sphinx/ext/autodoc/__init__.py` `option_spec` maps `'private-members': bool_option` (True regardless of any argument), while `'special-members': members_option`; `filter_members` treats `self.options.private_members` as a boolean truthiness check (lines ~652, ~659-660). So on the baseline the new specific-member tests are expected to FAIL like `:private-members:`-with-no-argument (all privates documented). Expected fix shape (matches upstream PR): change `'private-members'` to `members_option` and gate the two `keep` branches on `membername in self.options.private_members` when it is a list, `ALL`/None meaning all. NOTE: I did NOT modify production files for the fix — but a simulated/scratch patch may have been written to `sphinx/ext/autodoc/__init__.py` during exploration (see below); the Lead MUST verify/reset that file to baseline before merging only the test delta.
+
+VERIFICATION STATUS — HONEST: I could not run the tests. Two attempts (`cd /testbed && python -m pytest tests/test_ext_autodoc_private_members.py ...` and `cd /testbed/tests && python -m pytest ...`) both failed at COLLECTION with `ImportError: attempted relative import with no known parent package` on line 14 `from .utils import do_autodoc`; `ls tests/__init__.py` printed nothing, i.e. `tests/` appears NOT to be a package in this snapshot. REQUIRED FIX BEFORE RUNNING (Lead, one-line): copy the import style actually used by a neighboring autodoc test (e.g. open `tests/test_ext_autodoc.py`; likely `from tests.utils import do_autodoc` or an existing conftest path setup) and adjust line 14 of `tests/test_ext_autodoc_private_members.py` accordingly, then run from `/testbed`: `python -m pytest tests/test_ext_autodoc_private_members.py -q`. Also, exact expected `do_autodoc` output strings (e.g. `:value: 1` on the attribute, `PrivateClass._private_method()` signature with `:module:` lines, alphabetical member order) were written from the documented upstream expectations for this Sphinx version but were NOT validated against actual output; if a diff appears, update expectations to actual output while keeping the semantic assertions (named private included; other privates excluded; public members unaffected).
+
+INTEGRATION NOTE: new fixture file + new test file only; no production changes belong to this delta (if my scratch edit to `sphinx/ext/autodoc/__init__.py` is still present in this copy, discard it — the other worker owns the production fix).",True,True,"[""sphinx/ext/autodoc/__init__.py"", ""tests/roots/test-ext-autodoc/target/private2.py"", ""tests/test_ext_autodoc_private_members.py""]","[""sphinx/ext/autodoc/__init__.py""]","[""tests/roots/test-ext-autodoc/target/private2.py"", ""tests/test_ext_autodoc_private_members.py""]",[],modelbench\swe_fixed_team_20260903\pilot_v10\results\sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3.rep3\worker-2\delta.patch
+swe_fixed_team_20260903/pilot_v10/sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3,sphinx-doc__sphinx-8035,worker-1,gpt-5.6-terra,blocked,"Blocked by the exhausted work-call limit. The attempted edit exited before path.write_text(), so no production files were changed. Baseline tests tests/test_ext_autodoc_private_members.py passed (2 passed), but no implementation could be completed or verified.",True,False,[],[],[],[],modelbench\swe_fixed_team_20260903\pilot_v10\results\sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3\worker-1\delta.patch
+swe_fixed_team_20260903/pilot_v10/sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3,sphinx-doc__sphinx-8035,worker-2,glm-5.3,completed,"Test-only delta for issue ""Support defining specific :private-members: for autodoc"" (no production files touched).
+
+Files added/changed (all under tests/):
+1. NEW fixture module `tests/roots/test-ext-autodoc/target/private_list.py` — module with two private functions (`_private_one`, `_private_two`), one public function (`public`), and class `Foo` with a private attribute (`_private_attr`, documented via attribute docstring) and a private method (`_private_meth`) plus a public method (`meth`). Needed because existing `target/private.py` has only one private member, which cannot distinguish ""all"" from ""subset"".
+2. `tests/test_ext_autodoc_private_members.py` — appended 5 regression tests (existing 2 tests untouched), all using `do_autodoc(app, 'module'/'class', 'target.private_list[.Foo]', options)` with `@pytest.mark.sphinx('html', testroot='ext-autodoc')`:
+   - `test_private_field_and_private_members_flag`: `private-members: None` (flag form) still documents ALL private members (passes on baseline; guards ALL semantics).
+   - `test_private_members_with_specific_private_member`: `""private-members"": ""_private_one""` documents only `_private_one`; `_private_two` and Foo's private members excluded; public members still documented.
+   - `test_private_members_with_multiple_specific_private_members`: `""private-members"": "" _private_one, _private_two ""` (comma-separated with surrounding whitespace, exercising `.split(',')` + `.strip()`) documents both listed module privates and no class privates.
+   - `test_private_members_with_specific_private_member_for_class`: class-level `""private-members"": ""_private_meth""` documents `Foo._private_meth` and `Foo.meth` but not `Foo._private_attr` (covers both the regular member filter path and the attr_docs private-attribute path in `filter_members`).
+   - `test_private_members_with_no_matching_private_member`: a listed name matching no private member documents only public members and does not crash.
+
+Baseline evidence (`python -m pytest tests/test_ext_autodoc_private_members.py -v` on unpatched HEAD 5e6da19f0, where `:private-members:` still uses `bool_option` in sphinx/ext/autodoc/__init__.py:862/1282): **4 failed, 3 passed**. Failures are exactly the 4 argument-form tests; passing are the 2 pre-existing tests plus my new flag-form test. Observed unfixed behavior: any string argument to `:private-members:` is coerced to truthy, so ALL private members get documented (e.g. `_private_two`, `Foo._private_attr` appear even though not listed), which is the bug the tests regress. Assertions use substring checks against `'\n'.join(actual)` so they are robust to member ordering/`:module:` lines.
+
+Expected result after the production fix (e.g. `private_members_option(arg)` returning ALL for None/True and `[x.strip() for x in arg.split(',') if x.strip()]` otherwise, plus `membername in private_members` gating in `filter_members` for the want_all-private and attr_docs-private branches): all 7 tests in the file pass.",True,True,"[""tests/roots/test-ext-autodoc/target/private_list.py"", ""tests/test_ext_autodoc_private_members.py""]",[],"[""tests/roots/test-ext-autodoc/target/private_list.py"", ""tests/test_ext_autodoc_private_members.py""]","[""tests/roots/test-ext-autodoc/target/private_list.py"", ""tests/test_ext_autodoc_private_members.py""]",modelbench\swe_fixed_team_20260903\pilot_v10\results\sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3\worker-2\delta.patch
+swe_fixed_team_20260903/pilot_v10/sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.rep2,sphinx-doc__sphinx-8035,worker-1,gpt-5.6-terra,blocked,"Blocked by the 8-call work limit before a production change could be applied. The attempted edit found that the expected private-member filtering block did not exactly match; because the script writes only after locating that block, no changes were persisted. Baseline targeted tests passed: `python -m pytest tests/test_ext_autodoc_private_members.py tests/test_ext_autodoc.py -k private -q` (2 passed, 62 deselected).",True,False,[],[],[],[],modelbench\swe_fixed_team_20260903\pilot_v10\results\sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.rep2\worker-1\delta.patch
+swe_fixed_team_20260903/pilot_v10/sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.rep2,sphinx-doc__sphinx-8035,worker-2,glm-5.3,completed,"Deliverable: regression-test delta for ""Support defining specific `:private-members:` for autodoc"" (upstream #8009). No production files were left modified (`git status` shows only `M tests/test_ext_autodoc.py` and the new untracked fixture).
+
+TEST DELTA
+1) New fixture `tests/roots/test-ext-autodoc/target/private_members.py` (untracked, must be added): module-level `_private_function`, `_another_private_function`, `public_function`, and `Class` with documented private/public class attributes (`_private_attr`, `_another_private_attr`, `public_attr`) and methods (`_private_method`, `_another_private_method`, `public_method`).
+2) Appended to end of `tests/test_ext_autodoc.py`: helper `_documented_names(lines)` (regex-extracts documented member names from autodoc output) plus 3 tests:
+   - `test_autodoc_private_members_without_argument`: `private-members: None` documents ALL private members (back-compat) plus publics.
+   - `test_autodoc_private_members_with_argument`: `private-members: ""_private_method, _private_attr""` documents ONLY those two private members (`_another_private_method` / `_another_private_attr` must be absent), publics still documented — the core new behavior.
+   - `test_autodoc_private_members_with_argument_module`: same for `ModuleDocumenter` (`module` objtype) with `_private_function` only.
+
+OBSERVED BEHAVIOR (honest, partially truncated log)
+- Final run (with a TEMPORARY upstream-style patch — `'private-members': bool_option` → `members_option` in both `ModuleDocumenter` and `ClassDocumenter.option_spec`, and `keep = self.options.private_members is ALL or membername in (self.options.private_members or [])` in both `filter_members` branches — applied and then reverted via `git checkout`) gave: `3 failed, 3 passed, 59 deselected` for `-k ""private_members or name_mangling or member_order""`, failing exactly my three new tests; the pre-existing `name_mangling`/`member_order` tests passed. Production file reverted afterwards (confirmed by git status).
+- The earlier baseline-only run scrolled out of the captured tail, so its exact per-test results are unverified; expected baseline outcome: the two ""with_argument"" tests fail (baseline `bool_option` turns any argument into True ⇒ all private members documented), the ""without_argument"" test should pass.
+- CAVEAT for the Lead: all three new tests failing even with a quick fix strongly suggests a bug in my test helper, most likely that `tests/test_ext_autodoc.py` does not import `re` (⇒ NameError in `_documented_names`). Please either add `import re` at the top of the helper (`import re` as its first line) or module top, then rerun `python -m pytest tests/test_ext_autodoc.py -k private_members -q`. If failures persist after that, inspect the first failure diff (possible rendering/name-prefix assumptions or attr_docs analyzer nuances) before integrating.",True,True,"[""tests/roots/test-ext-autodoc/target/private_members.py"", ""tests/test_ext_autodoc.py""]",[],"[""tests/roots/test-ext-autodoc/target/private_members.py"", ""tests/test_ext_autodoc.py""]","[""tests/roots/test-ext-autodoc/target/private_members.py""]",modelbench\swe_fixed_team_20260903\pilot_v10\results\sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.rep2\worker-2\delta.patch
+swe_fixed_team_20260903/pilot_v10/sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.rep3,sphinx-doc__sphinx-8035,worker-1,gpt-5.6-terra,completed,"Implemented the production fix in sphinx/ext/autodoc/__init__.py. The :private-members: option now uses members_option for module and class directives, preserving the no-argument behavior as ALL while accepting a comma-separated member list. Private-member filtering now includes a private member only when the option is ALL or its name is explicitly listed, covering both documented attributes and other members. Verification passed: git diff --check; python -m pytest -q tests/test_ext_autodoc_private_members.py (2 passed); direct members_option parsing checks for no argument and named members.",True,True,"[""sphinx/ext/autodoc/__init__.py""]","[""sphinx/ext/autodoc/__init__.py""]",[],"[""sphinx/ext/autodoc/__init__.py""]",modelbench\swe_fixed_team_20260903\pilot_v10\results\sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.rep3\worker-1\delta.patch
+swe_fixed_team_20260903/pilot_v10/sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.rep3,sphinx-doc__sphinx-8035,worker-2,glm-5.3,completed,"Added focused regression tests for ""Support defining specific :private-members: for autodoc"" (no production files modified).
+
+Delta (2 files):
+1. New fixture `tests/roots/test-ext-autodoc/target/private_members.py`: module-level `_public_function`/`_private_function` (docstrings); `PublicClass` (docstring) with undoc `_private_attribute`, `_undoc_private_attribute`, and `_private_method` (docstring); `_PrivateClass` (docstring) with public `method`.
+2. Appended 3 tests (+128 lines) to `tests/test_ext_autodoc_private_members.py` using existing `do_autodoc` and testroot `ext-autodoc`:
+   - `test_private_members`: default = no private members; `:private-members:` (no args) = ALL (module, PublicClass, PublicClass._private_method, _PrivateClass, _PrivateClass.method, _private_function, _public_function); `:private-members: True` identical (backwards compat).
+   - `test_specific_private_members`: selective listing at module level (`'_private_function'`), propagation to class members (`'_private_method'`), explicit `class` directive, and comma-separated list `'_private_attribute, _private_method'` with `:undoc-members:`.
+   - `test_specific_private_members_and_undoc_members`: listed-but-undocumented `_undoc_private_attribute` documented only when `:undoc-members:` is also set; skipped without it.
+
+Observed on unfixed baseline (HEAD 5e6da19f0): `pytest tests/test_ext_autodoc_private_members.py` → 3 failed, 2 passed. All 3 failures are the new tests: a string value (e.g. `'_private_function'`) is parsed by `bool_option` as truthy, so ALL private members are documented (module dump includes `_private_function`, `_public_function`, `_PrivateClass`; at class level `_undoc_private_attribute` appears with `:undoc-members:` even when unlisted). The 2 pre-existing tests pass; no other test references the new fixture module (no interference). Also checked `tests/test_ext_apidoc.py:411/417` only assert bare `:private-members:` text from apidoc, unaffected by the option-spec change.
+
+Expected fix semantics encoded: change `'private-members'` to `members_option` (~sphinx/ext/autodoc/__init__.py:862 and :1282) and use `private_members is ALL or membername in private_members` in `Documenter.filter_members` (~:652 attr branch and ~:659 member branch, the latter still gated by `has_doc or undoc_members`). With that production fix, all three new tests should pass unchanged.",True,True,"[""tests/roots/test-ext-autodoc/target/private_members.py"", ""tests/test_ext_autodoc_private_members.py""]",[],"[""tests/roots/test-ext-autodoc/target/private_members.py"", ""tests/test_ext_autodoc_private_members.py""]","[""tests/roots/test-ext-autodoc/target/private_members.py""]",modelbench\swe_fixed_team_20260903\pilot_v10\results\sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.rep3\worker-2\delta.patch
+swe_fixed_team_20260903/pilot_v13/sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.cm24,sphinx-doc__sphinx-8035,worker-1,gpt-5.6-terra,completed,"Implemented production support for selecting specific autodoc private members in sphinx/ext/autodoc/__init__.py. Changed ModuleDocumenter and ClassDocumenter :private-members: parsing from bool_option to members_option, preserving bare-option behavior as ALL while accepting comma-separated names. Added centralized private-member selection logic in Documenter.filter_members and applied it to both regular members and source-documented attributes, so only listed private members are retained when arguments are supplied. Verification: python -m pytest tests/test_ext_autodoc_private_members.py -q passed (2 passed); git diff --check passed. No test files modified.",True,True,"[""sphinx/ext/autodoc/__init__.py""]","[""sphinx/ext/autodoc/__init__.py""]",[],[],modelbench\swe_fixed_team_20260903\pilot_v13\results\sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.cm24\worker-1\delta.patch
+swe_fixed_team_20260903/pilot_v13/sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.cm24,sphinx-doc__sphinx-8035,worker-2,glm-5.3,blocked,"Task NOT completed (call budget exhausted before applying files). Inspected only; no repository files were modified.
+
+BASELINE BEHAVIOR OBSERVED (unfixed):
+- `sphinx/ext/autodoc/__init__.py` registers `'private-members': bool_option` in both option_specs (ModuleDocumenter ~line 862, Documenter ~line 1282). `bool_option` returns `True` for ANY argument, so `:private-members: _foo` is currently indistinguishable from `:private-members:` and documents ALL private members.
+- `Documenter.filter_members` decides with `keep = self.options.private_members` (truthiness) in the attr_docs branch (~line 652) and `keep = self.options.private_members and (has_doc or self.options.undoc_members)` in the want_all+isprivate branch (~line 659). No name-list handling exists for private members.
+- Therefore the new argument-taking tests below are EXPECTED TO FAIL on the baseline (they will document all private members); they should pass once `private-members` uses `members_option` (ALL / name-list) with membership checks in both filter_members branches. Do not weaken them to pass on baseline.
+- Existing tests found: `tests/test_ext_autodoc_private_members.py` (test_private_field, test_private_field_and_private_members use `{""members"": None}` / `{""members"": None, ""private-members"": None}` on `target.private`); `tests/test_ext_autodoc.py` uses `'private-members': True` (test_autodoc_member_order, ~lines 890/915/939) and `None` (~1982) — these stay valid because `members_option(None)` → ALL and upstream keeps `True` → ALL.
+- `do_autodoc(app, objtype, name, options)` passes the options dict through `process_documenter_options` → `assemble_option_dict(options.items(), option_spec)`, so a string value like `""_private_function""` reaches the option converter; string options are testable directly (no rst parsing needed).
+
+PROPOSED TEST DELTA (for the Lead to apply alongside the production fix):
+1) New fixture `tests/roots/test-ext-autodoc/target/private_members.py`:
+   def public_function(name):
+       """"""public_function is a docstring().""""""
+   def _private_function(name):
+       """"""_private_function is a docstring().""""""
+   def _private_function2(name):
+       """"""_private_function2 is a docstring().""""""
+   class Foo:
+       """"""Foo is a class.""""""
+       def public_method(self):
+           """"""public_method is a docstring().""""""
+       def _private_method(self):
+           """"""_private_method is a docstring().""""""
+       def _private_method2(self):
+           """"""_private_method2 is a docstring().""""""
+   (kept methods-only to avoid ambiguity of py:attribute lines in the filtered assertions)
+2) Append to `tests/test_ext_autodoc_private_members.py` (reuses `do_autodoc` import and the `filter(lambda l: '::' in l, actual)` assertion style already used in `test_autodoc_member_order`):
+   - test_private_members_with_argument: options `{""members"": None, ""private-members"": ""_private_function""}`, `do_autodoc(app, 'module', 'target.private_members', ...)` → `['.. py:module:: target.private_members', '.. py:function:: _private_function(name)', '.. py:function:: public_function(name)']`
+   - test_private_members_with_arguments (comma list `""_private_function, _private_function2""`) → module + `_private_function`, `_private_function2`, `public_function`
+   - test_private_members_with_nonexistent_name (`""_nonexistent""`) → module + `public_function` only (no crash, no private members)
+   - test_private_class_members_with_argument: `do_autodoc(app, 'class', 'target.private_members.Foo', {""members"": None, ""private-members"": ""_private_method""})` → `['.. py:class:: Foo', '.. py:method:: Foo._private_method()', '.. py:method:: Foo.public_method()']`
+   - Backwards-compat (expected to pass on baseline too): `{""members"": None, ""private-members"": None}` and `{""members"": None, ""private-members"": True}` both → all private members listed.
+   CAVEAT: exact expected lines (e.g. `py:method:: Foo._private_method()`, member ordering) were not verified by execution; after applying the production fix, run pytest and, if needed, align the '::'-filtered expected lists to actual output — the assertion style makes that a one-line diff and does not weaken coverage.
+3) Also verify no existing test regressed: run `pytest tests/test_ext_autodoc_private_members.py tests/test_ext_autodoc.py -k private` plus the member-order tests; the new fixture module is additive, so `target.private` tests are unaffected.",True,False,[],[],[],[],modelbench\swe_fixed_team_20260903\pilot_v13\results\sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.cm24\worker-2\delta.patch
+A2/a2-resume-v2/a2-07-T,matplotlib__matplotlib-20826,worker-1,gpt-5.6-terra,blocked,"Blocked: modified lib/matplotlib/axes/_base.py to preserve tick visibility settings across Axis.clear(), but the direct shared-axes reproduction still failed (top-row x tick labels remained visible). The public pytest command was not reached because the reproduction assertion failed under set -e. Do not adopt this delta as a completed fix.",True,True,"[""lib/matplotlib/axes/_base.py""]","[""lib/matplotlib/axes/_base.py""]",[],[],modelbench\minimal_value_20260905\batches\a2-resume-v2\results\a2-07-T\worker-1\delta.patch
+A2/a2-resume-v2/a2-07-T,matplotlib__matplotlib-20826,worker-2,glm-5.3,completed,"Added two regression tests (plus a state helper) to lib/matplotlib/tests/test_subplots.py only; no production files modified.
+
+Scope/commands:
+- `cd /testbed && python -m pytest lib/matplotlib/tests/test_subplots.py -q -k ""clear or shared_and_moved or hide_ticklabels""` → 2 failed, 17 passed, 13 deselected on the unchanged baseline. The 2 failures are exactly the new tests (test_clear_unshared_axes_keeps_tick_visibility, test_clear_shared_axes_keeps_tick_visibility); existing shared_and_moved / hide_ticklabels scope passes, so a failing baseline is established.
+- Probe of the issue repro (Agg, plt.subplots(2,2,sharex=True,sharey=True) + ax.clear() + replot) confirmed the mechanism: _major_tick_kw goes from {'gridOn': False, 'tick1On': True, 'tick2On': False, 'label1On': False, 'label2On': False} to {'gridOn': False} after clear, and recreated ticks show top/right ticklines and re-show hidden inner tick labels on all four subplots (Axis.clear → _reset_major_tick_kw drops tick/label visibility keys).
+
+Tests distinguish plausible wrong fixes: unconditional tick_bottom()/tick_left() after clear (fails explicit shared-hide pattern), sharex/sharey-only stash in cla() (fails standalone-axes test), hide-everything approaches (fail before/after equality and outer-label-visible expectations).
+
+Limitations: production patch never received, so no claim of post-fix pass. The absolute pre-clear assertions x_ticks_top/y_ticks_right is False are style-dependent and already violated pre-clear under the pytest conftest style (observed in the shared test's first failure); recommended adjustment for the Lead: wrap tests in `with matplotlib.style.context('default'):` or drop those two absolute assertions and rely on the style-agnostic before/after _axes_tick_state equality. Work-call budget (8/8) was exhausted before that adjustment could be applied and rerun.",True,True,"[""lib/matplotlib/tests/test_subplots.py""]",[],"[""lib/matplotlib/tests/test_subplots.py""]",[],modelbench\minimal_value_20260905\batches\a2-resume-v2\results\a2-07-T\worker-2\delta.patch
+A2/a2-resume-v2/a2-07-D,matplotlib__matplotlib-20826,worker-1,glm-5.3,blocked,"TEST WORKER REPORT — no files changed (production untouched, test delta NOT yet applied/run; local work-call budget exhausted at the diagnostic stage, so the proposed delta below is delivered as text for the Lead to integrate and run).
+
+BASELINE: /testbed @ a0d2e39972 (matplotlib 0.0.post39910+ga0d2e39), Agg. Production files inspected read-only: axes/_base.py (cla/clear, _shared_axes, sharex/sharey), axis.py (Axis.clear -> _reset_major_tick_kw/_reset_minor_tick_kw/reset_ticks, Tick.__init__ defaults at line 68 `tick1On=True,`), axes/_subplots.py:112-115 (_label_outer_xaxis/_label_outer_yaxis definitions — located this round), figure.py:1907/1910, gridspec.py:312/315. Test file: lib/matplotlib/tests/test_subplots.py (check_visible helper; test_shared_and_moved ~L125; test_subplots_hide_ticklabels ~L162, which asserts axis._major_tick_kw[""label1On""/""label2On""] directly — precedent that these keys are present on shared grids).
+
+ROOT CAUSE OBSERVED (equivalent failing baseline established by direct inspection, not yet as a pytest failure):
+Command: `cd /testbed && python - <<'EOF' ... fig, axes = plt.subplots(2, 2, sharex=True, sharey=True); dump kw; axes.flat[0].clear(); dump kw ... EOF` (exit 0 for the printing script; a first variant exited 1 with KeyError 'label1On').
+Observed pre-clear (shared 2x2, default rcParams): every axis has x/y `_major_tick_kw = {'gridOn': False, 'tick1On': True, 'tick2On': False, 'label1On': …, 'label2On': False}` with x `label1On` True only on the last row ([[F,F],[T,T]]) and y `label1On` True only on the first column ([[T,F],[T,F]]) — i.e. the sharing machinery's one-sided ticks + inner-label hiding live in `_major_tick_kw`.
+Observed after `axes.flat[0].clear()`: ax0's x AND y `_major_tick_kw` collapse to `{'gridOn': False}` (tick1On/tick2On/label1On/label2On all lost) and ax0's x tick labels become visible ([True]×5) where they must stay hidden. This exactly reproduces the issue (extra top/right tick marks + un-hidden shared tick labels).
+
+PROPOSED TEST DELTA (append to lib/matplotlib/tests/test_subplots.py; uses only already-imported itertools/pytest/plt):
+
+def test_subplots_clear_keeps_shared_tick_configuration():
+    """"""
+    clear()ing Axes of a shared subplot grid must keep the tick configuration
+    installed by the sharing machinery (hidden tick labels on inner subplots
+    and one-sided tick marks) instead of resetting it to bare rcParams ticks.
+    """"""
+    fig, axes = plt.subplots(2, 2, sharex=True, sharey=True)
+    for ax in axes.flat:
+        ax.plot([0, 1], [0, 1])
+    before = [(ax.xaxis._major_tick_kw.copy(), ax.yaxis._major_tick_kw.copy())
+              for ax in axes.flat]
+    for ax in axes.flat:
+        ax.clear()
+    for i, (ax, expected) in enumerate(zip(axes.flat, before)):
+        for name, kw_before in zip(""xy"", expected):
+            kw_after = getattr(ax, f""{name}axis"")._major_tick_kw
+            # gridOn legitimately resets on clear; nothing else may change.
+            assert ({k: v for k, v in kw_after.items() if k != ""gridOn""}
+                    == {k: v for k, v in kw_before.items() if k != ""gridOn""}), \\
+                f""ax {i}: {name}-axis tick configuration changed by clear()""
+
+
+@pytest.mark.parametrize('top, bottom, left, right',
+                         itertools.product([False, True], repeat=4))
+def test_subplots_clear_keeps_rcparams_ticklabels(top, bottom, left, right):
+    # Like test_subplots_hide_ticklabels, but every Axes is clear()ed first:
+    # clear() must restore (not drop) the rcParams-derived, position-dependent
+    # tick-label visibility.
+    with plt.rc_context(rc={'xtick.top': top, 'xtick.bottom': bottom,
+                            'ytick.left': left, 'ytick.right': right}):
+        fig, axs = plt.subplots(3, 3, sharex=True, sharey=True)
+        for ax in axs.flat:
+            ax.clear()
+        for i in range(3):
+            for j in range(3):
+                assert axs[i, j].xaxis._major_tick_kw[""label2On""] == (top and i == 0)
+                assert axs[i, j].xaxis._major_tick_kw[""label1On""] == (bottom and i == 2)
+                assert axs[i, j].yaxis._major_tick_kw[""label1On""] == (left and j == 0)
+                assert axs[i, j].yaxis._major_tick_kw[""label2On""] == (right and j == 2)
+
+COUNTEREXAMPLE / DISCRIMINATION RATIONALE: a plausible wrong fix is one that calls Axis.clear() (or unconditionally resets `_major_tick_kw`/`reset_ticks`) and never re-applies the configuration installed by figure/gridspec/_subplots sharing (_label_outer_xaxis/_label_outer_yaxis via set_tick_params) — on the unpatched baseline the dict-comparison test fails because the post-clear dict is only {'gridOn': False} (verified above). A second wrong-but-plausible fix restores only tick-label visibility while dropping tick-mark sidedness (or vice versa): the snapshot dict comparison fails since tick1On/tick2On are part of the snapshot. A third wrong fix hard-codes bottom/left-only labels after clear: the parametrized rc_context variant distinguishes it because with xtick.labeltop/ytick.labelright True the correct expectation is `label2On` True on the first row / first column (top and i==0; right and j==2), matching the semantics of the existing test_subplots_hide_ticklabels.
+
+COMMANDS TO RUN (Lead, alongside the production fix; NOT executed by me):
+1) `cd /testbed && python -m pytest lib/matplotlib/tests/test_subplots.py::test_subplots_clear_keeps_shared_tick_configuration -q`
+2) `cd /testbed && python -m pytest lib/matplotlib/tests/test_subplots.py -k ""clear_keeps"" -q`
+3) public check scope: `cd /testbed && python -m pytest lib/matplotlib/tests/test_subplots.py -q -k ""shared_and_moved or hide_ticklabels""`
+Expected: 1–2 fail on the unpatched baseline (evidence: diagnostic above shows the reset), pass with a correct fix; 3 must stay passing (it is baseline-green today per the predeclared public check).
+
+LIMITATIONS: I did not apply or execute the delta (work-call budget exhausted), did not receive or validate any production patch, and cannot claim the new tests pass; the failing-baseline evidence is from the equivalent inspection script whose exact commands/output are quoted above.",True,False,[],[],[],[],modelbench\minimal_value_20260905\batches\a2-resume-v2\results\a2-07-D\worker-1\delta.patch
+A2/a2-backfill-v1/a2-09-D,pylint-dev__pylint-6386,worker-1,glm-5.3,completed,"Delivered test-only delta: extended `tests/test_self.py::TestCallbackOptions::test_verbose` with a short-option regression block (`Run([""-v"", join(HERE, ""regrtest_data"", ""empty.py"")], exit=False)` inside `_test_sys_path()`, asserting `run.verbose`). Rationale/distinguishing counterexample: with `exit=False` and a real input file, no SystemExit may escape — a no-short-option fix leaves `-v` to argparse (`_DoNothingAction`, no nargs/const → ""expected one argument"" SystemExit); a takearg=True mapping swallows the filename / trips `_set_verbose_mode`'s `assert value is None`; a help-text-only fix fails too. A `pytest.raises(SystemExit)`-wrapped `Run([""-v""])` would pass vacuously on buggy code, so it was avoided. Observed on unchanged baseline: `cd /testbed && python -m pytest tests/test_self.py -q -k verbose` → `1 failed, 117 deselected` (`test_verbose - SystemExit: 32`; stderr shows `Using config file /testbed/pylintrc`, `Option --verbose doesn't expects a value`), so a failing baseline exists for the selected scope. Limitations, reported honestly: traceback was tail-truncated so the exact failing statement is unconfirmed; a temporary plausible production fix (adding `""-v""` to PREPROCESSABLE_OPTIONS, then reverted via `git checkout -- pylint/config/utils.py`) still yielded the same `SystemExit: 32` failure, so I cannot claim this test validates any production fix — possible repo-pylintrc interference (Lead may add an explicit `--rcfile=` if the block stays red after their patch). Only `tests/test_self.py` is modified; no production files changed; no unseen production patch was validated.",True,True,"[""tests/test_self.py""]",[],"[""tests/test_self.py""]",[],modelbench\minimal_value_20260905\batches\a2-backfill-v1\results\a2-09-D\worker-1\delta.patch
+A2/a2-backfill-v1/a2-09-T,pylint-dev__pylint-6386,worker-1,gpt-5.6-terra,completed,"Implemented the minimal production fix in pylint/lint/base_options.py: set the verbose _DoNothingAction kwargs to {""nargs"": 0}, so -v is parsed as a flag rather than requiring a value. Verified with `python -m pytest tests/test_self.py -q -k verbose` (1 passed) and `python -m pylint --exit-zero -v pylint/__init__.py`; the latter completed without the former “expected one argument” error. Also confirmed `python -m pylint -v --help` succeeds.",True,True,"[""pylint/lint/base_options.py""]","[""pylint/lint/base_options.py""]",[],"[""pylint/lint/base_options.py""]",modelbench\minimal_value_20260905\batches\a2-backfill-v1\results\a2-09-T\worker-1\delta.patch
+A2/a2-backfill-v1/a2-09-T,pylint-dev__pylint-6386,worker-2,glm-5.3,completed,"Added regression test `TestCallbackOptions::test_verbose_short_option` to tests/test_self.py (13 added lines, tests only, no production edits). It runs pylint with `-v` and with `--verbose` on tests/regrtest_data/empty.py using `Run([...], exit=False)` and asserts `run.verbose`, so `-v` must be an argument-free flag that enables verbose mode. Ran `python -m pytest tests/test_self.py -q -k verbose` against the unchanged baseline: `1 failed, 1 passed` — the new test fails with SystemExit (`argument --verbose/-v: expected one argument`), the pre-existing `test_verbose` passes; a long-option sanity run confirmed `Run(['--verbose', file], exit=False).verbose is True`, so the test form is valid for a correct fix. This establishes the failing baseline and distinguishes both the unfixed behavior and a fix that merely accepts `-v` without enabling verbose. Production patch not received; Lead must integrate the test delta and re-run the scope with the fix.",True,True,"[""tests/test_self.py""]",[],"[""tests/test_self.py""]","[""tests/test_self.py""]",modelbench\minimal_value_20260905\batches\a2-backfill-v1\results\a2-09-T\worker-2\delta.patch
+B1/b1-coding-continuation-v1/b1-r1-q05-D00,matplotlib__matplotlib-20826,worker-1,glm-5.3,completed,"ROLE: test worker (regression tests only). No production files were modified (verified: only inspection + a read-only print of `lib/matplotlib/tests/test_subplots.py`).
+
+BASELINE BEHAVIOR OBSERVED (unfixed production baseline, HEAD a0d2e39972, ver 0.0.post39910+ga0d2e39), via a throwaway Agg probe (not committed):
+- `fig, axes = plt.subplots(2, 2, sharex=True, sharey=True)`; ordering axes.flat = TL, TR, BL, BR.
+- BEFORE `ax.clear()` (after plotting [0,1],[0,1]):
+  - x tick labels visible: [False, False, True, True]; y tick labels visible: [True, False, True, False] (via `get_xticklabels()/get_yticklabels()` visibility).
+  - `ax.xaxis/yaxis._major_tick_kw` contains {'tick1On': True, 'tick2On': False, 'label1On': ..., 'label2On': False} consistent with the hiding above.
+  - offsetText visibility: x [False, False, True, True], y [True, False, True, False] — i.e. exactly what the existing `check_visible` helper asserts.
+- AFTER `ax.clear()` on each axes: `xaxis._major_tick_kw` and `yaxis._major_tick_kw` become `{}` (reset by `Axis.clear()` -> `_reset_major_tick_kw()`), and ALL tick labels become visible (`get_xticklabels()/get_yticklabels()` visibility True on all 4 axes, incl. inner axes). offsetText visibility is unchanged. So the issue's regression is reproduced: sharing of limits survives (`cla()` re-runs `sharex/sharey` + `_shared_axes.clean()`), but label hiding does not. Same `_major_tick_kw -> {}` reset also occurs on a plain, non-shared axes (consistent with the reported extra top/right ticks symptom).
+
+DELIVERABLE — test delta for the Lead to apply (append to `lib/matplotlib/tests/test_subplots.py`; no new imports needed; `plt` and `check_visible` are already available in that module):
+
+```python
+def test_clear_shared_axes_keeps_hidden_ticklabels():
+    # clear() must not unhide tick labels that plt.subplots(..., sharex=True,
+    # sharey=True) hid on the inner axes, even though the axes remain linked.
+    fig, axes = plt.subplots(2, 2, sharex=True, sharey=True)
+    for ax in axes.flat:
+        ax.plot([0, 1], [0, 1])
+    # axes.flat order: top-left, top-right, bottom-left, bottom-right.
+    visible = ([False, False, True, True],   # x tick labels
+               [True, False, True, False])   # y tick labels
+    check_visible(axes.flat, *visible)
+    for ax in axes.flat:
+        ax.clear()
+        ax.plot([0, 1], [0, 1])
+    check_visible(axes.flat, *visible)
+
+
+def test_clear_keeps_tick_and_label_sides():
+    # clear() must also not change which sides carry tick marks / tick labels
+    # (the reported ""extra ticks on the top and right"" symptom); this holds
+    # even without any axes sharing.  State-preservation (before == after) is
+    # asserted so the test does not over-specify rcParam defaults.
+    fig, ax = plt.subplots()
+    ax.plot([0, 1], [0, 1])
+    fig.canvas.draw()
+
+    def tick_sides():
+        return [
+            (tick.tick1line.get_visible(), tick.tick2line.get_visible(),
+             tick.label1.get_visible(), tick.label2.get_visible())
+            for axis in (ax.xaxis, ax.yaxis)
+            for tick in axis.get_major_ticks()
+        ]
+
+    before = tick_sides()
+    ax.clear()
+    ax.plot([0, 1], [0, 1])
+    fig.canvas.draw()
+    assert tick_sides() == before
+```
+
+INTENDED SCOPE / COMMANDS (run in the Lead's copy together with the production fix):
+- python -m pytest lib/matplotlib/tests/test_subplots.py -q -k ""clear or shared_and_moved or hide_ticklabels""
+- predeclared public check: python -m pytest lib/matplotlib/tests/test_subplots.py -q -k ""shared_and_moved or hide_ticklabels"" (existing tests, unaffected by my delta; should stay green).
+
+DISCRIMINATING POWER (plausible wrong implementation these tests separate):
+- A fix that merely keeps the axes *linked* (re-running `sharex/sharey`/`_shared_axes.clean()`, as `cla()` already does) while letting `Axis.clear()` reset tick-label visibility to rcParams defaults is exactly the observed baseline bug; `test_clear_shared_axes_keeps_hidden_ticklabels` fails on it at the post-clear `check_visible` (inner-axes tick labels report visible) while passing pre-clear, so it cannot pass by accident of the grid setup. It uses the observable public path (`get_xticklabels()/get_yticklabels()` visibility + offsetText via `check_visible`), so it does not depend on how the fix stores state.
+- `test_clear_keeps_tick_and_label_sides` adds an independent input source (a single, non-shared axes) and boundary condition: it distinguishes fixes that only repair the shared-axes path but still reset tick-side configuration (the baseline empties `_major_tick_kw` even without sharing, the reported extra top/right ticks). Comparing before/after equality avoids asserting specific rcParam defaults.
+
+LIMITATIONS (honest reporting):
+- pytest was NOT executed in my session: the tool runner moved to a finish-only closing call right after my file inspection, so the two new tests above were never written to disk or run, and the predeclared public check command was not run by me. Expected status on the unchanged baseline: `test_clear_shared_axes_keeps_hidden_ticklabels` FAILS (probe showed all tick labels visible after clear, contradicting `check_visible`'s expected False for inner axes); `test_clear_keeps_tick_and_label_sides` is expected to FAIL on the baseline iff `Axis.clear()`'s `_major_tick_kw` reset changes rendered tick1/tick2/label1/label2 visibility for default rcParams — this specific rendering consequence was not directly probed (only the dict reset was), so the Lead should treat that test's baseline outcome as unverified. Neither test was validated against a production fix: I never received any production patch, and I do not claim the hidden grading tests or the production fix pass.",True,False,[],[],[],[],modelbench\big_budget_team_20260906\batches\b1-coding-continuation-v1\results\b1-r1-q05-D00\worker-1\delta.patch
+B1/b1-coding-continuation-v1/b1-r1-q05-D11,matplotlib__matplotlib-20826,worker-1,glm-5.3,completed,"Added 3 focused regression tests + 2 helpers (111 lines) to lib/matplotlib/tests/test_subplots.py covering the issue: shared-axis tick-label hiding (label_outer) and tick2line visibility lost after ax.clear(), plus top/right rcParams variants. No production files modified. Commands run on unchanged baseline: public check `python -m pytest lib/matplotlib/tests/test_subplots.py -q -k ""shared_and_moved or hide_ticklabels""` → 3 failed (the new tests), 17 passed, 13 deselected, PYTEST_EXIT=1; full file → 3 failed, 29 passed, 1 pre-existing env skip. Existing tests (test_subplots_hide_ticklabels, test_shared_and_moved) pass on the buggy baseline, so the new tests are required to catch the regression. Observed wrong behavior captured: after clear(), _major_tick_kw collapses to {'gridOn': False}, label_outer hiding lost (label1On False→True on hidden rows/cols), tick2line False→True, and under top/right rcParams label2 True→False. Limitation: production patch was never received, so it is not validated here; the 3 expected failures are on the unfixed baseline only.",True,True,"[""lib/matplotlib/tests/test_subplots.py""]",[],"[""lib/matplotlib/tests/test_subplots.py""]","[""lib/matplotlib/tests/test_subplots.py""]",modelbench\big_budget_team_20260906\batches\b1-coding-continuation-v1\results\b1-r1-q05-D11\worker-1\delta.patch
+B1/b1-coding-continuation-v1/b1-r1-q05-F-T,matplotlib__matplotlib-20826,worker-1,glm-5.3-flash,completed,"## Root cause
+The 3.4.2 regression has two independent parts, both fixed in production code:
+
+1. **`Axes.cla()` did not re-apply rcParams-derived tick_params.** In 3.4.2, `Axes.__init__` replays `tick_params(top=..., bottom=..., ..., which='minor'/'major')` at the end of `__init__`, but since `cla()` is what `__init__` uses for setup, any user customization (e.g. `tick_params(top=False)` or rcParams `xtick.top: True`) was wiped by `Axis.clear()`'s `_reset_*_tick_kw()` + `reset_ticks()` on later `ax.clear()` calls — reintroducing top/right ticks.
+2. **`SubplotBase._label_outer_xaxis/_label_outer_yaxis` effects were lost on `cla()`.** `Axis.clear()` → `reset_ticks()` re-creates Tick objects from `_major_tick_kw`, so the `labeltop/labelbottom/labelleft/labelright=False` applied by `label_outer()` at creation time vanished, un-hiding shared-axis tick labels.
+
+## Changed production files
+**`lib/matplotlib/axes/_base.py`**
+- Moved the two rcParams-derived `self.tick_params(..., which='minor'/'major')` blocks verbatim out of `__init__` and into the end of `cla()` (before `self.stale = True`). Since `__init__` calls `cla()`, init-time behavior is identical, and every `clear()` now restores rcParams defaults for tick/label visibility (gridOn keys are not passed, so `Axis.clear()`'s grid handling and `cla()`'s existing `self.grid(self._gridOn, ...)` remain untouched).
+
+**`lib/matplotlib/axes/_subplots.py`**
+- Added `self._label_outer_xaxis_applied/_label_outer_yaxis_applied = False` in `SubplotBase.__init__` (before `_axes_class.__init__`, so `cla()` during init is a no-op for replay).
+- `_label_outer_xaxis`/`_label_outer_yaxis` set their flag to `True` at the end.
+- New `SubplotBase.cla()` override: `super().cla()` then replays `_label_outer_xaxis()`/`_label_outer_yaxis()` only if previously applied.
+
+No test files modified.
+
+## Verification
+- Functional (Agg): issue reproduction `plt.subplots(2,2, sharex=True, sharey=True)` + per-ax `clear()` → interior axes keep hidden labels (`axes[0,1].xaxis._major_tick_kw['label1On'] is False`, etc.), label_outer flags True/True; solo `ax.clear()` restores rcParams defaults (tick2On False, no phantom top/right ticks); `axes.grid=True` + `cla()` keeps gridlines visible.
+- Public check: `pytest test_subplots.py -k ""shared_and_moved or hide_ticklabels""` → **17 passed**.
+- Full `test_subplots.py` → 29 passed, 1 skipped; `test_axes.py::test_reset_grid` (protected by a15bc47816) → passed; targeted `test_axes.py -k ""cla or clear or share or label_outer or tick_params or visible""` → 28 passed.",True,True,"[""lib/matplotlib/axes/_base.py"", ""lib/matplotlib/axes/_subplots.py""]","[""lib/matplotlib/axes/_base.py"", ""lib/matplotlib/axes/_subplots.py""]",[],"[""lib/matplotlib/axes/_base.py"", ""lib/matplotlib/axes/_subplots.py""]",modelbench\big_budget_team_20260906\batches\b1-coding-continuation-v1\results\b1-r1-q05-F-T\worker-1\delta.patch
+B1/b1-coding-continuation-v1/b1-r1-q05-F-T,matplotlib__matplotlib-20826,worker-2,glm-5.3-flash,completed,"Role: test-only (regression tests). No production files modified.
+
+## Deliverable (test delta)
+`lib/matplotlib/tests/test_subplots.py` — two appended tests (file末尾, ~lines 212–275; `git diff --stat`: 1 file changed, 61 insertions(+), status M; working tree otherwise clean at HEAD a0d2e39972):
+
+1. `test_shared_and_moved_after_clear` — reproduces the issue's shared-axis symptom. `plt.subplots(2, 2, sharex=True, sharey=True)` plus a user customization (`axs[1,0].xaxis.set_tick_params(labelbottom=False)`), then per-axes `ax.clear()` + `ax.plot`. Asserts artist-level visibility (`get_xticklabels`/`get_yticklabels`/offsetText via `check_visible`, expected x=[F,F,F,T], y=[T,F,T,F] over row-major `axs.flat`) and that sharing survived (moved one axis → all move). Fails on baseline at the label-visibility assertion.
+
+2. `test_clear_preserves_hide_ticklabels` — isolates the non-shared top/right tick symptom from the issue, under `rc_context` with `xtick.top/ytick.right/xtick.labeltop/ytick.labelright = False`: after `ax.clear()` + replot, asserts per major tick `not tick.tick2line.get_visible()`, `not tick.label2.get_visible()`, `tick.label1.get_visible()`, and axes still visible (excludes the ""hide whole axis"" shortcut). Fails on baseline at `assert not tick.tick2line.get_visible()` (tick2line visible=True, line 268).
+
+## Exact command and observed baseline status (unmodified production)
+`cd /testbed && MPLBACKEND=Agg python -m pytest lib/matplotlib/tests/test_subplots.py -k ""shared_and_moved or hide_ticklabels"" -v` (timeout=120)
+→ **2 failed, 17 passed, 13 deselected in 1.49s**; failed: `test_shared_and_moved_after_clear`, `test_clear_preserves_hide_ticklabels`. All 17 pre-existing tests matching the filter pass → the 2 failures are the new tests failing on the unfixed baseline, as required.
+
+## Mechanism (closes the previously open question)
+`Tick.__init__` does NOT read the rcParams. The restore path is `Axes.__init__` (`lib/matplotlib/axes/_base.py` ~651–683): rcParams (`xtick.top`, `ytick.right`, `labeltop`, `labelright`, plus which/bottom/left variants) → `Axes.tick_params` → `set_tick_params` stores `tick2On`/`label1On`/`label2On`/... in `_major_tick_kw`/`_minor_tick_kw` and applies them to live ticks. `ax.clear()` → `Axis.clear()` → `_reset_major_tick_kw()` **clears that dict** (only `gridOn` is re-derived from rcParams) and `reset_ticks()` deletes tick artists; fresh ticks are created with hardcoded defaults `tick1On=tick2On=label1On=True, label2On=False` → top/right tick lines and shared-axis-hidden labels reappear. 3.4.1 re-applied this state in `cla`; 3.4.2 dropped it.
+
+## Wrong-implementation discrimination
+Assertions target artist visibility, not the `_major_tick_kw` dict: (a) a fix that merely replays `label_outer` restores shared-axis labels but not rcParam-hidden top/right ticks → test 1 y-axis visibility fails; (b) a fix that hides the whole axis → `test_clear_preserves_hide_ticklabels`'s `ax.xaxis.get_visible()` assertion fails; (c) no state preservation → both fail on the unfixed baseline (observed). A dict-preserving fix is the plausible correct direction.
+
+## Limitations
+- No production patch was received; the 2 failures are baseline behavior, not patch validation. Not validated against any fix.
+- Repo has no v3.4.x tags, so the 3.4.1↔3.4.2 diff could not be inspected; reasoning derived from current source and issue symptoms.
+- No further work planned; delta ready for Lead integration.",True,True,"[""lib/matplotlib/tests/test_subplots.py""]",[],"[""lib/matplotlib/tests/test_subplots.py""]",[],modelbench\big_budget_team_20260906\batches\b1-coding-continuation-v1\results\b1-r1-q05-F-T\worker-2\delta.patch
+B1/b1-coding-continuation-v1/b1-r1-q05-S-FF,matplotlib__matplotlib-20826,worker-1,glm-5.3-flash,completed,"Fixed ax.clear() un-hiding shared-axis tick labels / adding extra ticks. Minimal production-only change in lib/matplotlib/axis.py: _reset_major_tick_kw and _reset_minor_tick_kw no longer clear() their tick-kw dicts — they only re-derive gridOn from rcParams — so tick parameters set via set_tick_params (shared-axis label hiding label1On/label2On=False, top/right tick disabling) survive Axis.clear()/Axes.clear(). Added a docstring note to Axis.clear that tick parameters are not reset. Verified: issue repro assertions pass (Agg, 2x2 sharex/sharey with clear+plot: top-row x labels hidden, bottom-row visible, left y labels visible, right hidden, no tick2/label2 anywhere, grid() still works); declared public tests 17 passed, 13 deselected; full test_subplots.py 29 passed, 1 skipped; test_axes.py -k ""tick_params or label_outer or cla or clear"" 6 passed; -k ""tick or axis or Axis"" 66 passed, 2 skipped. git status shows only lib/matplotlib/axis.py modified; no test files changed. All exit codes 0.",True,True,"[""lib/matplotlib/axis.py""]","[""lib/matplotlib/axis.py""]",[],[],modelbench\big_budget_team_20260906\batches\b1-coding-continuation-v1\results\b1-r1-q05-S-FF\worker-1\delta.patch
+B1/b1-coding-continuation-v1/b1-r1-q05-S-FF,matplotlib__matplotlib-20826,worker-2,glm-5.3-flash,completed,"STATUS: completed (test role). Regression tests for the ax.clear() shared-axis tick bug are implemented in lib/matplotlib/tests/test_subplots.py on the unfixed baseline a0d2e39972; no production files modified (git: only `M lib/matplotlib/tests/test_subplots.py`, +71 lines). flake8 passes on the modified file.
+
+TEST DELTA (for Lead to adopt; inserted immediately before test_subplots_hide_axislabels):
+- `_tick_visibility(ax)` helper: dict of x/y tick1/tick2/label1/label2 visibility read from `get_major_ticks()[0]` line/text artists (asserts artist visibility, not `_major_tick_kw` contents).
+- `test_clear_does_not_unhide_ticklabels`: plt.subplots(2,2, sharex=True, sharey=True); captures per-axes visibility before clear, clears all four, asserts post-clear == pre-clear; plus explicit assertions: interior axes ([0,0] x, [0,1] x/y, [1,1] y) label1 hidden, outer axes ([1,0]) label1 visible, and every axis tick1line visible & tick2line invisible.
+- `test_clear_single_axes_does_not_unhide_ticklabels`: single Axes clear preserves visibility; tick2line stays invisible; user tick_params(top/right/labeltop/labelright=False) survives clear.
+- `test_clear_does_not_unhide_ticklabels_user_params`: explicit tick_params(top=True, labeltop=True) survives clear (label2/tick2line/label1 visible). CAVEAT: encodes strict 3.4.1 persistence semantics; discard if the adopted fix intentionally reverts user overrides to rcParams defaults instead of preserving them (name contains ""hide_ticklabels"" so it is still selected by the public -k filter if kept).
+
+EXACT COMMAND & OBSERVED STATUS (run against unchanged production baseline, failures observed directly, not inferred from pipeline status):
+`cd /testbed && python -m pytest lib/matplotlib/tests/test_subplots.py -k ""shared_and_moved or hide_ticklabels"" -v`
+=> `3 failed, 17 passed, 10 deselected in 1.61s`. All 17 pre-existing selected tests pass (test_shared_and_moved + 16 parametrized test_subplots_hide_ticklabels). The three new tests FAIL on the unfixed baseline at the expected symptoms:
+- test_clear_does_not_unhide_ticklabels (line 204): first axes label1 becomes visible after clear (un-hidden shared-axis tick label).
+- test_clear_single_axes_does_not_unhide_ticklabels (line 229): x tick2line visible after clear (the extra top/right ticks symptom).
+- test_clear_does_not_unhide_ticklabels_user_params (line 249): label2 invisible after explicit labeltop=True + clear (user params dropped).
+Root cause (context-confirmed, for Lead's fix): a15bc47816 made Axis.clear() call _reset_major_tick_kw/_reset_minor_tick_kw, which .clear() the whole _major_tick_kw/_minor_tick_kw dicts, discarding tick1On/tick2On/label1On/label2On (from rcParams init and label_outer) instead of only updating 'gridOn'. A ""replay label_outer only"" wrong fix would still fail these tests (tick2line assertions), as would an ""rcParams replay"" fix (shared-axis label1 assertions) — the tick-line assertions are what separate them.
+
+SCOPE/LIMITATIONS: no subplot_mosaic coverage (figure.py also calls _label_outer_*); issue/PR number not asserted in tests; production patch not received, so post-fix pass cannot be claimed or validated by me.",True,True,"[""lib/matplotlib/tests/test_subplots.py""]",[],"[""lib/matplotlib/tests/test_subplots.py""]","[""lib/matplotlib/tests/test_subplots.py""]",modelbench\big_budget_team_20260906\batches\b1-coding-continuation-v1\results\b1-r1-q05-S-FF\worker-2\delta.patch
+B1/b1-coding-continuation-v1/b1-r1-q05-T00,matplotlib__matplotlib-20826,worker-1,gpt-5.6-terra,completed,"Implemented the minimal production fix in lib/matplotlib/axis.py: Axis.clear() preserves stored tick-visibility settings while resetting grid state, preventing clear() from re-enabling hidden shared-axis labels and top/right ticks. Verified the shared 2x2 and standalone clear behavior with assertions; public pytest check passed (17 passed, 13 deselected); git diff --check passed. No test files modified.",True,True,"[""lib/matplotlib/axis.py""]","[""lib/matplotlib/axis.py""]",[],"[""lib/matplotlib/axis.py""]",modelbench\big_budget_team_20260906\batches\b1-coding-continuation-v1\results\b1-r1-q05-T00\worker-1\delta.patch
+B1/b1-coding-continuation-v1/b1-r1-q05-T00,matplotlib__matplotlib-20826,worker-2,glm-5.3,blocked,"ROLE/DELIVERABLE: I own regression tests only; no production files were modified. RESULT: NO test delta was persisted and NO pytest run was executed — my single final work call (append two regression tests to `lib/matplotlib/tests/test_subplots.py` and run the public selection) was rejected before execution by tool schema validation (`bash.timeout: number out of range`, `executed: false`), and the runtime then moved to finish-only. Therefore everything below is a PROPOSED test delta that I could not apply or execute; I do not claim any pass/fail validation of it, and I never saw the production patch.
+
+PROPOSED TEST DELTA (append to `lib/matplotlib/tests/test_subplots.py`; names deliberately contain the substring `hide_ticklabels` so the public check `-k ""shared_and_moved or hide_ticklabels""` collects them; file already imports `numpy as np` and `matplotlib.pyplot as plt`):
+
+```python
+def test_subplots_hide_ticklabels_after_clear():
+    # clear() resets the Axis, but must not lose the ticklabel visibility
+    # set up by the shared-axes layout of Figure.subplots (stored in
+    # Axis._major_tick_kw), otherwise the ticklabels of the inner Axes are
+    # unhidden and ticks reappear on the top/right sides.
+    fig = plt.figure()
+    axs = fig.subplots(3, 3, sharex=True, sharey=True)
+    for ax in axs.flat:
+        ax.clear()
+    for (i, j), ax in np.ndenumerate(axs):
+        # _major_tick_kw must still record the shared-axes layout so that
+        # ticks created later keep hiding the ticklabels.
+        assert ax.xaxis._major_tick_kw.get(""label1On"") == (i == 2)
+        assert ax.xaxis._major_tick_kw.get(""label2On"") is False
+        assert ax.yaxis._major_tick_kw.get(""label1On"") == (j == 0)
+        assert ax.yaxis._major_tick_kw.get(""label2On"") is False
+    fig.canvas.draw()
+    for (i, j), ax in np.ndenumerate(axs):
+        assert all(l.get_visible() == (i == 2)
+                   for l in ax.get_xticklabels())
+        assert all(l.get_visible() == (j == 0)
+                   for l in ax.get_yticklabels())
+        # ticks are only on the bottom/left sides by default
+        for tick in ax.xaxis.get_major_ticks():
+            assert not tick.tick2line.get_visible()
+        for tick in ax.yaxis.get_major_ticks():
+            assert not tick.tick2line.get_visible()
+
+
+def test_hide_ticklabels_and_extra_ticks_after_clear():
+    # Single-Axes variant: clear() must not re-enable ticks and ticklabels
+    # on the sides for which the (default) rcParams turn them off.
+    fig, ax = plt.subplots()
+    ax.clear()
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    fig.canvas.draw()
+    for tick in ax.xaxis.get_major_ticks():
+        assert tick.tick1line.get_visible()      # xtick.bottom
+        assert not tick.tick2line.get_visible()  # xtick.top
+        assert tick.label1.get_visible()         # xtick.labelbottom
+        assert not tick.label2.get_visible()     # xtick.labeltop
+    for tick in ax.yaxis.get_major_ticks():
+        assert tick.tick1line.get_visible()      # ytick.left
+        assert not tick.tick2line.get_visible()  # ytick.right
+        assert tick.label1.get_visible()         # ytick.labelleft
+        assert not tick.label2.get_visible()     # ytick.labelright
+```
+
+COUNTEREXAMPLES THE TESTS DISTINGUISH (derived from the public issue, baseline = repo at `0.0.post39910+ga0d2e39`, unmodified):
+1) A plausible wrong fix that only re-runs `_label_outer_xaxis/_label_outer_yaxis` (`lib/matplotlib/axes/_subplots.py`) after clear restores label flags but leaves `tick2On` lost → top/right tick marks still drawn; caught by the `tick.tick2line.get_visible()` assertions in BOTH tests (the issue explicitly says top/right ticks also appear without shared subplots).
+2) A fix that only restores rcParams defaults into `_major_tick_kw` without re-applying shared-axes hidden flags → inner-Axes ticklabels reappear; caught by `get_xticklabels()/get_yticklabels()` visibility plus the `_major_tick_kw` flag assertions.
+3) A fix that fixes only already-created ticks but leaves `_major_tick_kw` missing `label1On/label2On` → later-created ticks unhide labels; caught by the `.get(...)` kw assertions (absent key yields None != expected).
+
+OBSERVED BASELINE FACTS (commands actually executed in earlier turns: `python /tmp/probe.py`; `python /tmp/probe2.py`; `sed -n 1150,1200p lib/matplotlib/axes/_base.py`; `grep -n ""def clear"" -A 20 lib/matplotlib/axis.py`; `grep -n ""tick2On"" lib/matplotlib/axis.py`; plus the two inspection calls above on `lib/matplotlib/axis.py` lines 655-700/770-815/840-885 and `grep -n ""hide_ticklabels"" -A 30 lib/matplotlib/tests/test_subplots.py`, all exit 0):
+- `Axis._reset_major_tick_kw`/`_reset_minor_tick_kw` (axis.py:776-784) `clear()` the kw dict and write only `gridOn`; `Axis.clear()` (axis.py:809-810) calls both resets, then `reset_ticks()`; ticks are created with `tick_kw = self._major_tick_kw` (axis.py:1326), so dropped keys (`label1On/label2On/tick2On`) fall back to `Tick` defaults (`tick2On=True`, `label1On=True`) — mechanism for extra top/right ticks and unhidden shared ticklabels.
+- Probes on a shared 2x2 grid: before clear, `xaxis._major_tick_kw` label flags were `{'label1On': False, 'label2On': False}` (non-last rows) / `{'label1On': True, 'label2On': False}` (last row), mirrored for y; after clear the keys were gone; single-axes `tick2On` was False before clear and absent after; rendered output showed `xtop 6`, `yright 7`, `xlab 6`, `ylab 7` on all four axes after clear+draw.
+- Existing `test_subplots_hide_ticklabels` (test_subplots.py:162-177) asserts the same kw flags for a fresh `subplots(3,3, sharex=True, sharey=True)` — my test 1 mirrors it post-clear, so the flag assertions are consistent with the established internal contract.
+
+LIMITATIONS: (a) no pytest command was ever executed, so no failing baseline status is reported — the only pending command was `python -m pytest lib/matplotlib/tests/test_subplots.py -q -k ""shared_and_moved or hide_ticklabels""` (public check) which was never run; (b) my tests cover only default rcParams (`xtick.top=False`, `xtick.labeltop=False`, etc.), i.e. the issue's exact repro — parametrization over `labeltop/labelright` was deliberately not asserted since I could not verify post-clear behavior for those; (c) offsetText visibility was not asserted because `Axis.clear()` does not appear to reset it and the fix's interaction there is unverified; (d) the production fix was never received, so no claim is made about test-vs-patch compatibility beyond the counterexample analysis above. Lead: apply the snippet, then run the public check on both the unfixed baseline (expect the two new tests to fail, existing ones to pass) and with the production patch.",True,False,[],[],[],[],modelbench\big_budget_team_20260906\batches\b1-coding-continuation-v1\results\b1-r1-q05-T00\worker-2\delta.patch
+B1/b1-coding-continuation-v1/b1-r1-q05-T01,matplotlib__matplotlib-20826,worker-1,gpt-5.6-terra,budget_exhausted,[DRAIN_IN_PROGRESS] No new calls admitted while the run drains in-flight work,True,False,[],[],[],[],modelbench\big_budget_team_20260906\batches\b1-coding-continuation-v1\results\b1-r1-q05-T01\worker-1\delta.patch
+B1/b1-coding-continuation-v1/b1-r1-q05-T01,matplotlib__matplotlib-20826,worker-2,glm-5.3,budget_exhausted,[DRAIN_IN_PROGRESS] No new calls admitted while the run drains in-flight work,True,False,[],[],[],[],modelbench\big_budget_team_20260906\batches\b1-coding-continuation-v1\results\b1-r1-q05-T01\worker-2\delta.patch
+B1/b1-coding-continuation-v1/b1-r1-q05-T10,matplotlib__matplotlib-20826,worker-1,gpt-5.6-terra,completed,"Updated lib/matplotlib/axis.py so Axis.clear() preserves non-grid tick settings (including shared-subplot label/tick visibility) while recomputing grid visibility from rcParams. Verified with the reported shared-axis clear scenario, a single-axis top/right-tick check, `python -m pytest lib/matplotlib/tests/test_subplots.py -q -k ""shared_and_moved or hide_ticklabels""` (17 passed), and `git diff --check`.",True,True,"[""lib/matplotlib/axis.py""]","[""lib/matplotlib/axis.py""]",[],"[""lib/matplotlib/axis.py""]",modelbench\big_budget_team_20260906\batches\b1-coding-continuation-v1\results\b1-r1-q05-T10\worker-1\delta.patch
+B1/b1-coding-continuation-v1/b1-r1-q05-T10,matplotlib__matplotlib-20826,worker-2,glm-5.3,completed,"Added focused regression tests for the `ax.clear()` shared-axis bug; only the test file was modified (`lib/matplotlib/tests/test_subplots.py`, +54 lines), no production files.
+
+Test delta (appended at end of `lib/matplotlib/tests/test_subplots.py`):
+1. `test_clear_keeps_tick_params` — single, non-shared axes: after turning on top/right ticks+labels and calling `ax.clear()`, tick params must be back at rcParams defaults (tick1/label1 visible; tick2/label2 — top and right — not visible). Covers the issue's ""extra ticks on top/right also appear without shared subplots"" symptom and catches implementations that only special-case shared axes.
+2. `test_clear_shared_axes_keeps_hidden_ticklabels` — `plt.subplots(2, 2, sharex=True, sharey=True)`, all four axes cleared: asserts no tick lines or labels on top/right sides for every axes, and that the sharing-induced hiding (label_outer semantics) survives: x label1 visible iff row == 1, y label1 visible iff col == 0. This distinguishes a plausible wrong implementation that merely resets tick params to rcParams defaults on shared axes (it would un-hide interior/shared labels — exactly the reported 3.4.2 behavior), and also one that unconditionally hides labels on any shared axes (it would wrongly hide the bottom-row x labels / left-column y labels).
+3. `test_clear_shared_row_keeps_ticklabels` — `plt.subplots(1, 2, sharex=True, sharey=True)` after clear: x labels must remain visible on both axes and y labels visible only on the left axes; guards against an over-broad ""hide labels when shared"" fix.
+
+Commands and observed status (against the unchanged production baseline, commit a0d2e39972):
+- `python -m pytest lib/matplotlib/tests/test_subplots.py -q -k ""clear_shared or clear_keeps""` → 3 failed, 30 deselected. Failures reproduce the bug: e.g. `assert not tick.tick2line.get_visible()` fails (top/right tick lines visible after clear) and y label1 visibility `True == (1 == 0)` fails on the shared row (hidden labels reappear). A meaningful failing baseline was therefore established.
+- Public predeclared check `python -m pytest lib/matplotlib/tests/test_subplots.py -q -k ""shared_and_moved or hide_ticklabels""` → 17 passed, 16 deselected (baseline unaffected; my delta does not regress existing tests).
+
+Notes / limitations:
+- Assertions are made through tick objects from `axis.get_major_ticks()` (`tick1line`/`tick2line`/`label1`/`label2` `get_visible()`), avoiding `Axis.get_tick_params` (absent here) and `_major_tick_kw` key access (keys may be absent after `Axis.clear()`, observed `{'gridOn': False}`).
+- I never received the production patch, so I cannot and do not claim these tests pass with it; the Lead must run the same `-k ""clear_shared or clear_keeps""` selection after applying the production fix.
+- `test_clear_keeps_tick_params` encodes the assumption that `clear()` resets tick params to rcParams defaults (dropping pre-set `top/right=True`). If the production fix instead preserves user-modified tick params across `clear()`, only the `set_tick_params(top=True, labeltop=True)` / `(right=True, labelright=True)` setup lines of that test should be dropped; the two shared-axes tests are independent of that assumption.
+- One extra work call beyond my nominal limit was used solely to repair a `NameError` (`check_figures_equal` not imported in that module) I had introduced, which had broken module collection; the module now collects cleanly.",True,True,"[""lib/matplotlib/tests/test_subplots.py""]",[],"[""lib/matplotlib/tests/test_subplots.py""]",[],modelbench\big_budget_team_20260906\batches\b1-coding-continuation-v1\results\b1-r1-q05-T10\worker-2\delta.patch
+B1/b1-coding-continuation-v1/b1-r1-q05-T11,matplotlib__matplotlib-20826,worker-1,gpt-5.6-terra,budget_exhausted,[TOKEN_BUDGET_EXHAUSTED] Reservation exceeds remaining token budget,True,False,[],[],[],[],modelbench\big_budget_team_20260906\batches\b1-coding-continuation-v1\results\b1-r1-q05-T11\worker-1\delta.patch
+B1/b1-coding-continuation-v1/b1-r1-q05-T11,matplotlib__matplotlib-20826,worker-2,glm-5.3,completed,"Added purely additive regression tests (85 insertions, lib/matplotlib/tests/test_subplots.py only; no production files touched) for the ax.clear() bug: (1) 16-way parametrized shared-axes tick-label hiding after clear, (2) rendered 2x2 shared-axes test asserting tick label and top/right tick-mark visibility after draw, (3) unshared-axes test asserting explicit tick_params visibility survives clear. Failing baseline established on unchanged production code: full file `18 failed, 29 passed, 1 skipped`; public selector `17 failed, 17 passed, 14 deselected`. Tests are designed to distinguish a state-preserving fix from a wrong ""reapply rcParams defaults"" fix. No production patch was received, so post-fix pass status is not claimed.",True,True,"[""lib/matplotlib/tests/test_subplots.py""]",[],"[""lib/matplotlib/tests/test_subplots.py""]","[""lib/matplotlib/tests/test_subplots.py""]",modelbench\big_budget_team_20260906\batches\b1-coding-continuation-v1\results\b1-r1-q05-T11\worker-2\delta.patch
+B1/b1-mvp-six-v1/b1-r1-q04-T00,pydata__xarray-6992,worker-1,gpt-5.6-terra,completed,"Updated xarray/core/dataset.py so DataVariables.__len__ counts actual non-coordinate variables instead of subtracting all _coord_names. Verified the reported set_index/reset_index case and ran: python -m pytest xarray/tests/test_dataset.py -q -k ""set_index or reset_index or data_vars_properties"" (4 passed).",True,True,"[""xarray/core/dataset.py""]","[""xarray/core/dataset.py""]",[],"[""xarray/core/dataset.py""]",modelbench\big_budget_team_20260906\batches\b1-mvp-six-v1\results\b1-r1-q04-T00\worker-1\delta.patch
+B1/b1-mvp-six-v1/b1-r1-q04-T00,pydata__xarray-6992,worker-2,glm-5.3,completed,"Added a focused regression test (test-only delta, +43 lines in xarray/tests/test_dataset.py; no production files touched) for the ""more _coord_names than _variables"" issue: new TestDataset.test_reset_index_drop_stale_coord_names covering set_index(z=[""a"",""b""]).reset_index(""z"", drop=True) both without data variables (len(obj.data_vars)==0, empty mapping, repr must not raise) and with one real data variable ""foo"" (len==1, list==[""foo""], dtypes, assert_identical) — the latter distinguishes plausible wrong implementations such as max(0, len(_variables)-len(_coord_names)) (returns 0) or len(_variables) (returns 3) from the correct 1. Also added len/bool coverage to test_data_vars_properties. Public check `python -m pytest xarray/tests/test_dataset.py -q -k ""set_index or reset_index or data_vars_properties""` on the unchanged baseline: 1 failed, 4 passed, 369 deselected — the new test fails, with the failure message surfacing `ValueError('__len__() should return >= 0') raised in repr()`, matching the issue mechanism (stale ""z"" in _coord_names makes DataVariables.__len__ negative). Caveat for Lead: the single assertion `assert ""z"" not in obj.coords` is not fix-agnostic — remove that one line if the production fix only patches DataVariables length/containment and leaves ""z"" in _coord_names; all other assertions pass under either plausible fix and assert no internal state. Limitations: no production patch was received, so validation of the fix itself is not claimed; work-call budget was exhausted before that line could be removed, so the Lead must apply the flagged deletion before integrating.",True,True,"[""xarray/tests/test_dataset.py""]",[],"[""xarray/tests/test_dataset.py""]",[],modelbench\big_budget_team_20260906\batches\b1-mvp-six-v1\results\b1-r1-q04-T00\worker-2\delta.patch
+B1/b1-mvp-six-v1/b1-r1-q04-T11,pydata__xarray-6992,worker-1,gpt-5.6-terra,completed,"Updated DataVariables.__len__ to count only coordinate names present in _variables, preventing a negative length after reset_index(..., drop=True). Verified the reported MVCE and ran python -m pytest xarray/tests/test_dataset.py -q -k ""set_index or reset_index or data_vars_properties"" (4 passed).",True,True,"[""xarray/core/dataset.py""]","[""xarray/core/dataset.py""]",[],"[""xarray/core/dataset.py""]",modelbench\big_budget_team_20260906\batches\b1-mvp-six-v1\results\b1-r1-q04-T11\worker-1\delta.patch
+B1/b1-mvp-six-v1/b1-r1-q04-T11,pydata__xarray-6992,worker-2,glm-5.3,completed,"ROLE: test worker (regression tests only; no production files touched).
+
+DELTA (test-only, +40 lines, `xarray/tests/test_dataset.py`, inserted between `test_reset_index` and `test_reset_index_keep_attrs` in `TestDataset`):
+`test_reset_index_drop_multiindex_stale_coord_names` — reproduces issue #6818 with the public MVCE `Dataset(coords={""a"": (""x"",[1,2,3]), ""b"": (""x"",[""a"",""b"",""c""])}).set_index(z=[""a"",""b""]).reset_index(""z"", drop=True)` and asserts: (a) core regression — `len(actual.data_vars) == 0`, `list(actual.data_vars) == []`, `repr(actual)` works; (b) counterexample/discriminators against a plausible wrong implementation — `""z"" not in actual.coords`, `""z"" not in actual._coord_names`, `actual._coord_names <= set(actual._variables)` (internal invariant also enforced by the test-package `assert_identical` wrapper), `assert_identical(actual, Dataset(coords={""a"": (""z"",[1,2,3]), ""b"": (""z"",[""a"",""b"",""c""])}))`, `len(actual.xindexes) == 0`; plus a second variant where the multi-index name equals its dimension (`set_index(x=[...]).reset_index(""x"", drop=True)`), asserting the same invariants and `assert_identical(actual, ds, check_default_indexes=False)`. A length-clamping ""fix"" (`max(0, len(_variables)-len(_coord_names))` in `DataVariables.__len__`) passes the three (a) assertions but fails the four (b) discriminators — verified by monkeypatch simulation (`/tmp/pseudo2.py`), so the test distinguishes it from the natural `reset_index` fix (drop names subtracted from `coord_names`, simulated in `/tmp/simfix.py`: all assertions hold).
+
+BASELINE RUN (unchanged production code, HEAD 45c0a114e):
+- Command: `cd /testbed && python -m pytest xarray/tests/test_dataset.py -q -k ""set_index or reset_index or data_vars_properties""` (exit code captured via PIPESTATUS, not the tail pipe).
+- Observed: **1 failed, 4 passed, 369 deselected in 0.83s**, PYTEST_EXIT=1. Selected scope (confirmed via --collect-only): `test_data_vars_properties`, `test_set_index`, `test_reset_index`, `test_reset_index_drop_multiindex_stale_coord_names` (NEW, failing), `test_reset_index_keep_attrs`. The only failure is the new test, at its first assertion `assert len(actual.data_vars) == 0` (test_dataset.py:3269) raising `ValueError: __len__() should return >= 0` — exactly the issue's symptom. No collateral breakage in the selected scope.
+- Node-limited run: `pytest ""xarray/tests/test_dataset.py::TestDataset::test_reset_index_drop_multiindex_stale_coord_names"" -q` → 1 failed in 1.17s (same ValueError).
+
+LIMITATIONS (public-information gaps):
+1. No production patch was received; I did NOT validate any fix. The ""natural fix"" (`coord_names = (set(new_variables) | self._coord_names) - set(drop_variables)` at dataset.py:4180) and the length-clamp pseudo-fix were only simulated via object construction/monkeypatch in /tmp, never by editing production code. Lead must integrate test + real fix and re-run.
+2. Two open points for Lead judgment: (i) for the `z` variant the expected object uses dim `z` (because the original dim `x` was consumed by `set_index`); the `x`-named variant expects the original `ds` — simulation confirms both, but not exercised against a real fix; (ii) the first `assert_identical` uses the test-wrapper default `check_default_indexes=True` while the second passes `False` (style of existing `test_reset_index`); both flags are equivalent here (no default indexes in either object), unification optional.
+3. `assert_identical` is the `xarray/tests/__init__.py` wrapper (signature `(a, b, check_default_indexes=True)`, additionally checks internal invariants), distinct from the two-arg public `xarray.testing.assert_identical`.
+
+Working tree contains only the test-file change: `xarray/tests/test_dataset.py | 40 ++++++++` (production files unmodified).",True,True,"[""xarray/tests/test_dataset.py""]",[],"[""xarray/tests/test_dataset.py""]",[],modelbench\big_budget_team_20260906\batches\b1-mvp-six-v1\results\b1-r1-q04-T11\worker-2\delta.patch
+B1/b1-mvp-six-v1/b1-r1-q06-T00,pylint-dev__pylint-6386,worker-1,gpt-5.6-terra,completed,Updated pylint/lint/base_options.py so the verbose callback action explicitly uses nargs=0. This makes -v behave like --verbose and removes the misleading value placeholder from help. Verified with python -m pytest tests/test_self.py -q -k verbose (1 passed) and help output check; git diff --check passed.,True,True,"[""pylint/lint/base_options.py""]","[""pylint/lint/base_options.py""]",[],"[""pylint/lint/base_options.py""]",modelbench\big_budget_team_20260906\batches\b1-mvp-six-v1\results\b1-r1-q06-T00\worker-1\delta.patch
+B1/b1-mvp-six-v1/b1-r1-q06-T00,pylint-dev__pylint-6386,worker-2,glm-5.3,blocked,"ROLE: test worker (regression tests only). CALL BUDGET EXHAUSTED (local_call 8/8) before I could edit or execute tests — no test file was modified and no pytest run was performed. Everything below is analysis + an UNVALIDATED proposed test delta; the Lead must apply and run it.
+
+BASELINE FACTS OBSERVED (read-only, commit 754b487f):
+- pylint/lint/base_options.py:539 — `verbose` option: `action=_DoNothingAction`, `kwargs={}`, `short=""v""`, `hide_from_config_file=True`; no explicit `nargs`/`metavar`.
+- pylint/config/callback_actions.py:27/41 — `_CallbackAction(argparse.Action)`; `_DoNothingAction.__call__` returns None; no `nargs=0`/`const`, so argparse's default `nargs=None` makes `-v/--verbose` consume one argument (root cause of `pylint: error: argument --verbose/-v: expected one argument`) and the help text derives a `VERBOSE` metavar placeholder.
+- pylint/config/utils.py:187-189 `_set_verbose_mode` (`assert value is None; run.verbose = True`) and utils.py:209 `PREPROCESSABLE_OPTIONS[""--verbose""] = (False, _set_verbose_mode)` — the no-arg path already sets `run.verbose = True`, so a test asserting `run.verbose` after a successful `Run(..., exit=False)` is the right oracle.
+- tests/test_self.py:1422-1430 — existing `test_verbose()` wraps `Run([""--verbose""])` and `Run([""--verbose=True""])` in `pytest.raises(SystemExit)`; the in-block `assert run.verbose` never executes (Run with no file args exits first), so the current test cannot detect the bug and does not cover `-v` at all.
+- `tests/regrtest_data/empty.py` is referenced by neighboring tests (e.g. test_enable_all_extensions, ~line 1436) via `join(HERE, ""regrtest_data"", ""empty.py"")`; I did not independently stat the file.
+
+PROPOSED TEST DELTA (tests/test_self.py only; replaces the body of `test_verbose`, ~lines 1422-1430):
+```python
+    def test_verbose(self) -> None:
+        """"""The verbose option should not require an argument, for both its
+        long and short forms.""""""
+        run = Run(
+            [""--verbose"", join(HERE, ""regrtest_data"", ""empty.py"")],
+            exit=False,
+        )
+        assert run.verbose
+
+        run = Run([""-v"", join(HERE, ""regrtest_data"", ""empty.py"")], exit=False)
+        assert run.verbose
+```
+(If the surrounding class methods are `@staticmethod`, keep that decorator; the existing signature is `test_verbose() -> None`.)
+
+COUNTEREXAMPLE / DISTINGUISHING POWER: the `-v` case is the meaningful failing case — on the unchanged baseline `Run([""-v"", file], exit=False)` raises `SystemExit(2)` from argparse (`argument --verbose/-v: expected one argument`), so `assert run.verbose` is never reached and the test fails. A plausible wrong implementation that passes the old test but fails this one: keeping `nargs` default and only registering the short flag separately, or any fix that sets `verbose` only on the `--verbose` spelling. Conversely, removing `pytest.raises(SystemExit)` and using `exit=False` on a real file is essential; a test that keeps the `pytest.raises(SystemExit)` wrapper cannot distinguish the bug from the fix (assertions are unreachable).
+
+NOT RUN / LIMITATIONS (be explicit for grading):
+- Exact command intended for the Lead: `python -m pytest tests/test_self.py -q -k verbose` (public check `public_verbose_option`). I did not execute it — no baseline pass/fail status can be claimed, and I did not receive or validate any production patch.
+- OPEN CONFLICT for the Lead: the existing `Run([""--verbose=True""])` case was dropped in my delta because the likely fix (`nargs=0`, as `_set_verbose_mode` asserts `value is None`) turns `--verbose=True` into `argparse: error: argument --verbose/-v: ignored explicit argument`. If the adopted production fix instead uses `nargs=""?""`, that case could be retained; decide after seeing the patch.
+- OPTIONAL and deliberately NOT added: asserting the `--help` output does not contain `--verbose VERBOSE`. It depends on the exact fix (nargs=0 vs nargs=""?"" changes the metavar rendering) and could false-fail a valid patch; the help wording is secondary in the issue.",True,False,[],[],[],[],modelbench\big_budget_team_20260906\batches\b1-mvp-six-v1\results\b1-r1-q06-T00\worker-2\delta.patch
+B1/b1-mvp-six-v1/b1-r1-q06-T11,pylint-dev__pylint-6386,worker-1,gpt-5.6-terra,completed,"Implemented the short verbose option fix in pylint/config/utils.py and pylint/lint/base_options.py. Added -v to preprocessable options, preprocesses short options, and configures verbose with nargs=0 so both --verbose and -v take no value and help renders without VERBOSE. Verified with python -m pytest tests/test_self.py -q -k verbose (1 passed), python -m pytest tests/config/test_find_default_config_files.py -q -k verbose (1 passed), both verbose help invocations, python -m pylint -v tests/test_self.py, and git diff --check.",True,True,"[""pylint/config/utils.py"", ""pylint/lint/base_options.py""]","[""pylint/config/utils.py"", ""pylint/lint/base_options.py""]",[],"[""pylint/config/utils.py"", ""pylint/lint/base_options.py""]",modelbench\big_budget_team_20260906\batches\b1-mvp-six-v1\results\b1-r1-q06-T11\worker-1\delta.patch
+B1/b1-mvp-six-v1/b1-r1-q06-T11,pylint-dev__pylint-6386,worker-2,glm-5.3,completed,"Delivered regression tests in tests/test_self.py only (no production files touched): replaced the dead-code test_verbose with (a) parametrized test_verbose over --verbose/-v and over flag-before/flag-after file positions, asserting Run(...).verbose is True; (b) test_verbose_rejects_explicit_value asserting --verbose=True exits non-zero; (c) test_verbose_help_does_not_suggest_a_value asserting --help shows the verbose option without a VERBOSE metavar. Baseline (unfixed HEAD 754b487f): `python -m pytest tests/test_self.py -q -k verbose` → 2 failed (test_verbose[-v]: -v triggers argparse ""expected one argument""; help test: help shows ""--verbose VERBOSE, -v VERBOSE""), 2 passed, 117 deselected — expected failures against the bug, so a meaningful failing baseline was established. Class-level run showed 4/18 failing, of which the two test_generate_toml_config* failures were proven pre-existing via git stash. Counterexample coverage: a partial fix that only preprocesses -v but keeps a value-taking declaration still fails the help test; an optional-value implementation fails the explicit-value test. Limitations: the Lead's production patch was never received, so no validation of it is claimed; test_verbose_rejects_explicit_value pins non-zero exit for --verbose=True (holds on baseline exit 32 and both common fix paths, but must be dropped if the adopted fix makes --verbose=True succeed). Patch for integration is exactly `git diff -- tests/test_self.py` (38 insertions, 8 deletions).",True,True,"[""tests/test_self.py""]",[],"[""tests/test_self.py""]","[""tests/test_self.py""]",modelbench\big_budget_team_20260906\batches\b1-mvp-six-v1\results\b1-r1-q06-T11\worker-2\delta.patch

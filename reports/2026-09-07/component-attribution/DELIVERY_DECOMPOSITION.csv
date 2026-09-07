@@ -1,0 +1,4 @@
+delivery_group,tasks,s_pass,t_pass,additional_t_pass
+两侧均交付,13,11,11,0
+仅 T 交付,4,0,2,2
+两侧均未交付,1,0,0,0

@@ -446,3 +446,30 @@ def test_deepseek_native_wire_usage_echo_and_cm_settings(adapter, monkeypatch):
         tools=TOOLS, run_id='fixture-run', role='worker', task_id='fixture-instance', call_id='ds-fixture-legacy')
     assert rec['cached_input_tokens'] == 4 and rec['total_tokens'] == 15 and rec['error'] is None
     assert FAKE_DS_KEY not in json.dumps(rec)
+
+
+
+def test_historical_timeout_cap_remains_600_before_any_transport(adapter, monkeypatch):
+    def forbidden(*args, **kwargs):
+        raise AssertionError('A disallowed timeout must not start a model process')
+    monkeypatch.setattr(transport, '_run_process', forbidden)
+    assert adapter.total_timeout_limit('glm-5.3', 'worker') == 600
+    assert adapter.total_timeout_limit('gpt-5.6-sol', 'lead') == 600
+    result = complete(adapter, model='glm-5.3', timeout_seconds=960)
+    assert result['error']['code'] == 'invalid_request'
+    assert result['transport_attempt_count'] == 0 and result['total_tokens'] is None
+
+
+def test_timeout_hook_can_extend_only_selected_model(adapter, tmp_path, monkeypatch):
+    class ModelBoundTransport(transport.SweTransport):
+        def total_timeout_limit(self, model, role):
+            return 960 if model == 'glm-5.3' else super().total_timeout_limit(model, role)
+    selected = ModelBoundTransport(tmp_path / 'selected')
+    value, _ = native_response()
+    seen = []
+    fake_process(monkeypatch, json.dumps(value), seen)
+    result = complete(selected, model='glm-5.3', timeout_seconds=960)
+    assert result['error'] is None and result['total_deadline_seconds'] == 960
+    assert len(seen) == 1
+    rejected = complete(selected, model='gpt-5.6-sol', timeout_seconds=960, call_id='different-model')
+    assert rejected['error']['code'] == 'invalid_request' and len(seen) == 1

@@ -1,0 +1,49 @@
+{
+  "status": "PASS_PLAN_ONLY",
+  "runtime_validated": false,
+  "live_calls_issued": 0,
+  "experiments_launched": 0,
+  "checks": {
+    "180_unique_runs": true,
+    "10_arms_6_tasks": true,
+    "complete_cartesian_product": true,
+    "repetitions_123_per_cell": true,
+    "18_complete_blocks": true,
+    "arm_position_balance": true,
+    "schedule_parameters_match_contract": true,
+    "all_states_planned": true,
+    "same_7200_wall_clock": true,
+    "t_factorial": true,
+    "t_factorial_models_fixed": true,
+    "expected_budget_totals": true,
+    "phase_totals_match": true,
+    "task_metadata_analysis_only": true,
+    "file_hashes_match": true,
+    "source_hashes_match": true,
+    "no_execution_code_in_new_directory": true
+  },
+  "plan_contract_sha256": "96637422c65673596169282dbe86bc718a20cb5d96538330d9c41a74617fae50",
+  "caveats": [
+    "This validates plan arithmetic and identities, not runtime behavior or channel entitlement.",
+    "GLM account/channel binding and execution manifest are pending."
+  ],
+  "independent_review": {
+    "status": "PASS_WITH_CLARIFICATIONS_APPLIED",
+    "checked": [
+      "180 unique cells",
+      "18 observations per arm",
+      "60 and 120 stage counts",
+      "334800000 token admission",
+      "21672 ordinary tickets",
+      "8712 CM tickets",
+      "balanced positions",
+      "factorial interpretation",
+      "small sample and posthoc-selection boundaries"
+    ],
+    "clarifications_applied": [
+      "Old difficulty is empirical five-arm failure fraction; four-way ties are display order only.",
+      "Baseline-red/gold-green applies to official qualification, not every public smoke check.",
+      "Missing-data denominators are separated; incomplete comparisons use logical outcome bounds, not missing-as-failure estimates."
+    ]
+  }
+}

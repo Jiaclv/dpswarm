@@ -1,0 +1,545 @@
+{
+  "date": "2026-09-07",
+  "base_commit": "9597f51650d289c973db80506e5eb477fb12146e",
+  "scope": "README and report publication; B1/C1 runner source and the pre-existing per-model timeout extension",
+  "tests": [
+    {
+      "name": "core",
+      "tests": 429,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "junit_seconds": 24.721,
+      "command": "python -B -m pytest tests -q --basetemp=<fresh-workspace-temp>",
+      "cwd": "dpswarm-plugin",
+      "junit_sha256": "79fcfbd198cb4f7e4415908ef4ed0faf67cf93b8be200c5a497605f60834c9b7",
+      "junit_location": "local validation archive"
+    },
+    {
+      "name": "transport_B1_C1",
+      "tests": 352,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "junit_seconds": 202.787,
+      "command": "python -B -m pytest modelbench/swe_verified_20260903/tests/test_transport.py modelbench/big_budget_team_20260906/tests modelbench/mechanism_ablation_20260906/tests --import-mode=importlib -q --basetemp=<fresh-workspace-temp>",
+      "cwd": ".",
+      "junit_sha256": "13a67c6346dfaa094028df6721102544f138f7d9bbb177249c85d2cfeafd315d",
+      "junit_location": "local validation archive"
+    }
+  ],
+  "passed": 781,
+  "test_environment": {
+    "python": "3.12",
+    "platform": "Windows",
+    "PYTHONUTF8": "1",
+    "PYTHONIOENCODING": "utf-8",
+    "PYTHONPATH": "absolute path to dpswarm-plugin",
+    "module_import_mode": "importlib for combined experiment suites"
+  },
+  "limitations": [
+    "Experiment-suite checks used the existing local qualification/archive files. A fresh clone does not contain every frozen historical input.",
+    "No real model/provider, Docker grader, pip install or DSH Web end-to-end run was performed for this sync.",
+    "The report costs remain frozen API-equivalent costs, not subscription cash charges."
+  ],
+  "initial_invocation_issues": [
+    {
+      "suite": "core",
+      "errors": 6,
+      "failures": 1,
+      "cause": "Missing fixture temp parent plus Windows GBK decoding of UTF-8 subprocess output",
+      "resolution": "Fresh workspace basetemp and explicit UTF-8 environment; no product changes"
+    },
+    {
+      "suite": "transport_B1_C1",
+      "collection_errors": 5,
+      "cause": "Same-named historical test modules collected together with default import mode",
+      "resolution": "Use pytest --import-mode=importlib; no product changes"
+    }
+  ],
+  "mock_demo": {
+    "task_status": "accepted",
+    "final": "single",
+    "replayed_events": 20,
+    "active_points": 0,
+    "work_items": 1,
+    "model_calls": 0
+  },
+  "source_bindings": [
+    {
+      "path": "dpswarm-plugin/dpswarm/__init__.py",
+      "sha256": "9827d1758b776d488f465a3e9b883b22f633310f1949a6b54f2fa967a073aa5e",
+      "sha256_lf": "9827d1758b776d488f465a3e9b883b22f633310f1949a6b54f2fa967a073aa5e"
+    },
+    {
+      "path": "dpswarm-plugin/dpswarm/aa.py",
+      "sha256": "586409873df75b70b14ca317101451c9f6725326e5c20a09d4899ee7a6713d34",
+      "sha256_lf": "586409873df75b70b14ca317101451c9f6725326e5c20a09d4899ee7a6713d34"
+    },
+    {
+      "path": "dpswarm-plugin/dpswarm/cli.py",
+      "sha256": "b2c2fa9280b9c1c6b76e2cb1dac342d1638c2f2738430cbe78665637aec79e9a",
+      "sha256_lf": "b2c2fa9280b9c1c6b76e2cb1dac342d1638c2f2738430cbe78665637aec79e9a"
+    },
+    {
+      "path": "dpswarm-plugin/dpswarm/context/__init__.py",
+      "sha256": "a085807d3db31cfa76112748e99e56b0d0f4ad046af6b6ad3a437f8616bffeb5",
+      "sha256_lf": "a085807d3db31cfa76112748e99e56b0d0f4ad046af6b6ad3a437f8616bffeb5"
+    },
+    {
+      "path": "dpswarm-plugin/dpswarm/context/assembler.py",
+      "sha256": "0abc830272ff8067049e87229976c93cf9629a3b39f40c3f1e930795f275f8ec",
+      "sha256_lf": "0abc830272ff8067049e87229976c93cf9629a3b39f40c3f1e930795f275f8ec"
+    },
+    {
+      "path": "dpswarm-plugin/dpswarm/context/manager.py",
+      "sha256": "7bff867ea829cb50b124ca95015da5ed0f5145f4be09141689804792c7fff37e",
+      "sha256_lf": "7bff867ea829cb50b124ca95015da5ed0f5145f4be09141689804792c7fff37e"
+    },
+    {
+      "path": "dpswarm-plugin/dpswarm/context/memory.py",
+      "sha256": "be6b3670a6c32944cb0cf8846bc10be9b62f22fe7b63542bc72ca706b94f374c",
+      "sha256_lf": "be6b3670a6c32944cb0cf8846bc10be9b62f22fe7b63542bc72ca706b94f374c"
+    },
+    {
+      "path": "dpswarm-plugin/dpswarm/control.py",
+      "sha256": "26d0e84651834201c8e2c66b954b16df1cf5d6735c4d09ffe210bdb857c29222",
+      "sha256_lf": "26d0e84651834201c8e2c66b954b16df1cf5d6735c4d09ffe210bdb857c29222"
+    },
+    {
+      "path": "dpswarm-plugin/dpswarm/events.py",
+      "sha256": "d22335f95cee5bef34535688da47aba4ffb4fac898c30a420b5ba1238582a1e8",
+      "sha256_lf": "d22335f95cee5bef34535688da47aba4ffb4fac898c30a420b5ba1238582a1e8"
+    },
+    {
+      "path": "dpswarm-plugin/dpswarm/invariants.py",
+      "sha256": "6022a523edb27c52c54c42ea483665a4b28002aa2895a9d4a487a8a0e950fec9",
+      "sha256_lf": "6022a523edb27c52c54c42ea483665a4b28002aa2895a9d4a487a8a0e950fec9"
+    },
+    {
+      "path": "dpswarm-plugin/dpswarm/levels.py",
+      "sha256": "dbf2856db5f37ef77dc2ba701ff0b7d9a78df296f56cb42e027b4ed559e013cf",
+      "sha256_lf": "dbf2856db5f37ef77dc2ba701ff0b7d9a78df296f56cb42e027b4ed559e013cf"
+    },
+    {
+      "path": "dpswarm-plugin/dpswarm/observation.py",
+      "sha256": "36103c8c4c2af678f7c7d397606629f33f37a9d91b7a39ddaef682c6d5bb4ec4",
+      "sha256_lf": "36103c8c4c2af678f7c7d397606629f33f37a9d91b7a39ddaef682c6d5bb4ec4"
+    },
+    {
+      "path": "dpswarm-plugin/dpswarm/orchestrator.py",
+      "sha256": "b7387ba2b4aab440c28a86305a138335871a9699e36d418daabef289ff7c9e7e",
+      "sha256_lf": "b7387ba2b4aab440c28a86305a138335871a9699e36d418daabef289ff7c9e7e"
+    },
+    {
+      "path": "dpswarm-plugin/dpswarm/profile.py",
+      "sha256": "048c23a7ffeaace66de2ee7512fc5d7ad1d0d5083750618bc2247b8b30f8abaa",
+      "sha256_lf": "b9a48938c3ddbea3f971e3ad8b415c706f202525ef180297213b29d11b65907a"
+    },
+    {
+      "path": "dpswarm-plugin/dpswarm/providers/__init__.py",
+      "sha256": "9c269307dae3cdc3207d3cbaf72e5a15a6b48baa32d3e80b2751c96d64abee85",
+      "sha256_lf": "9c269307dae3cdc3207d3cbaf72e5a15a6b48baa32d3e80b2751c96d64abee85"
+    },
+    {
+      "path": "dpswarm-plugin/dpswarm/providers/base.py",
+      "sha256": "b31077804dcf25adf50b8b88278e1dd7ae8799b215f5eaadd4a179f8ed4bd8b2",
+      "sha256_lf": "b31077804dcf25adf50b8b88278e1dd7ae8799b215f5eaadd4a179f8ed4bd8b2"
+    },
+    {
+      "path": "dpswarm-plugin/dpswarm/providers/mock.py",
+      "sha256": "517808513dcfca3e5e13a90a47109f737b14ee4b45bee21c2729877c83b43074",
+      "sha256_lf": "517808513dcfca3e5e13a90a47109f737b14ee4b45bee21c2729877c83b43074"
+    },
+    {
+      "path": "dpswarm-plugin/dpswarm/providers/openai_compat.py",
+      "sha256": "73365b1373035ababfb1389e70ee242183bd827c115257588dbb8eaf7e60f6bd",
+      "sha256_lf": "425c363b13ac08a791a81ecc3f9b0a0240f75ed02675784e7c37ee71c19986da"
+    },
+    {
+      "path": "dpswarm-plugin/dpswarm/routing.py",
+      "sha256": "5b38647e52912e997912966ba6b65ea4be5e5259ebbf1fa93b604572aaa98134",
+      "sha256_lf": "8a126139b2e54aa55c01c170137680e43ffb4afdfce5512a4e10e80e60a89206"
+    },
+    {
+      "path": "dpswarm-plugin/dpswarm/server.py",
+      "sha256": "7c8d45bda74c6ca231639a91f7827588dd0036abb7c6633b9d8a84db93761517",
+      "sha256_lf": "7c8d45bda74c6ca231639a91f7827588dd0036abb7c6633b9d8a84db93761517"
+    },
+    {
+      "path": "dpswarm-plugin/dpswarm/state.py",
+      "sha256": "56e800090ce38758eb8fc2e664681314ced8000944e21e6c086f2551ba0741ca",
+      "sha256_lf": "56e800090ce38758eb8fc2e664681314ced8000944e21e6c086f2551ba0741ca"
+    },
+    {
+      "path": "dpswarm-plugin/dpswarm/team_runtime/__init__.py",
+      "sha256": "880554f10edd4487480e7e4706f0e5c290079b481faefcf7819c2b30cacd56ad",
+      "sha256_lf": "880554f10edd4487480e7e4706f0e5c290079b481faefcf7819c2b30cacd56ad"
+    },
+    {
+      "path": "dpswarm-plugin/dpswarm/team_runtime/handoff.py",
+      "sha256": "1ecc918a62d886092acdaae8bf253a0b36a0d23bc45d75efa90063724ac53900",
+      "sha256_lf": "1ecc918a62d886092acdaae8bf253a0b36a0d23bc45d75efa90063724ac53900"
+    },
+    {
+      "path": "dpswarm-plugin/dpswarm/team_runtime/ledger.py",
+      "sha256": "7cb04ad90583ea78d1628637d611496bd0c126a0969c9db8fd39725fbee3780c",
+      "sha256_lf": "7cb04ad90583ea78d1628637d611496bd0c126a0969c9db8fd39725fbee3780c"
+    },
+    {
+      "path": "dpswarm-plugin/dpswarm/team_runtime/protocol.py",
+      "sha256": "8a65102e095cca0f0fc53215c78f2115e3ff1bb10d118c0b342aefd178dc1615",
+      "sha256_lf": "8a65102e095cca0f0fc53215c78f2115e3ff1bb10d118c0b342aefd178dc1615"
+    },
+    {
+      "path": "dpswarm-plugin/dpswarm/team_runtime/scheduler.py",
+      "sha256": "278bb1554c6b3558981470a8b53728be4893739264adc4c3cb741653102bb7ee",
+      "sha256_lf": "278bb1554c6b3558981470a8b53728be4893739264adc4c3cb741653102bb7ee"
+    },
+    {
+      "path": "dpswarm-plugin/dpswarm/types.py",
+      "sha256": "718cd0962e418ee5010661f0594ab9cf7ec8c6ab3594220a55c5942800a78289",
+      "sha256_lf": "718cd0962e418ee5010661f0594ab9cf7ec8c6ab3594220a55c5942800a78289"
+    },
+    {
+      "path": "dpswarm-plugin/tests/test_aa.py",
+      "sha256": "4dd2c1325aa67fc1c8e588eaa944853fc55aaae7ddf2d33bf69c6e81a019fbb0",
+      "sha256_lf": "4dd2c1325aa67fc1c8e588eaa944853fc55aaae7ddf2d33bf69c6e81a019fbb0"
+    },
+    {
+      "path": "dpswarm-plugin/tests/test_context_budget_20260905.py",
+      "sha256": "c44d54f5031917bbc48cdcb6fae6a914be255ed010d5d0f7a1a92177900cd5a2",
+      "sha256_lf": "c44d54f5031917bbc48cdcb6fae6a914be255ed010d5d0f7a1a92177900cd5a2"
+    },
+    {
+      "path": "dpswarm-plugin/tests/test_control.py",
+      "sha256": "15f8f3051bfc868d5479b0020d6283eee320e482ee0cc24857b6b8c1c935bf7b",
+      "sha256_lf": "1fd7479a4ea3838c33354f6df2ffb0d4542c8941bbcbc173eb20de48e8c87247"
+    },
+    {
+      "path": "dpswarm-plugin/tests/test_control_fixes.py",
+      "sha256": "977d912fda8f5d943ac1b32f1d26789027967be489208b6bb6a4076cbf6f8a91",
+      "sha256_lf": "c4936157721026ff8ffa99984901fe0cefb619655f903dd67ac2831b6a205bd8"
+    },
+    {
+      "path": "dpswarm-plugin/tests/test_dsh_execution_binding_20260905.py",
+      "sha256": "70d85d776af00d96955b23e5360b1835d4fdd3dc7d4bf7fbf676ac2657dd848e",
+      "sha256_lf": "66552ea4c744b14b0b0972a0a807655a63a6d487c7ccf82514a539e711023ee9"
+    },
+    {
+      "path": "dpswarm-plugin/tests/test_e2e.py",
+      "sha256": "ddd6055a155c695949b8598abc81992fe93b0ed64c1c31c19843319dc5ff6780",
+      "sha256_lf": "616431dadd9ba215643e156c765ce5343590c6d1188f4ce24ae82d5ebf1b131e"
+    },
+    {
+      "path": "dpswarm-plugin/tests/test_logic.py",
+      "sha256": "f8670a09ea3be7fd803cb8fe4a4467026b4e377892cea88595ae34a45c11dd76",
+      "sha256_lf": "09d0a154b4ac0dedade16b5a065f9f7e64bc34fcf901911894e1ab795a594147"
+    },
+    {
+      "path": "dpswarm-plugin/tests/test_mechanisms2.py",
+      "sha256": "f89d9d6b76e724f611dacc2c3d4f5e477704546754cbe359bedc8040d4a3afe1",
+      "sha256_lf": "f89d9d6b76e724f611dacc2c3d4f5e477704546754cbe359bedc8040d4a3afe1"
+    },
+    {
+      "path": "dpswarm-plugin/tests/test_memory_lifecycle.py",
+      "sha256": "1617add3c94df1b1645ecfc734f746b277c57cff9611e5266fd3c6d9023a89f7",
+      "sha256_lf": "1617add3c94df1b1645ecfc734f746b277c57cff9611e5266fd3c6d9023a89f7"
+    },
+    {
+      "path": "dpswarm-plugin/tests/test_native_provider.py",
+      "sha256": "5c86ad1ae74853c25da44b809ec1a6b20d8377d8f92cf790a5e5aaa8d363213c",
+      "sha256_lf": "5c86ad1ae74853c25da44b809ec1a6b20d8377d8f92cf790a5e5aaa8d363213c"
+    },
+    {
+      "path": "dpswarm-plugin/tests/test_observation_smoke.py",
+      "sha256": "bc52a30a9b2958f5a8f2745f8f8319a16de5b7e6ed453267e6c67ad31f13c755",
+      "sha256_lf": "bc52a30a9b2958f5a8f2745f8f8319a16de5b7e6ed453267e6c67ad31f13c755"
+    },
+    {
+      "path": "dpswarm-plugin/tests/test_orchestrator_fixes.py",
+      "sha256": "bc0721de04ecaf2e622f711b5bb68dcb16325a676bf0bb53136fd8d296c53723",
+      "sha256_lf": "bc0721de04ecaf2e622f711b5bb68dcb16325a676bf0bb53136fd8d296c53723"
+    },
+    {
+      "path": "dpswarm-plugin/tests/test_p0_security.py",
+      "sha256": "53940be5db3e8646ce4f0ada9bdfff25745ad01713191fbc8b4301e87843bd80",
+      "sha256_lf": "0601f9a84330c11e7b73579ac5039a9b6343a8b71c3d67fcccb56d311f1a4436"
+    },
+    {
+      "path": "dpswarm-plugin/tests/test_scenarios.py",
+      "sha256": "9a1e57bbef39d8fdcbf6fc50a951f97dbc3ebc942f2fe7458af7c14462b210ad",
+      "sha256_lf": "77d8c2421df60fa2d1aad28304e362d5adb27eb3e2bd28b558489b8ede572be8"
+    },
+    {
+      "path": "dpswarm-plugin/tests/test_server.py",
+      "sha256": "108d111e7235ba0c8f51ecaf696b5a7447be1b1a9e53ecc2a9b4e73f7a50b58c",
+      "sha256_lf": "108d111e7235ba0c8f51ecaf696b5a7447be1b1a9e53ecc2a9b4e73f7a50b58c"
+    },
+    {
+      "path": "dpswarm-plugin/tests/test_server_fixes.py",
+      "sha256": "43003bcac386eae65028cd6a0b8ad2d791ae5fa61b642544bdfd22f58a0871e4",
+      "sha256_lf": "ca536d10caec36e73efe1b14a7e43585aea49c264bb5c96bd962d18c78ec58dc"
+    },
+    {
+      "path": "dpswarm-plugin/tests/test_server_route_authority.py",
+      "sha256": "a786a9d55744dd4ddec0c6bc30fc27cd347739e393bca2538779f3e34449917e",
+      "sha256_lf": "a786a9d55744dd4ddec0c6bc30fc27cd347739e393bca2538779f3e34449917e"
+    },
+    {
+      "path": "dpswarm-plugin/tests/test_storage_recovery_20260905.py",
+      "sha256": "188b8cd0bb8abfb0397156bd8052baecba07cf52126461ab17adc98f67aae4f5",
+      "sha256_lf": "188b8cd0bb8abfb0397156bd8052baecba07cf52126461ab17adc98f67aae4f5"
+    },
+    {
+      "path": "dpswarm-plugin/tests/test_submission_binding_20260905.py",
+      "sha256": "f009682b609d6e0a1fa4f0cd04c72dae752152ca9ca9b3eb31a5d61b3bf73668",
+      "sha256_lf": "de39a3a4ce6ac9abf50a5a9ea861bdf7a2122748b61814257594569637f4f83e"
+    },
+    {
+      "path": "dpswarm-plugin/tests/test_team_ledger.py",
+      "sha256": "e6635c3d0d92ccbfe8817ef42baf494de993d3f0b1d17989c63218a9395bc7d7",
+      "sha256_lf": "e6635c3d0d92ccbfe8817ef42baf494de993d3f0b1d17989c63218a9395bc7d7"
+    },
+    {
+      "path": "dpswarm-plugin/tests/test_team_protocol.py",
+      "sha256": "8c8d0eaa0e16881f44033540fd2d84af3a7f867815b47a6a67235c0d8f745a5f",
+      "sha256_lf": "8c8d0eaa0e16881f44033540fd2d84af3a7f867815b47a6a67235c0d8f745a5f"
+    },
+    {
+      "path": "dpswarm-plugin/tests/test_team_runtime_handoff.py",
+      "sha256": "5b4f5284f9afcb3d1436c2f055498ae7ba090d7dfd64b8f3d892343d7c1ffcfe",
+      "sha256_lf": "5b4f5284f9afcb3d1436c2f055498ae7ba090d7dfd64b8f3d892343d7c1ffcfe"
+    },
+    {
+      "path": "dpswarm-plugin/tests/test_team_scheduler.py",
+      "sha256": "5ee726d27acb522d4b1b12746cff2b606c2eb28d43646031cec0f631e548764b",
+      "sha256_lf": "5ee726d27acb522d4b1b12746cff2b606c2eb28d43646031cec0f631e548764b"
+    },
+    {
+      "path": "modelbench/big_budget_team_20260906/__init__.py",
+      "sha256": "1982f584f68f170d2596a662adcad3e78b53a467e03bd5ec4287143b5bc9edad",
+      "sha256_lf": "1982f584f68f170d2596a662adcad3e78b53a467e03bd5ec4287143b5bc9edad"
+    },
+    {
+      "path": "modelbench/big_budget_team_20260906/coding_quota.py",
+      "sha256": "7aceb04654f9228bdc9d6ed99ee551f5203c83ca69c0ba390437b03cd0613446",
+      "sha256_lf": "5cd4e730100f3adf46d75162bfc5005c4fb1902bcf15fffb0fce2b2567f02c70"
+    },
+    {
+      "path": "modelbench/big_budget_team_20260906/contracts.py",
+      "sha256": "6fe86205f6a8394ea336c3b7617fd85091e2901e46883b918074bc1e3bb638a7",
+      "sha256_lf": "6fe86205f6a8394ea336c3b7617fd85091e2901e46883b918074bc1e3bb638a7"
+    },
+    {
+      "path": "modelbench/big_budget_team_20260906/execution.py",
+      "sha256": "1a4c5e1293af94294db70e8920fcf616ba23c194a84038bd489e38b20dcb28f8",
+      "sha256_lf": "a07fe0c2dfd0649b5b3133419f0c825c7eb42031bbe850b9db5196b2c2e06df9"
+    },
+    {
+      "path": "modelbench/big_budget_team_20260906/glm_stream_http_worker.py",
+      "sha256": "b9e34cc2c1340feb6a4b1ff5738f0a794d3e91ad177297ae10a02dfa3d39b7ba",
+      "sha256_lf": "a4be175e8e92ae3fd6ee062996f451b0897379672593029ca1bb02e373466807"
+    },
+    {
+      "path": "modelbench/big_budget_team_20260906/probe.py",
+      "sha256": "b4694681c5c8e5b880d51e84b75d816d330ef0e90ddac263885e63787262db5c",
+      "sha256_lf": "c1ebea034a18f87dc3aba6861f1c794771f3e51967968037e5858f9bfa1e707c"
+    },
+    {
+      "path": "modelbench/big_budget_team_20260906/provider.py",
+      "sha256": "62270a9febd88548123bd9d72837d6de594bb54f13d2a833f3a3718b170a3620",
+      "sha256_lf": "aa8d29fec7151614ea52482bac9641b1782973ad52c3fa3ba6e7580051ff20f0"
+    },
+    {
+      "path": "modelbench/big_budget_team_20260906/runtime.py",
+      "sha256": "448c4c22340dcd2a21852eb0ea31f855b9e0a5ce503202e40d4ab34c23221aa9",
+      "sha256_lf": "1077abe8fc88b3a7940a615b80507f7d78163db9c3ec3d30b2ad30cc8ed3a71a"
+    },
+    {
+      "path": "modelbench/big_budget_team_20260906/transport.py",
+      "sha256": "9fe89afb73dd936a3250636b8c31666874ed2f4c74a9305e0b34fb4ba2360c59",
+      "sha256_lf": "38d23007701af4406544222b808bd2e4b07005e05fc845d8abd80e9620a5a7d5"
+    },
+    {
+      "path": "modelbench/big_budget_team_20260906/tests/test_coding_quota.py",
+      "sha256": "5bccde813cfc081e88284b05927967fd18a4fec1711183f0048fe2b98cc348ac",
+      "sha256_lf": "6e19a60d4abe561389dafd5a3e4765d901026da9e5a49da4be94e06e19d9e102"
+    },
+    {
+      "path": "modelbench/big_budget_team_20260906/tests/test_continuation.py",
+      "sha256": "1f1738d9aafa63d9568eb1ae74386b66b83f71b4bf36033a7170a9f07cf3c337",
+      "sha256_lf": "3a8f79965ab8ea541dc4c747d1259cb70a7fac6afef0d8dfc04e747bcbf86c3d"
+    },
+    {
+      "path": "modelbench/big_budget_team_20260906/tests/test_contracts.py",
+      "sha256": "3d54d8e2ad904599cad0abb095521172f1f337ceb2de35f9af151677157efc1e",
+      "sha256_lf": "3d54d8e2ad904599cad0abb095521172f1f337ceb2de35f9af151677157efc1e"
+    },
+    {
+      "path": "modelbench/big_budget_team_20260906/tests/test_execution.py",
+      "sha256": "d936737124ed9def50d77164367e7e933e30528555b1e5c8d920d3418a765f8d",
+      "sha256_lf": "a133dcc5c1ced82eb73c54678a9ea3ec8a78a770add95df68f17038f680a082d"
+    },
+    {
+      "path": "modelbench/big_budget_team_20260906/tests/test_execution_failures.py",
+      "sha256": "61f48c960216d05d4c2f48b8dbb04a190f22ec38e4f1e50ab77b141a9701bd90",
+      "sha256_lf": "61f48c960216d05d4c2f48b8dbb04a190f22ec38e4f1e50ab77b141a9701bd90"
+    },
+    {
+      "path": "modelbench/big_budget_team_20260906/tests/test_execution_policy.py",
+      "sha256": "c1c3894bb86f1dd3d9c709220c4117741c971a4001df1c4d8ba67c6d116d6332",
+      "sha256_lf": "8a5500b3224173ff1b33f83c457c89d03cfe02720c63de69931fddbb94962405"
+    },
+    {
+      "path": "modelbench/big_budget_team_20260906/tests/test_glm_stream_http_worker.py",
+      "sha256": "b48ff713955c868a1ad519371e029d362b687a9a4c11c298f056e1a0965dff82",
+      "sha256_lf": "8554a35fa009dc53712578507060aca2019bbaf396af278868177057c611224c"
+    },
+    {
+      "path": "modelbench/big_budget_team_20260906/tests/test_mvp_execution.py",
+      "sha256": "5af75847c03d7922d0e16a374f0d002acf7b99f8e54c151566db90c4fd9352b1",
+      "sha256_lf": "1981faaf7384bdf3417240f6648c52e6593d2860ebfee6cd0fd8b28f13082e20"
+    },
+    {
+      "path": "modelbench/big_budget_team_20260906/tests/test_provider.py",
+      "sha256": "35fa3a65cf5d2edd1ef2a54abd7e7c6a731d714cf5bf70bb4955695ac29c9463",
+      "sha256_lf": "f43f0145f8833dba33c8d8281d28f6fc4594f485cc45d2ecceaa318e8b0bdf85"
+    },
+    {
+      "path": "modelbench/big_budget_team_20260906/tests/test_runtime.py",
+      "sha256": "69ed0dff49f00ce4352937c88226245b66e42088ae86d92a08bfd0b42e3c5517",
+      "sha256_lf": "103616db65f597ba4095246643cd5dfa012c89544bdb61789faee033ac681a3c"
+    },
+    {
+      "path": "modelbench/big_budget_team_20260906/tests/test_transport.py",
+      "sha256": "8d9d7949e34db3dfcb1107d7680b79644316b107149897fd4217e6c4278e88bc",
+      "sha256_lf": "a97ad08791c26c58d8cd5feb41511854b1fc7a2f310700b8bd36befe5663f1ad"
+    },
+    {
+      "path": "modelbench/mechanism_ablation_20260906/__init__.py",
+      "sha256": "76399675085c9ec45bdab99114a572abfc6a5d5ed4f14bda1bc8b090d8af559a",
+      "sha256_lf": "62e279d2f0bdeb1046898c8e5408433923c1635144dbde39836e4d90f9ded173"
+    },
+    {
+      "path": "modelbench/mechanism_ablation_20260906/contracts.py",
+      "sha256": "6f991410ae18177bf461f243b3c7fb1fb66b2a1e20ef53442fc33daacb9159d8",
+      "sha256_lf": "eade1dccc7953d4334d0e0ac95869f996f02c65f4d86ab4f0d2b91daeeb6f7ab"
+    },
+    {
+      "path": "modelbench/mechanism_ablation_20260906/environment.py",
+      "sha256": "f73ecff0362f69e1a0910d9c810ba3e314606bbc5278390e23cbc3242fb4d222",
+      "sha256_lf": "f73ecff0362f69e1a0910d9c810ba3e314606bbc5278390e23cbc3242fb4d222"
+    },
+    {
+      "path": "modelbench/mechanism_ablation_20260906/execution.py",
+      "sha256": "5f90ec11f3606275c66167d04dca9de0f32912d351b4a1915907bed45acb8eba",
+      "sha256_lf": "7e449866175c281df65e99a4e5c8cc52f0a695f6c177e8310d93e4d96bcedddd"
+    },
+    {
+      "path": "modelbench/mechanism_ablation_20260906/probe.py",
+      "sha256": "add99cc49d4373a5d4bd2ce9a5c5d07623902ba91d87c769bc7820e36df98ee7",
+      "sha256_lf": "bec7d7173adb284961114eb5e64aefc062a21b3162023534564a2ca8c40d84fc"
+    },
+    {
+      "path": "modelbench/mechanism_ablation_20260906/provider.py",
+      "sha256": "c5cec5ad8270ed01f0f394128486b9927162493249237ce8e906583657967740",
+      "sha256_lf": "4ae30983b31b91525554a5badd91b60b1375fbf59843740bc9455192b571d624"
+    },
+    {
+      "path": "modelbench/mechanism_ablation_20260906/resources.py",
+      "sha256": "7826bc62d4166239cda826c4e47350c6c9edc44280897b60e70e83aae0f66c9a",
+      "sha256_lf": "a76c0133bd2b91f0d38c83ee69cb31cffb6864c4adffde5090001ffafe78473e"
+    },
+    {
+      "path": "modelbench/mechanism_ablation_20260906/runtime.py",
+      "sha256": "9d692198f9a0ef301d9d70f19506722547c9122938d6c3e3f4ea1bad2dc0d220",
+      "sha256_lf": "9d692198f9a0ef301d9d70f19506722547c9122938d6c3e3f4ea1bad2dc0d220"
+    },
+    {
+      "path": "modelbench/mechanism_ablation_20260906/transport.py",
+      "sha256": "d0d6eb955d53f7372c6dba9debf6e7167aad449f95673dfe2eb6ad721a1f7f96",
+      "sha256_lf": "d0d6eb955d53f7372c6dba9debf6e7167aad449f95673dfe2eb6ad721a1f7f96"
+    },
+    {
+      "path": "modelbench/mechanism_ablation_20260906/tests/test_contracts.py",
+      "sha256": "bc9d2eb587af95036d4dee3e72ca383299f8f061722a1c6d3b36e63974d6952d",
+      "sha256_lf": "b59b2e374647591fb85d601d5455e08eb1158bd580eb3c6ff416cb794ca511b1"
+    },
+    {
+      "path": "modelbench/mechanism_ablation_20260906/tests/test_environment.py",
+      "sha256": "051f455ba423ab98435c7a6ed832cbdd127842918441805e9951c04c17798b4f",
+      "sha256_lf": "051f455ba423ab98435c7a6ed832cbdd127842918441805e9951c04c17798b4f"
+    },
+    {
+      "path": "modelbench/mechanism_ablation_20260906/tests/test_execution.py",
+      "sha256": "1c13baaf1005bc941fa78305e981db04fcf3a98cb3de67587c15d73995990c21",
+      "sha256_lf": "0e0fd80c07eee0ccae77669969c3ef24cc5c9225aff26e183f6c4ba319e8ebe4"
+    },
+    {
+      "path": "modelbench/mechanism_ablation_20260906/tests/test_resources.py",
+      "sha256": "8b35928be5f2393613eede2e9374058de44906330db516233114dcdc351a9ea2",
+      "sha256_lf": "cc2f1b83e73452659a9ce532bc83a6acb3826ef43de3d92365b7990f6f83a86b"
+    },
+    {
+      "path": "modelbench/mechanism_ablation_20260906/tests/test_runtime.py",
+      "sha256": "aa08026db8ba71dfcabed40c2560cd3d99225276a385a8dd0c573e4d7bf44748",
+      "sha256_lf": "aa08026db8ba71dfcabed40c2560cd3d99225276a385a8dd0c573e4d7bf44748"
+    },
+    {
+      "path": "modelbench/mechanism_ablation_20260906/tests/test_transport.py",
+      "sha256": "0fae5f49d2bfec208f8ddae348bea1ec7f94639d7639506ab18534a8f1acc1e3",
+      "sha256_lf": "0fae5f49d2bfec208f8ddae348bea1ec7f94639d7639506ab18534a8f1acc1e3"
+    },
+    {
+      "path": "modelbench/swe_verified_20260903/transport.py",
+      "sha256": "1b0aa69c7d141bc4f3bb0af1340c125b92551d78b68432a59f5210e4af6097b5",
+      "sha256_lf": "1b0aa69c7d141bc4f3bb0af1340c125b92551d78b68432a59f5210e4af6097b5"
+    },
+    {
+      "path": "modelbench/swe_verified_20260903/tests/test_transport.py",
+      "sha256": "11c254e28463d9254a6435fcb23d8e5203c8f990cf57690053b7c06e75ea111b",
+      "sha256_lf": "11c254e28463d9254a6435fcb23d8e5203c8f990cf57690053b7c06e75ea111b"
+    }
+  ],
+  "source_hash_policy": "sha256 binds the local tested bytes; sha256_lf additionally ignores platform CRLF conversion. Published reports preserve byte hashes through .gitattributes.",
+  "publication_screening": {
+    "scope": "explicit files selected for this sync",
+    "selected_files": 154,
+    "exact_known_credential_files_checked": 1,
+    "unclassified_findings": [],
+    "reviewed_test_fixtures": [
+      {
+        "file": "modelbench/big_budget_team_20260906/tests/test_glm_stream_http_worker.py",
+        "line": 18,
+        "basis": "explicit fixture constant or known literal-code fixture in credential-boundary regression",
+        "literal_sha256": "95f6c2407864f562a903714c356c86757cbdb2f079e4d928c8e0f9ed595a330d"
+      },
+      {
+        "file": "modelbench/big_budget_team_20260906/tests/test_transport.py",
+        "line": 15,
+        "basis": "explicit fixture constant or known literal-code fixture in credential-boundary regression",
+        "literal_sha256": "501091a09b620d7bdafad1823e3dcc00a2b466343190288b8047c0aa6991c31c"
+      },
+      {
+        "file": "modelbench/swe_verified_20260903/tests/test_transport.py",
+        "line": 24,
+        "basis": "explicit fixture constant or known literal-code fixture in credential-boundary regression",
+        "literal_sha256": "5263e855dd574f5dc65d98c131b4025d69ba08a790eaca630c160e12e381607e"
+      },
+      {
+        "file": "modelbench/swe_verified_20260903/tests/test_transport.py",
+        "line": 291,
+        "basis": "explicit fixture constant or known literal-code fixture in credential-boundary regression",
+        "literal_sha256": "cf59c0284a901d009b3339c4000328da6b5e82937a55b6f9c6eeeb89b0bebba9"
+      },
+      {
+        "file": "modelbench/swe_verified_20260903/tests/test_transport.py",
+        "line": 293,
+        "basis": "explicit fixture constant or known literal-code fixture in credential-boundary regression",
+        "literal_sha256": "540dcebf4cd5e85e0f3659f1715a79aab93206f21d62e91f3d62398e7a3ff874"
+      }
+    ],
+    "forbidden_artifact_paths": []
+  }
+}

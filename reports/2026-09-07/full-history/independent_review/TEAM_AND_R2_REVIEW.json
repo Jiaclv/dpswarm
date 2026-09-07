@@ -1,0 +1,73 @@
+{
+  "reviewed_at_utc": "2026-09-07T00:50:52.968662+00:00",
+  "status": "pass",
+  "blocking_findings": [],
+  "nonblocking_findings": [],
+  "scope": "Independent read-only cross review of team_synthesis and root R2 tables; original experiments untouched.",
+  "checked": {
+    "comparison_rows": 163,
+    "same_lead_rows": 75,
+    "changed_lead_rows": 88,
+    "series_equal_task_aggregate_checks": 92,
+    "source_episode_score_means_recomputed": true,
+    "missing_resource_values_preserved": true,
+    "shared_baseline_unique_sets": 56,
+    "shared_baseline_ids_bijective_with_episode_sets": true,
+    "v10_v12_runtime_sources_equal": 52,
+    "v10_v12_each_assembly_series_tasks": 2,
+    "v10_v12_repetitions_per_task_arm": 3,
+    "T_same_lead_unique_positive_tasks": [
+      "matplotlib__matplotlib-20826",
+      "pylint-dev__pylint-6386",
+      "sphinx-doc__sphinx-8035"
+    ],
+    "T_positive_configuration_task_rows_not_independent_tasks": 6,
+    "B1_common_runtime_entries": 131,
+    "B1_total_runtime_entries": 132,
+    "B1_only_different_path": "modelbench/big_budget_team_20260906/execution.py",
+    "B1_transport_equal": true,
+    "B1_controller_actual_files_match_frozen_hashes": true,
+    "B1_primary_controller_strata_retained": true,
+    "R2_cumulative": {
+      "scope": "A1+A2",
+      "parent_tasks": "18",
+      "final_passed": "12",
+      "selector_reached": "14",
+      "fallbacks": "4",
+      "different_production_pairs": "5",
+      "same_production_nonfallback_pairs": "9",
+      "byte_identical_pairs": "4",
+      "internal_candidates": "36",
+      "independently_graded_candidates": "0"
+    },
+    "R2_budget_rows": 36,
+    "R2_fallback_candidate_rows": 8,
+    "R2_fallback_parent_episodes": 4,
+    "R2_candidate_local_cap": 270000,
+    "R2_selector_cap": 60000,
+    "R2_local_then_root_reservation_order_verified": true,
+    "R2_nontransferable_limits_verified": true,
+    "R2_all_fallback_root_remaining_exceeds_local_remaining": true
+  },
+  "interpretation_boundaries": [
+    "163 contrast rows and 75 same-lead rows are not independent trials; shared baselines and repeated tasks cannot be pooled for a global success rate.",
+    "T has three deduplicated positive-support tasks across historical settings, not six independent wins.",
+    "B1 supplementary Coding aggregation is solver-compatible with controller qualification differences; it is not byte-identical full-runtime pooling.",
+    "R2 has four fallback parents containing eight candidate rows. Candidate cap is a nontransferable 270k share of a root 600k budget; root surplus does not automatically become candidate budget.",
+    "The eight candidate summaries record TOKEN_BUDGET_EXHAUSTED, but no attempted reservation amount is preserved in the inspected candidate event logs. Budget ordering and remaining balances support the local-cap interpretation; they do not quantify how many extra calls a transfer policy would permit.",
+    "Thirty-six internal candidates have zero independently observed official grades. Final parent quality cannot measure selector accuracy or best-of-two oracle quality."
+  ],
+  "sources": {
+    "modelbench/cumulative_analysis_20260907_v2/team_synthesis/COMPARISONS.csv": "0b670ebe60f6a79375aa0a92760c8c85a963c87452149f4ad3818a2baab69f13",
+    "modelbench/cumulative_analysis_20260907_v2/team_synthesis/SERIES_AGGREGATES.csv": "b4114f451466304c5858dbedc068be2c56b05585b141578666278e82e70c0697",
+    "modelbench/cumulative_analysis_20260907_v2/team_synthesis/CROSS_STRATA_TASK_SUPPORT.csv": "6d1024948059a601e277ad2206605c7655a914625fd57b38c1d8724ccc531eb0",
+    "modelbench/cumulative_analysis_20260907_v2/team_synthesis/MODEL_COMBINATION_CONSISTENCY.csv": "694324cf07dd20b0d1f1f1147a69d98d5f9e4ba88505496509c00dca707ca8fe",
+    "modelbench/cumulative_analysis_20260907_v2/team_synthesis/SUMMARY.json": "ac1e53230f7e16c583bd8ffdd510bb02e297b2a44684195e4b2274be1d7862e8",
+    "modelbench/cumulative_analysis_20260907_v2/team_synthesis/INTEGRATED_TEAM_ZH.md": "72185ab7eaa70892f475a1b34c25b1715f5226b64d256123498a11428c04b684",
+    "modelbench/cumulative_analysis_20260907_v2/team_synthesis/B1_CONTROLLER_DIFF.txt": "f0b10478c89019caad644db5dd6a53783fdbca8d5d93b00fbaf0ca264ad57102",
+    "modelbench/cumulative_analysis_20260907_v2/R2_CUMULATIVE.csv": "3d38792c4c8c30e03c7b8de8731e1eb9cd5bc4717747bbbfdc48a4148b513667",
+    "modelbench/cumulative_analysis_20260907_v2/R2_BUDGET_SCOPES.csv": "9b34bca8eaaaf770b947eb2abd9343e8dccf164c2a538b396e09df6fac266b53",
+    "modelbench/minimal_value_20260905/batches/a1-v2/runtime_snapshot/modelbench/minimal_value_20260905/budget.py": "7afd96e31d9cd7a1f98f53894d46b3a98e1b2407af6dcb1ef6d240a07934cb64"
+  },
+  "file_scan_policy": "Compared frozen manifest maps; rehashed only three targeted budget/controller files, no full-source tree scan."
+}

@@ -1,0 +1,133 @@
+{
+  "attempt_records": 306,
+  "official_score_present": 251,
+  "qualified_swe_scores": 249,
+  "unique_qualified_swe_tasks": 26,
+  "unique_swe_repositories": 12,
+  "family_inventory": [
+    {
+      "scope": "legacy",
+      "family": "swe_fixed_team_20260903",
+      "attempt_records": 111,
+      "official_score_present": 109,
+      "qualified_swe_scores": 107,
+      "unique_task_ids_all_records": 10,
+      "validity_counts": {
+        "official_scored": 107,
+        "pre_model_environment_failure": 2,
+        "excluded_pair_protocol_fault_before_grading": 2
+      }
+    },
+    {
+      "scope": "legacy",
+      "family": "swe_verified_20260903",
+      "attempt_records": 12,
+      "official_score_present": 10,
+      "qualified_swe_scores": 10,
+      "unique_task_ids_all_records": 5,
+      "validity_counts": {
+        "official_scored": 10,
+        "ungraded_infrastructure_failure": 2
+      }
+    },
+    {
+      "scope": "legacy",
+      "family": "team_eval20260903",
+      "attempt_records": 16,
+      "official_score_present": 0,
+      "qualified_swe_scores": 0,
+      "unique_task_ids_all_records": 2,
+      "validity_counts": {
+        "real_frozen_task_protocol_experiment": 15,
+        "real_task_transport_failure_usage_incomplete": 1
+      }
+    },
+    {
+      "scope": "legacy",
+      "family": "team_runtime_v2",
+      "attempt_records": 10,
+      "official_score_present": 0,
+      "qualified_swe_scores": 0,
+      "unique_task_ids_all_records": 2,
+      "validity_counts": {
+        "real_frozen_task_protocol_experiment": 10
+      }
+    },
+    {
+      "scope": "legacy",
+      "family": "results",
+      "attempt_records": 9,
+      "official_score_present": 0,
+      "qualified_swe_scores": 0,
+      "unique_task_ids_all_records": 1,
+      "validity_counts": {
+        "superseded_real_prototype_output_cap_incident": 6,
+        "real_prototype_attempt_missing_terminal_result": 3
+      }
+    },
+    {
+      "scope": "A1_A2",
+      "family": "A1",
+      "attempt_records": 11,
+      "official_score_present": 10,
+      "qualified_swe_scores": 10,
+      "unique_task_ids_all_records": 2,
+      "validity_counts": {
+        "official_scored": 9,
+        "official_scored_with_budget_overshoot": 1,
+        "pre_model_infrastructure_failure": 1
+      }
+    },
+    {
+      "scope": "A1_A2",
+      "family": "A2",
+      "attempt_records": 93,
+      "official_score_present": 80,
+      "qualified_swe_scores": 80,
+      "unique_task_ids_all_records": 16,
+      "validity_counts": {
+        "official_scored": 80,
+        "interrupted_or_ineligible_no_official_score": 13
+      }
+    },
+    {
+      "scope": "budget",
+      "family": "B1",
+      "attempt_records": 26,
+      "official_score_present": 24,
+      "qualified_swe_scores": 24,
+      "unique_task_ids_all_records": 3,
+      "validity_counts": {
+        "official_valid": 19,
+        "official_valid_usage_unknown": 3,
+        "interrupted_unscored": 2,
+        "official_valid;transport_or_tool_policy_termination": 1,
+        "official_valid_usage_unknown;transport_or_tool_policy_termination": 1
+      }
+    },
+    {
+      "scope": "C1",
+      "family": "C1",
+      "attempt_records": 18,
+      "official_score_present": 18,
+      "qualified_swe_scores": 18,
+      "unique_task_ids_all_records": 3,
+      "validity_counts": {
+        "formal_scored": 18
+      }
+    }
+  ],
+  "invalid_protocol_scored": [
+    {
+      "episode_key": "swe_fixed_team_20260903::pilot_v2::sphinx-doc__sphinx-8035__fixed_gpt-5.6-luna",
+      "task": "sphinx-doc__sphinx-8035",
+      "validity": "excluded_pair_protocol_fault_before_grading"
+    },
+    {
+      "episode_key": "swe_fixed_team_20260903::pilot_v2::sphinx-doc__sphinx-8035__fixed_gpt-5.6-terra",
+      "task": "sphinx-doc__sphinx-8035",
+      "validity": "excluded_pair_protocol_fault_before_grading"
+    }
+  ],
+  "note": "Inventory only; no pooled performance estimate. Eight earlier WideSearch score snapshots and deterministic fixtures are separate."
+}

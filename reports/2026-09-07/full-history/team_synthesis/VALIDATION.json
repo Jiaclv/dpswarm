@@ -1,0 +1,14 @@
+{
+  "all_attempts_accounted": 306,
+  "qualified_only_comparison_sources": true,
+  "unique_comparison_ids": true,
+  "shared_baseline_identity_preserved": true,
+  "per_series_tasks_unique": true,
+  "same_task_sources_checked": true,
+  "A1_A2_informative_tasks_checked": true,
+  "legacy_cross_batch_runtime_maps_checked": true,
+  "B1_controller_strata_preserved": true,
+  "time_statistic": "mean within replicate task, then equal-task mean",
+  "network_model_or_grader_calls": 0,
+  "passed": true
+}

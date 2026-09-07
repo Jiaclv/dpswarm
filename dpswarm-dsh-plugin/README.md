@@ -4,6 +4,8 @@ DPSwarm 的 dsh（deepseek-harness）运行时插件——给当前主 agent 提
 
 默认由当前主 agent 单独处理任务；理解任务后或执行途中，它根据可分性、上下文成本和资源事实自主调用 `dpswarm_*` 工具，兼任 Lead，完成分工、验收并回到原任务。用户不必手动开启团队模式。插件安装、sidecar 自动拉起和面板连接灯只表示能力就绪，不会因此启动 worker；设置与面板用于配置、观测及人工干预。当前实现用系统提示和工具说明承载调用指引，尚没有独立 `SKILL.md` 包。
 
+最新[实验综合](../reports/2026-09-07/full-history/REPORT_ZH.md)和[贡献拆解](../reports/2026-09-07/component-attribution/REPORT_ZH.md)来自 modelbench 运行器。它们与本插件的真实 DSH 宿主端到端验收分开判定；下文保留具体接入边界。
+
 ## 架构（机制文档 §9.1：控制面独立，harness 只作执行底座）
 
 ```
@@ -38,11 +40,11 @@ dsh subagent (worker) ◄── ctx.subagents ┘      事件溯源 · 硬准入
 ```bash
 # 1) 启动控制面 sidecar（务必在 dpswarm-plugin 目录下用默认 workspace 起：
 #    写接口 token 写在 .dpswarm-panel/.dpswarm-token，dsh 插件按约定路径读取）
-cd K:\秋招\项目\DPswarm\dpswarm-plugin
+cd dpswarm-plugin
 python -m dpswarm.server --port 8791
 
 # 2) 安装进 dsh profile（首次需 pnpm：npm i -g pnpm）
-dsh plugin --profile web add "file:K:\秋招\项目\DPswarm\dpswarm-dsh-plugin"
+dsh plugin --profile web add "file:<仓库绝对路径>/dpswarm-dsh-plugin"
 
 # 3) 重启 dsh web（profile 装载在启动时）
 dsh web
@@ -61,7 +63,7 @@ dsh web
   页面的跨源状态灯轮询（GET /api/status 只读快照）可达，恶意网页 Origin
   一律 403 且无 CORS 头可读——跨站接管/读取两条路都关死
 - 请求体上限 5MB；面板渲染全部 DOM API/textContent（无 innerHTML，存储型
-  XSS 面清零）；Spec 发布有合法域校验（含 deadline > 单节点 wall-clock 交叉约束）
+  相关 XSS 回归有覆盖）；Spec 发布有合法域校验（含 deadline > 单节点 wall-clock 交叉约束）
 
 ## 已知实现层决策
 

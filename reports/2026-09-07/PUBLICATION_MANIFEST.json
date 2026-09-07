@@ -1,0 +1,721 @@
+{
+  "date": "2026-09-07",
+  "source_report_policy": "Original analyses are immutable; this publication updates navigation, strips machine-specific path prefixes, normalizes text line endings to LF, and adds the already-validated attribution interpretation to the cumulative report. Numerical observations and existing report sections are preserved.",
+  "source_files_unchanged": true,
+  "records": [
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/A1_A2_TASK_MATRIX.csv",
+      "source_sha256": "d9fd4fa2b73389f49ea7614532c4c512e8470c290280f9a22bc34f0fdf50ed93",
+      "published": "reports/2026-09-07/full-history/A1_A2_TASK_MATRIX.csv",
+      "published_sha256": "0137681d3527a54429442e1fb7de0a0528b4f98a9736aa9e0691b9586c121fa7",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/ALL_ATTEMPTS.csv",
+      "source_sha256": "9166ab763bebef61466267b66364a9580503068f092a7fe1494ac4a71a51e227",
+      "published": "reports/2026-09-07/full-history/ALL_ATTEMPTS.csv",
+      "published_sha256": "82abceeaff026b200b96de25624ebe95d80d1a51f574e8fb1963ae54f87c878e",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/ANALYSIS_NOTES.md",
+      "source_sha256": "1a576351e1cb1132f71e28edd8f923ab2c9a3c03e36f6520b2c643528279928d",
+      "published": "reports/2026-09-07/full-history/ANALYSIS_NOTES.md",
+      "published_sha256": "ecbd2a7309cfcfb4758f755cd539d192a5747e348f3cab6fbe1213289beb8e30",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/CONTROL_AND_ACCOUNTING_COVERAGE.csv",
+      "source_sha256": "fe73302592a5417f38dcebd384bbaf893847bea8e9b8400f495654dc8835ded8",
+      "published": "reports/2026-09-07/full-history/CONTROL_AND_ACCOUNTING_COVERAGE.csv",
+      "published_sha256": "da163ef9b4dec65d4197766d4278ba855ddba533c0482e13bcb6027c8a0901f0",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/FOCUS_AGGREGATES.csv",
+      "source_sha256": "bb4fc92af4907aeb41865514a3000ed18327fbef12a18a0067af8a7c1e721892",
+      "published": "reports/2026-09-07/full-history/FOCUS_AGGREGATES.csv",
+      "published_sha256": "d669c81dbd3c59a439d6cf2e2dd0b9bf7db906594db06d250975c7e153e7dc42",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/FOCUS_PAIRED_EFFECTS.csv",
+      "source_sha256": "92c9ffddcd157c3024f9214955623d27a4472fce584637a0157c34e322999e95",
+      "published": "reports/2026-09-07/full-history/FOCUS_PAIRED_EFFECTS.csv",
+      "published_sha256": "13d6d86c08be77be4e1b8f90f7de34105c8c7c8c89aa1d1dcbb0a291a4e8845d",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/FOCUS_PAIRED_EFFECTS.json",
+      "source_sha256": "dd1c5f3e5ebb7b3231ed2238870cbe325e76e7683102eb45ac5cce127c87740d",
+      "published": "reports/2026-09-07/full-history/FOCUS_PAIRED_EFFECTS.json",
+      "published_sha256": "9d6e4bbc74d5197f7a0b84d3a81a58dcddf656f42e3720a65d785003f5507eeb",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/INVENTORY.json",
+      "source_sha256": "ac8b2228889bae0d4579c2a09a5e9df213680f1c121241c01effaf3bcde606ed",
+      "published": "reports/2026-09-07/full-history/INVENTORY.json",
+      "published_sha256": "a62c4d743affe9e2c89541291c518bfc4f659d4e80f31c311af30e45c46d2807",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/MECHANISM_EVIDENCE_MAP.csv",
+      "source_sha256": "1f23be93dcc7ac29ec21c281a8cefb7128392b6b4b6e1397bbae3aed73d65547",
+      "published": "reports/2026-09-07/full-history/MECHANISM_EVIDENCE_MAP.csv",
+      "published_sha256": "5c42a75982dfb5aa1f4a72a0d82a89b4cb12c7e8a5ee8c0496440335556ab3cb",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/MECHANISM_SCOPE.csv",
+      "source_sha256": "589efd980d5c3839501bb8d927ea37cc228dbed439075c73e81babb164ae564f",
+      "published": "reports/2026-09-07/full-history/MECHANISM_SCOPE.csv",
+      "published_sha256": "bd577d4aa9cbeb65f09c828feccb554e23f714fc440ad3dcf6686239ee223ed1",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/MECHANISM_VERDICTS.csv",
+      "source_sha256": "6dbf19cace15ef5c977d4cbc1a167219d51c41876dd57197a2453d2abf4a1c06",
+      "published": "reports/2026-09-07/full-history/MECHANISM_VERDICTS.csv",
+      "published_sha256": "288c3f1b835d7839ed4549525db102d0462ef26d3a612c3228dc6490764cc6d2",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/NON_SWE_VERIFIER_SYNTHESIS.csv",
+      "source_sha256": "a034eea295ab2d5cd0466a45505cd71272991d5753f46b33daba402a951bd85e",
+      "published": "reports/2026-09-07/full-history/NON_SWE_VERIFIER_SYNTHESIS.csv",
+      "published_sha256": "2b46c3161abe6057b46bb050e982012a9f110c6d866114d38e3dff4774284ac3",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/QUALIFIED_SWE_EPISODES.csv",
+      "source_sha256": "5e0ab29c6820fae04577ccc3e543b6c0d7c261aa62e8b17cb8654b3ec6025530",
+      "published": "reports/2026-09-07/full-history/QUALIFIED_SWE_EPISODES.csv",
+      "published_sha256": "952d99573f9820a0edd4d9abda3a6ff625b1b0369430b959ce383cbd4ce95628",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/R2_BUDGET_SCOPES.csv",
+      "source_sha256": "9b34bca8eaaaf770b947eb2abd9343e8dccf164c2a538b396e09df6fac266b53",
+      "published": "reports/2026-09-07/full-history/R2_BUDGET_SCOPES.csv",
+      "published_sha256": "9e8e899f46857be05dbd98f524baaf36499f6a82e747a7f791522d9e77c95c70",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/R2_CANDIDATE_OUTCOMES.csv",
+      "source_sha256": "3ddf0bd27aed8896fed09ff844095bfe222a9477f62baf2c1bc6ed25df0feea7",
+      "published": "reports/2026-09-07/full-history/R2_CANDIDATE_OUTCOMES.csv",
+      "published_sha256": "a13b6cac6b574614952d5d7a6a230bb454588698976ab360aca26d08429eeed9",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/R2_CUMULATIVE.csv",
+      "source_sha256": "3d38792c4c8c30e03c7b8de8731e1eb9cd5bc4717747bbbfdc48a4148b513667",
+      "published": "reports/2026-09-07/full-history/R2_CUMULATIVE.csv",
+      "published_sha256": "a6c4bdc583e14284c9756c59fefbf54586f8a4768b2eda0f3147111827a41d65",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/REPORT_VALIDATION.json",
+      "source_sha256": "011b78f55995d920a0e32aa1f5919986f10b20ffb166fd512ad903fb9ae3b2f0",
+      "published": "reports/2026-09-07/full-history/REPORT_VALIDATION.json",
+      "published_sha256": "8bf4d97737f1c8119797cca8ff45c1c279d18f3007582f9afa8bc98683e0babe",
+      "original_validation_receipt": true
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/REPORT_ZH.md",
+      "source_sha256": "a5bf4d9d6c16974064ec887dab7d8d8b5635319bf67201f4529d0631734caed2",
+      "published": "reports/2026-09-07/full-history/REPORT_ZH.md",
+      "published_sha256": "f4e65994b27454234f7efd4f2b27e342d39a390e21355bec94e252a9dd271037",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/REVIEWED_SOURCE_HASHES.json",
+      "source_sha256": "d9db3b0e9dc75ec99b6f5db0b8b68ad139ff14c861bce7e95acd163171c6d105",
+      "published": "reports/2026-09-07/full-history/REVIEWED_SOURCE_HASHES.json",
+      "published_sha256": "58541225c0042322bc5bb3b1f7b55b307788347065d33ab0b987310dfb39349b",
+      "original_validation_receipt": true
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/TASK_CHARACTERISTICS.csv",
+      "source_sha256": "10e0240f6f8306afc40b1068f23d4dca86e692e7bb930b3998d5e1218068826f",
+      "published": "reports/2026-09-07/full-history/TASK_CHARACTERISTICS.csv",
+      "published_sha256": "d95f6e3173652f4f3a02e7bc3650a992131ed11d7f6c0b07b10e00291aa5d02e",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/TASK_EXPOSURE.csv",
+      "source_sha256": "c3236b4b716cf53d149e02c5c9af4694cdbac6cc4afe8e98ad8865c37f6ecd42",
+      "published": "reports/2026-09-07/full-history/TASK_EXPOSURE.csv",
+      "published_sha256": "862794b0d3d6ada6f0ed994395d994002687ef228cac2c9c2cfe79cd8025ede5",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/figures/01_inventory.png",
+      "source_sha256": "5850ee64c36472da7398e41e73dbf6b5792c0083fe82be0b5fe7cf8935e23710",
+      "published": "reports/2026-09-07/full-history/figures/01_inventory.png",
+      "published_sha256": "5850ee64c36472da7398e41e73dbf6b5792c0083fe82be0b5fe7cf8935e23710",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/figures/02_fixed_matrix.png",
+      "source_sha256": "93e075230fabf50bf6191fc451a842a18e9b283a8c299c76cc2fc38d66708dd5",
+      "published": "reports/2026-09-07/full-history/figures/02_fixed_matrix.png",
+      "published_sha256": "93e075230fabf50bf6191fc451a842a18e9b283a8c299c76cc2fc38d66708dd5",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/figures/03_a2_effects.png",
+      "source_sha256": "d164ace05b5235243053f09448a3bf84dd8087b85d9ec09c5e9f0e07c066e980",
+      "published": "reports/2026-09-07/full-history/figures/03_a2_effects.png",
+      "published_sha256": "d164ace05b5235243053f09448a3bf84dd8087b85d9ec09c5e9f0e07c066e980",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/figures/04_budget_and_models.png",
+      "source_sha256": "71159130e451922b241b74e0bac1cea26865a09389d3297c89a72907042c6c58",
+      "published": "reports/2026-09-07/full-history/figures/04_budget_and_models.png",
+      "published_sha256": "71159130e451922b241b74e0bac1cea26865a09389d3297c89a72907042c6c58",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/figures/05_cm_net_and_pool.png",
+      "source_sha256": "39dca8e6464ddf91a9ceeaa145d3ecc1d52f1a7799f512eeb4e9e0f7860fb6e7",
+      "published": "reports/2026-09-07/full-history/figures/05_cm_net_and_pool.png",
+      "published_sha256": "39dca8e6464ddf91a9ceeaa145d3ecc1d52f1a7799f512eeb4e9e0f7860fb6e7",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/figures/06_assembly.png",
+      "source_sha256": "1bf8bc0fbb2be97412c4419e24d9e4a597db0393233e3c255545622d4d594225",
+      "published": "reports/2026-09-07/full-history/figures/06_assembly.png",
+      "published_sha256": "1bf8bc0fbb2be97412c4419e24d9e4a597db0393233e3c255545622d4d594225",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/figures/07_diagnostic_history.png",
+      "source_sha256": "60f8bb21acd3220dc693d81b1ce70a0271dc6454635d71d159861ee35bc9ac11",
+      "published": "reports/2026-09-07/full-history/figures/07_diagnostic_history.png",
+      "published_sha256": "60f8bb21acd3220dc693d81b1ce70a0271dc6454635d71d159861ee35bc9ac11",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/figures/08_a2_economics.png",
+      "source_sha256": "caa2d5c7f1c83d8637c4b35c6a34459827f0c200ef844fb2abdcd17c181e103f",
+      "published": "reports/2026-09-07/full-history/figures/08_a2_economics.png",
+      "published_sha256": "caa2d5c7f1c83d8637c4b35c6a34459827f0c200ef844fb2abdcd17c181e103f",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/figures/09_delivery_budget.png",
+      "source_sha256": "da3ac1dd89968cdc2df1aa557621fb0c5a6037f5de7a8914d395a02154bc7e81",
+      "published": "reports/2026-09-07/full-history/figures/09_delivery_budget.png",
+      "published_sha256": "da3ac1dd89968cdc2df1aa557621fb0c5a6037f5de7a8914d395a02154bc7e81",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/figures/10_r2_cumulative.png",
+      "source_sha256": "c8490af0a94ecb3a1506500cd7c780a5a7686bfba4bc033dd840cedacef97b23",
+      "published": "reports/2026-09-07/full-history/figures/10_r2_cumulative.png",
+      "published_sha256": "c8490af0a94ecb3a1506500cd7c780a5a7686bfba4bc033dd840cedacef97b23",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/figures/11_cm_cumulative.png",
+      "source_sha256": "6ceae204973af8cdbce9d7ab0179192d4cfba8bdbf4275aeac398bd4d748870b",
+      "published": "reports/2026-09-07/full-history/figures/11_cm_cumulative.png",
+      "published_sha256": "6ceae204973af8cdbce9d7ab0179192d4cfba8bdbf4275aeac398bd4d748870b",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/figures/12_role_cumulative.png",
+      "source_sha256": "a0b9b1b354305bc39595527033f6f83001ca5ae3d9ebc7757936b22cba3bfe06",
+      "published": "reports/2026-09-07/full-history/figures/12_role_cumulative.png",
+      "published_sha256": "a0b9b1b354305bc39595527033f6f83001ca5ae3d9ebc7757936b22cba3bfe06",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/figures/13_team_cumulative.png",
+      "source_sha256": "fecaae19804f0ce92efc9ad11ac6ffdbfbc8ab0150e67a9da087ef5193abf793",
+      "published": "reports/2026-09-07/full-history/figures/13_team_cumulative.png",
+      "published_sha256": "fecaae19804f0ce92efc9ad11ac6ffdbfbc8ab0150e67a9da087ef5193abf793",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/context_synthesis/CM_RESOURCE_SUMMARY.csv",
+      "source_sha256": "2ac7701806dd8044acd45135f10cf9080a081f0d7b17f4130146097bef14618c",
+      "published": "reports/2026-09-07/full-history/context_synthesis/CM_RESOURCE_SUMMARY.csv",
+      "published_sha256": "d30b9e72ac47ae80a9076083ecce9e0f13c5bdafe289a47f5be3e12e7778c094",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/context_synthesis/CONTEXT_COMPARISONS.csv",
+      "source_sha256": "48b297485ee3ea9e1e3ef071f854e322a9ff602e97a77315b5afca88a1a72072",
+      "published": "reports/2026-09-07/full-history/context_synthesis/CONTEXT_COMPARISONS.csv",
+      "published_sha256": "3f3c39b0a12f97c901b85e5e2a5399aef6a7d0863dfec9dc621f59287ef5dd3e",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/context_synthesis/COVERAGE.csv",
+      "source_sha256": "1e03940ee63022d1be422970192f77a1a31921e9b19fef36659e522587b8c526",
+      "published": "reports/2026-09-07/full-history/context_synthesis/COVERAGE.csv",
+      "published_sha256": "0a4ca41ca0e970b63f54cf66445782ece4c6e817455ab5504bb9ef41a2eb41ca",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/context_synthesis/INTEGRATED_CONTEXT_ZH.md",
+      "source_sha256": "ab726ac7aa92c215ce8e3a599f8bcf2cc69317e018af3a91d05a2ca37b8c30e3",
+      "published": "reports/2026-09-07/full-history/context_synthesis/INTEGRATED_CONTEXT_ZH.md",
+      "published_sha256": "20c783df4745b769d8d7cf79aa2dcf0e06fe5baa97abce962cf92ba62708abb4",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/context_synthesis/SUMMARY.json",
+      "source_sha256": "8e20a5c6976503010c229de84b306de903f1fd97a5964f3114442cc2c4a0f355",
+      "published": "reports/2026-09-07/full-history/context_synthesis/SUMMARY.json",
+      "published_sha256": "1cad76b178fda199ed128a9f9312defc458206e16933a006dbedc6590a6f2b46",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/context_synthesis/VALIDATION.json",
+      "source_sha256": "4cc52933e8475c39d6c2f3c7569c36e9ca6eb8de4e7537939427de039b7f0a67",
+      "published": "reports/2026-09-07/full-history/context_synthesis/VALIDATION.json",
+      "published_sha256": "953b551f65435c40788d541d38ae76c22750fc67c3cba6b6a3bb2a9d7f0eefd4",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/role_synthesis/ALL_BUDGET_CONFIGURATIONS.csv",
+      "source_sha256": "3608be859c8dfd7128079fab5f162ece386283f77da68fc77ce2a079c105e881",
+      "published": "reports/2026-09-07/full-history/role_synthesis/ALL_BUDGET_CONFIGURATIONS.csv",
+      "published_sha256": "4c903f985b4fd3a02714a9b8d914b7df97b2ae8d95c7a5c5e37d25459cd7e82a",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/role_synthesis/BUDGET_COMPARISONS.csv",
+      "source_sha256": "77297bafb47779522b4c1a845667063aef05756922aca493bcef3afca3018c24",
+      "published": "reports/2026-09-07/full-history/role_synthesis/BUDGET_COMPARISONS.csv",
+      "published_sha256": "23425448db7f674584f089fe536be013ff881cdff6f1733ed45a961254c43dc5",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/role_synthesis/COHORT_ROLE_SUMMARY.csv",
+      "source_sha256": "4d5e0c8508488d2ce2607aa20106c5b7431c47b2de97e766f3e38436ac24d03a",
+      "published": "reports/2026-09-07/full-history/role_synthesis/COHORT_ROLE_SUMMARY.csv",
+      "published_sha256": "1345fc8e34d62b741072da48ea84863b43c1864ad370c75e8d873896c05829a3",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/role_synthesis/COVERAGE.csv",
+      "source_sha256": "b5f2d0c7221c1fc4ebb1b906bae1072dcc98d8ca728808c7e2bef0751fcfe866",
+      "published": "reports/2026-09-07/full-history/role_synthesis/COVERAGE.csv",
+      "published_sha256": "9833b0da8112f0843ea1a1c57af38a9a40ae34d9ae81156fdcce1737c851c7d8",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/role_synthesis/INTEGRATED_ROLES_ZH.md",
+      "source_sha256": "40c3dffcf2085e4fc7f294aff5fb8f374f37b0e203edacb98e657dd933ff02aa",
+      "published": "reports/2026-09-07/full-history/role_synthesis/INTEGRATED_ROLES_ZH.md",
+      "published_sha256": "c905d6a59296cdaa7ba7dc1189516038c6e06e12a448cb9bbbd004b04ec93f29",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/role_synthesis/ROLE_BUDGET_GROWTH.csv",
+      "source_sha256": "69caada29272344d60243397ca79df06876d551fbd14d00ace22eaf65caace36",
+      "published": "reports/2026-09-07/full-history/role_synthesis/ROLE_BUDGET_GROWTH.csv",
+      "published_sha256": "5234e731bcc2aa9d258f4ad562928741cccadb16ce645e8de65446006c2a097d",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/role_synthesis/ROLE_RESOURCES.csv",
+      "source_sha256": "0a733d491ab887d656567316afe012be2bb294c539a22b32ee6659f0287284b4",
+      "published": "reports/2026-09-07/full-history/role_synthesis/ROLE_RESOURCES.csv",
+      "published_sha256": "4d0e9a91d8c5a45e4e9e6d8dc5ebbb2c9f2b98566bbcef259487625d7317cc1c",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/role_synthesis/ROLE_RESOURCE_SHARES.csv",
+      "source_sha256": "b9ae5e7092e298bc3fe0f603ca69610628f50c0b751f58418efbba989d63c14f",
+      "published": "reports/2026-09-07/full-history/role_synthesis/ROLE_RESOURCE_SHARES.csv",
+      "published_sha256": "58c8f7782248fbbb15d25e76b2db048a5c99916a27ca7dddcf979bfd801a611f",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/role_synthesis/SUMMARY.json",
+      "source_sha256": "cf6288c81f9ad3c3f88efa1b5f92ede23e941b4827ee9e73eaf6f0d1b2bdca16",
+      "published": "reports/2026-09-07/full-history/role_synthesis/SUMMARY.json",
+      "published_sha256": "1aa60ec17e95fdb4a016063c7e2c89b4c72ab914026765ce809f3106c188a049",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/role_synthesis/UNIFIED_WORKERS.csv",
+      "source_sha256": "2d3d7e262d2d3ece82e4ae174dcac15d62052abb4633833fca6255c78dfde0d8",
+      "published": "reports/2026-09-07/full-history/role_synthesis/UNIFIED_WORKERS.csv",
+      "published_sha256": "65e3564c3f086b36f0981db34cc6fcf0a8d4ca25f7e0dc7c31dad1a856c9f482",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/role_synthesis/VALIDATION.json",
+      "source_sha256": "ba9428e0099a7dc863670d7f288ab85a0290d8fc6f28a270629dec82362d2feb",
+      "published": "reports/2026-09-07/full-history/role_synthesis/VALIDATION.json",
+      "published_sha256": "5b72a617532c39ef25c0533cd1322dd859becfca838ecac6aee1cd5a393ee6c1",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/team_synthesis/B1_CONTROLLER_DIFF.txt",
+      "source_sha256": "f0b10478c89019caad644db5dd6a53783fdbca8d5d93b00fbaf0ca264ad57102",
+      "published": "reports/2026-09-07/full-history/team_synthesis/B1_CONTROLLER_DIFF.txt",
+      "published_sha256": "0c392614ab20648aaa3b16814ecc36cc089116d29c39c201106f2dca2be928d5",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/team_synthesis/COMPARISONS.csv",
+      "source_sha256": "0b670ebe60f6a79375aa0a92760c8c85a963c87452149f4ad3818a2baab69f13",
+      "published": "reports/2026-09-07/full-history/team_synthesis/COMPARISONS.csv",
+      "published_sha256": "61edd0585fb5ada516f4017eddfff4dca4709d16e322d90cdc9f12a6b1b062d2",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/team_synthesis/COVERAGE.csv",
+      "source_sha256": "dc29b72b903ea504ec8163265f80d87846fed3629517c8e961b6426f17ba25b5",
+      "published": "reports/2026-09-07/full-history/team_synthesis/COVERAGE.csv",
+      "published_sha256": "b4893627c04796cfc6b61136370463feedb0d8db53d3be2d4ecd8376ded4ca16",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/team_synthesis/CROSS_STRATA_TASK_SUPPORT.csv",
+      "source_sha256": "6d1024948059a601e277ad2206605c7655a914625fd57b38c1d8724ccc531eb0",
+      "published": "reports/2026-09-07/full-history/team_synthesis/CROSS_STRATA_TASK_SUPPORT.csv",
+      "published_sha256": "8b4be3a67400e73465d3657746d8c315cbb876d5585fed236171683c5f21df28",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/team_synthesis/INTEGRATED_TEAM_ZH.md",
+      "source_sha256": "72185ab7eaa70892f475a1b34c25b1715f5226b64d256123498a11428c04b684",
+      "published": "reports/2026-09-07/full-history/team_synthesis/INTEGRATED_TEAM_ZH.md",
+      "published_sha256": "7eebd44433839bb218e9b51557ce495f733546a4ad75e5ccaef1a5e228de7876",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/team_synthesis/MODEL_COMBINATION_CONSISTENCY.csv",
+      "source_sha256": "694324cf07dd20b0d1f1f1147a69d98d5f9e4ba88505496509c00dca707ca8fe",
+      "published": "reports/2026-09-07/full-history/team_synthesis/MODEL_COMBINATION_CONSISTENCY.csv",
+      "published_sha256": "d8a86763988c8dc03abe1ef6b02cc31b6e5660a0bb7d0928065990126856e01f",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/team_synthesis/SERIES_AGGREGATES.csv",
+      "source_sha256": "b4114f451466304c5858dbedc068be2c56b05585b141578666278e82e70c0697",
+      "published": "reports/2026-09-07/full-history/team_synthesis/SERIES_AGGREGATES.csv",
+      "published_sha256": "e21dd1d4c28f0a868fb0b0cc4f33731e7f8d07109f1d96d5fb21ab68117e0f4e",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/team_synthesis/SUMMARY.json",
+      "source_sha256": "ac1e53230f7e16c583bd8ffdd510bb02e297b2a44684195e4b2274be1d7862e8",
+      "published": "reports/2026-09-07/full-history/team_synthesis/SUMMARY.json",
+      "published_sha256": "e1bc1336aecd862051346b36eca616b1963683db318e4dc4c83385cc7ae4ade8",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/team_synthesis/VALIDATION.json",
+      "source_sha256": "ce14c1af4ce7a1df99e41d80e7a8ff36967ac6f504d035f29ba3795c88e0ee78",
+      "published": "reports/2026-09-07/full-history/team_synthesis/VALIDATION.json",
+      "published_sha256": "8394a1e1179cde698c5890a74da096eb0a3aef1a3ba4c201709068894891dc7e",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/independent_review/CONTEXT_REPORT_REVIEW.json",
+      "source_sha256": "55629dd2dc8177d500bb4d7ffbd98fdd46ce8859fec10cca48827bac5d95ce37",
+      "published": "reports/2026-09-07/full-history/independent_review/CONTEXT_REPORT_REVIEW.json",
+      "published_sha256": "7191882bce8e1e585e755c91bf100aae731e6f2377193209578ae2ce1c7ffc4a",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/independent_review/CONTEXT_REVIEW.json",
+      "source_sha256": "acdcaa6ce446da97309cf68b1f42be73549b66f6fb7ffa17047773d18edaf00d",
+      "published": "reports/2026-09-07/full-history/independent_review/CONTEXT_REVIEW.json",
+      "published_sha256": "291754d2dd353e2a673a925216757c3d39dc685046c5654434ceea0e6ccb68ba",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/independent_review/REPORT_CONTENT_REVIEW.json",
+      "source_sha256": "3a1e7e74c5700fd8a367b1d621d5bb48d87053621de53231ba4f99ea7a45fafb",
+      "published": "reports/2026-09-07/full-history/independent_review/REPORT_CONTENT_REVIEW.json",
+      "published_sha256": "99499e6f06e4a062078e00f81a4ffcc06211c3fd50b11da24edffb1c6d219650",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/independent_review/ROLES_REVIEW.json",
+      "source_sha256": "a1ff83b8072ac3518794c3dd55997d2f2e5467129e7b601a2f31dc79b0af287a",
+      "published": "reports/2026-09-07/full-history/independent_review/ROLES_REVIEW.json",
+      "published_sha256": "cb810dbaf4552fd08d0a14a40336fde99e394bac1b61f9c96a5876f5579be83f",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/independent_review/TEAM_AND_R2_REVIEW.json",
+      "source_sha256": "265d13b5ae12b66ebdf6b6d3a34c35da240e65d448b767e00705c643e54386d5",
+      "published": "reports/2026-09-07/full-history/independent_review/TEAM_AND_R2_REVIEW.json",
+      "published_sha256": "9fc44d3335f351cdc6a6603429490fc42bfd24b1d70deff88c56349aabf750aa",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/component_attribution_20260907_v1/CM_COMPONENT_BRIDGE.json",
+      "source_sha256": "309eef0f8ccf1649583056475d74fa226dd124ae83c4414060ef33930b8fc024",
+      "published": "reports/2026-09-07/component-attribution/CM_COMPONENT_BRIDGE.json",
+      "published_sha256": "5bd66dcace15e688f5bb2ffb4a867b82aa86024e453a74cabc207c62b787867c",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/component_attribution_20260907_v1/CM_ROLE_ACCOUNTING.csv",
+      "source_sha256": "fd3218cec43a6762282b181b8cf7c162543a8d4b39d712585f761ccfc1efe9c7",
+      "published": "reports/2026-09-07/component-attribution/CM_ROLE_ACCOUNTING.csv",
+      "published_sha256": "3c16becdce1d4240b46651ca9dedc94fa7cf0b6ce91f7aaf05473074d5656873",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/component_attribution_20260907_v1/DATA_VALIDATION.json",
+      "source_sha256": "da2f23534b90acb2db20fdfdcf409f3631a754c5c6de8aea64abadfaf7983dbc",
+      "published": "reports/2026-09-07/component-attribution/DATA_VALIDATION.json",
+      "published_sha256": "1d187348fd611a561a6d98440e655eb686f5159d1475a39de860913476f5f87f",
+      "original_validation_receipt": true
+    },
+    {
+      "source": "modelbench/component_attribution_20260907_v1/DELIVERY_DECOMPOSITION.csv",
+      "source_sha256": "9ecdb0fb7abd87234217c7fcc76ff8ca87519c4c85b1d96f66548e68f90e5ed0",
+      "published": "reports/2026-09-07/component-attribution/DELIVERY_DECOMPOSITION.csv",
+      "published_sha256": "0cc135b96cc438cef32074a8a066265646c9ed59f2891c7004696e1bdd4dfc0f",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/component_attribution_20260907_v1/EPISODE_SUMMARY.csv",
+      "source_sha256": "1a934de26b227249a3e233d0c9a61a1f6d3015dc4506f3dd15e6d751155257da",
+      "published": "reports/2026-09-07/component-attribution/EPISODE_SUMMARY.csv",
+      "published_sha256": "de8853914f9ddc05d2fc63d1b3d50a778bb05be4360a8cf792ff40cf1b7d70d1",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/component_attribution_20260907_v1/KEY_EVENTS.json",
+      "source_sha256": "6740f496d98df8f10cf5487eaa5968087c312239e44b4e37bba1ad306c207573",
+      "published": "reports/2026-09-07/component-attribution/KEY_EVENTS.json",
+      "published_sha256": "bd87831cfc084f62724effb16deec9ae90389ea879f42d4076ec1d7aada0d53b",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/component_attribution_20260907_v1/MATCHED_8_SOLO.csv",
+      "source_sha256": "4e6ac453b9f4223ea86dbd52ca4165891d88fd9bba5a608cacb5245f3472399b",
+      "published": "reports/2026-09-07/component-attribution/MATCHED_8_SOLO.csv",
+      "published_sha256": "a7eeb1d58f0ca58dc01f5a8d131caf47e35c0d36a368a81293667795fe2dca18",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/component_attribution_20260907_v1/PAIRED_18_DELIVERY.csv",
+      "source_sha256": "4806debc4802b8df7096a761c14bdb250333e9cc1dccd16464ecb75b09e4eeb6",
+      "published": "reports/2026-09-07/component-attribution/PAIRED_18_DELIVERY.csv",
+      "published_sha256": "b2ec6d35bbddd7b9b2b6846f35174b14d10d9540ef9ece2b36c112433a0e2ab5",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/component_attribution_20260907_v1/POSITIVE_10_ORIGINS.csv",
+      "source_sha256": "6792a5ec3e8cdffd685eebe2fd2d963ea40493e2d615c5e7b32838a2d4bd5e2b",
+      "published": "reports/2026-09-07/component-attribution/POSITIVE_10_ORIGINS.csv",
+      "published_sha256": "76726dc95cce949fbcbcbd3cf73b54e8dcffb6b3704da608de02b2bf8adcaf25",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/component_attribution_20260907_v1/POSITIVE_STRATA.csv",
+      "source_sha256": "da71663190350cadfc12304d06559f3c0ecb8c64d012889e146d5590eec68816",
+      "published": "reports/2026-09-07/component-attribution/POSITIVE_STRATA.csv",
+      "published_sha256": "5d58a5dfc23fe9ccaa2444c6495c884c3d1ba8732a4f7e8f1a09a682fd17a640",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/component_attribution_20260907_v1/PRODUCTION_ORIGIN_COUNTS.csv",
+      "source_sha256": "6020aafd7df76a350264c1b38b051032d79ad8709cdd79a3269c0efc54b53169",
+      "published": "reports/2026-09-07/component-attribution/PRODUCTION_ORIGIN_COUNTS.csv",
+      "published_sha256": "3e3281066beb5d63c10e275954d4bd8af0e1482a5a4c2fb451468644df1ffba2",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/component_attribution_20260907_v1/REPORT_VALIDATION.json",
+      "source_sha256": "a0c1be44dcc205c6e7bb80a58f1ae48ad19131a186ae7504e334bffe438a522f",
+      "published": "reports/2026-09-07/component-attribution/REPORT_VALIDATION.json",
+      "published_sha256": "8508ccd12718dd09191c30d7466b7061fc5e105d54169cae70146266e19b7d09",
+      "original_validation_receipt": true
+    },
+    {
+      "source": "modelbench/component_attribution_20260907_v1/REPORT_ZH.md",
+      "source_sha256": "1a08b96d6b92149831941efb918f9db8fff20d4f07b3303f9a778ce47f096c50",
+      "published": "reports/2026-09-07/component-attribution/REPORT_ZH.md",
+      "published_sha256": "089b70aca01c8a3d11a0db604ddf464d4c3b180d81af2191a577b68b8f05a867",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/component_attribution_20260907_v1/SOURCE_HASHES.json",
+      "source_sha256": "b9b6172f6d5f489c070d658bb1e1570b252cb8acc496dcf1d4f4936b59f66091",
+      "published": "reports/2026-09-07/component-attribution/SOURCE_HASHES.json",
+      "published_sha256": "d1c81e27571842b158c1e2ae2d31a576e94e9c220969b15b50738a26359267f5",
+      "original_validation_receipt": true
+    },
+    {
+      "source": "modelbench/component_attribution_20260907_v1/WORKER_PROVENANCE.csv",
+      "source_sha256": "6c0970334f99a5e7262d8d9ea8a9c7c4d7878a8a018a11b215658204f40df28b",
+      "published": "reports/2026-09-07/component-attribution/WORKER_PROVENANCE.csv",
+      "published_sha256": "30072951ca4c99f93fdc1fc0463062313f2949c1181179a5f51ad6212c0ac3be",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/component_attribution_20260907_v1/figures/01_delivery_pairs.png",
+      "source_sha256": "46399fa4e22cdb49096a034fa7e32798de38980007ab5dc943292a190cc172de",
+      "published": "reports/2026-09-07/component-attribution/figures/01_delivery_pairs.png",
+      "published_sha256": "46399fa4e22cdb49096a034fa7e32798de38980007ab5dc943292a190cc172de",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/component_attribution_20260907_v1/figures/02_production_origins.png",
+      "source_sha256": "361d59c83e17802be2e79cdfed24ba501c2d45928fa2b0dd273b90a8f96a1598",
+      "published": "reports/2026-09-07/component-attribution/figures/02_production_origins.png",
+      "published_sha256": "361d59c83e17802be2e79cdfed24ba501c2d45928fa2b0dd273b90a8f96a1598",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/component_attribution_20260907_v1/figures/03_cm_components.png",
+      "source_sha256": "4fc23c1111457066bb7d932b99a89dffd0a68c58dbda7bf6b30d6f8dbac18257",
+      "published": "reports/2026-09-07/component-attribution/figures/03_cm_components.png",
+      "published_sha256": "4fc23c1111457066bb7d932b99a89dffd0a68c58dbda7bf6b30d6f8dbac18257",
+      "original_validation_receipt": false
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/REPORT_ZH.html",
+      "source_sha256": "2baddc5107c890a9a9aaa6bed2448c70b4bd9f951d4bcc8462ccee00a8b7e8f7",
+      "published": "reports/2026-09-07/full-history/REPORT_ZH.html",
+      "published_sha256": "0e9edb8ca9b156f96a9e03475642ce0921f0ac0ba6ce2caf385d22eabafc3c43",
+      "transformation": "same canonical report reader; updated report links and explicitly identified attribution note"
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/portable/artifact.json",
+      "source_sha256": "45f75fb34f9be78fb36c37edbcd70aaf7fbc726f0935b8f17e773fde12c44ef3",
+      "published": "reports/2026-09-07/full-history/portable/artifact.json",
+      "published_sha256": "068dcfe823a256be51de63d02f9de7556f79ad26a10e0e185d58cbca9b4541c1"
+    },
+    {
+      "source": "modelbench/component_attribution_20260907_v1/REPORT_ZH.html",
+      "source_sha256": "0027b79c621b34ada6c180220bf97bde935c6cf66a1c977a590e81b0672c7c00",
+      "published": "reports/2026-09-07/component-attribution/REPORT_ZH.html",
+      "published_sha256": "100ee738941b8be6c65164f3d1871afa1f673ee3229cfe2c2deadc8492cbd337",
+      "transformation": "same canonical report reader; updated report links and explicitly identified attribution note"
+    },
+    {
+      "source": "modelbench/component_attribution_20260907_v1/portable/artifact.json",
+      "source_sha256": "8ce8223b9d2a8b2ad2c14833e43c753a018b8d27ddd21c6da520eff84508e4c8",
+      "published": "reports/2026-09-07/component-attribution/portable/artifact.json",
+      "published_sha256": "07d5a5d64d3ed3bf5937f4b8474ac4b91dcd0ad6c2469d86cd07a4bb14bcf037"
+    },
+    {
+      "source": "modelbench/big_budget_team_20260906/PLAN_ZH.md",
+      "source_sha256": "7bc7b0bf743dd61a26f343be9962314e4d4c34e760c427a3c4391aab440e3c87",
+      "published": "reports/2026-09-07/plans/B1_PLAN_ZH.md",
+      "published_sha256": "422b002e13f9e0ba807411cd07f23aed98a6539ddf9fd15f7f9e719abeded7c3",
+      "transformation": "historical plan copy; machine paths normalized and archive-only links labeled"
+    },
+    {
+      "source": "modelbench/mechanism_ablation_20260906/PLAN_ZH.md",
+      "source_sha256": "d24efc4c317a6bbc0aa0f1dec5aec8b0df9b50daed09c3aad9ca75ff88876113",
+      "published": "reports/2026-09-07/plans/C1_PLAN_ZH.md",
+      "published_sha256": "6f1bef1a02b94446ae030f16dbb94d9a04400d491ca08f0724176b6c25974c27",
+      "transformation": "historical plan copy; machine paths normalized and archive-only links labeled"
+    }
+  ],
+  "local_archive_references": [
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/REPORT_ZH.md",
+      "reference": "../cumulative_analysis_20260907_v1/REPORT_ZH.md",
+      "reason": "local archival evidence is not bundled"
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/REPORT_ZH.md",
+      "reference": "../cumulative_analysis_20260907_v1/a2_audit/A1_A2_AUDIT_ZH.md",
+      "reason": "local archival evidence is not bundled"
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/REPORT_ZH.md",
+      "reference": "../cumulative_analysis_20260907_v1/budget_audit/BUDGET_HISTORY_ZH.md",
+      "reason": "local archival evidence is not bundled"
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/REPORT_ZH.md",
+      "reference": "../cumulative_analysis_20260907_v1/legacy_audit/LEGACY_AUDIT_ZH.md",
+      "reason": "local archival evidence is not bundled"
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/REPORT_ZH.md",
+      "reference": "../cumulative_analysis_20260907_v1/independent_review/DATA_REVIEW_ZH.md",
+      "reason": "local archival evidence is not bundled"
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/REPORT_ZH.md",
+      "reference": "../mechanism_ablation_20260906/analysis/c1_20260907_v1/REPORT_ZH.md",
+      "reason": "local archival evidence is not bundled"
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/REPORT_ZH.md",
+      "reference": "PORTABLE_RECEIPT.json",
+      "reason": "local archival evidence is not bundled"
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/REPORT_ZH.md",
+      "reference": "ARTIFACT_HASHES.json",
+      "reason": "local archival evidence is not bundled"
+    },
+    {
+      "source": "modelbench/component_attribution_20260907_v1/REPORT_ZH.md",
+      "reference": "../cumulative_analysis_20260907_v2/REPORT_ZH.html",
+      "reason": "local archival evidence is not bundled"
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/REPORT_ZH.md",
+      "reference": "<modelbench/cumulative_analysis_20260907_v1/REPORT_ZH.md>",
+      "reason": "local archival evidence is not bundled"
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/REPORT_ZH.md",
+      "reference": "<modelbench/cumulative_analysis_20260907_v1/a2_audit/A1_A2_AUDIT_ZH.md>",
+      "reason": "local archival evidence is not bundled"
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/REPORT_ZH.md",
+      "reference": "<modelbench/cumulative_analysis_20260907_v1/budget_audit/BUDGET_HISTORY_ZH.md>",
+      "reason": "local archival evidence is not bundled"
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/REPORT_ZH.md",
+      "reference": "<modelbench/cumulative_analysis_20260907_v1/legacy_audit/LEGACY_AUDIT_ZH.md>",
+      "reason": "local archival evidence is not bundled"
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/REPORT_ZH.md",
+      "reference": "<modelbench/cumulative_analysis_20260907_v1/independent_review/DATA_REVIEW_ZH.md>",
+      "reason": "local archival evidence is not bundled"
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/REPORT_ZH.md",
+      "reference": "<modelbench/mechanism_ablation_20260906/analysis/c1_20260907_v1/REPORT_ZH.md>",
+      "reason": "local archival evidence is not bundled"
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/REPORT_ZH.md",
+      "reference": "<PORTABLE_RECEIPT.json>",
+      "reason": "local archival evidence is not bundled"
+    },
+    {
+      "source": "modelbench/cumulative_analysis_20260907_v2/REPORT_ZH.md",
+      "reference": "<ARTIFACT_HASHES.json>",
+      "reason": "local archival evidence is not bundled"
+    },
+    {
+      "source": "modelbench/component_attribution_20260907_v1/REPORT_ZH.md",
+      "reference": "<modelbench/cumulative_analysis_20260907_v2/REPORT_ZH.html>",
+      "reason": "local archival evidence is not bundled"
+    }
+  ],
+  "source_validation_policy": "DATA_VALIDATION and REPORT_VALIDATION remain original-analysis receipts, not publication certification. PUBLICATION_VALIDATION records checks of these copies."
+}

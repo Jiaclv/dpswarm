@@ -1,0 +1,205 @@
+{
+  "created_at_utc": "2026-09-07T00:57:50.443536+00:00",
+  "review_type": "producer_self_check_not_independent_review",
+  "reviewer_role": "Context synthesis and chart author",
+  "status": "pass",
+  "independent_review_required_for_final_claim": true,
+  "comparison_count": 11,
+  "comparison_checks": [
+    {
+      "comparison": "C1_CM_ON_vs_OFF",
+      "method": "recomputed from original C1 condition aggregates",
+      "passed": true
+    },
+    {
+      "comparison": "assembly_on_off_pilot_v10_sphinx-doc__sphinx-8035",
+      "method": "recomputed from audited legacy matched_comparisons source",
+      "passed": true
+    },
+    {
+      "comparison": "assembly_on_off_pilot_v12_astropy__astropy-14995",
+      "method": "recomputed from audited legacy matched_comparisons source",
+      "passed": true
+    },
+    {
+      "comparison": "assembly_on_off_pilot_v16_pydata__xarray-7229",
+      "method": "recomputed from audited legacy matched_comparisons source",
+      "passed": true
+    },
+    {
+      "comparison": "assembly_on_off_pilot_v16_mwaskom__seaborn-3069",
+      "method": "recomputed from audited legacy matched_comparisons source",
+      "passed": true
+    },
+    {
+      "comparison": "cm_pool_solo_6_vs_24",
+      "method": "recomputed from audited legacy matched_comparisons source",
+      "passed": true
+    },
+    {
+      "comparison": "cm_pool_team_6_vs_24",
+      "method": "recomputed from audited legacy matched_comparisons source",
+      "passed": true
+    },
+    {
+      "comparison": "curfew_on_off_v15",
+      "method": "recomputed from audited legacy matched_comparisons source",
+      "passed": true
+    },
+    {
+      "comparison": "cm_pool_12_vs_24_v15",
+      "method": "recomputed from audited legacy matched_comparisons source",
+      "passed": true
+    },
+    {
+      "comparison": "same_code_two_task_assembly_v10_v12",
+      "method": "recomputed equal-task means from two original task controls",
+      "passed": true
+    },
+    {
+      "comparison": "separate_v16_two_task_assembly_with_scout_tool_failure",
+      "method": "recomputed equal-task means from two original task controls",
+      "passed": true
+    }
+  ],
+  "plotted_cohorts": 7,
+  "plotted_share_values": 14,
+  "resource_checks": [
+    {
+      "cohort": "A1 qualified",
+      "calls": 274,
+      "cm_calls": 81,
+      "passed": true,
+      "token_numerator": 937227.0,
+      "token_denominator": 5020182.0,
+      "token_fraction": 0.18669183706885528,
+      "cost_numerator": 0.28616483600000003,
+      "cost_denominator": 20.24934015384716,
+      "cost_fraction": 0.014132057332526548
+    },
+    {
+      "cohort": "A2 qualified",
+      "calls": 2067,
+      "cm_calls": 517,
+      "passed": true,
+      "token_numerator": 5913386.0,
+      "token_denominator": 35951039.0,
+      "token_fraction": 0.16448442561006374,
+      "cost_numerator": 1.816402912,
+      "cost_denominator": 126.41532903536604,
+      "cost_fraction": 0.014368533672778258
+    },
+    {
+      "cohort": "B1 all16 S-S",
+      "calls": 244,
+      "cm_calls": 114,
+      "passed": true,
+      "token_numerator": 1567948.0,
+      "token_denominator": 4792589.0,
+      "token_fraction": 0.32716095621802743,
+      "cost_numerator": 0.5108707840000001,
+      "cost_denominator": 20.105547584,
+      "cost_fraction": 0.025409443929124875
+    },
+    {
+      "cohort": "B1 all16 S-FF",
+      "calls": 153,
+      "cm_calls": 49,
+      "passed": true,
+      "token_numerator": 722660.0,
+      "token_denominator": 2391264.0,
+      "token_fraction": 0.30220837180670973,
+      "cost_numerator": 0.234781008,
+      "cost_denominator": 5.3958382440392505,
+      "cost_fraction": 0.043511498562686005
+    },
+    {
+      "cohort": "B1 all16 F-S",
+      "calls": 105,
+      "cm_calls": 33,
+      "passed": true,
+      "token_numerator": 517669.0,
+      "token_denominator": 1258003.0,
+      "token_fraction": 0.41150060850411324,
+      "cost_numerator": 0.16457375600000002,
+      "cost_denominator": 0.21378404443294677,
+      "cost_fraction": 0.7698130907595326
+    },
+    {
+      "cohort": "B1 all16 F-T",
+      "calls": 184,
+      "cm_calls": 64,
+      "passed": true,
+      "token_numerator": 923504.0,
+      "token_denominator": 2362262.0,
+      "token_fraction": 0.39094054766152103,
+      "cost_numerator": 0.29311148800000003,
+      "cost_denominator": 0.3972730639738329,
+      "cost_fraction": 0.7378086122126477
+    },
+    {
+      "cohort": "C1 FCM_ON",
+      "calls": 303,
+      "cm_calls": 59,
+      "passed": true,
+      "token_numerator": 691934.0,
+      "token_denominator": 3747917.0,
+      "token_fraction": 0.18461828263539454,
+      "cost_numerator": 0.204866192,
+      "cost_denominator": 11.51684769660898,
+      "cost_fraction": 0.017788391181062572
+    }
+  ],
+  "plot_qa": {
+    "png_size": [
+      1300,
+      682
+    ],
+    "font": "Microsoft YaHei",
+    "panels": 2,
+    "common_axis_percent": [
+      0,
+      100
+    ],
+    "dpi": 130,
+    "nominal_inches": [
+      10,
+      5.25
+    ],
+    "visual_inspection": "passed: Chinese labels, sample counts, percentages, subtitles and notes visible without overlap or clipping",
+    "delivery": [
+      "figures/11_cm_cumulative.png",
+      "figures/11_cm_cumulative.svg"
+    ],
+    "reviewed_by_root": false
+  },
+  "interpretation_checks": {
+    "same_source_numerator_denominator": true,
+    "ratios_of_sums_not_means_of_episode_ratios": true,
+    "only_C1_has_CM_OFF_control": true,
+    "legacy_unknown_usage_not_imputed_as_zero": true,
+    "cohorts_not_treated_as_independent": true,
+    "n_is_parent_episode_count_tasks_also_shown": true,
+    "price_scenario_not_subscription_cash": true
+  },
+  "input_hashes": {
+    "modelbench/cumulative_analysis_20260907_v2/context_synthesis/CM_RESOURCE_SUMMARY.csv": "2ac7701806dd8044acd45135f10cf9080a081f0d7b17f4130146097bef14618c",
+    "modelbench/cumulative_analysis_20260907_v2/context_synthesis/CONTEXT_COMPARISONS.csv": "48b297485ee3ea9e1e3ef071f854e322a9ff602e97a77315b5afca88a1a72072",
+    "modelbench/cumulative_analysis_20260907_v1/legacy_audit/matched_comparisons.csv": "1ff08425445c2b539c5ab28c36aa3ddcf5b6dcbf60032733151dc30b6ff2641e",
+    "modelbench/cumulative_analysis_20260907_v1/a2_audit/episodes.csv": "e53c0c2e0fdf7fc596c762a23f2fb0fe2cf3ee7a9c4028e4af4c410e1c558d36",
+    "modelbench/cumulative_analysis_20260907_v1/budget_audit/episodes.csv": "e727926e6cfddfba4213f4ba7651c6f646823286e614297702c6bcff3baa9dc2",
+    "modelbench/cumulative_analysis_20260907_v1/budget_audit/calls.csv": "96fa30844989a9f2bad883261a2c4ed186f59e30a6f2a63cc479305b3c3b8d70",
+    "modelbench/mechanism_ablation_20260906/analysis/c1_20260907_v1/CONDITION_AGGREGATES.csv": "d029f92328a5d9dfea678d735de90a9d9286b4381a901633e6080808bb6694c4",
+    "modelbench/mechanism_ablation_20260906/analysis/c1_20260907_v1/CALL_ACCOUNTING.csv": "3b1b678e58d1e50c402ebcd8048b254e341b392c15caeb8afad334c4210ca97f"
+  },
+  "output_hashes": {
+    "plot_context_synthesis.py": "c3b08719fb41cc216d4ce8b53df5c5ef742541c4ef1cdd00c4585792ab9b922e",
+    "figures/11_cm_cumulative.png": "6ceae204973af8cdbce9d7ab0179192d4cfba8bdbf4275aeac398bd4d748870b",
+    "figures/11_cm_cumulative.svg": "af047161c4d2f8481b185f3821939f9522f8c11f839f527e331c3ddf382deb83"
+  },
+  "limitations": [
+    "This is maker verification, not independent peer review.",
+    "Resource ratios are descriptive cohort shares; no off-counterfactual is inferred for A1, A2 or B1.",
+    "Legacy complete fractions remain unavailable because original source rows contain missing usage; no zero bars represent those cohorts."
+  ]
+}

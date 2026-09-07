@@ -1,0 +1,16 @@
+mechanism_id,mechanism,all_history_scope,direct_comparisons,cumulative_observation,non_poolable_boundary,integrated_verdict,evidence
+M1,事实注入与模型画像,全部库存；固定模型/价卡manifest；旧原型,无独立画像开关或自主选模对照,人工冻结身份和价格可追溯,配置不是策略；不同后端/adapter不可混,自主画像和路由净收益未知,CONTROL_AND_ACCOUNTING_COVERAGE.csv
+M2a,可观测性和账本,全部306尝试；v1原始249绑定；规范调用242,无日志开关质量对照,306库存完整；缺用量保留；跨阶段可重算,正常评分不等完整usage；来源哈希检查不等独立实验,已有审计/诊断运行价值，未量质量增益,ALL_ATTEMPTS.csv;context_synthesis/COVERAGE.csv
+M2b,测试者与review,legacy/A1/A2/B1/C1独立248worker；非SWE92阶段,A1+A2 D/S18题配置对照；旧互换/B1；无纯tester-off,真实delta/完成/采纳/保留分层；旧61非空采纳,角色与预算/模型联动；静止候选官方评分缺失,配置依任务；独立贡献和review正确率未知,role_synthesis/UNIFIED_WORKERS.csv;team_synthesis/COMPARISONS.csv
+M3a,CM（C1为DeepSeek）,306配置/暴露；219有调用；旧24条Flash CM；各历史CM资源,C1三题各三次ON/OFF；旧CM池3组另列,C1 token-5.125%/价卡-20.373%质量同4/9；Flash Lead CM成本74%-77%,ON-only无净反事实；完整调用/已知小计分开,局部资源收益；无稳定质量提升或普遍最优值,context_synthesis/CM_RESOURCE_SUMMARY.csv;context_synthesis/CONTEXT_COMPARISONS.csv
+M3b,Memory/Scout/Bootstrap装配,306开关覆盖；164晋升/30侦察/60装配事件,同代码v10/v12两题；v16两题独立层,ON/OFF6/6均通过时间+30.6%；v16均0/4时间+43.3%,三开关联动；天花板/地板；v16scout故障,组合未见质量增益，各单项效果未知,context_synthesis/SUMMARY.json
+M3c,F1编辑保护/F2/F3/F5,全306开关覆盖；旧v15/v15b/v16轨迹；后期已知F1关闭配置，其他缺字段留未知,F1同题ON1/3/OFF2/2；F2/F3/F5无独立开关,F1首编辑前CM池耗尽；F3关键保留边界未触及,名义ON不等实际干预；缺字段非OFF,保护/提醒各自净收益未识别,context_synthesis/CONTEXT_COMPARISONS.csv;context_synthesis/COVERAGE.csv
+M3d,记忆晋升/失效/长期续接,旧memory事件/原型；A1/A2/B1/C1有可核验配置的运行记忆关闭,无长任务独立对照,164memory_promoted仅为事件,晋升不等后续正确使用；摘要不等长期续接,长期质量/资源贡献未知,context_synthesis/SUMMARY.json
+M4a,固定团队经济性,全306去向；147episode/20题形成163配置对,92严格序列；38同Lead序列；A1+A2最大18题,Sol/Terra/GLM正向仅3去重题；A1+A2+2/18,共享56基线；同题复用；88对同时换Lead,具体配置局部正面，通用team结论不成立,team_synthesis/SERIES_AGGREGATES.csv;team_synthesis/CROSS_STRATA_TASK_SUPPORT.csv
+M4b,预算/分配/交付纪律,全部预算配置；20既有变化；R2局部scope；C1工作阶段,8B1预算/7角色/3CM池/2旧根预算分层,T00->T11降1题；D00->D11单题救回；增量33.2%实现32.8%CM,联动资源非纯份额；局部预约与根/调用不同,全面放大无稳定收益，最优角色份额未知,role_synthesis/BUDGET_COMPARISONS.csv;R2_BUDGET_SCOPES.csv
+M4c,R2双候选与选择,全部A1+A2共18父任务36候选,同源R2/S18题+1；独立候选评分0,14选择中5生产不同；4回退8候选局部受限,无候选评分；根余额含pending；不能量转移救回,配置小收益，多样性有限，选择正确率未知,R2_CUMULATIVE.csv;R2_BUDGET_SCOPES.csv
+M5a,固定DERIVE,248独立worker；旧协议92脚本阶段另列,固定团队配置对照，同M4a,创建调用交付真实发生,强制派生不同自主决定；早期名义team0worker,固定执行成立，自主派生时机价值未知,role_synthesis/UNIFIED_WORKERS.csv
+M5b,SPLIT和共享前缀,原型/确定性测试；全部SWE配置检查,无共享前缀净收益对照,R2为独立采样，不能替代SPLIT,设计与执行因素未暴露,前缀复用/分裂净收益未知,MECHANISM_SCOPE.csv
+M5c,FISSION和动态DAG,旧原型路径/真实事件；后期固定拓扑,无公平新题动态拓扑对照,控制可行性部分发生,脚本planner阶段不等自主动态拓扑,策略净收益未知,MECHANISM_SCOPE.csv;CONTROL_AND_ACCOUNTING_COVERAGE.csv
+M6,模型组合/方向/升级,全部163配置对；具体模型支持表；B1Flash高预算+C1小预算,75同Lead题级对/88换Lead分列；无自动升级阈值对照,两Sol worker同题方向冲突；Flash可真实实现但小额常未交付,模型/adapter/角色预算不能剥离；价卡非实付,异构成本结构可用，无统一最优角色模型,team_synthesis/CROSS_STRATA_TASK_SUPPORT.csv;role_synthesis/ROLE_RESOURCES.csv
+M7,一致性/封存/恢复,全历史结果身份；A2salvage/C1同补丁修复；旧异常,无全故障分布或恢复开关质量对照,中断后可恢复并绑定评分；历史错误/未知保留,采样无OOMKilled字段；恢复不等高可靠全覆盖,已观察运行价值，质量净效应和生产边界未知,ALL_ATTEMPTS.csv;CONTROL_AND_ACCOUNTING_COVERAGE.csv
