@@ -15,8 +15,8 @@ mkdirSync(out, { recursive: true })
 // The React-only fixture is deliberately shared from the primary checkout;
 // this isolated worktree has no copied browser bundle.
 const fixturePath = process.env.DPSWARM_TEST_REACT_FIXTURE || resolve(repo, '../..', '.tmp/model-settings-20260907/browser/fixture.js')
-const playwrightPath = process.env.DPSWARM_TEST_PLAYWRIGHT || 'C:/Users/93711/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs'
-const { chromium } = await import(pathToFileURL(resolve(playwrightPath)).href)
+const playwrightPath = process.env.DPSWARM_TEST_PLAYWRIGHT
+const { chromium } = await (playwrightPath ? import(pathToFileURL(resolve(playwrightPath)).href) : import('playwright'))
 
 let fixture = readFileSync(fixturePath, 'utf8')
 const marker = 'window.scope = scope;'
