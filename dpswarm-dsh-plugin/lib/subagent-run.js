@@ -58,10 +58,11 @@ function outputOf(result, sessionId) {
  * onPublished can bind the trusted handle identity to a control-plane lease.
  * It is not model supplied; a binding failure also disposes the child.
  */
-export async function runSubagentToCompletion(subagents, provider, request, { onPublished } = {}) {
+export async function runSubagentToCompletion(subagents, provider, request, { onPublished, onTerminal } = {}) {
   aborted(request.signal)
   const run = await subagents.start(provider, request)
-  let failure, delivery
+  let failure, delivery, terminalResult
+  const cleanup = { physical_cleanup_confirmed: false }
   try {
     if (!run || typeof run.id !== 'string' || !run.id || typeof run.dispose !== 'function'
         || !run.result || typeof run.result.then !== 'function') {
@@ -69,23 +70,27 @@ export async function runSubagentToCompletion(subagents, provider, request, { on
     }
     // Attach immediately so an infrastructure rejection is observed even if
     // the publication/binding callback fails before waiting for the result.
-    const result = Promise.resolve(run.result)
+    const result = Promise.resolve(run.result).then(value => { terminalResult = value; return value })
     result.catch(() => {})
     aborted(request.signal)
     if (onPublished) await onPublished(run)
     delivery = outputOf(await waitResult(result, request.signal), run.id)
     aborted(request.signal)
   } catch (error) {
-    failure = error
+    failure = error instanceof Error ? error : new SubagentRunError(
+      error?.code || 'SUBAGENT_EXECUTION_FAILED', String(error?.message ?? error))
     if (failure && typeof failure === 'object') failure.details = { ...failure.details, published: run != null }
   } finally {
     if (typeof run?.dispose === 'function') {
       try {
         await run.dispose()
+        cleanup.physical_cleanup_confirmed = true
         if (failure && typeof failure === 'object') {
           failure.details = { ...failure.details, physicalCleanupConfirmed: true }
         }
       } catch (error) {
+        cleanup.code = 'SUBAGENT_DISPOSAL_FAILED'
+        cleanup.message = String(error?.message ?? error)
         if (failure && typeof failure === 'object') {
           failure.details = { ...failure.details, sessionId: run.id,
             disposalError: String(error?.message ?? error), physicalCleanupConfirmed: false }
@@ -97,7 +102,36 @@ export async function runSubagentToCompletion(subagents, provider, request, { on
       }
     }
   }
+  // Quiescent disposal also settles the cancellation path. The trusted native
+  // terminal may contain a cause omitted by the public stopReason='error'.
+  if (!failure) {
+    try { aborted(request.signal) } catch (error) { failure = error }
+  }
+  if (onTerminal && typeof run?.id === 'string') {
+    try {
+      const diagnostic = await onTerminal({ run, result: terminalResult, error: failure,
+        cleanup, signal: request.signal })
+      if (diagnostic) {
+        if (!failure && diagnostic.failure) failure = new SubagentRunError(
+          diagnostic.failure.code, diagnostic.failure.message, { sessionId: run.id })
+        if (failure) {
+          const classified = diagnostic.failure
+          if (classified) { failure.code = classified.code; failure.message = classified.message }
+          failure.details = { ...failure.details, sessionId: run.id,
+            stopReason: terminalResult?.stopReason ?? failure.details?.stopReason,
+            output: diagnostic.closeout?.report?.text || failure.details?.output || '',
+            physicalCleanupConfirmed: cleanup.physical_cleanup_confirmed, worker_diagnostic: diagnostic }
+        } else delivery = { ...delivery, diagnostic }
+      }
+    } catch (error) {
+      if (failure) failure.details = { ...failure.details, diagnosticError: {
+        code: error?.code || 'WORKER_DIAGNOSTIC_FAILED', message: String(error?.message ?? error) } }
+      else failure = new SubagentRunError('WORKER_DIAGNOSTIC_FAILED',
+        'Worker ended but its diagnostic could not be recorded', { sessionId: run.id,
+          output: delivery?.text || '', physicalCleanupConfirmed: cleanup.physical_cleanup_confirmed,
+          diagnosticError: { code: error?.code || null, message: String(error?.message ?? error) } })
+    }
+  }
   if (failure) throw failure
-  aborted(request.signal)
   return delivery
 }

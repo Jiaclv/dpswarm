@@ -16,6 +16,7 @@ from urllib.parse import urlsplit
 from .server import Handler, PanelState, MAX_BODY_BYTES
 from .control import ControlPlaneError
 from .plugin_audit import PluginAuditError, PluginAuditStore, _strict_json, validate_transaction
+from .worker_status import worker_status
 
 BRIDGE = {"protocol": "dpswarm-dsh-fixed-v1", "session_isolation": True, "plugin_audit_v1": True, "host_catalog_v1": True,
           "context_management": "DSH plugin owns optional CM; query dpswarm_status for session enablement and adoption"}
@@ -210,7 +211,14 @@ class SessionHandler(Handler):
 
     def _json(self, obj, code=200):
         if urlsplit(self.path).path == "/api/status" and isinstance(obj, dict) and code == 200:
-            obj = {**obj, "bridge": BRIDGE, "session_id": self.headers.get("X-DPSwarm-Session")}
+            session_id = self.headers.get("X-DPSwarm-Session")
+            obj = {**obj, "bridge": BRIDGE, "session_id": session_id}
+            if session_id:
+                try:
+                    audit = self.server.hub.audit(session_id).read()
+                    obj["worker_diagnostics"] = worker_status(audit.get("events", []), session_id, obj.get("snapshot"))
+                except PluginAuditError as error:
+                    obj["worker_diagnostics"] = {"available": False, "workers": [], "error": error.code}
         super()._json(obj, code)
 
     def do_GET(self):

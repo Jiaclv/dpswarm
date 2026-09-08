@@ -1,4 +1,5 @@
 import { AuditJournal } from './audit.js'
+import { workerDiagnostics } from './worker-diagnostics.js'
 import { runSubagentToCompletion } from './subagent-run.js'
 import { effectiveLeadRoute, prepareChildRoute } from './lead-route.js'
 
@@ -15,7 +16,7 @@ export function requireRootCaller(parent) {
 
 
 // Internal adapter; dynamic topology is not exposed by the fixed-team plugin.
-export async function delegateOnce(args, exec, sidecar, subagents, { routeJournal = new AuditJournal({ sidecarFactory: () => sidecar }), modelRegistry, modelRoutes, hostModels, modelRole, onChildStarted } = {}) {
+export async function delegateOnce(args, exec, sidecar, subagents, { routeJournal = new AuditJournal({ sidecarFactory: () => sidecar }), modelRegistry, modelRoutes, hostModels, modelRole, onChildStarted, resolveSession, budget, runId, onDiagnostic } = {}) {
         const parent = exec.agent
         requireRootCaller(parent)
         const leadRoute = effectiveLeadRoute(parent)
@@ -73,11 +74,16 @@ export async function delegateOnce(args, exec, sidecar, subagents, { routeJourna
           let currentRun = null
           let boundFence = null
           let physicalCleanupConfirmed = false
-          let childRoute
+          let childRoute, nativeSession, evidenceError
           const unknownUsage = { input_tokens: null, output_tokens: null,
             cache_read_tokens: null, cache_write_tokens: null, cost_usd: null }
           const published = async run => {
             currentRun = run.id
+            nativeSession = run.localAgent?.session
+            if (!nativeSession && resolveSession) {
+              try { nativeSession = await resolveSession(run.id) }
+              catch (error) { evidenceError = String(error?.message ?? error) }
+            }
             boundFence = await sidecar.call('POST', '/api/execution/bind', {
               item_id: it.item_id, node_id: currentNode, attempt: reservation.attempt,
               context_epoch: reservation.context_epoch, reservation_session_id: reservation.session_id,
@@ -86,6 +92,27 @@ export async function delegateOnce(args, exec, sidecar, subagents, { routeJourna
             })
             await childRoute.bind(run.id)
             await onChildStarted?.({ execution_session_id: run.id, item_id: it.item_id, node_id: currentNode })
+          }
+          const terminal = async info => {
+            const diagnostic = await workerDiagnostics({ ...info,
+              session: nativeSession || info.run.localAgent?.session, sessionId: info.run.id,
+              rootId: parent.session.id, role: modelRole, budget, evidenceError })
+            try {
+              await routeJournal.append(parent.session.id, 'dpswarm/worker-diagnostic', {
+                root_session_id: parent.session.id, owner_session_id: info.run.id,
+                worker_session_id: info.run.id, role: modelRole || 'worker',
+                item_id: it.item_id, ...(runId ? { run_id: runId } : {}), diagnostic,
+              })
+            } catch (error) {
+              diagnostic.audit_error = { code: error?.code || 'WORKER_DIAGNOSTIC_AUDIT_FAILED',
+                message: String(error?.message ?? error) }
+              if (!diagnostic.failure) diagnostic.failure = { code: 'WORKER_DIAGNOSTIC_AUDIT_FAILED',
+                category: 'unknown', source: 'plugin-audit', message: diagnostic.audit_error.message,
+                raw_code: error?.code || null, raw_message: diagnostic.audit_error.message }
+              diagnostic.closeout.completion = diagnostic.closeout.report_available || diagnostic.closeout.candidates.length ? 'partial' : 'failed'
+            }
+            await onDiagnostic?.({ item_id: it.item_id, role: modelRole || 'worker', execution_session_id: info.run.id, diagnostic })
+            return diagnostic
           }
           try {
           const agentOptions = {}
@@ -115,7 +142,7 @@ export async function delegateOnce(args, exec, sidecar, subagents, { routeJourna
               parent,
               signal: exec.signal,
               ...prepareRoute(`dpswarm:assist:${st.title ?? it.item_id}`),
-            }, { onPublished: published })
+            }, { onPublished: published, onTerminal: terminal })
             physicalCleanupConfirmed = true
             await sidecar.call('POST', '/api/peer', {
               channel_id: it.channel_id, from_node: it.assistant_node_id, body: assistOut.text,
@@ -134,7 +161,7 @@ export async function delegateOnce(args, exec, sidecar, subagents, { routeJourna
             parent,
             signal: exec.signal,
             ...prepareRoute(`dpswarm:${st.title ?? it.item_id}`),
-          }, { onPublished: published })
+          }, { onPublished: published, onTerminal: terminal })
           physicalCleanupConfirmed = true
           await sidecar.call('POST', '/api/submit', {
             item_id: it.item_id, node_id: it.node_id, output: out.text,
@@ -147,6 +174,8 @@ export async function delegateOnce(args, exec, sidecar, subagents, { routeJourna
             item_id: it.item_id, title: st.title, kind: it.kind,
             level: it.level, stop_reason: out.stopReason, output: out.text,
             execution_session_id: out.sessionId, token_usage: unknownUsage,
+            diagnostic: out.diagnostic, budget: out.diagnostic?.budget || null,
+            closeout: out.diagnostic?.closeout || null, failure: out.diagnostic?.failure || null,
           }
           } catch (error) {
             let settlement
@@ -181,14 +210,19 @@ export async function delegateOnce(args, exec, sidecar, subagents, { routeJourna
           else failed.push({
             item_id: it.item_id,
             code: s.reason?.code ?? 'SUBAGENT_EXECUTION_FAILED',
-            error: String(s.reason?.message ?? s.reason).slice(0, 300),
+            error: String(s.reason?.message ?? s.reason),
+            execution_session_id: s.reason?.details?.sessionId || null,
+            diagnostic: s.reason?.details?.worker_diagnostic || null,
+            budget: s.reason?.details?.worker_diagnostic?.budget || null,
+            closeout: s.reason?.details?.worker_diagnostic?.closeout || null,
+            failure: s.reason?.details?.worker_diagnostic?.failure || null,
             details: s.reason?.details ?? {}, control_settlement: s.reason?.controlSettlement,
           })
         })
         if (failed.length > 0) {
           // Failure settlement is explicit and fenced; failed HTTP settlement
           // remains visible to the Lead rather than claiming resource release.
-          const reasons = failed.map(f => `${f.item_id}: ${f.error}`).join('；')
+          const reasons = failed.map(f => `${f.item_id}: ${f.code}`).join('；')
           console.error('dpswarm: worker 失败（未提交）— ' + reasons)
         }
         const pending = admission.pending ?? []

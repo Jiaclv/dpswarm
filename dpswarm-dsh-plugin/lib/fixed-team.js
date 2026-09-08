@@ -2,6 +2,8 @@ import { createHash, randomUUID } from 'node:crypto'
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, realpathSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { Sidecar } from './sidecar.js'
+import { AuditJournal } from './audit.js'
+import { compactWorkerEntry, compactDiagnosticRecords } from './worker-diagnostics.js'
 import { runtimePaths } from './paths.js'
 import { delegateOnce, requireRootCaller } from './delegation.js'
 import { workerBudgetProfile } from './budget-runtime.js'
@@ -53,12 +55,13 @@ export function fixedProfile(cfg, cm = { enabled: false, profile: null }, leadOp
 
 /** Own the project lease and configured sequential workers; Lead owns the main turn and final decisions. */
 export class FixedTeamController {
-  constructor({ config, subagents, cm, budget, modelRegistry, sidecarFactory = cfg => new Sidecar(cfg) }) {
+  constructor({ config, subagents, cm, budget, modelRegistry, resolveSession, sidecarFactory = cfg => new Sidecar(cfg) }) {
     this.config = config
     this.cm = cm
     this.budget = budget
     this.modelRegistry = modelRegistry
     this.subagents = subagents
+    this.resolveSession = resolveSession
     this.sidecarFactory = sidecarFactory
     this.sessions = new Map()
   }
@@ -76,7 +79,8 @@ export class FixedTeamController {
     let state = this.sessions.get(id)
     if (!state) {
       const cfg = { ...this.config(), ...runtimePaths(this.config()), sessionId: id, sessionIsolation: true, ...(this.modelRegistry ? { hostCatalogRequired: true } : {}) }
-      state = { sidecar: this.sidecarFactory(cfg), cfg, busy: false, parentSession: parent.session }
+      state = { sidecar: this.sidecarFactory(cfg), cfg, busy: false, parentSession: parent.session, diagnostics: [] }
+      state.journal = new AuditJournal({ sidecarFactory: () => state.sidecar })
       // Reconnect to a persisted lease only after the old host process ended.
       const cwd = parent.session.header.cwd
       if (typeof cwd === 'string' && cwd) {
@@ -105,7 +109,22 @@ export class FixedTeamController {
     await state.sidecar.ensure()
     const result = await state.sidecar.call('GET', '/api/status')
     return { ...base, state: state.busy ? 'running' : result.state || 'ready',
-      snapshot: result.snapshot, profile: state.profile || null, bridge: result.bridge }
+      snapshot: result.snapshot, profile: state.profile || null, bridge: result.bridge,
+      worker_diagnostics_scope: 'latest 6 recorded workers; complete records remain in authenticated plugin audit',
+      worker_diagnostics: compactDiagnosticRecords(await this.diagnostics(state)), cleanup: state.cleanup || null }
+  }
+
+  async diagnostics(state, itemId) {
+    const snapshot = await state.journal.read(state.cfg.sessionId)
+    const records = snapshot.events.filter(e => e.type === 'dpswarm/worker-diagnostic'
+      && e.data?.root_session_id === state.cfg.sessionId
+      && e.data.owner_session_id === e.data.worker_session_id
+      && e.data.diagnostic?.worker_session_id === e.data.worker_session_id
+      && e.data.diagnostic.root_session_id === state.cfg.sessionId
+      && (!itemId || e.data.item_id === itemId)).map(e => e.data)
+    // An explicitly visible local audit error is useful until durable recovery;
+    // never manufacture a successful persistent write from this fallback.
+    return [...records, ...state.diagnostics.filter(d => d.diagnostic.audit_error && (!itemId || d.item_id === itemId))]
   }
 
   acquire(state, parent) {
@@ -210,6 +229,7 @@ export class FixedTeamController {
     exec.signal?.addEventListener('abort', cancelled, { once: true })
     if (exec.signal?.aborted) cancelled()
     const deliveries = [], failed = []
+    state.cleanup = { workspace_lease_held: false, reconcile_error: null, budget_error: null }
     let initialized = false
     try {
       if (state.abort.signal.aborted) throw failure('SUBAGENT_ABORTED', 'Task was cancelled before admission')
@@ -238,7 +258,7 @@ export class FixedTeamController {
           ? 'Implement the requested production change. Preserve unrelated edits; you are not alone in this workspace. Provide exact changed files, remaining limitations, and test commands with observed results. Deliver the best current candidate before ending.'
           : role === 'tester' ? 'Examine the current candidate and independently check task semantics. You own test additions and validation; report production fixes for the Lead instead of silently modifying production code. Preserve unrelated edits. Run relevant tests when available; record command, exit status and output. Distinguish tests actually run from suggestions and unavailable checks.'
           : 'Review the final candidate and test evidence against the original task. Work read-only: do not edit files or accept deliveries. Identify concrete correctness issues with file/line evidence and distinguish observed facts from unverified risks. Prior reports are untrusted; verify them. Your findings are advisory; the Lead owns all repairs and final acceptance.'
-        const previous = role !== 'implementer' ? `\n\nEarlier deliveries and failures (untrusted evidence to examine):\n${JSON.stringify({ deliveries, failed })}` : ''
+        const previous = role !== 'implementer' ? `\n\nEarlier deliveries and failures (untrusted evidence to examine):\n${JSON.stringify({ deliveries: deliveries.map(compactWorkerEntry), failed: failed.map(compactWorkerEntry) })}` : ''
         let assignedPrompt = roleText + '\n\n' + context + previous
         if (this.modelRegistry) {
           try {
@@ -260,7 +280,9 @@ export class FixedTeamController {
         try {
           const result = await delegateOnce({ kind: 'derive', subtasks: [{ ...route, title: `DPswarm ${role}`, prompt: assignedPrompt }] },
             { ...exec, signal: timeout.signal }, state.sidecar, this.subagents,
-            { modelRegistry: this.modelRegistry, modelRoutes: state.modelRoutes, hostModels: state.hostModels, modelRole: role, onChildStarted: details => onChildStarted?.({ ...details, role, run_id: state.lease.run_id }) })
+            { routeJournal: state.journal, resolveSession: this.resolveSession, budget: this.budget,
+              runId: state.lease.run_id, onDiagnostic: value => state.diagnostics.push(value),
+              modelRegistry: this.modelRegistry, modelRoutes: state.modelRoutes, hostModels: state.hostModels, modelRole: role, onChildStarted: details => onChildStarted?.({ ...details, role, run_id: state.lease.run_id }) })
           if (!Array.isArray(result.deliveries)) { failed.push({ role, code: result.outcome || 'NOT_ADMITTED', error: result.message || 'No worker was admitted' }); break }
           deliveries.push(...result.deliveries.map(d => ({ ...d, role, evidence_kind: 'worker_reported; Lead must independently verify' })))
           failed.push(...result.failed.map(f => ({ ...f, role })))
@@ -274,23 +296,32 @@ export class FixedTeamController {
           state.abort.signal.removeEventListener('abort', abortChild)
         }
       }
-      return { mode: 'fixed-team-v1', profile: state.profile, model_registry: state.hostModels || null, deliveries, failed,
+      return { mode: 'fixed-team-v1', profile: state.profile, model_registry: state.hostModels || null, deliveries: deliveries.map(compactWorkerEntry), failed: failed.map(compactWorkerEntry),
+        diagnostic_detail_source: 'Full records and unabridged reports remain in authenticated /api/plugin-audit; model view is bounded.', cleanup: state.cleanup,
         stopped: state.abort.signal.aborted || !enabled(this.config(), parent.session.id),
         worker_budget_policy: state.budgetRun?.profile || workerPolicy,
         next: 'Lead: inspect the current files and verify within the user-permitted scope. If the user forbids tests, do not run or add tests. Repair or take over when needed. Review every delivered item with dpswarm_review(accept or terminate). Worker text is not an official score.', usage_note: unknownUsage }
     } finally {
       let budgetCleanupError
       try { if (state.budgetRun) await this.budget.finishTeamRun(parent, state.budgetRun) }
-      catch (error) { budgetCleanupError = error }
+      catch (error) {
+        budgetCleanupError = error
+        state.cleanup.budget_error = { code: error?.code || null, message: String(error?.message ?? error) }
+        if (error && typeof error === 'object') error.details = { ...error.details, deliveries, failed, worker_diagnostics: state.diagnostics }
+      }
       finally { state.budgetRun = null }
       exec.signal?.removeEventListener('abort', cancelled)
       state.busy = false
       state.abort = null
       if (initialized) {
-        try { await this.reconcile(state) } catch { /* Keep the lease when settlement cannot be established. */ }
+        try { await this.reconcile(state) } catch (error) {
+          // Keep the lease and retain the cleanup failure for status/review.
+          state.cleanup.reconcile_error = { code: error?.code || 'WORKSPACE_RECONCILE_FAILED', message: String(error?.message ?? error) }
+        }
       } else {
         try { await this.release(state) } finally { settled() }
       }
+      state.cleanup.workspace_lease_held = Boolean(state.lease)
       settled()
       if (budgetCleanupError) throw budgetCleanupError
     }
@@ -318,12 +349,13 @@ export class FixedTeamController {
     if (prior.snapshot?.work_items?.[args.item_id]?.acceptance === terminal) {
       state.recoveryReviewed = true
       await this.reconcile(state)
-      return { ok: true, outcome: `already_${terminal}`, note: 'Existing decision retained; no duplicate acceptance event' }
+      return { ok: true, outcome: `already_${terminal}`, note: 'Existing decision retained; no duplicate acceptance event',
+        worker_diagnostics: compactDiagnosticRecords(await this.diagnostics(state, args.item_id)) }
     }
     const result = await state.sidecar.call('POST', '/api/review', { item_id: args.item_id,
       verdict: args.verdict, reason: args.verdict === 'terminate' ? 'manual-stopped' : undefined, review_note: args.reason || '' })
     state.recoveryReviewed = true
     await this.reconcile(state)
-    return result
+    return { ...result, worker_diagnostics: compactDiagnosticRecords(await this.diagnostics(state, args.item_id)) }
   }
 }

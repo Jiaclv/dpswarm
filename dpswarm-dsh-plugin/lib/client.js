@@ -109,6 +109,11 @@ window.__ModuleLoader__.load({
     // ── 主题 token 样式（一次性注入；全部 var(--dsw-*)，无硬编码色值）──────
     const CSS = `
 /* 卡片 chrome：镜像 ui-settings-plugins/PluginCard.module.css */
+.dps-workerStatus{margin-top:12px;border-top:1px solid var(--dsw-alias-border-l2);padding-top:12px}
+.dps-workerStatus h4{margin:0 0 8px;font-size:13px}
+.dps-workerRow{padding:8px 0;border-bottom:1px solid var(--dsw-alias-border-l2)}
+.dps-workerHeading{display:flex;justify-content:space-between;gap:12px;font-size:12px}
+.dps-workerReason{font-size:12px;line-height:1.5;color:var(--dsw-alias-state-warn-primary);overflow-wrap:anywhere;margin:6px 0}
 .dps-card{list-style:none;border:1px solid var(--dsw-alias-border-l2);border-radius:12px;
   background:var(--dsw-alias-bg-layer-3);transition:border-color .16s,background .16s}
 .dps-card:hover{border-color:var(--dsw-alias-label-dimmed)}
@@ -634,6 +639,7 @@ window.__ModuleLoader__.load({
           h('p', { className: 'dps-pageNote' }, '实现者默认跟随对话模型与推理强度；也可手动指定。保存不会开启任务，运行中的团队保持启动时配置。')),
         h('div', { role: 'tabpanel', id: 'dps-panel-rules', 'aria-labelledby': 'dps-tab-rules', hidden: tab !== 'rules', className: 'dps-tabPanel' },
           h(BudgetSettings),
+          h('div', { className: 'dps-settingsCard' }, h('h3', null, '预算内及时收尾'), h('p', { className: 'dps-hint' }, '额度是上限，不必用满。剩余额度接近下一次完整请求的成本时，子 agent 优先返回已完成内容、文件位置和未完成事项；收尾期间不继续调用工具。已保存文件不等于已通过验收，最终仍由 Lead 核验。')),
           h('div', { className: 'dps-settingsCard' }, h('h3', null, '按任务开启'), h('p', { className: 'dps-hint' }, '在输入框旁的罗盘菜单中分别开启团队和 CM。两项默认关闭；只开 CM 不启动团队服务。')),
           h('div', { className: 'dps-settingsCard' }, h('h3', null, '固定顺序与审查'), h('p', { className: 'dps-hint' }, '实现者 → 测试者 → Reviewer → Lead 最终验收。Reviewer 默认由 Lead 承担，不增加模型调用；指定独立模型后才额外执行审查。其输出是待核对意见，不自动接受交付。'),
             h('div', { className: 'dps-route' }, h(SettingsField, { field: 'workerTimeoutSeconds', label: '每个角色超时（秒）', type: 'number' }))),
@@ -676,6 +682,29 @@ window.__ModuleLoader__.load({
         : 'dps-dot dps-dotWait'
       const label = phase === 'off' ? L.off : phase === 'version' ? L.version : phase === 'ok' ? L.ok : phase === 'bad' ? L.bad : L.wait
       return h('span', { className: 'dps-badge' }, h('span', { className: cls }), label)
+    }
+
+    function WorkerDiagnostics({ snapshot }) {
+      const view = snapshot?.worker_diagnostics
+      if (!view || view.available !== true || !Array.isArray(view.workers) || !view.workers.length) return null
+      const roles = { implementer: '实现者', tester: '测试者', reviewer: 'Reviewer', worker: '子 agent' }
+      const phases = { working: '执行中', closing: '正在收尾', completed: '报告已返回', ended: '已结束 · 旧记录无详细终态', failed: '需 Lead 接管' }
+      const reasons = {
+        WORKER_TOKEN_RESERVATION_DENIED: '剩余 token 不足以发送下一次完整请求',
+        WORKER_TOKEN_LIMIT_REACHED: '累计 token 已达上限', WORKER_CALL_LIMIT_REACHED: '调用次数已达上限',
+        SUBAGENT_TIMEOUT: '角色运行超时', WORKER_TIMEOUT: '角色运行超时', WORKER_USER_CANCELLED: '用户已停止', WORKER_PARENT_CANCELLED: '上级任务已取消', WORKER_OUTPUT_LIMIT_REACHED: '单次输出达到上限', SUBAGENT_ABORTED: '已取消', WORKER_CLOSEOUT_FINAL_ONLY: '收尾阶段只提交报告',
+      }
+      const amount = value => Number.isSafeInteger(value) && value >= 0 ? value.toLocaleString('zh-CN') : '未知'
+      return h('section', { className: 'dps-workerStatus', 'aria-label': '子代理执行状态' },
+        h('h4', null, '子代理执行状态'),
+        ...view.workers.slice(-6).map(row => h('div', { className: 'dps-workerRow', key: row.session_id },
+          h('div', { className: 'dps-workerHeading' }, h('b', null, roles[row.role] || '子 agent'), h('span', null, phases[row.phase] || '状态未知')),
+          h('p', { className: 'dps-hint' }, '累计 ', amount(row.observed_tokens_lower_bound), row.unknown_usage_calls ? '+ token（部分用量未知）' : ' token',
+            ' · ', amount(row.calls_used), ' 次调用'),
+          row.mode !== 'unlimited' ? h('p', { className: 'dps-hint' }, '剩余 ', amount(row.remaining_tokens), ' token · ', amount(row.remaining_calls), ' 次') : null,
+          row.code ? h('p', { className: 'dps-workerReason' }, reasons[row.code] || '运行诊断：' + String(row.code)) : null,
+          row.candidate_count > 0 ? h('p', { className: 'dps-hint' }, '已记录 ', amount(row.candidate_count), ' 条文件候选记录；由 Lead 核验当前文件') : null)),
+        h('p', { className: 'dps-hint' }, '累计 token 含缓存输入；文件保存、报告返回和最终验收分别记录。'))
     }
 
     function chipsRow(chips) {
@@ -771,6 +800,7 @@ window.__ModuleLoader__.load({
         h(ModelSummary, null),
         h('p', { className: 'dps-hint' }, '调整模型：设置 → DPswarm。以上为已保存配置，正在运行的团队保持启动时配置。'),
         h(BudgetSummary, { sessionId }),
+        h(WorkerDiagnostics, { snapshot: st }),
         h(SessionSwitch, { sessionId }),
         h(SessionSwitch, { sessionId, cm: true }),
         h('p', { className: 'dps-hint' }, 'Reviewer 默认由 Lead 承担；指定独立模型后增加审查。CM 开关独立生效，并覆盖当前任务的直接子 agent。'),

@@ -290,6 +290,10 @@ function budgetFixture(t, mode) {
     reviewerMode: 'model', reviewerProvider: 'review', reviewerModel: 'review-model' })
   ctx.provide('sessions', { get: id => native.get(id), list: () => [...native.values()], flush: async () => {} })
   ctx.provide('agents', { get: id => agents.get(id) })
+  ctx.provide('systemPrompt', { assemble: async context => {
+    const assembly = { sections: [], contexts: [], variables: {}, tools: [] }
+    return ctx.waterfall('system-prompt/assemble', assembly, context, async () => assembly)
+  } })
   const llm = { stream: options => ctx.waterfall('llm/stream', options, () => (async function* () {
     providerCalls.push(options)
     yield { type: 'usage', usage: { inputTokens: 20, outputTokens: 10 } }
@@ -298,15 +302,17 @@ function budgetFixture(t, mode) {
   ctx.provide('llm', llm)
   const journal = new MemoryAuditJournal()
   const budget = installBudget(ctx, () => h.cfg, { journal }); h.controller.budget = budget
+  h.controller.resolveSession = id => native.get(id)
   const start = h.controller.subagents.start
   const launch = async (id, prompt) => {
     const session = Session.create(id, undefined, { version: 0, id, createdAt: 2, parentSession: 'parent', origin: 'subagent', delegationDepth: 1 })
     const agent = { id, session, options: { provider: 'fixture', model: 'worker' } }
     native.set(id, session); agents.set(id, agent)
     const messages = [{ role: 'user', source: { kind: 'user' }, content: prompt }]
+    const assembly = await ctx.get('systemPrompt').assemble({ agent })
     await ctx.waterfall('agent/pre-step', { agent, messages }, async () => ({ kind: 'enter', messages }))
     session.append('user/message', messages[0], { surfaceOp: 'append' })
-    for await (const chunk of llm.stream(Object.freeze({ sessionId: id, provider: 'fixture', model: 'worker', messages, maxTokens: 100 }))) { /* consume */ }
+    for await (const chunk of llm.stream(Object.freeze({ sessionId: id, provider: 'fixture', model: 'worker', messages, system: assembly.sections.map(s => s.text).join('\n\n'), tools: assembly.tools, maxTokens: 100 }))) { /* consume */ }
     return agent
   }
   h.controller.subagents.start = async (provider, request) => {
@@ -518,4 +524,66 @@ for (const [name, change] of [
     resume()
     await h.controller.shutdown()
   }
+})
+
+
+test('failed native worker diagnostic remains complete through run, status, review and cold controller', async t => {
+  const h = fixture(t), native = new Map()
+  h.controller.resolveSession = id => native.get(id)
+  const running = h.controller.run({ task: 'create HTML; no tests' }, h.exec)
+  await nextTurn()
+  const sid = h.children[0].child.id
+  const session = { id: sid, header: { id: sid, parentSession: 'parent', origin: 'subagent', delegationDepth: 1 }, events: [
+    { seq: 0, time: 100, type: 'tool/call', data: { turn: 1, step: 1, callId: 'save', name: 'write', arguments: JSON.stringify({ file_path: 'dev/partial.html', content: 'partial' }) } },
+    { seq: 1, time: 101, type: 'tool/result', surfaceOp: 'append', data: { turn: 1, step: 1, message: { source: { kind: 'tool', callId: 'save' }, content: [{ type: 'tool-result', toolCallId: 'save', isError: false, content: [] }] } } },
+    { seq: 2, time: 102, type: 'turn/end', data: { turn: 1, reason: { kind: 'error', error: { code: 'UNKNOWN', message: 'WORKER_TOKEN_RESERVATION_DENIED' } } } },
+  ] }
+  // In the real driver localAgent exists at publication. The fixture supplies
+  // it on the same trusted handle before terminal completion.
+  h.children[0].child.localAgent = { session }
+  h.children[0].resolve({ output: [], stopReason: 'error' })
+  await nextTurn()
+  assert.equal(h.children.length, 2)
+  h.finish(1, 'Inspected report; candidate needs Lead verification')
+  const result = await running
+  const failed = result.failed[0]
+  assert.equal(failed.role, 'implementer'); assert.equal(failed.code, 'WORKER_TOKEN_RESERVATION_DENIED')
+  assert.equal(failed.diagnostic.failure.raw_code, 'UNKNOWN')
+  assert.equal(failed.diagnostic.closeout.completion, 'partial'); assert.equal(failed.diagnostic.closeout.candidates[0].path, 'dev/partial.html')
+  assert.ok(!h.calls.some(c => c.path === '/api/submit' && c.body.item_id === failed.item_id))
+  const status = await h.controller.status(h.parent)
+  assert.equal(status.worker_diagnostics.length, 2)
+  assert.equal(status.worker_diagnostics[0].diagnostic.failure.code, failed.code)
+  const cold = new FixedTeamController({ config: () => h.cfg, subagents: h.controller.subagents, sidecarFactory: h.controller.sidecarFactory })
+  assert.equal((await cold.status(h.parent)).worker_diagnostics[0].diagnostic.closeout.completion, 'partial')
+  const review = await h.controller.review({ item_id: failed.item_id, verdict: 'terminate' }, h.exec)
+  assert.equal(review.worker_diagnostics.length, 1)
+  assert.equal(review.worker_diagnostics[0].diagnostic.native_terminal.reason.error.message, 'WORKER_TOKEN_RESERVATION_DENIED')
+  for (const d of result.deliveries) await h.controller.review({ item_id: d.item_id, verdict: 'accept' }, h.exec)
+})
+
+
+test('two long native failures return parseable bounded JSON while the audit retains full messages', async t => {
+  const h = fixture(t), fullMessage = 'WORKER_TOKEN_RESERVATION_DENIED: ' + 'unabridged failure detail '.repeat(4000)
+  const running = h.controller.run({ task: 'bounded diagnosis' }, h.exec)
+  try {
+    for (let index = 0; index < 2; index++) {
+      await nextTurn()
+      const handle = h.children[index].child
+      handle.localAgent = { session: { id: handle.id, header: { id: handle.id, parentSession: 'parent', origin: 'subagent', delegationDepth: 1 },
+        events: [{ seq: 0, time: 100, type: 'turn/end', data: { turn: 1, reason: { kind: 'error', error: { code: 'UNKNOWN', message: fullMessage } } } }] } }
+      h.children[index].resolve({ output: [], stopReason: 'error' })
+    }
+    const result = await running, encoded = JSON.stringify(result, null, 2)
+    assert.ok(encoded.length < 16000, encoded.length)
+    assert.equal(JSON.parse(encoded).failed.length, 2)
+    assert.ok(result.failed.every(f => f.code === 'WORKER_TOKEN_RESERVATION_DENIED'))
+    assert.equal(result.worker_diagnostics, undefined)
+    const records = h.controls.get('parent').audit.events.filter(e => e.type === 'dpswarm/worker-diagnostic')
+    assert.equal(records.length, 2)
+    assert.ok(records.every(e => e.data.diagnostic.native_terminal.reason.error.message === fullMessage))
+    assert.ok(JSON.stringify(await h.controller.status(h.parent), null, 2).length < 16000)
+    const review = await h.controller.review({ item_id: result.failed[0].item_id, verdict: 'terminate' }, h.exec)
+    assert.ok(JSON.stringify(review, null, 2).length < 8000)
+  } finally { await h.controller.shutdown() }
 })

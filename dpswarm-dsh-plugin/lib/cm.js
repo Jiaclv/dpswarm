@@ -68,7 +68,16 @@ export class DPSwarmCM extends BasicCompactionEngine {
     ctx.effect(() => this.runtime.attach(this), 'dpswarm: CM backend registration')
     ctx.on('agent/pre-step', async ({ agent, signal, messages }, next) => {
       // A limited child must obtain its own frozen budget before even its CM runs.
-      await ctx.get?.('dpswarmBudget', false)?.ensure(agent, signal, messages || [])
+      const budget = ctx.get?.('dpswarmBudget', false)
+      const worker = budget?.prepareStep
+        ? await budget.prepareStep(agent, { messages: messages || [], signal })
+        : await budget?.ensure(agent, signal, messages || [])
+      if (worker?.closeout?.mode === 'final_only') {
+        this.runtime.pressureChecked(agent.session, { decision: 'skip', reason: 'worker_closeout',
+          pressure_source: 'worker_budget_closeout', threshold_ratio: CM_POLICY.thresholdRatio })
+        this.assemblies.delete(agent.session)
+        return next()
+      }
       if (!signal.aborted) {
         try { await this.compactIfNeeded(agent, 'pressure', signal, { messages: messages || [] }) }
         catch { ctx.logger?.warn?.('DPswarm CM was not adopted; existing history and native fallback remain available. See the session CM audit.') }

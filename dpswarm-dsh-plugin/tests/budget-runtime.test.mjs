@@ -1,3 +1,4 @@
+import { CLOSEOUT_INSTRUCTION } from '../lib/worker-closeout.js'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { WorkerBudgetRuntime, budgetUsage, workerBudgetProfile, validateWorkerDecision } from '../lib/budget-runtime.js'
@@ -211,4 +212,91 @@ test('once admitted, later roles keep the original independent manual budgets af
   assert.equal(runtime.describe(a).remaining_calls, 27)
   assert.equal(runtime.describe(b).remaining_calls, 28)
   await runtime.finishTeamRun(h.agent(h.root), handle)
+})
+
+
+test('closeout follows current full-input cost rather than cumulative percent or a sibling grant', async () => {
+  const h = fixture({ workerTokenLimit: 600000, workerCallLimit: 36 }), r = h.runtime()
+  const a = await r.ensure(h.agent(h.a), signal()), b = await r.ensure(h.agent(h.b), signal())
+  for (let i = 0; i < 7; i++) await r.settle(await r.admit(a, request), { inputTokens: 60000, outputTokens: 10000 }, 'stop')
+  assert.equal(r.describe(a).remaining_tokens, 110000)
+  await r.prepareCloseout(a, { inputEstimate: 70000, finalInputEstimate: 69000 }, signal())
+  assert.equal(a.closeout.trigger, 'cannot_afford_exploration_and_delivery')
+  assert.equal(a.closeout.calls_at_closeout, 7)
+  assert.equal(r.describe(a).remaining_calls, 29)
+  await r.prepareCloseout(b, { inputEstimate: 70000, finalInputEstimate: 69000 }, signal())
+  assert.equal(b.closeout, undefined)
+  const clone = await r.diagnosticsForSession('a'); clone.closeout.mode = 'changed'
+  assert.equal(a.closeout.mode, 'final_only')
+  assert.equal(await r.diagnosticsForSession('not-a-native-session'), null)
+})
+
+test('normal output bound preserves a predicted subsequent input and final report inside the grant', async () => {
+  const h = fixture({ workerTokenLimit: 100000, workerCallLimit: 4 }), r = h.runtime(), a = await r.ensure(h.agent(h.a), signal())
+  await r.prepareCloseout(a, { inputEstimate: 10000, finalInputEstimate: 9000 }, signal())
+  assert.equal(a.closeout, undefined)
+  const output = r.outputLimit(a, 10000, 90000)
+  assert.equal(output, 38976)
+  assert.ok(10000 + output + 10000 + output + 2048 <= 100000)
+  assert.equal(a.profile.tokenLimit, 100000)
+})
+
+test('CM cannot consume the last planned request, and denied CM is not a worker failure or admitted call', async () => {
+  const h = fixture({ workerTokenLimit: 20000, workerCallLimit: 4 }), r = h.runtime(), a = await r.ensure(h.agent(h.a), signal())
+  await r.prepareCloseout(a, { inputEstimate: 5000, finalInputEstimate: 5000 }, signal())
+  assert.equal(a.closeout, undefined)
+  await assert.rejects(r.admit(a, { ...request, purpose: 'compaction', maxTokens: 14000 }), { code: 'WORKER_CLOSEOUT_CM_DEFERRED' })
+  assert.equal(r.totals(a).calls, 0)
+  assert.equal(a.phase, 'ready')
+  assert.equal(a.failure, null)
+  assert.equal((await r.diagnosticsForSession('a')).last_denial.code, 'WORKER_CLOSEOUT_CM_DEFERRED')
+  assert.ok(await r.admit(a, request))
+})
+
+test('cold final-only state defers CM, refuses a second delivery, and keeps exact unknown reservations', async () => {
+  const h = fixture({ workerTokenLimit: 10000, workerCallLimit: 1 }), first = h.runtime(), a = await first.ensure(h.agent(h.a), signal())
+  await first.prepareCloseout(a, { inputEstimate: 200, finalInputEstimate: 400 }, signal())
+  const second = h.runtime(), restored = await second.ensure(h.agent(h.a), signal())
+  assert.equal(restored.closeout.mode, 'final_only')
+  await assert.rejects(second.admit(restored, { ...request, purpose: 'compaction' }), { code: 'WORKER_CLOSEOUT_CM_DEFERRED' })
+  const ticket = await second.admit(restored, { ...request, system: CLOSEOUT_INSTRUCTION, tools: [] })
+  await second.settle(ticket, null, 'cancelled')
+  const d = await h.runtime().diagnosticsForSession('a')
+  assert.equal(d.unknown_usage_calls, 1)
+  assert.equal(d.recent[0].observed_tokens, null)
+  assert.equal(d.committed_tokens, ticket.call.reserved_tokens)
+  assert.equal(d.remaining_calls, 0)
+})
+
+test('cancellation before closeout or queued admission does not create a call or reset the allowance', async () => {
+  const h = fixture({ workerTokenLimit: 10000, workerCallLimit: 1 }), r = h.runtime(), a = await r.ensure(h.agent(h.a), signal())
+  const controller = new AbortController(); controller.abort()
+  await assert.rejects(r.prepareCloseout(a, { inputEstimate: 100, finalInputEstimate: 400 }, controller.signal), { name: 'AbortError' })
+  assert.equal(a.closeout, undefined)
+  await assert.rejects(r.admit(a, { ...request, signal: controller.signal }), { name: 'AbortError' })
+  assert.equal(r.describe(a).remaining_calls, 1)
+  assert.equal(r.describe(a).remaining_tokens, 10000)
+})
+
+
+test('a missing output bound is durably unknown, not recorded as a zero-output reservation', async () => {
+  const h = fixture(), r = h.runtime(), a = await r.ensure(h.agent(h.a), signal())
+  await assert.rejects(r.admit(a, { ...request, maxTokens: undefined }), { code: 'WORKER_OUTPUT_LIMIT_REQUIRED' })
+  const d = await h.runtime().diagnosticsForSession('a')
+  assert.equal(d.calls, 0)
+  assert.equal(d.last_denial.output_limit, null)
+  assert.equal(d.last_denial.required_reservation, null)
+  assert.ok(d.last_denial.input_estimate > 0)
+})
+
+test('cancellation while awaiting the journal cannot dispatch through unlimited observation fallback', async () => {
+  const h = fixture({ workerBudgetMode: 'unlimited' }), r = h.runtime(), a = await r.ensure(h.agent(h.a), signal())
+  const original = h.journal.transaction.bind(h.journal), abort = new AbortController()
+  h.journal.transaction = async (rootId, build) => {
+    await Promise.resolve(); abort.abort()
+    return original(rootId, build)
+  }
+  await assert.rejects(r.admit(a, { ...request, signal: abort.signal }), { name: 'AbortError' })
+  assert.equal(r.totals(a).calls, 0)
+  assert.equal(a.auditFailure, undefined)
 })

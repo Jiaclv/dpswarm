@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
+import { closeoutForecast, CLOSEOUT_MARKER, CLOSEOUT_OUTPUT_RESERVE } from './worker-closeout.js'
 
-export const budgetError = (code, message = code) => Object.assign(new Error(message), { code })
+export const budgetError = (code, message = code, details = null) => Object.assign(new Error(message), { code, ...(details ? { budget_details: details } : {}) })
 export const isWorkerSession = session => session?.header?.origin === 'subagent' || (session?.header?.delegationDepth || 0) > 0
 const positive = value => Number.isSafeInteger(value) && value > 0
 const plain = value => JSON.parse(JSON.stringify(value))
@@ -107,6 +108,10 @@ export class WorkerBudgetRuntime {
       restored: true, serial: Promise.resolve() }
     for (const event of workerEvents) if (event.type === eventName('failure')) {
       state.phase = 'failed'; state.failure = event.data.failure
+    }
+    for (const event of workerEvents) {
+      if (event.type === eventName('closeout')) state.closeout = plain(event.data)
+      if (event.type === eventName('denied')) state.lastDenial = plain(event.data)
     }
     if (state.profile?.mode === 'auto' && !state.decision) {
       state.phase = 'failed'; state.failure = 'WORKER_BUDGET_DECISION_REQUIRED'
@@ -270,20 +275,75 @@ async initialize(session, incoming, signal) {
     if (state.phase !== 'ready') throw budgetError(state.failure || 'WORKER_BUDGET_NOT_READY')
     const t = this.totals(state); if (t.calls >= state.profile.callLimit) throw budgetError('WORKER_CALL_LIMIT_REACHED'); if (t.committed_tokens >= state.profile.tokenLimit) throw budgetError('WORKER_TOKEN_LIMIT_REACHED')
   }
+  budgetDetails(state, stage, input = null, output = null, totals = this.totals(state)) {
+    const limited = state.profile.mode !== 'unlimited'
+    return { stage, input_estimate: input, output_limit: output,
+      required_reservation: Number.isSafeInteger(input) && Number.isSafeInteger(output) ? input + output : null,
+      remaining_tokens: limited ? Math.max(0, state.profile.tokenLimit - totals.committed_tokens) : null,
+      remaining_calls: limited ? Math.max(0, state.profile.callLimit - totals.calls) : null,
+      committed_tokens: totals.committed_tokens, calls: totals.calls,
+      unknown_usage_calls: totals.unknown_usage_calls }
+  }
+  async recordDenied(state, error, stage, input = null, output = null) {
+    if (!state || state.profile.mode === 'unlimited' || error?.name === 'AbortError') return
+    const data = { version: 3, root_session_id: state.rootId, worker_session_id: state.session.id, owner_session_id: state.session.id,
+      ...this.budgetDetails(state, stage, input, output), ...(error.budget_details || {}),
+      code: error.code || 'WORKER_BUDGET_UNKNOWN_ERROR', message: error.message || String(error), at: Date.now() }
+    state.lastDenial = plain(data)
+    try { await this.append(state.rootId, 'denied', data) }
+    catch { state.auditFailure = 'WORKER_BUDGET_DENIAL_NOT_PERSISTED' }
+  }
+  async prepareCloseout(state, { inputEstimate, finalInputEstimate = inputEstimate }, signal) {
+    if (!state || state.profile.mode === 'unlimited') return state
+    return this.serial(state, async () => {
+      signal?.throwIfAborted()
+      this.guard(state)
+      const budget = this.budgetDetails(state, 'pre_step')
+      if (!Number.isSafeInteger(inputEstimate) || inputEstimate < 1
+        || !Number.isSafeInteger(finalInputEstimate) || finalInputEstimate < 1) throw budgetError('WORKER_REQUEST_ENVELOPE_UNAVAILABLE')
+      const forecast = closeoutForecast({ remainingTokens: budget.remaining_tokens,
+        remainingCalls: budget.remaining_calls, inputEstimate, finalInputEstimate })
+      state.stepBudget = forecast
+      if (!state.closeout && forecast.final_only) {
+        const data = { version: 3, root_session_id: state.rootId, worker_session_id: state.session.id, owner_session_id: state.session.id,
+          mode: 'final_only', ...forecast, ...budget, input_estimate: inputEstimate,
+          final_input_estimate: finalInputEstimate, calls_at_closeout: budget.calls, at: Date.now() }
+        signal?.throwIfAborted()
+        await this.append(state.rootId, 'closeout', data)
+        state.closeout = plain(data)
+      }
+      signal?.throwIfAborted()
+      return state
+    })
+  }
   outputLimit(state, inputEstimate, requested) {
     if (!state || state.profile.mode === 'unlimited') return requested
-    this.guard(state); const remain = state.profile.tokenLimit - this.totals(state).committed_tokens - Math.max(1, inputEstimate)
-    if (remain < 1) throw budgetError('WORKER_TOKEN_RESERVATION_DENIED')
-    return Math.min(positive(requested) ? requested : remain, remain)
+    this.guard(state)
+    const remaining = state.profile.tokenLimit - this.totals(state).committed_tokens
+    const input = Math.max(1, inputEstimate), remain = remaining - input
+    if (remain < 1) throw budgetError('WORKER_TOKEN_RESERVATION_DENIED', 'WORKER_TOKEN_RESERVATION_DENIED', this.budgetDetails(state, 'request_output_limit', input, 1))
+    let output = Math.min(positive(requested) ? requested : remain, remain)
+    if (state.stepBudget && !state.closeout) {
+      // Current output becomes input on the following request. Reserve that
+      // growth once more, plus a complete forecast input and a short report.
+      const reserve = Math.max(input, state.stepBudget.final_input_estimate)
+      output = Math.min(output, Math.max(1, Math.floor((remaining - input - reserve - CLOSEOUT_OUTPUT_RESERVE) / 2)))
+    }
+    return output
   }
   serial(state, work) { const next = state.serial.catch(() => undefined).then(work); state.serial = next; return next }
 async admit(state, options) {
     if (!state) return null
     return this.serial(state, async () => {
+      options.signal?.throwIfAborted()
       const unlimited = state.profile.mode === 'unlimited'
       if (!unlimited && state.phase !== 'ready') throw budgetError(state.failure || 'WORKER_BUDGET_NOT_READY')
       const estimate = estimateRequestTokens(options)
-      if (!unlimited && estimate.output === null) throw budgetError('WORKER_OUTPUT_LIMIT_REQUIRED')
+      if (!unlimited && estimate.output === null) {
+        const error = budgetError('WORKER_OUTPUT_LIMIT_REQUIRED')
+        await this.recordDenied(state, error, 'stream_admission', estimate.input, null)
+        throw error
+      }
       const reservation = unlimited ? null : estimate.input + estimate.output
       const call = { call_id: randomUUID(), worker_session_id: state.session.id, owner_session_id: state.session.id,
         root_session_id: state.rootId, purpose: options.purpose || 'worker', provider: options.provider, model: options.model,
@@ -291,6 +351,7 @@ async admit(state, options) {
         status: 'active', usage: null, usage_complete: false, observed_tokens: null }
       try {
         const committed = await this.journal.transaction(state.rootId, snapshot => {
+          options.signal?.throwIfAborted()
           const events = (snapshot.events || []).filter(event => event?.data?.root_session_id === state.rootId)
           const frozen = events.filter(event => event.type === eventName('frozen')
             && event.data?.worker_session_id === state.session.id)
@@ -300,9 +361,23 @@ async admit(state, options) {
           }
           const calls = callsFrom(events, state.session.id), totals = totalsFor(calls)
           if (!unlimited) {
-            if (totals.calls >= state.profile.callLimit) throw budgetError('WORKER_CALL_LIMIT_REACHED')
+            const closeout = events.filter(event => event.type === eventName('closeout') && event.data?.worker_session_id === state.session.id).at(-1)?.data
+            const details = this.budgetDetails(state, 'stream_admission', estimate.input, estimate.output, totals)
+            const denied = code => { throw budgetError(code, code, details) }
+            if (closeout) {
+              state.closeout = plain(closeout)
+              if (options.purpose === 'compaction') denied('WORKER_CLOSEOUT_CM_DEFERRED')
+              if (totals.calls > closeout.calls_at_closeout) denied('WORKER_CLOSEOUT_ALREADY_SENT')
+              if ((options.tools || []).length) denied('WORKER_CLOSEOUT_TOOLS_NOT_EMPTY')
+              if (typeof options.system !== 'string' || !options.system.includes(CLOSEOUT_MARKER)) denied('WORKER_CLOSEOUT_INSTRUCTION_MISSING')
+            }
+
+            if (options.purpose === 'compaction' && state.stepBudget
+              && (state.profile.callLimit - totals.calls <= 1
+                || state.profile.tokenLimit - totals.committed_tokens - reservation < state.stepBudget.next_input_reserve + CLOSEOUT_OUTPUT_RESERVE)) denied('WORKER_CLOSEOUT_CM_DEFERRED')
+            if (totals.calls >= state.profile.callLimit) denied('WORKER_CALL_LIMIT_REACHED')
             if (totals.committed_tokens >= state.profile.tokenLimit || totals.committed_tokens + reservation > state.profile.tokenLimit) {
-              throw budgetError('WORKER_TOKEN_RESERVATION_DENIED')
+              denied('WORKER_TOKEN_RESERVATION_DENIED')
             }
           }
           calls.set(call.call_id, call)
@@ -311,10 +386,15 @@ async admit(state, options) {
         state.calls = committed.calls
         return { state, call }
       } catch (error) {
+        if (options.signal?.aborted || error?.name === 'AbortError') throw error
         // A limited worker must never dispatch after an uncertain admission.
         // The next attempt folds the authoritative ledger, including a POST
         // that committed before a transport failure.
-        if (!unlimited) throw budgetError(error.code || 'WORKER_BUDGET_ADMISSION_NOT_DURABLE')
+        if (!unlimited) {
+          const failure = error.code ? error : budgetError('WORKER_BUDGET_ADMISSION_NOT_DURABLE', error.message)
+          await this.recordDenied(state, failure, 'stream_admission', estimate.input, estimate.output)
+          throw failure
+        }
         state.auditFailure = 'UNLIMITED_OBSERVATION_NOT_PERSISTED'
         state.calls.set(call.call_id, call)
         return { state, call }
@@ -332,7 +412,19 @@ async admit(state, options) {
   }
   describe(state) {
     const totals = this.totals(state), limited = state.profile.mode !== 'unlimited'
-    return { worker_session_id: state.session.id, root_session_id: state.rootId, ...state.profile, phase: state.phase, frozen: true, ...totals, remaining_tokens: limited ? Math.max(0, state.profile.tokenLimit - totals.committed_tokens) : null, remaining_calls: limited ? Math.max(0, state.profile.callLimit - totals.calls) : null, decision: state.decision, policy_binding: state.policyBinding || null, failure: state.failure, audit_warning: state.auditFailure || null, recent: [...state.calls.values()].slice(-8).map(c => ({ ...c })) }
+    return { worker_session_id: state.session.id, root_session_id: state.rootId, ...state.profile, phase: state.phase, frozen: true, ...totals, remaining_tokens: limited ? Math.max(0, state.profile.tokenLimit - totals.committed_tokens) : null, remaining_calls: limited ? Math.max(0, state.profile.callLimit - totals.calls) : null, decision: state.decision, policy_binding: state.policyBinding || null, failure: state.failure, closeout: state.closeout ? plain(state.closeout) : null, last_denial: state.lastDenial ? plain(state.lastDenial) : null, audit_warning: state.auditFailure || null, recent: [...state.calls.values()].slice(-8).map(c => ({ ...c })) }
+  }
+  async diagnosticsForSession(sessionId) {
+    const known = this.states.get(sessionId)
+    if (known) return plain(this.describe(known))
+    const session = this.resolveSession(sessionId)
+    if (!session || !isWorkerSession(session)) return null
+    try {
+      const state = await this.restore(session, this.root(session))
+      return state ? plain(this.describe(state)) : { worker_session_id: sessionId, frozen: false, closeout: null, last_denial: null }
+    } catch (error) {
+      return { worker_session_id: sessionId, frozen: false, error: error.code || 'WORKER_BUDGET_STATUS_UNAVAILABLE', closeout: null, last_denial: null }
+    }
   }
   async status(agent) {
     if (isWorkerSession(agent.session)) { try { const state = await this.restore(agent.session, this.root(agent.session)); return state ? this.describe(state) : { worker_session_id: agent.session.id, frozen: false } } catch (e) { return { worker_session_id: agent.session.id, frozen: false, error: e.code || 'WORKER_BUDGET_STATUS_UNAVAILABLE' } } }
