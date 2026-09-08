@@ -262,4 +262,3 @@ export function installTeamRequirement(ctx, options = {}) {
   ctx.on('agent/turn-stopping', payload => requirement.turnStopping(payload), { prepend: true, global: true })
   return requirement
 }
-
