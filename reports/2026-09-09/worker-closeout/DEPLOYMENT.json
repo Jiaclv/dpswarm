@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "version": "0.7.6",
+  "at": "2026-09-08T15:19:57.537986+00:00",
+  "source_files_verified": 49,
+  "settings_namespaces_preserved": 13,
+  "historical_state_unchanged": true,
+  "paid_model_calls": 0,
+  "private_receipt_sha256": "66c15e4a7911bf22ada8994d94ea1b92f9abfa9b908461fe99c12b47f73d29be",
+  "scope": "Installed in the idle daily DPH profile after backup; all current settings retained. No historical experiment restarted."
+}
