@@ -652,6 +652,9 @@ class PanelState:
         output = (body or {}).get("output", "")
         reason = (body or {}).get("reason")  # terminate 走六值词汇默认，reject 走自由文本默认
         review_reason = reason or "lead-review"  # reject/escalate 自由文本理由默认
+        review_note = (body or {}).get("review_note", "")
+        if not isinstance(review_note, str) or len(review_note) > 40000:
+            return False, {"ok": False, "error": "INVALID_REVIEW_NOTE"}
         attribution = (body or {}).get("attribution")
         route = (body or {}).get("route")
         if verdict not in ("accept", "reject", "terminate"):
@@ -675,10 +678,11 @@ class PanelState:
                                               f"{item.submission_package_id}（证据不可替换）"}
                 self.cp.accept_submission(
                     item_id, package_id=pkg,
-                    accepted_by={"node": "dsh-lead", "via": "dpswarm-dsh-plugin"})
+                    accepted_by={"node": "dsh-lead", "via": "dpswarm-dsh-plugin",
+                                 **({"review_note": review_note} if review_note else {})})
                 return True, {"ok": True, "outcome": "accepted"}
             if verdict == "terminate":
-                self.cp.terminate(item_id, reason or "manual-stopped")  # §4 六值词汇默认
+                self.cp.terminate(item_id, reason or "manual-stopped", summary=review_note)  # §4 六值词汇默认
                 return True, {"ok": True, "outcome": "terminated"}
             att = RejectAttribution(attribution) if attribution \
                 else RejectAttribution.DESCRIPTION

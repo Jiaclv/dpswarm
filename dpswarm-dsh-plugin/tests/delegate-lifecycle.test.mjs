@@ -7,18 +7,9 @@ import { pathToFileURL } from 'node:url'
 import test from 'node:test'
 import { setImmediate as nextTurn } from 'node:timers/promises'
 
-const host = process.env.DSH_HOST_ROOT
-  || 'C:/Users/93711/AppData/Roaming/npm/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai'
-const available = existsSync(join(host, 'dsh-tools/lib/index.js'))
-let apply
-if (available) {
-  // Model a running DSH host, whose shared modules are already initialized.
-  // No host provider, session, sidecar, or model is started by these tests.
-  await import(pathToFileURL(join(host, 'cosmokit/lib/index.js')).href)
-  await import(pathToFileURL(join(host, 'dsh-tools/lib/index.js')).href)
-  process.env.DPSWARM_SKIP_SETTINGS = '1'
-  ;({ apply } = await import('../lib/index.js'))
-}
+import { Sidecar } from '../lib/sidecar.js'
+import { delegateOnce } from '../lib/delegation.js'
+const available = true
 
 function harness(t, kind = 'derive', savedSettings = null) {
   const tools = new Map(), requests = [], children = [], events = []
@@ -38,6 +29,7 @@ function harness(t, kind = 'derive', savedSettings = null) {
       return child
     } },
   }
+  const audit = { root_session_id: 'parent-session', revision: 0, events: [], head_hash: '0'.repeat(64) }
   globalThis.fetch = async (url, options) => {
     const path = new URL(url).pathname
     requests.push({ path, origin: new URL(url).origin, body: options.body ? JSON.parse(options.body) : null })
@@ -47,20 +39,22 @@ function harness(t, kind = 'derive', savedSettings = null) {
     if (kind === 'split') Object.assign(item, { assistant_node_id: 'assistant-node', channel_id: 'peer-channel',
       assistant_fence: { context_epoch: 0, session_id: 'assistant-reservation', attempt: 1 } })
     const body = options.body ? JSON.parse(options.body) : {}
-    const response = path === '/api/delegate' ? { items: [item] }
+    if (path === '/api/plugin-audit' && options.method === 'POST') { assert.equal(body.expected_revision, audit.revision); audit.revision++; audit.events.push(...body.events) }
+    const response = path === '/api/plugin-audit' ? audit : path === '/api/delegate' ? { items: [item] }
       : path === '/api/execution/bind' ? { ok: true, context_epoch: body.context_epoch, session_id: body.execution_session_id }
         : { ok: true, outcome: path === '/api/execution/fail' ? 'terminated' : undefined }
     return new Response(JSON.stringify(response), { status: 200 })
   }
-  apply(ctx, { sidecarUrl: 'http://127.0.0.1:18791', autoStart: false,
+  const config = { sidecarUrl: 'http://127.0.0.1:18791', autoStart: false,
     dpswarmDir: join(tmpdir(), 'nonexistent-dpswarm-test-' + randomUUID()),
-    pythonCmd: 'python', subagentProvider: 'spawn' })
+    pythonCmd: 'python', subagentProvider: 'spawn' }
+
   const signal = new AbortController()
-  const parent = { id: 'parent-session', session: { id: 'parent-session', header: {} },
-    options: { provider: 'parent-provider', model: 'parent-model' } }
-  const execute = () => tools.get('dpswarm_delegate').execute({ kind,
+  const parent = { id: 'parent-session', session: { id: 'parent-session', header: {}, requestHeader: () => ({ config: { provider: 'parent-provider', model: 'parent-model' } }) },
+    options: { provider: 'startup-provider', model: 'deepseek-v4-pro', reasoningEffort: 'high' } }
+  const execute = () => delegateOnce({ kind,
     subtasks: [{ title: 'fixture', prompt: 'fixture only', provider: 'selected-provider', model: 'selected-model' }] },
-  { agent: parent, signal: signal.signal })
+  { agent: parent, signal: signal.signal }, new Sidecar({ ...config, ...savedSettings }), ctx.subagents)
   const results = () => requests.filter(value => value.path === '/api/submit')
   return { execute, results, children, requests, events, signal, parent }
 }
@@ -72,7 +66,7 @@ test('delegate never submits while child result is pending; submits real output 
   assert.equal(h.children.length, 1)
   assert.equal(h.results().length, 0)
   assert.equal(h.children[0].options.parent, h.parent)
-  assert.deepEqual(h.children[0].options.agentOptions, { provider: 'selected-provider', model: 'selected-model' })
+  assert.deepEqual(Object.fromEntries(Object.entries(h.children[0].options.agentOptions)), { provider: 'selected-provider', model: 'selected-model' })
   h.children[0].resolve({ output: [{ type: 'text', text: 'ACTUAL DELIVERY' }], stopReason: 'completed' })
   const result = await running
   assert.equal(h.children[0].child.disposed, 1)

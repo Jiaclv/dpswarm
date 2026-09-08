@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "checked_at": "2026-09-08T05:13:42.522483+00:00",
+  "snapshot_cutoff_utc": "2026-09-08T05:03:21.332081+00:00",
+  "publication_manifest_sha256": "0d6dd584fb0b6c89f74fc68fc694ab3a7d556419aa29468d0ce10482e2784473",
+  "exported_files_sha256_verified": 127,
+  "exported_git_blobs_byte_identical": true,
+  "json_rows": 96,
+  "csv_rows": 96,
+  "row_identities_match": true,
+  "counts": {
+    "original32": {
+      "cells": 32,
+      "states": {
+        "reused": 2,
+        "finished": 30
+      },
+      "saved_final": 32,
+      "intermediate_only": 0
+    },
+    "budget48": {
+      "cells": 48,
+      "states": {
+        "finished": 44,
+        "running": 1,
+        "prepared": 3
+      },
+      "saved_final": 43,
+      "intermediate_only": 0
+    },
+    "historical15": {
+      "cells": 15,
+      "states": {
+        "historical_ended": 15
+      },
+      "saved_final": 12,
+      "intermediate_only": 2
+    },
+    "save_retry1": {
+      "cells": 1,
+      "states": {
+        "finished": 1
+      },
+      "saved_final": 1,
+      "intermediate_only": 0
+    }
+  },
+  "artifact_status_counts": {
+    "confirmed_final": 88,
+    "intermediate_only": 2
+  },
+  "markdown_links_checked": 79,
+  "missing_committed_link_targets": 0,
+  "git_diff_check_passed": true,
+  "whitespace_policy": "Immutable model HTML has a narrow whitespace-check exception; evidence keeps exact bytes. CRLF is accepted in publication text. Plugin source checks remain enabled.",
+  "raw_local_experiment_directory_committed": false,
+  "generated_animations_executed": false,
+  "new_model_calls": 0,
+  "package_check": {
+    "version": "0.7.2",
+    "declared_files_packaged": 20,
+    "source_sha256": "ef46498bb21c3e14faa9a758f6b556d7e1c86bd4b77d90fce95d8c9a17a4e758",
+    "installed": false
+  },
+  "test_loader_portability_change": {
+    "file": "dpswarm-dsh-plugin/tests/budget-settings-browser.mjs",
+    "change": "Resolve explicit DPSWARM_TEST_PLAYWRIGHT or standard playwright module; remove personal fallback.",
+    "node_syntax_check": "passed",
+    "browser_rerun": false
+  },
+  "limits": [
+    "This is a snapshot while the 48-cell main matrix was still in progress.",
+    "Saved HTML is an artifact-delivery outcome, not official scoring or a causal estimate.",
+    "Private archives remain local; publication input hashes reference logical source identities."
+  ]
+}

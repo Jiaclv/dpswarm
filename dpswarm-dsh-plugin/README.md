@@ -1,105 +1,186 @@
-# dpswarm-dsh-plugin
+# DPswarm for DSH · 0.7.2
 
-DPSwarm 的 dsh（deepseek-harness）运行时插件——给当前主 agent 提供按需多模型协作能力。
+给当前 DSH 主 agent 增加**用户显式开启的固定团队**：实现者 → 测试者 → 主 agent 复核、补修与验收。Reviewer 默认由 Lead 承担；用户指定独立模型时才增加一道审查。安装后默认关闭；每个已有会话独立开启。模型不能通过工具参数打开开关、换角色或动态扩队。
 
-默认由当前主 agent 单独处理任务；理解任务后或执行途中，它根据可分性、上下文成本和资源事实自主调用 `dpswarm_*` 工具，兼任 Lead，完成分工、验收并回到原任务。用户不必手动开启团队模式。插件安装、sidecar 自动拉起和面板连接灯只表示能力就绪，不会因此启动 worker；设置与面板用于配置、观测及人工干预。当前实现用系统提示和工具说明承载调用指引，尚没有独立 `SKILL.md` 包。
+实现者默认沿用本次 Lead 实际请求的 Provider、模型与推理强度；0.7.2 已修复只继承启动模型与丢失推理强度的问题。测试者默认模型为 `glm-5.3-flash`，首次使用时需要从 DPH 模型目录选择对应的 Provider 并保存。Reviewer 默认由 Lead 担任，凭据继续由 DPH 管理。
 
-最新[实验综合](../reports/2026-09-07/full-history/REPORT_ZH.md)和[贡献拆解](../reports/2026-09-07/component-attribution/REPORT_ZH.md)来自 modelbench 运行器。它们与本插件的真实 DSH 宿主端到端验收分开判定；下文保留具体接入边界。
+**CM 已接入 DSH 的真实上下文替换流程，并有独立开关**。默认使用 `deepseek-v4-flash`，可在设置页手动调整模型和推理强度，单 agent 也可开启；开启团队并不会自动开启 CM。本次 [DPH 鹈鹕实验](../reports/2026-09-08/pelican/README.md) 则明确配置 `glm-5.3-flash` 为 CM，属于实验设置，不改产品默认值。历史实验运行器中的 CM 结果见[贡献拆解](../reports/2026-09-07/component-attribution/REPORT_ZH.md)，不能直接算作本插件的实测收益。
 
-## 架构（机制文档 §9.1：控制面独立，harness 只作执行底座）
+## 安装
 
+需要已安装的 DSH、Node.js、pnpm，以及 Python 3.10+（含 pip、setuptools 68+）。已核验本机 DSH `0.1.1-rc.2`；其他版本需先自检公开接口。当前从完整仓库安装，尚未发布 npm 注册表版本。
+
+在仓库根目录运行：
+
+```powershell
+node dpswarm-dsh-plugin/bin/setup.mjs --check
+node dpswarm-dsh-plugin/bin/setup.mjs --install --profile web
 ```
-dsh Web UI ──(settings 卡片/输入框按钮)──┐
-dsh 主 agent (Lead) ── dpswarm_* 工具 ──┼──► DPSwarm sidecar（Python 控制面）
-dsh subagent (worker) ◄── ctx.subagents ┘      事件溯源 · 硬准入 · 验收闭环
-                                               http://127.0.0.1:8791
-```
 
-- **Host 半**（`lib/index.js`，零依赖 ESM）：4 个工具 + settings namespace +
-  sidecar 连接/自动拉起。所有 `@deepseek-ai/*` 模块经 `DSH_HOST_ROOT` 从 dsh
-  安装内取**同一实例**——`file:` 安装若配上依赖副本，Symbol/模块单例分叉会
-  破坏宿主工具调度（实测：`registry[TOOL_RUNTIME_SCHEDULER] undefined`）。
-- **Client 半**（`lib/client.js`，手写 factory bundle 免构建）：设置 → 插件 →
-  插件配置 的 DPSwarm 卡片（`--dsw-*` 主题 token 对齐官方 PluginCard）+
-  composer 工具行罗盘按钮（`conversation.input.left` 座位，"Workspace Write"
-  与模型选择器之间）带三态状态灯：黄=启动中（dsh 装载自动拉起 sidecar 的
-  冷启动窗口，连续 3 次探测失败后转红）/ 绿=已连接 / 红=离线（曾连上后掉线
-  即刻翻红，探测恢复自动回绿）。
+Python 不在 PATH 时，可在两个命令后加 `--python "Python 可执行文件的完整路径"`。安装器会：
 
-## 工具面
+1. 自动找到 DSH 的共享模块，避免引入另一套 Cordis 实例。
+2. 把 Python 包安装到 DPswarm 自己的目录，不覆盖全局 Python 包；Python 打包使用本地依赖，不自动下载模型或调用 API。
+3. 生成带内容哈希的插件包，通过 DSH 正式插件命令登记，并保存 Python 路径；同版本更新也会包含新增文件。
 
-| 工具 | 机制 | 说明 |
+默认运行目录：Windows 的 `%LOCALAPPDATA%/dpswarm/dsh`；其他平台使用 `$XDG_STATE_HOME/dpswarm/dsh` 或 `~/.local/state/dpswarm/dsh`。`--check` 只读取和导入组件；它不验证 API 额度或模型连通性。缺少 pnpm 时先安装 pnpm；缺少本地打包依赖时安装器会明确报错。
+
+安装后**重启目标 DSH profile**，进入 **设置 → DPswarm → 模型分工**。点击角色的模型卡片，在搜索窗口中从 DPH 已配置的模型中选择；可按模型名称、模型 ID 或 Provider 搜索。选择会同时带入准确的 Provider 与模型 ID，推理强度选项来自该模型的宿主元数据。选好后点击该角色的“保存”。
+
+若团队开关不可用，下方会列出缺少配置的角色和字段。默认继承模式下，实现者与 Reviewer 无需重复选择模型；测试者仍需保存完整的 Provider 与模型。卡片显示“待配置”时，预填的模型名称还不是可用路由。CM 配置与团队分别校验，可单独启用。
+
+| 职责 | 初始配置 | 调整方式 |
 |---|---|---|
-| `dpswarm_models` | 机制一（§3 事实注入） | 目录 + AA 分维 + 容量，委派前先调 |
-| `dpswarm_delegate` | 机制五（§7 拓扑） | derive/fission/split → sidecar 硬准入 → dsh subagent 执行 → submit |
-| `dpswarm_review` | 机制二（§4 验收制） | accept（证据落盘+原子发布）/ reject（归因四分支，预算 ≤2 重试，矛盾上交） |
-| `dpswarm_status` | 观测 | 投影快照 + 全账汇总 |
+| Lead | 当前任务的主模型 | 通过任务模型选择器更换；设置页有返回任务入口。先完成待验收协作再改 Lead |
+| 实现者 | 沿用当前对话的 Provider、模型与推理强度 | 可显式选择独立模型，再切回跟随对话 |
+| 测试者 | `glm-5.3-flash` | 独立选择，可与实现者不同 |
+| Reviewer | **沿用 Lead**，不创建额外 agent | 可选“沿用 Lead”或独立 DPH 模型；独立模型在测试者结束后审查，最终验收仍由 Lead 完成 |
+| CM | `deepseek-v4-flash`，推理 `off` | 从同一 DPH 模型目录选择；CM 开关仍独立 |
 
-## 安装与使用
+模型窗口支持搜索、方向键、Enter 选择和 Escape 返回；部分 Provider 读取失败时保留其他模型，刷新失败保留上次列表与现有配置。该目录与 DPH 任务模型选择使用同一宿主数据来源（`llm.models`），不要求先有任务，也不读取或复制 API Key。目录可见不代表已经验证额度、质量或控制面准入。
 
-```bash
-# 1) 启动控制面 sidecar（务必在 dpswarm-plugin 目录下用默认 workspace 起：
-#    写接口 token 写在 .dpswarm-panel/.dpswarm-token，dsh 插件按约定路径读取）
-cd dpswarm-plugin
-python -m dpswarm.server --port 8791
+选择不同模型时，不支持的旧推理强度会在草稿里改成“模型默认”；已有自定义配置不会被列表刷新清空。目录未列出的路由可展开“手动配置”填写。凭据与 API 地址仍在 DPH“设置 → 模型”管理。
 
-# 2) 安装进 dsh profile（首次需 pnpm：npm i -g pnpm）
-dsh plugin --profile web add "file:<仓库绝对路径>/dpswarm-dsh-plugin"
+Provider、模型和推理强度点击保存后整组提交；Reviewer 的模式也一并保存。未保存的草稿不影响执行，关闭设置页后不会自动保存。模型选择不会启用团队或 CM，运行中的团队继续使用启动时的配置。“预算与运行”集中设置每个子 agent 的额度，并展示超时、生效时点和 CM 边界；“高级设置”集中展示本地运行组件路径。
 
-# 3) 重启 dsh web（profile 装载在启动时）
-dsh web
-#   → 输入框工具行出现罗盘按钮（角落状态灯黄→绿）；设置→插件→插件配置 出现 DPSwarm 卡片
-#   → 正常向主 agent 提交任务；它默认单干，自主判断是否需要协作。
-#     需要时由 agent 调用 dpswarm_models → dpswarm_delegate，
-#     收到交付后 dpswarm_review 裁决，随后继续原任务。
+打开一个已有会话，点击输入框旁的罗盘，按需打开“当前任务使用固定团队”或“当前任务使用 CM”，也可同时开启，再提交任务。只使用 CM 不需要填写 worker 路由，不会创建固定团队；其持久审计会按需连接或启动本地 Python sidecar。新建会话草稿尚无持久 session id，不能提前开启；首版不把其他会话的开启状态复制到草稿。连接成功仅表示控制服务就绪，实际创建 worker 由主 agent 调用 `dpswarm_run` 完成。
+
+## 使用与停止
+
+- **关闭**：不创建 DPswarm worker。首次关闭状态不自动启动控制服务。
+- **开启**：固定实现者先运行并结束，再运行测试者；最后交给当前主 agent 检查文件、按任务要求验证和补修。用户明确不需要测试时，角色不得执行或新增测试，可作只读检查。实现者和测试者顺序执行，减少共享目录写入冲突。配置了独立 Reviewer 时，再执行一次以只读审查为约定的子 agent；其意见作为待核对交付返回 Lead。
+- **配置变更**：一次协作开始时固定配置和路由版本；变更用于下次协作。验收仍连接原控制服务。主 agent 模型在待验收期间应保持不变，控制面会拒绝根模型归属不匹配。
+- **超时**：每个角色默认 600 秒，可配置 10–7200 秒。关闭当前开关或宿主取消会请求取消在途 worker，并等待公开 `dispose()` 清理。角色失败会保留原因与可取得的报告，Lead 接管；独立 Reviewer 也使用此超时与失败合同。
+- **交付**：worker 的文字报告属于待核对证据，不能直接视作测试通过。Lead 检查实际文件、按用户要求完成验证，再对每份交付 accept 或 terminate；验收说明进入事件记录。
+- **收尾**：关闭开关仍能验收或终止已有交付。结束 worker 不等于自动撤销文件改动；插件不会自动丢弃用户或 Lead 的修改。
+
+不支持通过本版工具进行 fission/split、动态重试和模型自动替换。每个子 agent 的累计 token／调用限制可在“预算与运行”设置，详见下文；它们不构成团队总额或 Lead 总额。节点点数也不是 token 预算。尚未观测到的 token 与费用保持未知，预约额度与实际使用量分开。
+
+## 工具
+
+| 工具 | 行为 |
+|---|---|
+| `dpswarm_status` | 分开读取团队、CM 开关与挂载状态；查看 CM 采用/失败、子 worker 额度与实际决定、团队执行/验收情况 |
+| `dpswarm_models` | 读取用户固定的角色路由；不是模型连通性探测 |
+| `dpswarm_run(task, acceptance, worker_budgets?)` | 仅在当前会话已显式开启时执行固定流程；Auto 必须由 Lead 给出每个启用角色的 tokenLimit、callLimit、reason |
+| `dpswarm_prepare_worker(task, tokenLimit, callLimit, reason, label?)` | Auto 下记录当前 Lead 对一个普通原生子任务的决定；返回 prompt 原样交给原生 subagent，不额外调用评估模型 |
+| `dpswarm_review(item_id, verdict, reason)` | Lead 验收或终止，`verdict` 为 `accept` 或 `terminate` |
+
+旧 `dpswarm_delegate` 不再向模型注册；底层适配器保留用于内部执行与历史合同测试。模型必须被控制面目录识别，并满足原有级别方向、容量与深度要求（包括独立 Reviewer）；无法准入时返回原因，不静默换模型。模型目录是外部快照，不是插件刚测得的能力值。
+
+## CM 的模型配置、固定策略与边界
+
+| 项目 | 0.7.2 行为 |
+|---|---|
+| 启用范围 | 当前已有会话及其直接子 agent；普通用户 fork 是另一任务，不继承开关；不覆盖孙级 agent |
+| 摘要模型 | 默认 `deepseek-v4-flash`、推理 `off`；Provider、模型和推理强度由用户指定，实际请求与审计记录使用所保存的路由 |
+| 触发与保留 | 每次模型请求前检查 DSH token meter 的历史估算；达到 12,000 token 后，压缩较早区段，至少保留最近 4 个消息节点，边界不拆工具调用/结果配对 |
+| 输出与调用 | 提示目标 2,000 token，输出上限 4,096；每个 agent 每个 turn 最多 12 次 CM 逻辑请求，包含失败尝试；单次 120 秒超时 |
+| 冻结与关闭 | 独立 CM 的新配置用于下一次压缩；团队开始到验收结束固定 CM 路由与策略，记录到独立 sidecar 审计账本，重启可恢复；关闭立即取消在途压缩，关后重开用于下一轮团队；关闭不展开已经采用的摘要 |
+| 失败处理 | 空文本、非正常结束、未知/非法必需用量、工具输出、摘要变长、历史变化或取消均不采用；迟到结果只能补用量记录，不能改写上下文 |
+| 原始证据 | 保留 DSH 原始事件；成功摘要与替换区段由宿主原生 `compaction/*` 事务记录，回放重建相同的模型可见历史 |
+
+CM 使用 DSH 的公开摘要接口、配对检查和原生历史事务。它作为提前压缩策略单独挂载，不覆盖各 agent 预设里的原生压缩器：CM 关闭时原有策略照常，CM 失败或保留区段仍过大时原生策略仍可兜底，手动 `/compact` 也保持原意。因此，看到宿主发生压缩不代表一定是 DPswarm CM，需按调用标记区分。
+
+`dpswarm/cm-start`、`dpswarm/cm-end` 与迟到用量 `dpswarm/cm-usage` 保存在独立 sidecar 账本，记录配置、来源范围、耗时、采用结果、错误类别和观察到的 token。会话重启不会把已用 CM 次数清零。DSH 的 `inputTokens` 是未缓存输入，缓存读写另计；缺失字段保留缺失，未完成调用保持未知，不计算假定费用。`dpswarm_status` 聚合当前父会话与本进程见到的子会话；历史子会话的完整审计仍在对应 root 的独立账本中，按 owner_session_id 区分，不能把这个实时视图当成全历史总账。
+
+12 次是 CM 逻辑请求上限，不是整个团队预算，也不是 Provider 自动重试的网络请求上限。上下文估算缩短不等于净 token 节省；两臂对照仍须把摘要调用、缓存与后续普通调用一起结算。此插件沿用 C1 的压缩提示约束，但触发估算采用 DSH meter，调用上限按 agent/turn 计算；不是原实验运行器的完全复刻。团队记忆、编辑期禁压缩等开关尚未移植。“不得新增事实”是提示约束，工程校验不能证明语义绝对无损。
+
+## 状态与项目归属
+
+一个本地 `dpswarm.session_server` 服务承载多个会话，每个会话有独立事件流、根绑定和证据目录。`X-DPSwarm-Session` 选择状态，服务端检查它与真实根身份一致。目录名称使用 session id 哈希，不把请求内容当作路径。
+
+同一运行目录下，对同一个项目设置排他 lease：从准备启动到交付验收/终止完成一直保留。不同会话不能覆盖该项目未处理的协作结果。物理清理无法确认或控制面结算失败时，锁继续保留，不通过重新点击或重启静默绕过。
+
+这隔离的是**控制状态和 DPswarm 的运行归属**，不是 Git worktree 或文件系统沙箱。宿主主 agent、用户和其他插件仍可访问同一目录；测试者仅改测试文件、独立 Reviewer 只读审查的要求是角色约定，不是文件写入 ACL。需要真正并行修改同一项目时，应先使用各自独立的工作副本。
+
+主机异常重启后，在原会话查询并处理已有交付。无法确认的物理清理状态不自动解封；确认旧执行结束后再按控制面故障恢复流程处理，不直接删除锁。详细身份与清理语义保留在 `lib/subagent-run.js` 与 `lib/delegation.js`。
+
+## 连接与升级
+
+默认服务地址 `http://127.0.0.1:8791`，仅支持本地 HTTP。安装器记录 Python 可执行文件及私有包目录；设置中的非空值优先，空值使用安装记录。`DPSWARM_PYTHON` 可指定 Python，`DPSWARM_STATE_DIR` 可指定运行目录，`DSH_HOST_ROOT` 可指定宿主共享模块根。
+
+如果 8791 已运行旧版 `dpswarm.server`，新版会报 `SIDECAR_VERSION_MISMATCH`。先完成旧任务后重启为新服务，或为新插件配置独立端口；不能把旧服务的“在线”当作支持新会话协议。
+
+如需手动启动：
+
+```powershell
+python -m dpswarm.session_server --port 8791 --workspace "运行状态目录"
 ```
 
-## 安全边界（P0 修复后）
+使用安装器的私有 Python 包时，在记录的包目录运行该命令，或让插件自动启动。写操作和敏感读仍需本地 bearer，浏览器只允许 loopback Origin；Web 面板链接会携带当前会话标识。
 
-- sidecar 写接口与敏感读（events/observation）要求 `Authorization: Bearer
-  <token>`；token 在 sidecar 启动时生成于 `<workspace>/.dpswarm-token`，
-  面板页面由 sidecar serve 时注入，dsh Host 半按约定路径读取
-- Origin 门只认 loopback（127.0.0.1/localhost/[::1] 任意端口）：dph Web UI
-  页面的跨源状态灯轮询（GET /api/status 只读快照）可达，恶意网页 Origin
-  一律 403 且无 CORS 头可读——跨站接管/读取两条路都关死
-- 请求体上限 5MB；面板渲染全部 DOM API/textContent（无 innerHTML，存储型
-  相关 XSS 回归有覆盖）；Spec 发布有合法域校验（含 deadline > 单节点 wall-clock 交叉约束）
+升级源码后再次运行安装命令，再重启 DSH 和空闲控制服务。安装器遇到未处理项目 lease 会停止升级，保留原工作；不会结束旧模型任务。`--dsh-home`、`--state-dir` 可安装到隔离目录；启动那个 DSH 时需使用相同的 `DSH_HOME` 和 `DPSWARM_STATE_DIR`。改变状态目录不迁移旧任务。
 
-## 已知实现层决策
+## 验证范围
 
-- **执行合同（2026-09-05）**：worker 用 `Promise.allSettled` 并行；`onPublished`
-  将公开 `SubagentRun.id` 绑定为真实执行 session，后续 submit 使用这一身份，不能用
-  原准入 session 冒充执行。交付须等待 `run.result` 和 `dispose()` 成功，再由 Lead 验收。
-- **根归属和模型**：仅支持顶层 DSH Agent。读取公开 `session.header.delegationDepth`
-  与 `options.subagentDepth` 拒绝嵌套调用；要求公开 `options.provider/model` 明确，
-  经 CP 可信模型目录校验后绑定根 requested 路由及其等级。不同根会话、模型改变或
-  未知模型均明确拒绝，需要独立 sidecar workspace。requested 模型不是上游响应模型的实测证明。
-- **失败收束**：已发布子 run 的失败、取消、绑定失败和 dispose 失败都会向带 fence 的
-  `/api/execution/fail` 报告，原错误和清理错误分别保留，并终止对应 CP item、释放逻辑资源。
-  若物理清理尚未确认，根准入在同事务中封存，重启后仍阻断新执行；不可通过换 item 绕过。
-  未发布的启动失败不误封根。无自动解除这一封存的接口：先确认旧进程停止，再用新的独立 workspace。
-  sidecar 失联导致结算失败时，`control_settlement.ok=false` 明确保留，不声称已经释放资源。
-- **用量证据**：当前已安装公共 `SubagentResult` 仅声明 output/structured/diagnostic/stopReason，
-  不提供 token usage。根会话、worker 和协助者未知用量显式记录为 null；报告分别给出完整总额、
-  已知小计和未知事件数，不把 null 合计成零或免费。没有采集完整真实宿主调用账。
-- **设置和端口**：Host 使用 `installSettingsSection` 提供的当前 source；每次工具调用固定
-  一个设置快照，运行中修改设置不会将交付投向另一 sidecar。浏览器读取公共 `settingsScope`
-  的同一 URL；无可用设置时不猜地址。默认端口统一 8791，仅支持本地 HTTP origin。
-  Windows 自动启动使用独立 argv、`shell:false`、`windowsHide:true`。
-- **本地验证范围**：公开模块和类型从已安装 DSH 读取。mock 生命周期合同、真实 loopback
-  Python sidecar + 假 SubagentRun 已验证委派、真实 handle 绑定、提交、验收、重启恢复、
-  根冲突和清理失败封存。未启动真实模型，未完成实际 DSH Web 会话/浏览器点击验证。
-- **AA 评分数据源**（§8 V1 选型依据）：`dpswarm-plugin/dpswarm/data/aa_scores.json`
-  是外部榜单快照（2026-09-01，AA Intelligence Index v4.1.1 + Coding Index，
-  37 条，来源 AA 官网 FAQ + BenchLM 镜像）。真实模型委派注册时按模型名匹配
-  快照 → 分维/级别（S/A/B/C/D 自定分档 ≥60/50/40/30，映射在快照 level_bands）
-  均取外部数据；未命中时仅接受服务端预先登记的目录事实，否则拒绝未知模型。
-  Agent 请求不能自报级别或伪装 human 来源；演示目录标 `demo`。
-  缺维（reasoning/math）不硬造，选型走 overall 兜底。更新 = 换快照文件。
-- npm 版 dsh 与仓库源码的 API 差异由运行时兼容层吸收：settings 用
-  `installSettingsSection`（npm 独立函数）优先、`settings.installSection`
-  （源码服务方法）兜底；`output.render` 必填且返回 content blocks。
-- Host 路径默认 `C:/Users/93711/AppData/Roaming/npm/node_modules/...`，
-  可用 `DSH_HOST_ROOT` 覆盖。
-- 诊断开关：`DPSWARM_SKIP_SETTINGS=1` / `DPSWARM_SKIP_TOOLS=1` 分别跳过
-  两半（二分排查用）。
+0.7.2 的当前工程验证与各版本历史记录见 [VALIDATION.md](VALIDATION.md)，公开摘要见 [2026-09-08 同步验证](../reports/2026-09-08/SYNC_VALIDATION.json)。本版验证覆盖真实原生 AgentLoop、固定团队、每个 child 的额度、有效路由和进程重启；受控适配器未调用外部模型。设置页面沿用字节一致的客户端，旧 6 项实机检查没有在本次重跑。线上鹈鹕任务是另一组实际模型实验，不能与这些工程测试合并计数。
+
+```powershell
+$env:PYTHONUTF8 = "1"
+python -m pip install -e "./dpswarm-plugin[dev]"
+python -m pytest dpswarm-plugin/tests -q
+$env:DPSWARM_TEST_PYTHON = "python"
+node --test dpswarm-dsh-plugin/tests/*.test.mjs
+```
+
+浏览器验收脚本 `tests/client-browser.mjs` 另需通过 `DPSWARM_TEST_ESBUILD`、`DPSWARM_TEST_PLAYWRIGHT` 指向本机已安装模块入口；它使用真实 React/Chromium 和可控的设置传输 fixture，不把模拟传输冒充真实模型端到端验收。
+
+
+## 控制面板与设置入口
+
+日常模型配置位于 **DPH 设置 → DPswarm**，使用宿主原生子页面。输入框旁的罗盘菜单及插件卡片中的「模型与协作设置」可直接打开此页；实现者、测试者、Reviewer、CM 均使用宿主模型目录，Reviewer 默认沿用 Lead。
+
+运行面板单独展示任务、成员、团队阶段、活动与用量。桌面和窄屏布局、明暗主题、活动筛选、展开原始记录、空状态和连接错误均有对应界面。运行边界与维护操作默认收起，刷新不会覆盖未保存参数。新宿主链接会带上本机 DPH 的返回入口。
+
+DSH 0.1 尚未提供公开的跨页面 `openSection` 服务。快捷入口仅在用户点击或打开明确的设置链接时，定位宿主可见的「设置」与「DPswarm」导航按钮；找不到唯一入口时显示手动路径。它不访问 React 内部对象、不依赖生成的样式类，也不写入配置。`settings.section` 原生注册始终是主入口。
+
+升级旧版时，先核对运行中的任务。旧控制服务若仍有待验收交付，应保留原状态，并为新版会话服务选择空闲端口；不要用新版覆盖旧运行目录。
+
+
+## 实现者跟随实际 Lead 路由（0.7.2）
+
+实现者默认「沿用当前对话模型」：团队开始时读取真实对话的 Provider、模型和推理强度，并将它们固定到本轮执行配置。更换对话模型用于下一轮。继承模式不需要重复填写实现者的 Provider；测试者和 CM 继续使用各自的设置，Reviewer 默认沿用 Lead。
+
+0.7.2 读取宿主当前请求的 `session.requestHeader().config`，不从创建时的 `agent.options` 猜测当前模型。固定角色首次请求前，先将实际 child 身份与 Provider、模型及可选推理强度保存为独立 `dpswarm/route-bound` 记录；公开请求钩子确保最终原生请求使用该路由。Lead 未指定推理强度时不会继承遗留的 `high` 或 `max`。
+
+冷恢复要求 root、真实 child、角色标签和冻结路由一致；已有原生请求头也必须与绑定相符。缺失、重复或冲突的绑定会在模型请求前拒绝。旧版本缺绑定的会话可保留与导出证据，不能把重新读取错误的历史请求头当作修复成功，也不会自动发起替代任务。
+
+选择一个具体的实现者模型并保存，会切换为显式配置；模型列表顶部可切回「沿用当前对话模型」。这只改变实现者使用的模型，角色仍是独立子任务。旧版已保存的完整实现者路由会保留；只有模型默认文本、尚未填写 Provider 的初始配置改为跟随对话。没有可用对话模型时明确报错，不回退到其他模型。
+
+
+## 每个子 agent 的独立额度（0.7.2）
+
+在 **DPH 设置 → DPswarm → 预算与运行** 选择模式并保存：
+
+| 模式 | 作用 |
+|---|---|
+| 不做限制（默认） | 不添加子 agent 的累计 token 或调用上限，忽略以前填写的数值。 |
+| 手动填写 | 每个子 agent 分别持有用户填写的完整额度，不共享团队预算。 |
+| Lead 自动分配 | 当前 Lead 读完任务后，在正常工具派发中决定每个 worker 的额度和理由；没有隐藏的评估模型调用。 |
+
+Lead 主对话与主 CM 不受这些额度限制；子 agent 自身的 CM 计入它自己的额度。同一个子会话的后续轮次和重启延续累计记录。固定团队整轮保留启动时的设置，修改设置影响下一轮；固定团队外的原生子任务使用各自启动时的设置。
+
+Auto 固定团队工具需要 Lead 给出每个启用角色的 `worker_budgets`。原生子任务先用 `dpswarm_prepare_worker` 记录决定，再将返回的完整 prompt 原样派发。缺少决定、任务不匹配或重复领取会在模型请求前拒绝，不自动补额度。额度耗尽时由 Lead 接管，不得通过重建相同子任务重置额度。
+
+Token 统计为输入（含缓存）与输出合计，reasoning 不重复计算。请求前估算和预约，完成后结算；最后一次请求可能因估算误差超出额度，之后停止继续调用。这不是精确的 tokenizer 硬墙。插件实际观测到的模型请求（包括该 child 的 CM）计入调用数；服务商内部重试不保证逐次可见；未知用量保留预约与已知下界。角色超时和服务商单次输出限制独立保留。
+
+600,000 token／28 次仅是新表单参考值。2026-09-08 第一轮原生 DPH 鹈鹕实验没有这项累计限额，不能将它描述为原实验预算。
+
+
+## 升级与历史审计兼容
+
+每个子 worker 的模式与额度语义保持不变。模型请求预约现在计入完整的系统提示与工具定义，并根据剩余额度约束实际输出上限，避免 2 万或 8 万 token 的新 worker 被默认的大输出上限挡在首个请求之前。输入估算仍不是精确 tokenizer 硬墙；实际 usage 与未知预约分开记录。
+
+预算、Auto 分配及 CM 审计改为保存在独立 sidecar 账本，带根会话和真实 owner 标识。DSH 原生日志只保存宿主认识的事件类型，原生消息与压缩记录仍由宿主负责。预约在请求前持久化；重启后未结算调用保留占用，不能按零处理。并发预约采用版本比较并重试，Auto 授权只能绑定一个子会话。有限额会话的账本丢失或损坏时拒绝继续，不能悄悄重置额度。
+
+0.7.0 曾把插件自定义事件写进原生日志：热会话可工作，但当前 DSH 冷读取不接受这些类型。0.7.1 不改写旧日志，也不保证旧 0.7.0 会话原生恢复；旧实验应保存原文件与独立解码证据。更新前先完成在途会话，保留审计目录与安装记录，并确认控制服务支持 `plugin_audit_v1`。
+
+本次修复的工程验证见 [VALIDATION.md](VALIDATION.md)。本地可控模型用于验证宿主、额度与持久化，不证明外部模型的作品质量或 CM 净收益。
+
+
+## 鹈鹕实验发布入口
+
+[实验说明](../reports/2026-09-08/pelican/README.md) · [动画对比页](../reports/2026-09-08/pelican/index.html)
+
+这是 DPH 原生任务的进行中发布快照，逐组状态与时间以报告为准。快照区分原始尝试、基础设施故障、路由版本和后续处理，不把缺失作品当零消耗，也不把已有结果按新版本重新标记。该批 CM 使用 GLM-5.3-Flash，产品默认 DeepSeek；作品没有运行测试。它既不增加历史 SWE 的评分分母，也不单独证明 CM、测试者或团队的因果收益。

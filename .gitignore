@@ -93,3 +93,6 @@ modelbench/mechanism_ablation_20260906/authorization.json
 modelbench/mechanism_ablation_20260906/recovery_tools/
 .dpswarm-token
 .demo/
+
+# Native DPH runs contain local settings, journals and credentials; publish curated copies under reports/.
+/tihu test/

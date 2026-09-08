@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pelican on a Bicycle</title>
+<style>
+  /* All styling is local; no external fonts, images or assets are fetched. */
+  :root { color-scheme: light; }
+  html, body { margin: 0; padding: 0; background: linear-gradient(#86c8f0, #e8f6ff); }
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh; justify-content: center; gap: 10px; padding: 16px 0;
+  }
+  h1 { margin: 0; font-size: 20px; letter-spacing: .4px; color: #24516b; font-weight: 600; }
+  svg { display: block; max-width: 96vw; height: auto; border-radius: 14px;
+        box-shadow: 0 14px 34px rgba(20, 60, 90, .25); background: #cfeafb; }
+</style>
+</head>
+<body>
+  <h1>Pelican on a Bicycle</h1>
+
+  <!--
+    Fully self-contained SVG animation: a cartoon pelican pedaling a bicycle.
+    Artwork is 100% inline SVG vector shapes. A small script only mutates
+    `transform`/line endpoints each frame (spinning wheels, crank, legs,
+    body bob, wing flap, scrolling road and drifting clouds). No network use.
+  -->
+  <svg id="scene" viewBox="0 0 900 540" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Animated pelican riding a bicycle">
+    <defs>
+      <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#86c8f0"/>
+        <stop offset="1" stop-color="#e8f6ff"/>
+      </linearGradient>
+      <!-- A webbed pelican foot, pointing right (toes forward). -->
+      <path id="footShape" d="M-8 0 C-2 -4 6 -5 12 -4 L20 0 C12 5 4 6 -2 5 C-6 4 -8 2 -8 0 Z"/>
+    </defs>
+
+    <!-- ===================== Background ===================== -->
+    <rect x="0" y="0" width="900" height="540" fill="url(#sky)"/>
+    <!-- Sun with soft glow -->
+    <circle cx="744" cy="92" r="58" fill="#ffd75e" opacity=".25"/>
+    <circle cx="744" cy="92" r="42" fill="#ffd75e"/>
+    <!-- Distant hills -->
+    <ellipse cx="170" cy="432" rx="300" ry="76" fill="#9fd88b"/>
+    <ellipse cx="690" cy="432" rx="340" ry="86" fill="#86c86e"/>
+    <ellipse cx="450" cy="432" rx="520" ry="58" fill="#aedf97"/>
+
+    <!-- Drifting clouds (translated by JS with wrap-around) -->
+    <g class="cloud" data-x="250" data-y="70" data-speed="7" fill="#ffffff" opacity=".92">
+      <ellipse cx="0"  cy="0" rx="46" ry="20"/>
+      <ellipse cx="38" cy="-12" rx="34" ry="18"/>
+      <ellipse cx="-36" cy="6" rx="28" ry="14"/>
+    </g>
+    <g class="cloud" data-x="620" data-y="116" data-speed="11" fill="#ffffff" opacity=".85">
+      <ellipse cx="0" cy="0" rx="38" ry="16"/>
+      <ellipse cx="30" cy="-9" rx="28" ry="14"/>
+      <ellipse cx="-30" cy="5" rx="22" ry="11"/>
+    </g>
+    <g class="cloud" data-x="950" data-y="52" data-speed="9" fill="#ffffff" opacity=".9">
+      <ellipse cx="0" cy="0" rx="42" ry="18"/>
+      <ellipse cx="34" cy="-10" rx="30" ry="16"/>
+      <ellipse cx="-32" cy="5" rx="26" ry="12"/>
+    </g>
+
+    <!-- ===================== Road ===================== -->
+    <rect x="0" y="430" width="900" height="110" fill="#9aa3ab"/>
+    <rect x="0" y="430" width="900" height="3" fill="#7c858d"/>
+    <!-- Scrolling center-line dashes (populated & translated by JS) -->
+    <g id="dashes"></g>
+    <!-- Soft shadow under the bicycle -->
+    <ellipse cx="462" cy="436" rx="206" ry="9" fill="#000000" opacity=".14"/>
+
+    <!-- ===================== Far side (behind the bike) ===================== -->
+    <line id="armFar" x1="460" y1="335" x2="460" y2="283" stroke="#4a4a4a" stroke-width="7" stroke-linecap="round"/>
+    <rect id="pedalFar" x="-13" y="-4" width="26" height="8" rx="2" fill="#2f2f2f" transform="translate(460 283)"/>
+    <!-- Far leg -->
+    <g>
+      <line id="thighFar" x1="434" y1="220" x2="434" y2="280" stroke="#d97f0b" stroke-width="8" stroke-linecap="round"/>
+      <line id="shinFar" x1="434" y1="280" x2="460" y2="283" stroke="#d97f0b" stroke-width="7" stroke-linecap="round"/>
+      <g id="footFar" transform="translate(460 283)"><use href="#footShape" fill="#d97f0b"/></g>
+    </g>
+
+    <!-- ===================== Wheels ===================== -->
+    <!-- Rear wheel -->
+    <g>
+      <circle cx="320" cy="360" r="70" fill="none" stroke="#2b2b2b" stroke-width="10"/>
+      <circle cx="320" cy="360" r="62" fill="none" stroke="#cdd3da" stroke-width="3"/>
+      <g id="spokeRear" transform="translate(320 360)"></g>
+      <circle cx="320" cy="360" r="8" fill="#555555"/>
+    </g>
+    <!-- Front wheel -->
+    <g>
+      <circle cx="620" cy="360" r="70" fill="none" stroke="#2b2b2b" stroke-width="10"/>
+      <circle cx="620" cy="360" r="62" fill="none" stroke="#cdd3da" stroke-width="3"/>
+      <g id="spokeFront" transform="translate(620 360)"></g>
+      <circle cx="620" cy="360" r="8" fill="#555555"/>
+    </g>
+
+    <!-- ===================== Frame ===================== -->
+    <!-- Diamond frame, stays and fork -->
+    <line x1="430" y1="230" x2="585" y2="238" stroke="#2e86ab" stroke-width="8" stroke-linecap="round"/> <!-- top tube -->
+    <line x1="585" y1="238" x2="460" y2="335" stroke="#2e86ab" stroke-width="8" stroke-linecap="round"/> <!-- down tube -->
+    <line x1="460" y1="335" x2="430" y2="230" stroke="#2e86ab" stroke-width="8" stroke-linecap="round"/> <!-- seat tube -->
+    <line x1="585" y1="238" x2="602" y2="256" stroke="#2e86ab" stroke-width="9" stroke-linecap="round"/> <!-- head tube -->
+    <line x1="430" y1="230" x2="320" y2="360" stroke="#2e86ab" stroke-width="6" stroke-linecap="round"/> <!-- seat stay -->
+    <line x1="460" y1="335" x2="320" y2="360" stroke="#2e86ab" stroke-width="6" stroke-linecap="round"/> <!-- chain stay -->
+    <line x1="602" y1="256" x2="620" y2="360" stroke="#2e86ab" stroke-width="6" stroke-linecap="round"/> <!-- fork -->
+
+    <!-- Chain (implied): two runs between chainring and rear sprocket -->
+    <circle cx="320" cy="360" r="12" fill="none" stroke="#4a4a4a" stroke-width="3"/>
+    <line x1="460" y1="311" x2="320" y2="348" stroke="#4a4a4a" stroke-width="3.5" stroke-dasharray="6 4"/>
+    <line x1="460" y1="359" x2="320" y2="372" stroke="#4a4a4a" stroke-width="3.5" stroke-dasharray="6 4"/>
+
+    <!-- Chainring (rotates with the crank) -->
+    <g id="crankGroup" transform="translate(460 335)">
+      <circle cx="0" cy="0" r="24" fill="none" stroke="#4a4a4a" stroke-width="5"/>
+      <circle cx="0" cy="0" r="8" fill="none" stroke="#4a4a4a" stroke-width="3"/>
+      <!-- holes make the rotation read clearly -->
+      <circle cx="15" cy="0" r="3.4" fill="#cfeafb"/>
+      <circle cx="-15" cy="0" r="3.4" fill="#cfeafb"/>
+      <circle cx="0" cy="15" r="3.4" fill="#cfeafb"/>
+      <circle cx="0" cy="-15" r="3.4" fill="#cfeafb"/>
+    </g>
+
+    <!-- ===================== Saddle & handlebars ===================== -->
+    <path d="M395 224 C398 214 456 214 462 222 C462 228 396 229 395 224 Z" fill="#3a3a3a"/>
+    <line x1="430" y1="230" x2="427" y2="222" stroke="#3a3a3a" stroke-width="6" stroke-linecap="round"/>
+    <line x1="585" y1="238" x2="608" y2="216" stroke="#3a3a3a" stroke-width="7" stroke-linecap="round"/> <!-- stem -->
+    <path d="M608 216 C630 210 648 214 654 228" fill="none" stroke="#3a3a3a" stroke-width="7" stroke-linecap="round"/> <!-- bar -->
+
+    <!-- ===================== Near side (in front of the bike) ===================== -->
+    <line id="armNear" x1="460" y1="335" x2="512" y2="335" stroke="#4a4a4a" stroke-width="7" stroke-linecap="round"/>
+    <rect id="pedalNear" x="-13" y="-4" width="26" height="8" rx="2" fill="#333333" transform="translate(512 335)"/>
+    <!-- Near leg -->
+    <g>
+      <line id="thighNear" x1="430" y1="214" x2="430" y2="280" stroke="#f59e0b" stroke-width="8" stroke-linecap="round"/>
+      <line id="shinNear" x1="430" y1="280" x2="512" y2="335" stroke="#f59e0b" stroke-width="7" stroke-linecap="round"/>
+      <g id="footNear" transform="translate(512 335)"><use href="#footShape" fill="#f59e0b"/></g>
+    </g>
+
+    <!-- ===================== Pelican torso ===================== -->
+    <g id="torso">
+      <!-- Tail feathers -->
+      <path d="M332 150 Q300 132 278 142 Q292 162 318 180 Q322 168 332 150 Z" fill="#eef3f7" stroke="#d5dee5" stroke-width="1.5"/>
+      <!-- Body -->
+      <ellipse cx="398" cy="176" rx="80" ry="64" fill="#ffffff"/>
+      <!-- Neck (thick white stroke blends body and head into one silhouette) -->
+      <line x1="462" y1="140" x2="516" y2="130" stroke="#ffffff" stroke-width="40" stroke-linecap="round"/>
+      <!-- Head -->
+      <circle cx="520" cy="110" r="30" fill="#ffffff"/>
+      <!-- Small crest tuft -->
+      <path d="M498 88 C490 80 490 72 496 70 C494 80 500 84 504 88 Z" fill="#ffffff" stroke="#dfe7ee" stroke-width="1.5"/>
+
+      <!-- Throat pouch (amber) and big orange beak -->
+      <path d="M546 128 C580 130 640 130 696 132 C680 150 634 162 590 164 C556 166 522 174 502 188 C514 168 526 152 546 142 Z"
+            fill="#fbbf24" stroke="#e08a00" stroke-width="1.5"/>
+      <path d="M546 92 C606 86 676 94 700 118 C703 124 699 130 680 130 C630 126 576 124 546 126 Z"
+            fill="#f59e0b" stroke="#e08a00" stroke-width="1.5"/>
+
+      <!-- Eye -->
+      <circle cx="539" cy="102" r="5.5" fill="#2b2b2b"/>
+      <circle cx="541" cy="100" r="2" fill="#ffffff"/>
+
+      <!-- Wing (flaps via JS) -->
+      <g id="wing" transform="rotate(0 400 178)">
+        <path d="M362 176 C340 202 348 230 380 236 C416 243 442 224 444 198 C445 180 432 170 410 170 C390 170 374 172 362 176 Z"
+              fill="#dde6ee" stroke="#c3cfda" stroke-width="1.5"/>
+        <path d="M388 182 C382 200 388 218 402 228" fill="none" stroke="#b9c7d2" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M414 180 C410 198 414 214 426 224" fill="none" stroke="#b9c7d2" stroke-width="1.5" stroke-linecap="round"/>
+      </g>
+    </g>
+  </svg>
+
+  <script>
+  (function () {
+    'use strict';
+    var NS = 'http://www.w3.org/2000/svg';
+    function el(tag, attrs) {
+      var e = document.createElementNS(NS, tag);
+      for (var k in attrs) e.setAttribute(k, attrs[k]);
+      return e;
+    }
+
+    // --- Build wheel spokes (8 per wheel) ---
+    var rIn = 8, rOut = 62, spokeCount = 8;
+    ['spokeRear', 'spokeFront'].forEach(function (id) {
+      var g = document.getElementById(id);
+      for (var i = 0; i < spokeCount; i++) {
+        var a = (i * Math.PI * 2) / spokeCount;
+        g.appendChild(el('line', {
+          x1: Math.cos(a) * rIn, y1: Math.sin(a) * rIn,
+          x2: Math.cos(a) * rOut, y2: Math.sin(a) * rOut,
+          stroke: '#a9b2bc', 'stroke-width': 2
+        }));
+      }
+    });
+
+    // --- Build road dashes spanning the full width (for seamless wrap) ---
+    var spacing = 130, dashW = 70, dashG = document.getElementById('dashes');
+    for (var x = -spacing; x <= 1000 + spacing; x += spacing) {
+      dashG.appendChild(el('rect', { x: x, y: 475, width: dashW, height: 8, rx: 4, fill: '#f2c94c' }));
+    }
+
+    // --- References ---
+    var spokeRear = document.getElementById('spokeRear');
+    var spokeFront = document.getElementById('spokeFront');
+    var crankGroup = document.getElementById('crankGroup');
+    var armNear = document.getElementById('armNear');
+    var armFar = document.getElementById('armFar');
+    var pedalNear = document.getElementById('pedalNear');
+    var pedalFar = document.getElementById('pedalFar');
+    var footNear = document.getElementById('footNear');
+    var footFar = document.getElementById('footFar');
+    var thighNear = document.getElementById('thighNear');
+    var shinNear = document.getElementById('shinNear');
+    var thighFar = document.getElementById('thighFar');
+    var shinFar = document.getElementById('shinFar');
+    var torso = document.getElementById('torso');
+    var wing = document.getElementById('wing');
+
+    var C = { x: 460, y: 335 }, CRANK = 52;               // crank centre & arm length
+    var HIP_N = { x: 430, y: 214 }, HIP_F = { x: 434, y: 220 }; // near / far hip
+    var THIGH = 88, SHIN = 88;                            // leg segment lengths
+    var crankSpeed = 2.2, wheelRatio = 6;                 // rad/s; wheels spin 6x crank
+
+    var clouds = Array.prototype.map.call(
+      document.querySelectorAll('.cloud'),
+      function (c) { return { el: c, bx: +c.getAttribute('data-x'), by: +c.getAttribute('data-y'), sp: +c.getAttribute('data-speed') }; }
+    );
+
+    // Two-bone inverse kinematics: hip -> knee -> foot (foot fixed on pedal).
+    function ik(hx, hy, fx, fy) {
+      var dx = fx - hx, dy = fy - hy, d = Math.hypot(dx, dy);
+      var max = THIGH + SHIN;
+      if (d > max) { var s = max / d; fx = hx + dx * s; fy = hy + dy * s; dx = fx - hx; dy = fy - hy; d = max; }
+      var a2 = THIGH * THIGH, b2 = SHIN * SHIN, d2 = d * d;
+      var t = (d2 + a2 - b2) / (2 * d);
+      var h = Math.sqrt(Math.max(0, a2 - t * t));
+      var ux = dx / d, uy = dy / d, px = -uy, py = ux;
+      var k1x = hx + ux * t + px * h, k1y = hy + uy * t + py * h;
+      var k2x = hx + ux * t - px * h, k2y = hy + uy * t - py * h;
+      return (k1x >= k2x) ? { kx: k1x, ky: k1y, fx: fx, fy: fy } : { kx: k2x, ky: k2y, fx: fx, fy: fy };
+    }
+
+    function wrap(v, min, max) { var r = max - min; return ((v - min) % r + r) % r + min; }
+
+    var t0 = performance.now();
+    function frame(now) {
+      var t = (now - t0) / 1000;
+      var th = t * crankSpeed;                 // crank angle (radians)
+      var bob = Math.sin(2 * th) * 2.0;        // subtle body bob (2x per crank rev)
+      var w = th * wheelRatio;                 // wheel angle
+
+      // Spinning wheels
+      var wDeg = (w * 180) / Math.PI;
+      spokeRear.setAttribute('transform', 'translate(320 360) rotate(' + wDeg + ')');
+      spokeFront.setAttribute('transform', 'translate(620 360) rotate(' + wDeg + ')');
+
+      // Rotating crank / chainring
+      crankGroup.setAttribute('transform', 'translate(460 335) rotate(' + ((th * 180) / Math.PI) + ')');
+
+      // Pedal centres (opposite ends of the crank)
+      var pnx = C.x + CRANK * Math.cos(th), pny = C.y + CRANK * Math.sin(th);
+      var pfx = C.x - CRANK * Math.cos(th), pfy = C.y - CRANK * Math.sin(th);
+      armNear.setAttribute('x2', pnx); armNear.setAttribute('y2', pny);
+      armFar.setAttribute('x2', pfx); armFar.setAttribute('y2', pfy);
+      pedalNear.setAttribute('transform', 'translate(' + pnx + ' ' + pny + ')');
+      pedalFar.setAttribute('transform', 'translate(' + pfx + ' ' + pfy + ')');
+
+      // Legs (hips track the body bob so they stay attached)
+      var hn = { x: HIP_N.x, y: HIP_N.y + bob }, hf = { x: HIP_F.x, y: HIP_F.y + bob };
+      var n = ik(hn.x, hn.y, pnx, pny), f = ik(hf.x, hf.y, pfx, pfy);
+      thighNear.setAttribute('x1', hn.x); thighNear.setAttribute('y1', hn.y);
+      thighNear.setAttribute('x2', n.kx); thighNear.setAttribute('y2', n.ky);
+      shinNear.setAttribute('x1', n.kx); shinNear.setAttribute('y1', n.ky);
+      shinNear.setAttribute('x2', n.fx); shinNear.setAttribute('y2', n.fy);
+      footNear.setAttribute('transform', 'translate(' + n.fx + ' ' + n.fy + ')');
+      thighFar.setAttribute('x1', hf.x); thighFar.setAttribute('y1', hf.y);
+      thighFar.setAttribute('x2', f.kx); thighFar.setAttribute('y2', f.ky);
+      shinFar.setAttribute('x1', f.kx); shinFar.setAttribute('y1', f.ky);
+      shinFar.setAttribute('x2', f.fx); shinFar.setAttribute('y2', f.fy);
+      footFar.setAttribute('transform', 'translate(' + f.fx + ' ' + f.fy + ')');
+
+      // Torso bob and wing flap
+      torso.setAttribute('transform', 'translate(0 ' + bob + ')');
+      wing.setAttribute('transform', 'rotate(' + (Math.sin(2 * th + 0.7) * 8) + ' 400 178)');
+
+      // Ground scrolls backward (matches wheel speed)
+      dashG.setAttribute('transform', 'translate(' + (-((w * 70) % spacing)) + ' 0)');
+
+      // Drifting clouds with wrap-around
+      for (var i = 0; i < clouds.length; i++) {
+        var c = clouds[i];
+        c.el.setAttribute('transform', 'translate(' + wrap(c.bx - t * c.sp, -150, 1050) + ' ' + c.by + ')');
+      }
+
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  })();
+  </script>
+</body>
+</html>

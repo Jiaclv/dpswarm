@@ -1,7 +1,7 @@
 {
   "name": "dpswarm-dsh-plugin",
-  "version": "0.1.0",
-  "description": "DPSwarm: on-demand multi-model collaboration for the current dsh agent (control plane sidecar + delegation tools)",
+  "version": "0.7.2",
+  "description": "Explicit fixed-team and independent DeepSeek context management for DSH",
   "type": "module",
   "private": true,
   "exports": {
@@ -11,7 +11,10 @@
     "./client": {
       "default": "./lib/client.js"
     },
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./cm": {
+      "default": "./lib/cm.js"
+    }
   },
   "dsh": {
     "client": {
@@ -20,11 +23,26 @@
         "@deepseek-ai/dsh-client-connection",
         "@deepseek-ai/dsh-client-locale",
         "@deepseek-ai/dsh-client-ui-settings",
-        "@deepseek-ai/dsh-client-ui-settings-plugins"
+        "@deepseek-ai/dsh-client-ui-settings-plugins",
+        "@deepseek-ai/dsh-client-ui-settings-general"
       ]
     },
     "bundle": {
       "patch": "cordis.patch.yml"
     }
+  },
+  "bin": {
+    "dpswarm-dsh-setup": "bin/setup.mjs"
+  },
+  "files": [
+    "lib",
+    "bin",
+    "cordis.patch.yml",
+    "README.md",
+    "VALIDATION.md"
+  ],
+  "scripts": {
+    "doctor": "node bin/setup.mjs --check",
+    "test": "node --test tests/*.test.mjs"
   }
 }

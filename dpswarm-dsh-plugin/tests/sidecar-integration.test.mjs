@@ -8,17 +8,12 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import test from 'node:test'
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
-const host = process.env.DSH_HOST_ROOT || 'C:/Users/93711/AppData/Roaming/npm/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai'
-const available = existsSync(join(host, 'dsh-tools/lib/index.js'))
-let apply
-if (available) {
-  await import(pathToFileURL(join(host, 'cosmokit/lib/index.js')).href)
-  await import(pathToFileURL(join(host, 'dsh-tools/lib/index.js')).href)
-  process.env.DPSWARM_SKIP_SETTINGS = '1'
-  ;({ apply } = await import('../lib/index.js'))
-}
+import { Sidecar } from '../lib/sidecar.js'
+import { MemoryAuditJournal } from './helpers/memory-audit.mjs'
+import { delegateOnce } from '../lib/delegation.js'
+const available = true
 
-test('real loopback sidecar: root ownership, published identity, accept, failure settlement and restart',
+test('legacy control plane with in-memory route journal: root ownership, published identity, accept, failure settlement and restart',
   { skip: !available, timeout: 30000 }, async t => {
   const output = join(repo, 'test-artifacts/engineering-20260905/dsh/loopback')
   mkdirSync(output, { recursive: true })
@@ -59,12 +54,14 @@ test('real loopback sidecar: root ownership, published identity, accept, failure
         async dispose() { disposed++; if (mode === 'disposal-error') throw new Error('fixture disposal fault') } }
     } },
   }
-  apply(ctx, { sidecarUrl: base, autoStart: false, dpswarmDir: directory,
+  const sidecar = new Sidecar({ sidecarUrl: base, autoStart: false, dpswarmDir: directory,
     pythonCmd: 'python', subagentProvider: 'spawn' })
-  const parent = { id: 'real-root-session', session: { id: 'real-root-session', header: {} }, options: { provider: 'mock', model: 'b-kimi' } }
+
+  const parent = { id: 'real-root-session', session: { id: 'real-root-session', header: {}, requestHeader: () => ({ config: { provider: 'mock', model: 'b-kimi' } }) }, options: { provider: 'mock', model: 'b-kimi' } }
   const exec = { agent: parent, signal: new AbortController().signal }
   const request = { kind: 'derive', subtasks: [{ title: 'offline test', prompt: 'no model calls', provider: 'mock', model: 'b-kimi' }] }
-  const tool = registered.get('dpswarm_delegate')
+  const routeJournal = new MemoryAuditJournal()
+  const tool = { execute: (args, exec) => delegateOnce(args, exec, sidecar, ctx.subagents, { routeJournal }) }
   const result = await tool.execute(request, exec)
   assert.equal(result.failed.length, 0)
   assert.equal(disposed, 1)
@@ -76,7 +73,7 @@ test('real loopback sidecar: root ownership, published identity, accept, failure
   const item = status.snapshot.work_items[delivery.item_id]
   assert.equal(item.submission_session_id, 'host-published-run-1')
   const submittedId = item.submission_id
-  const review = await registered.get('dpswarm_review').execute({ item_id: delivery.item_id, verdict: 'accept' }, exec)
+  const review = await sidecar.call('POST', '/api/review', { item_id: delivery.item_id, verdict: 'accept' })
   assert.equal(review.outcome, 'accepted')
   status = await (await fetch(base + '/api/status')).json()
   assert.equal(status.snapshot.open_worker_slots_used, 0)
@@ -86,7 +83,7 @@ test('real loopback sidecar: root ownership, published identity, accept, failure
   status = await (await fetch(base + '/api/status')).json()
   assert.equal(status.snapshot.work_items[delivery.item_id].submission_id, submittedId)
   assert.equal(status.snapshot.work_items[delivery.item_id].acceptance, 'accepted')
-  const foreign = { agent: { ...parent, id: 'other-root', session: { id: 'other-root', header: {} } } }
+  const foreign = { agent: { ...parent, id: 'other-root', session: { ...parent.session, id: 'other-root', header: {} } } }
   await assert.rejects(tool.execute(request, foreign), error => error.code === 'ROOT_EXECUTION_CONFLICT')
   assert.equal(starts, 1)
   await assert.rejects(tool.execute(request, { agent: { ...parent, session: { id: parent.id, header: { delegationDepth: 1 } } } }), /NESTED_DELEGATION_UNSUPPORTED/)

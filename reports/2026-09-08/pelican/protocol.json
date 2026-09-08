@@ -1,0 +1,51 @@
+{
+  "cutoff_utc": "2026-09-08T05:03:21.332081+00:00",
+  "prompt": "创建一个HTML，内容是SVG绘制一个鹈鹕骑自行车的2D动画，放到本机dev目录，你不需要任何测试",
+  "models": [
+    "deepseek-v4-flash",
+    "deepseek-v4-pro",
+    "glm-5.3",
+    "glm-5.3-flash"
+  ],
+  "modes": [
+    "standard",
+    "cordis"
+  ],
+  "arms": {
+    "baseline": {
+      "team": false,
+      "cm": false
+    },
+    "cm": {
+      "team": false,
+      "cm": true
+    },
+    "team": {
+      "team": true,
+      "cm": false
+    },
+    "team_cm": {
+      "team": true,
+      "cm": true
+    }
+  },
+  "requested_role_policy": {
+    "lead": "selected conversation model",
+    "implementer": "follow conversation model",
+    "tester": "glm-5.3-flash",
+    "reviewer": "Lead",
+    "cm": "glm-5.3-flash",
+    "deepseek_reasoning_effort": "max"
+  },
+  "budget_protocol": {
+    "scope": "each child worker separately; no Lead/team aggregate cap",
+    "original32": "no child lifetime token/call caps; historical reference only",
+    "manual_2x_reference": {
+      "per_worker_token_limit": 1200000,
+      "per_worker_call_limit": 56,
+      "reference": "2x the new manual-form 600000/28 reference; not 2x an original32 cap"
+    },
+    "auto": "Lead reads the task and chooses separate worker limits before delegation"
+  },
+  "interpretation": "Requested policy, not proof of actual exposure. results.json records request/response models; the 17 confirmed old implementer deviations remain marked. The full task prompt is unchanged between cells."
+}

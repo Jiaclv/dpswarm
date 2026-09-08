@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  Pelican on a Bicycle — 2D SVG animation
+  ----------------------------------------------------------------------------
+  Pure HTML + inline SVG. No external libraries, fonts, images, or network
+  requests. Open this file directly in a browser (file://) and it will run.
+
+  Animation is driven by a single requestAnimationFrame loop (the mechanical
+  parts: wheel spokes, pedals/crank, pelican legs, horizontal travel, wing
+  flap, body bob), plus a couple of CSS keyframes for cheap background motion
+  (scrolling clouds, sun glow). All coordinates are in SVG user units inside
+  the responsive viewBox (1200 x 600).
+  ============================================================================
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pelican on a Bicycle</title>
+<style>
+  /* Full-window stage; the SVG scales to fit and keeps its aspect ratio. */
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+    background: #8ecff2;
+  }
+  #stage {
+    width: 100vw;
+    height: 100vh;
+    display: block;
+  }
+
+  /* --- CSS keyframes: cheap, safe background motion (translation/opacity only) --- */
+
+  /* Clouds drift left and loop seamlessly: the layer holds two identical sets
+     offset by one viewBox width (1200), so a translateX(-1200px) cycle looks
+     infinite with no jump. */
+  .scroll {
+    animation: drift 48s linear infinite;
+  }
+  @keyframes drift {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-1200px); }
+  }
+
+  /* Sun glow gently breathes. */
+  .sun-glow {
+    animation: pulse 4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.35; }
+    50%      { opacity: 0.7; }
+  }
+
+  /* Sun rays rotate slowly around the sun. */
+  .rays {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: spin 60s linear infinite;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* Birds drift across the sky. */
+  .bird1 { animation: fly1 42s linear infinite; }
+  .bird2 { animation: fly2 58s linear infinite; }
+  @keyframes fly1 {
+    from { transform: translate(-80px, 0); }
+    to   { transform: translate(1320px, -30px); }
+  }
+  @keyframes fly2 {
+    from { transform: translate(1350px, 10px); }
+    to   { transform: translate(-80px, 0); }
+  }
+
+  .title {
+    font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+    font-size: 26px; font-weight: 700; fill: #2a5d8f;
+  }
+  .subtitle {
+    font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+    font-size: 13px; fill: #4a7aa8;
+  }
+</style>
+</head>
+<body>
+
+<svg id="stage" viewBox="0 0 1200 600" preserveAspectRatio="xMidYMid meet"
+     xmlns="http://www.w3.org/2000/svg">
+
+  <defs>
+    <!-- Sky gradient (blue at top -> pale near horizon). -->
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0"   stop-color="#8ecff2"/>
+      <stop offset="0.6" stop-color="#c9e9fb"/>
+      <stop offset="1"   stop-color="#eaf6ff"/>
+    </linearGradient>
+
+    <!-- Reusable scenery props (trees / bushes) for the JS parallax layer. -->
+    <g id="pine">
+      <rect x="-6" y="-22" width="12" height="22" fill="#8a5a33"/>
+      <path d="M0,-72 L20,-44 L-20,-44 Z" fill="#4da25d"/>
+      <path d="M0,-54 L26,-22 L-26,-22 Z" fill="#3f8f4f"/>
+      <path d="M0,-32 L30,-2 L-30,-2 Z" fill="#357d44"/>
+    </g>
+    <g id="roundTree">
+      <rect x="-5" y="-20" width="10" height="20" fill="#8a5a33"/>
+      <circle cx="0" cy="-38" r="24" fill="#4da25d"/>
+      <circle cx="-13" cy="-50" r="16" fill="#57ad66"/>
+      <circle cx="12" cy="-52" r="13" fill="#3f8f4f"/>
+    </g>
+    <g id="bush">
+      <circle cx="0" cy="-12" r="14" fill="#58a95f"/>
+      <circle cx="17" cy="-9" r="11" fill="#67b76b"/>
+      <circle cx="-16" cy="-8" r="10" fill="#4da25d"/>
+    </g>
+    <g id="propsInner">
+      <use href="#pine" transform="translate(140,600)"/>
+      <use href="#roundTree" transform="translate(430,600)"/>
+      <use href="#bush" transform="translate(720,600)"/>
+      <g transform="translate(1010,600) scale(1.12)"><use href="#pine"/></g>
+      <g transform="translate(1330,600) scale(0.9)"><use href="#roundTree"/></g>
+      <g transform="translate(1230,600) scale(0.8)"><use href="#bush"/></g>
+    </g>
+
+    <!-- Little fish for the handlebar basket. -->
+    <g id="fish">
+      <ellipse cx="0" cy="0" rx="9" ry="4.2" fill="#6fb0d9" stroke="#4a8fb8" stroke-width="1"/>
+      <path d="M-8,0 L-14,-5 L-14,5 Z" fill="#6fb0d9" stroke="#4a8fb8" stroke-width="1"/>
+      <circle cx="6" cy="-1.5" r="1.2" fill="#22303a"/>
+    </g>
+  </defs>
+
+  <!-- ==================================================================== -->
+  <!-- BACKGROUND: sky, sun, clouds, hills, ground/road                     -->
+  <!-- ==================================================================== -->
+
+  <rect x="0" y="0" width="1200" height="440" fill="url(#sky)"/>
+
+  <!-- Sun (top-right) -->
+  <g>
+    <circle class="sun-glow" cx="1080" cy="120" r="80" fill="#ffe082"/>
+    <circle cx="1080" cy="120" r="48" fill="#ffd93b"/>
+    <!-- rotating rays (CSS) -->
+    <g class="rays" stroke="#ffd93b" stroke-width="6" stroke-linecap="round">
+      <line x1="1080" y1="50"  x2="1080" y2="34"/>
+      <line x1="1080" y1="190" x2="1080" y2="206"/>
+      <line x1="1010" y1="120" x2="994"  y2="120"/>
+      <line x1="1150" y1="120" x2="1166" y2="120"/>
+      <line x1="1030" y1="70"  x2="1019" y2="59"/>
+      <line x1="1130" y1="170" x2="1141" y2="181"/>
+      <line x1="1030" y1="170" x2="1019" y2="181"/>
+      <line x1="1130" y1="70"  x2="1141" y2="59"/>
+    </g>
+  </g>
+
+  <!-- Birds (CSS loop) -->
+  <g transform="translate(320,150)">
+    <g class="bird1"><path d="M0,0 q6,-8 12,0 q6,-8 12,0" fill="none" stroke="#5b6f78" stroke-width="3" stroke-linecap="round"/></g>
+  </g>
+  <g transform="translate(950,120) scale(0.75)">
+    <g class="bird2"><path d="M0,0 q6,-8 12,0 q6,-8 12,0" fill="none" stroke="#5b6f78" stroke-width="3" stroke-linecap="round"/></g>
+  </g>
+
+  <!-- Clouds: one reusable set, duplicated at +1200 for a seamless loop. -->
+  <g id="clouds-layer" class="scroll">
+    <g id="cloud-set">
+      <g>
+        <ellipse cx="180" cy="120" rx="72" ry="26" fill="#ffffff" opacity="0.95"/>
+        <ellipse cx="126" cy="130" rx="46" ry="20" fill="#ffffff" opacity="0.90"/>
+        <ellipse cx="234" cy="128" rx="52" ry="21" fill="#ffffff" opacity="0.90"/>
+        <ellipse cx="180" cy="100" rx="42" ry="22" fill="#ffffff" opacity="0.95"/>
+      </g>
+      <g>
+        <ellipse cx="620" cy="76"  rx="64" ry="23" fill="#ffffff" opacity="0.92"/>
+        <ellipse cx="572" cy="86"  rx="40" ry="18" fill="#ffffff" opacity="0.88"/>
+        <ellipse cx="668" cy="84"  rx="44" ry="19" fill="#ffffff" opacity="0.88"/>
+        <ellipse cx="620" cy="58"  rx="36" ry="19" fill="#ffffff" opacity="0.92"/>
+      </g>
+      <g>
+        <ellipse cx="960" cy="150" rx="78" ry="27" fill="#ffffff" opacity="0.93"/>
+        <ellipse cx="900" cy="162" rx="48" ry="21" fill="#ffffff" opacity="0.88"/>
+        <ellipse cx="1020" cy="160" rx="52" ry="22" fill="#ffffff" opacity="0.88"/>
+        <ellipse cx="960" cy="128" rx="44" ry="23" fill="#ffffff" opacity="0.93"/>
+      </g>
+    </g>
+    <use href="#cloud-set" x="1200"/>
+  </g>
+
+  <!-- Distant hills -->
+  <ellipse cx="210" cy="442" rx="330" ry="95"  fill="#bfe3a8"/>
+  <ellipse cx="860" cy="442" rx="430" ry="120" fill="#aed998"/>
+
+  <!-- Ground + road (the bicycle rolls on the road strip at y=440). -->
+  <rect x="0" y="440" width="1200" height="160" fill="#7ec850"/>
+  <rect x="0" y="440" width="1200" height="32"  fill="#c3bfae"/>
+  <g id="dashLayer">
+    <line x1="-240" y1="456" x2="1440" y2="456" stroke="#f4f1e6" stroke-width="3"
+          stroke-dasharray="26 22" opacity="0.9"/>
+  </g>
+
+  <!-- Trees & bushes scrolled by JS (slow parallax, two copies loop at 1400). -->
+  <g id="propsLayer">
+    <use href="#propsInner"/>
+    <use href="#propsInner" transform="translate(1400,0)"/>
+  </g>
+
+  <!-- A few static grass tufts / bushes for depth. -->
+  <g fill="#5aa83f">
+    <ellipse cx="120"  cy="512" rx="46" ry="22"/>
+    <ellipse cx="430"  cy="540" rx="38" ry="18"/>
+    <ellipse cx="760"  cy="520" rx="52" ry="24"/>
+    <ellipse cx="1060" cy="548" rx="42" ry="19"/>
+  </g>
+
+  <!-- Title -->
+  <text class="title" x="30" y="52">Pelican Cyclist</text>
+  <text class="subtitle" x="32" y="74">一只骑自行车的鹈鹕 · SVG 2D 动画</text>
+
+  <!-- ==================================================================== -->
+  <!-- RIDING RIG: pelican + bicycle. This whole group is translated        -->
+  <!-- horizontally every frame (translate(x, 380)) so the rig loops across -->
+  <!-- the scene; 380 maps the wheel contact line (bike-local y=60) to the  -->
+  <!-- road top at scene y=440.                                             -->
+  <!-- ==================================================================== -->
+
+  <g id="ride" transform="translate(400, 380)">
+
+    <!-- Grounding shadow under the bike, travels with the rig. -->
+    <ellipse cx="125" cy="62" rx="150" ry="10" fill="rgba(0,0,0,0.12)"/>
+
+    <!-- ---------------------------------------------------------------- -->
+    <!-- BICYCLE                                                          -->
+    <!-- ---------------------------------------------------------------- -->
+    <g id="bike">
+
+      <!-- Frame (red-orange tubing). -->
+      <g stroke="#e8503a" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none">
+        <line x1="0"   y1="0"   x2="130" y2="16"/>    <!-- chain stay -->
+        <line x1="0"   y1="0"   x2="112" y2="-80"/>   <!-- seat stay -->
+        <line x1="130" y1="16"  x2="112" y2="-80"/>   <!-- seat tube -->
+        <line x1="112" y1="-80" x2="255" y2="-92"/>   <!-- top tube -->
+        <line x1="130" y1="16"  x2="248" y2="-20"/>   <!-- down tube -->
+        <line x1="255" y1="-92" x2="248" y2="-20"/>   <!-- head tube -->
+        <line x1="248" y1="-20" x2="250" y2="0"/>     <!-- fork -->
+      </g>
+
+      <!-- Chain (static) linking chainring to rear hub. -->
+      <g stroke="#b8c4cc" stroke-width="2.5" fill="none">
+        <line x1="0" y1="-6" x2="130" y2="-2"/>
+        <line x1="0" y1="6"  x2="130" y2="34"/>
+      </g>
+
+      <!-- Rear wheel: tire + rim + hub (static), spokes rotate. -->
+      <g>
+        <circle cx="0" cy="0" r="60" fill="none" stroke="#2b2b2b" stroke-width="9"/>
+        <circle cx="0" cy="0" r="52" fill="none" stroke="#9aa7b0" stroke-width="2"/>
+        <g id="spokes-rear" stroke="#b8c4cc" stroke-width="2">
+          <line x1="-52" y1="0"    x2="52"  y2="0"/>
+          <line x1="0"    y1="-52" x2="0"   y2="52"/>
+          <line x1="-36.8" y1="-36.8" x2="36.8" y2="36.8"/>
+          <line x1="-36.8" y1="36.8"  x2="36.8" y2="-36.8"/>
+        </g>
+        <circle cx="0" cy="0" r="6" fill="#5a6670"/>
+        <!-- red fender over the rear tire -->
+        <path d="M-63.7,-17.1 A 66 66 0 0 1 63.7,-17.1" fill="none"
+              stroke="#d64545" stroke-width="7" stroke-linecap="round"/>
+      </g>
+
+      <!-- Front wheel: same as rear, offset by the wheelbase (250). -->
+      <g>
+        <circle cx="250" cy="0" r="60" fill="none" stroke="#2b2b2b" stroke-width="9"/>
+        <circle cx="250" cy="0" r="52" fill="none" stroke="#9aa7b0" stroke-width="2"/>
+        <g id="spokes-front" stroke="#b8c4cc" stroke-width="2">
+          <line x1="198" y1="0"    x2="302" y2="0"/>
+          <line x1="250" y1="-52"  x2="250" y2="52"/>
+          <line x1="213.2" y1="-36.8" x2="286.8" y2="36.8"/>
+          <line x1="213.2" y1="36.8"  x2="286.8" y2="-36.8"/>
+        </g>
+        <circle cx="250" cy="0" r="6" fill="#5a6670"/>
+        <!-- red fender over the front tire -->
+        <path d="M 186.3,-17.1 A 66 66 0 0 1 313.7,-17.1" fill="none"
+              stroke="#d64545" stroke-width="7" stroke-linecap="round"/>
+      </g>
+
+      <!-- Crankset: chainring + two crank arms + pedals. Rotated in sync
+           with the wheels so pedaling matches wheel rotation. -->
+      <g id="crank">
+        <circle cx="130" cy="16" r="18" fill="none" stroke="#5a6670" stroke-width="5"/>
+        <circle cx="130" cy="16" r="6"  fill="#3b3f46"/>
+        <!-- near crank arm (pointing +x, pedal at the tip) -->
+        <line x1="130" y1="16" x2="152" y2="16" stroke="#5a6670" stroke-width="6" stroke-linecap="round"/>
+        <rect x="145" y="12" width="14" height="8" rx="2" fill="#3b3f46"/>
+        <!-- far crank arm (opposite, 180 deg) -->
+        <line x1="130" y1="16" x2="108" y2="16" stroke="#4a525c" stroke-width="6" stroke-linecap="round"/>
+        <rect x="95" y="12" width="14" height="8" rx="2" fill="#2f343b"/>
+      </g>
+
+      <!-- Seat post + saddle. -->
+      <line x1="112" y1="-80" x2="108" y2="-90" stroke="#4a3b32" stroke-width="5" stroke-linecap="round"/>
+      <ellipse cx="108" cy="-93" rx="21" ry="7" fill="#4a3b32"/>
+
+      <!-- Stem + handlebars. -->
+      <line x1="255" y1="-92" x2="260" y2="-104" stroke="#3b3f46" stroke-width="5" stroke-linecap="round"/>
+      <path d="M 254,-104 Q 272,-106 276,-98 Q 279,-90 271,-86"
+            fill="none" stroke="#3b3f46" stroke-width="6" stroke-linecap="round"/>
+
+      <!-- Handlebar basket with today's catch -->
+      <g>
+        <rect x="262" y="-134" width="44" height="30" rx="6" fill="#c98d4b"
+              stroke="#9a6a35" stroke-width="3"/>
+        <line x1="270" y1="-132" x2="270" y2="-106" stroke="#9a6a35" stroke-width="2"/>
+        <line x1="280" y1="-132" x2="280" y2="-106" stroke="#9a6a35" stroke-width="2"/>
+        <line x1="290" y1="-132" x2="290" y2="-106" stroke="#9a6a35" stroke-width="2"/>
+        <line x1="299" y1="-132" x2="299" y2="-106" stroke="#9a6a35" stroke-width="2"/>
+        <rect x="260" y="-138" width="48" height="8" rx="4" fill="#b57c3d"
+              stroke="#9a6a35" stroke-width="2"/>
+        <use href="#fish" transform="translate(278,-124)"/>
+        <use href="#fish" transform="translate(292,-130) rotate(-12)"/>
+        <use href="#fish" transform="translate(284,-116) scale(0.8)"/>
+      </g>
+    </g>
+
+    <!-- ---------------------------------------------------------------- -->
+    <!-- PELICAN  (bobs gently via #bob; wing + legs animate separately)   -->
+    <!-- ---------------------------------------------------------------- -->
+    <g id="bob">
+
+      <!-- Far wing (behind body). -->
+      <path d="M 120,-134 C 100,-168 70,-172 44,-156 C 64,-146 86,-140 104,-130 Z"
+            fill="#aab9c3"/>
+
+      <!-- Tail (behind body). -->
+      <path d="M 56,-86 C 40,-92 34,-104 44,-112 C 52,-112 58,-104 62,-94 Z"
+            fill="#d5dfe6"/>
+
+      <!-- Body: white with grey outline; belly dips low so the thighs attach. -->
+      <path d="M 58,-88
+               C 48,-104 58,-128 86,-140
+               C 106,-150 136,-150 150,-130
+               C 160,-114 158,-98 150,-88
+               C 143,-78 134,-66 128,-56
+               C 122,-48 110,-50 104,-58
+               C 96,-68 86,-76 58,-88 Z"
+            fill="#ffffff" stroke="#cbd5dc" stroke-width="2"/>
+
+      <!-- Subtle chest shading. -->
+      <ellipse cx="140" cy="-116" rx="15" ry="21" fill="#eef4f7"/>
+
+      <!-- Neck (outline then fill). -->
+      <path d="M 140,-128 C 138,-142 144,-152 158,-156"
+            fill="none" stroke="#cbd5dc" stroke-width="24" stroke-linecap="round"/>
+      <path d="M 140,-128 C 138,-142 144,-152 158,-156"
+            fill="none" stroke="#ffffff" stroke-width="18" stroke-linecap="round"/>
+
+      <!-- Head -->
+      <circle cx="164" cy="-160" r="15" fill="#ffffff" stroke="#cbd5dc" stroke-width="2"/>
+      <!-- Crest tuft -->
+      <path d="M 152,-168 C 148,-176 154,-181 159,-176"
+            fill="#e8eef2" stroke="#cbd5dc" stroke-width="1.5"/>
+      <!-- Eye -->
+      <circle cx="170" cy="-164" r="3.2" fill="#22272e"/>
+      <circle cx="171.2" cy="-165.2" r="1.1" fill="#ffffff"/>
+
+      <!-- Beak: upper mandible (orange) -->
+      <path d="M 172,-166 L 224,-172 Q 232,-174 230,-168 Q 226,-160 216,-159 L 176,-159 Q 172,-160 172,-166 Z"
+            fill="#f59e0b" stroke="#e08a00" stroke-width="1.5"/>
+      <!-- Beak: throat pouch (yellow-orange, sagging) -->
+      <path d="M 176,-158 C 184,-140 204,-134 220,-146 C 226,-152 224,-158 218,-159 L 186,-159 C 180,-159 176,-158 176,-158 Z"
+            fill="#fbbf24" stroke="#f59e0b" stroke-width="1.5"/>
+
+      <!-- Near wing (on top of body); rotated around its shoulder pivot. -->
+      <path id="wing-near" d="M 116,-130 C 96,-166 60,-176 28,-160 C 50,-146 76,-138 96,-126 Z"
+            fill="#c3d2da" stroke="#9fb0ba" stroke-width="2"/>
+    </g>
+
+    <!-- ---------------------------------------------------------------- -->
+    <!-- LEGS: two-segment (thigh + shin) limbs solved with inverse        -->
+    <!-- kinematics each frame so the feet stay planted on the pedals.     -->
+    <!-- ---------------------------------------------------------------- -->
+    <g id="legs">
+      <polyline id="leg-far"   fill="none" stroke="#e8871e" stroke-width="7"
+                stroke-linecap="round" stroke-linejoin="round"/>
+      <polyline id="leg-near"  fill="none" stroke="#f59e0b" stroke-width="8"
+                stroke-linecap="round" stroke-linejoin="round"/>
+      <ellipse id="foot-far"  rx="7"  ry="4" fill="#e8871e"/>
+      <ellipse id="foot-near" rx="8"  ry="4.5" fill="#f59e0b"/>
+    </g>
+  </g>
+</svg>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---- element references -------------------------------------------------
+  var svg         = document.getElementById("stage");
+  var ride        = document.getElementById("ride");
+  var bob         = document.getElementById("bob");
+  var spokesRear  = document.getElementById("spokes-rear");
+  var spokesFront = document.getElementById("spokes-front");
+  var crank       = document.getElementById("crank");
+  var wing        = document.getElementById("wing-near");
+  var legFar      = document.getElementById("leg-far");
+  var legNear     = document.getElementById("leg-near");
+  var footFar     = document.getElementById("foot-far");
+  var footNear    = document.getElementById("foot-near");
+  var propsLayer  = document.getElementById("propsLayer");
+  var dashLayer   = document.getElementById("dashLayer");
+
+  // ---- geometry constants (bike-local units) ------------------------------
+  var CRANK     = { x: 130, y: 16 };      // bottom-bracket center
+  var CRANK_LEN = 22;                     // crank-arm (pedal) radius
+  var HIP_FAR   = { x: 124, y: -56 };     // far leg hip (front side)
+  var HIP_NEAR  = { x: 108, y: -56 };     // near leg hip (rear side)
+  var THIGH     = 52;                     // upper leg segment length
+  var SHIN      = 52;                     // lower leg segment length
+  var SHOULDER  = { x: 116, y: -130 };    // wing pivot
+  var RADIUS    = 60;                     // wheel radius
+  var SPEED     = 90;                     // horizontal px / second
+  var SCENE_LEFT  = -280;                 // wrap boundaries
+  var SCENE_RIGHT = 1280;
+
+  // ---- state --------------------------------------------------------------
+  var angle = 0;        // shared crank/wheel angle (radians)
+  var x     = 400;      // current horizontal position
+  var dist  = 0;        // total traveled distance (drives ground parallax)
+
+  // Two-bone inverse kinematics: returns the knee position that lets the
+  // thigh (hip->knee) and shin (knee->foot) reach the given foot target.
+  // The knee is chosen to bow forward (+x, the direction of travel).
+  function solveIK(hip, foot) {
+    var dx = foot.x - hip.x, dy = foot.y - hip.y;
+    var d  = Math.hypot(dx, dy) || 1e-6;
+    var len = Math.min(Math.max(d, Math.abs(THIGH - SHIN)), THIGH + SHIN);
+    var nx = dx / d, ny = dy / d;
+    var a = (THIGH * THIGH - SHIN * SHIN + len * len) / (2 * len);
+    var h = Math.sqrt(Math.max(0, THIGH * THIGH - a * a));
+    var mx = hip.x + nx * a, my = hip.y + ny * a;
+    var px = -ny, py = nx;                       // perpendicular
+    var k1 = { x: mx + px * h, y: my + py * h };
+    var k2 = { x: mx - px * h, y: my - py * h };
+    return (k1.x >= k2.x) ? k1 : k2;             // forward knee
+  }
+
+  function pedalPos(theta) {
+    return {
+      x: CRANK.x + CRANK_LEN * Math.cos(theta),
+      y: CRANK.y + CRANK_LEN * Math.sin(theta)
+    };
+  }
+
+  function setLeg(polyEl, footEl, hip, foot) {
+    var knee = solveIK(hip, foot);
+    polyEl.setAttribute("points",
+      hip.x + "," + hip.y + " " + knee.x + "," + knee.y + " " + foot.x + "," + foot.y);
+    footEl.setAttribute("cx", foot.x);
+    footEl.setAttribute("cy", foot.y);
+  }
+
+  // ---- animation loop -----------------------------------------------------
+  var last = performance.now();
+  function frame(now) {
+    var dt = Math.min((now - last) / 1000, 0.05);  // clamp big gaps
+    last = now;
+
+    // Advance motion: wheels and crank share the same angular speed.
+    var omega = SPEED / RADIUS;
+    angle = (angle + omega * dt) % (Math.PI * 2);
+    x += SPEED * dt;
+    if (x > SCENE_RIGHT) x = SCENE_LEFT;
+    dist += SPEED * dt;
+
+    var deg = angle * 180 / Math.PI;
+
+    // 1) Horizontal translation of the whole rig.
+    ride.setAttribute("transform", "translate(" + x + ", 380)");
+
+    // 2) Wheel spokes rotate in place around each hub.
+    spokesRear.setAttribute("transform",  "rotate(" + deg + " 0 0)");
+    spokesFront.setAttribute("transform", "rotate(" + deg + " 250 0)");
+
+    // 3) Crankset rotates around the bottom bracket -> pedals crank.
+    crank.setAttribute("transform", "rotate(" + deg + " " + CRANK.x + " " + CRANK.y + ")");
+
+    // 4) Wing flap around the shoulder pivot.
+    var flap = Math.sin(now / 1000 * 6) * 26;
+    wing.setAttribute("transform", "rotate(" + flap + " " + SHOULDER.x + " " + SHOULDER.y + ")");
+
+    // 5) Subtle body bob tied to the pedal cycle.
+    var bobY = Math.sin(angle * 2) * 1.6;
+    bob.setAttribute("transform", "translate(0 " + bobY + ")");
+
+    // 6) Legs: hips bob with the body; feet track the two pedals.
+    setLeg(legFar,  footFar,  { x: HIP_FAR.x,  y: HIP_FAR.y  + bobY }, pedalPos(angle + Math.PI));
+    setLeg(legNear, footNear, { x: HIP_NEAR.x, y: HIP_NEAR.y + bobY }, pedalPos(angle));
+
+    // 7) Road dashes scroll backward at bike speed; trees parallax at 0.2x.
+    dashLayer.setAttribute("transform",
+      "translate(" + (-(dist % 48)).toFixed(1) + ", 0)");
+    propsLayer.setAttribute("transform",
+      "translate(" + (-(dist * 0.2 % 1400)).toFixed(1) + ", 0)");
+
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

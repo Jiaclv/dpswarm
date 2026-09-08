@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>鹈鹕骑自行车 · SVG 2D 动画</title>
+<style>
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 20px;
+    box-sizing: border-box;
+    background: linear-gradient(165deg, #dceef8 0%, #eef6ef 60%, #f7f3df 100%);
+    font-family: "Segoe UI", system-ui, "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  h1 { margin: 0; font-size: 26px; color: #23465c; letter-spacing: 2px; }
+  p.note { margin: 0 0 8px; font-size: 13px; color: #6b7f8a; }
+  svg { display: block; width: min(96vw, 1000px); height: auto; }
+</style>
+</head>
+<body>
+<h1>鹈鹕骑自行车 &#128690;</h1>
+<p class="note">纯内联 SVG + SMIL 动画 · 无任何外部资源 · 可直接双击打开</p>
+<svg viewBox="0 0 1000 640" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="鹈鹕骑自行车 2D 动画">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#bfe4f8"/>
+      <stop offset="1" stop-color="#e8f6fb"/>
+    </linearGradient>
+  </defs>
+
+  <!-- ===================== background ===================== -->
+  <rect x="0" y="0" width="1000" height="540" fill="url(#sky)"/>
+
+  <g>
+    <circle cx="150" cy="100" r="40" fill="#ffd970"/>
+    <circle cx="150" cy="100" r="54" fill="none" stroke="#ffd970" stroke-opacity="0.35" stroke-width="6"/>
+    <g>
+      <animateTransform attributeName="transform" type="rotate" values="0 150 100;360 150 100" dur="42s" repeatCount="indefinite"/>
+      <g stroke="#ffcb5c" stroke-width="5" stroke-linecap="round">
+        <line x1="150" y1="22" x2="150" y2="38"/>
+        <line x1="150" y1="162" x2="150" y2="178"/>
+        <line x1="72" y1="100" x2="88" y2="100"/>
+        <line x1="212" y1="100" x2="228" y2="100"/>
+        <line x1="95" y1="45" x2="106" y2="56"/>
+        <line x1="194" y1="144" x2="205" y2="155"/>
+        <line x1="205" y1="45" x2="194" y2="56"/>
+        <line x1="95" y1="155" x2="106" y2="144"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- drifting clouds -->
+  <g fill="#ffffff" opacity="0.92">
+    <g>
+      <animateTransform attributeName="transform" type="translate" values="1040 0;-250 0" dur="66s" repeatCount="indefinite"/>
+      <circle cx="0" cy="0" r="30"/><circle cx="-34" cy="16" r="20"/><circle cx="30" cy="14" r="22"/>
+    </g>
+    <g>
+      <animateTransform attributeName="transform" type="translate" values="1040 0;-250 0" dur="46s" begin="-20s" repeatCount="indefinite"/>
+      <circle cx="0" cy="0" r="22"/><circle cx="-26" cy="12" r="15"/><circle cx="24" cy="10" r="16"/>
+    </g>
+    <g>
+      <animateTransform attributeName="transform" type="translate" values="1040 0;-250 0" dur="80s" begin="-45s" repeatCount="indefinite"/>
+      <circle cx="0" cy="0" r="26"/><circle cx="-30" cy="14" r="18"/><circle cx="28" cy="12" r="17"/>
+    </g>
+  </g>
+
+  <!-- hills, meadow, road -->
+  <path d="M0,505 C 190,445 380,472 560,472 C 760,472 920,452 1000,478 L1000,540 L0,540 Z" fill="#cde5d4"/>
+  <rect x="0" y="498" width="1000" height="42" fill="#b7ddab"/>
+  <rect x="0" y="540" width="1000" height="100" fill="#93a9bb"/>
+  <line x1="0" y1="540" x2="1000" y2="540" stroke="#ffffff" stroke-opacity="0.55" stroke-width="3"/>
+
+  <!-- scrolling lane dashes (bike travels to the right) -->
+  <g stroke="#ffffff" stroke-opacity="0.6" stroke-width="7" stroke-linecap="round">
+    <g>
+      <animateTransform attributeName="transform" type="translate" values="0 0;-90 0" dur="1.9s" repeatCount="indefinite"/>
+      <line x1="20" y1="565" x2="70" y2="565"/>
+    </g>
+    <g>
+      <animateTransform attributeName="transform" type="translate" values="0 0;-90 0" dur="1.9s" begin="-0.95s" repeatCount="indefinite"/>
+      <line x1="20" y1="600" x2="70" y2="600"/>
+    </g>
+  </g>
+
+  <!-- wheel ground shadows -->
+  <ellipse cx="255" cy="543" rx="86" ry="10" fill="#4d6374" opacity="0.22"/>
+  <ellipse cx="745" cy="543" rx="86" ry="10" fill="#4d6374" opacity="0.22"/>
+
+  <!-- ===================== bicycle + rider ===================== -->
+
+  <!-- REAR WHEEL -->
+  <g transform="translate(255,445)">
+    <circle r="95" fill="none" stroke="#39434e" stroke-width="14"/>
+    <circle r="84" fill="none" stroke="#e2e8ec" stroke-width="4"/>
+    <g>
+      <animateTransform attributeName="transform" type="rotate" values="0;360" dur="1.6s" repeatCount="indefinite"/>
+      <circle r="84" fill="none" stroke="#9fb0bd" stroke-width="3"/>
+      <g stroke="#b7c5cf" stroke-width="2.6">
+        <line x1="0" y1="8" x2="0" y2="84"/>
+        <line x1="0" y1="-8" x2="0" y2="-84"/>
+        <line x1="8" y1="0" x2="84" y2="0"/>
+        <line x1="-8" y1="0" x2="-84" y2="0"/>
+        <line x1="5.7" y1="5.7" x2="59.4" y2="59.4"/>
+        <line x1="-5.7" y1="-5.7" x2="-59.4" y2="-59.4"/>
+        <line x1="5.7" y1="-5.7" x2="59.4" y2="-59.4"/>
+        <line x1="-5.7" y1="5.7" x2="-59.4" y2="59.4"/>
+      </g>
+      <rect x="-5" y="-6" width="10" height="12" rx="3" fill="#e85d4a"/>
+    </g>
+    <circle r="10" fill="#4a5763"/><circle r="4" fill="#d9e3e9"/>
+  </g>
+
+  <!-- FRONT WHEEL -->
+  <g transform="translate(745,445)">
+    <circle r="95" fill="none" stroke="#39434e" stroke-width="14"/>
+    <circle r="84" fill="none" stroke="#e2e8ec" stroke-width="4"/>
+    <g>
+      <animateTransform attributeName="transform" type="rotate" values="0;360" dur="1.6s" repeatCount="indefinite"/>
+      <circle r="84" fill="none" stroke="#9fb0bd" stroke-width="3"/>
+      <g stroke="#b7c5cf" stroke-width="2.6">
+        <line x1="0" y1="8" x2="0" y2="84"/>
+        <line x1="0" y1="-8" x2="0" y2="-84"/>
+        <line x1="8" y1="0" x2="84" y2="0"/>
+        <line x1="-8" y1="0" x2="-84" y2="0"/>
+        <line x1="5.7" y1="5.7" x2="59.4" y2="59.4"/>
+        <line x1="-5.7" y1="-5.7" x2="-59.4" y2="-59.4"/>
+        <line x1="5.7" y1="-5.7" x2="59.4" y2="-59.4"/>
+        <line x1="-5.7" y1="5.7" x2="-59.4" y2="59.4"/>
+      </g>
+      <rect x="-5" y="-6" width="10" height="12" rx="3" fill="#e85d4a"/>
+    </g>
+    <circle r="10" fill="#4a5763"/><circle r="4" fill="#d9e3e9"/>
+  </g>
+
+  <!-- FAR LEG (behind frame), driven by crank arm #2 -->
+  <g transform="translate(455,284)">
+    <g>
+      <animateTransform attributeName="transform" type="rotate" values="49.9;46.2;42.1;37.5;32.5;27.1;21.4;15.9;10.9;6.8;3.9;2.5;2.4;3.6;6.0;9.2;13.3;17.8;22.9;28.2;33.7;39.3;44.8;50.1;54.9;58.9;61.9;63.8;64.6;64.5;63.7;62.4;60.6;58.5;56.0;53.1" dur="1.6s" repeatCount="indefinite"/>
+      <line x1="0" y1="0" x2="95" y2="0" stroke="#e98c47" stroke-width="23" stroke-linecap="round"/>
+      <g>
+        <animateTransform attributeName="transform" type="rotate" values="87.2;93.7;99.8;105.5;110.6;114.8;118.0;120.1;120.9;120.3;118.4;115.3;111.1;106.2;100.5;94.4;88.0;81.2;74.4;67.5;60.7;54.1;47.9;42.4;37.9;34.9;33.7;34.6;37.5;41.8;47.2;53.4;59.9;66.7;73.6;80.4" dur="1.6s" repeatCount="indefinite"/>
+        <circle cx="0" cy="0" r="13" fill="#ef9c55"/>
+        <line x1="0" y1="0" x2="115" y2="0" stroke="#ed9550" stroke-width="20" stroke-linecap="round"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- FAR CRANK ARM -->
+  <g transform="translate(480,435)">
+    <g>
+      <animateTransform attributeName="transform" type="rotate" values="180;540" dur="1.6s" repeatCount="indefinite"/>
+      <line x1="0" y1="0" x2="48" y2="0" stroke="#46586a" stroke-width="9" stroke-linecap="round"/>
+    </g>
+  </g>
+
+  <!-- FAR FOOT + PEDAL PLATFORM -->
+  <g>
+    <animateTransform attributeName="transform" type="translate" values="432.00 435.00;432.73 426.66;434.89 418.58;438.43 411.00;443.23 404.15;449.15 398.23;456.00 393.43;463.58 389.89;471.66 387.73;480.00 387.00;488.34 387.73;496.42 389.89;504.00 393.43;510.85 398.23;516.77 404.15;521.57 411.00;525.11 418.58;527.27 426.66;528.00 435.00;527.27 443.34;525.11 451.42;521.57 459.00;516.77 465.85;510.85 471.77;504.00 476.57;496.42 480.11;488.34 482.27;480.00 483.00;471.66 482.27;463.58 480.11;456.00 476.57;449.15 471.77;443.23 465.85;438.43 459.00;434.89 451.42;432.73 443.34" dur="1.6s" repeatCount="indefinite"/>
+    <rect x="-30" y="7" width="60" height="10" rx="5" fill="#b7c2cb" stroke="#93a3ad" stroke-width="2"/>
+    <rect x="-26" y="-6" width="52" height="15" rx="7" fill="#ef7d12"/>
+    <circle cx="0" cy="0" r="9" fill="#ef7d12"/>
+  </g>
+
+  <!-- BICYCLE FRAME -->
+  <g stroke-linecap="round" fill="none">
+    <g stroke="#1790a8" stroke-width="9">
+      <line x1="255" y1="445" x2="480" y2="435"/>
+      <line x1="255" y1="445" x2="452" y2="287"/>
+      <line x1="452" y1="287" x2="480" y2="435"/>
+      <line x1="480" y1="435" x2="698" y2="290"/>
+      <line x1="452" y1="287" x2="698" y2="290"/>
+      <line x1="698" y1="290" x2="745" y2="445"/>
+    </g>
+    <line x1="698" y1="288" x2="698" y2="302" stroke="#0f6e83" stroke-width="12"/>
+    <line x1="698" y1="297" x2="681" y2="262" stroke="#1790a8" stroke-width="8"/>
+    <path d="M632,268 Q656,256 681,260" stroke="#1790a8" stroke-width="8"/>
+    <circle cx="632" cy="269" r="8" fill="#39464f" stroke="none"/>
+    <circle cx="683" cy="261" r="8" fill="#39464f" stroke="none"/>
+    <line x1="452" y1="287" x2="452" y2="271" stroke="#1790a8" stroke-width="8"/>
+    <rect x="422" y="259" width="62" height="12" rx="6" fill="#3a4a55" stroke="none"/>
+    <circle cx="452" cy="287" r="6" fill="#1790a8" stroke="none"/>
+    <!-- drivetrain -->
+    <line x1="255" y1="435" x2="481" y2="411" stroke="#7b8b99" stroke-width="4"/>
+    <line x1="255" y1="455" x2="481" y2="459" stroke="#7b8b99" stroke-width="4"/>
+    <circle cx="255" cy="445" r="10" fill="#dfe6ea" stroke="#5b6b76" stroke-width="3"/>
+    <circle cx="480" cy="435" r="25" fill="#dfe6ea" stroke="#5b6b76" stroke-width="3.5"/>
+    <circle cx="480" cy="435" r="9" fill="#8fa0ad" stroke="none"/>
+  </g>
+
+  <!-- UPPER RIDER (bob + gentle rock) -->
+  <g>
+    <animateTransform attributeName="transform" type="translate" values="0 0;0 -3;0 0" dur="0.8s" repeatCount="indefinite"/>
+    <g>
+      <animateTransform attributeName="transform" type="rotate" values="-1.2 455 200;1.2 455 200;-1.2 455 200" dur="1.6s" repeatCount="indefinite"/>
+      <!-- tail -->
+      <path d="M356,192 C 314,166 292,142 276,120 L 298,116 C 314,142 330,160 358,182 Z" fill="#eef3f6"/>
+      <path d="M352,196 C 306,178 284,158 272,136 L 294,134 C 310,156 326,170 354,188 Z" fill="#e0e9ed"/>
+      <!-- main body -->
+      <ellipse cx="415" cy="178" rx="122" ry="96" fill="#fdfefe" stroke="#c9d9df" stroke-width="2.5"/>
+      <ellipse cx="417" cy="192" rx="106" ry="68" fill="#eef3f6"/>
+      <!-- neck -->
+      <path d="M500,140 C 540,126 570,128 596,136" fill="none" stroke="#cbd9df" stroke-width="42" stroke-linecap="round"/>
+      <path d="M500,140 C 540,126 570,128 596,136" fill="none" stroke="#fdfefe" stroke-width="36" stroke-linecap="round"/>
+      <!-- head -->
+      <circle cx="605" cy="105" r="34" fill="#fdfefe" stroke="#c9d9df" stroke-width="2.5"/>
+      <path d="M580,74 q10,-12 22,-8" fill="none" stroke="#e0e9ed" stroke-width="7" stroke-linecap="round"/>
+      <!-- beak -->
+      <path d="M628,94 C 688,86 714,96 740,107 C 744,110 738,117 732,115 C 708,106 676,106 630,114 Z" fill="#ffc233"/>
+      <path d="M630,115 C 660,131 700,130 726,119 C 700,124 664,124 631,117 Z" fill="#f59e0b"/>
+      <path d="M629,116 C 652,147 698,144 729,120 C 700,129 662,127 631,118 Z" fill="#ff8a3d"/>
+      <!-- eye -->
+      <circle cx="621" cy="95" r="5.5" fill="#2a323a"/>
+      <circle cx="623" cy="93" r="1.7" fill="#ffffff"/>
+      <!-- steering wing (tip holds handlebar) -->
+      <g>
+        <animateTransform attributeName="transform" type="rotate" values="-3 447 152;2 447 152;-3 447 152" dur="1.2s" repeatCount="indefinite"/>
+        <path d="M446,148 C 520,134 610,160 666,240 C 676,252 682,258 686,262" fill="none" stroke="#d7e2e8" stroke-width="36" stroke-linecap="round"/>
+        <path d="M446,148 C 520,134 610,160 666,240 C 676,252 682,258 686,262" fill="none" stroke="#f0f4f6" stroke-width="28" stroke-linecap="round"/>
+        <circle cx="670" cy="253" r="6" fill="#c7d3da"/>
+        <circle cx="679" cy="260" r="6" fill="#c7d3da"/>
+        <circle cx="687" cy="265" r="5" fill="#c7d3da"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- NEAR CRANK ARM -->
+  <g transform="translate(480,435)">
+    <g>
+      <animateTransform attributeName="transform" type="rotate" values="0;360" dur="1.6s" repeatCount="indefinite"/>
+      <line x1="0" y1="0" x2="48" y2="0" stroke="#46586a" stroke-width="9" stroke-linecap="round"/>
+    </g>
+  </g>
+
+  <!-- NEAR LEG (in front of frame), driven by crank arm #1 -->
+  <g transform="translate(455,284)">
+    <g>
+      <animateTransform attributeName="transform" type="rotate" values="22.9;28.2;33.7;39.3;44.8;50.1;54.9;58.9;61.9;63.8;64.6;64.5;63.7;62.4;60.6;58.5;56.0;53.1;49.9;46.2;42.1;37.5;32.5;27.1;21.4;15.9;10.9;6.8;3.9;2.5;2.4;3.6;6.0;9.2;13.3;17.8" dur="1.6s" repeatCount="indefinite"/>
+      <line x1="0" y1="0" x2="95" y2="0" stroke="#ffa75f" stroke-width="24" stroke-linecap="round"/>
+      <g>
+        <animateTransform attributeName="transform" type="rotate" values="74.4;67.5;60.7;54.1;47.9;42.4;37.9;34.9;33.7;34.6;37.5;41.8;47.2;53.4;59.9;66.7;73.6;80.4;87.2;93.7;99.8;105.5;110.6;114.8;118.0;120.1;120.9;120.3;118.4;115.3;111.1;106.2;100.5;94.4;88.0;81.2" dur="1.6s" repeatCount="indefinite"/>
+        <circle cx="0" cy="0" r="14" fill="#ffb97e"/>
+        <line x1="0" y1="0" x2="115" y2="0" stroke="#ffa058" stroke-width="21" stroke-linecap="round"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- hip joint cap -->
+  <circle cx="455" cy="284" r="17" fill="#f79a50"/>
+
+  <!-- NEAR FOOT + PEDAL PLATFORM -->
+  <g>
+    <animateTransform attributeName="transform" type="translate" values="528.00 435.00;527.27 443.34;525.11 451.42;521.57 459.00;516.77 465.85;510.85 471.77;504.00 476.57;496.42 480.11;488.34 482.27;480.00 483.00;471.66 482.27;463.58 480.11;456.00 476.57;449.15 471.77;443.23 465.85;438.43 459.00;434.89 451.42;432.73 443.34;432.00 435.00;432.73 426.66;434.89 418.58;438.43 411.00;443.23 404.15;449.15 398.23;456.00 393.43;463.58 389.89;471.66 387.73;480.00 387.00;488.34 387.73;496.42 389.89;504.00 393.43;510.85 398.23;516.77 404.15;521.57 411.00;525.11 418.58;527.27 426.66" dur="1.6s" repeatCount="indefinite"/>
+    <rect x="-30" y="7" width="60" height="10" rx="5" fill="#c3ced6" stroke="#93a3ad" stroke-width="2"/>
+    <rect x="-26" y="-6" width="52" height="15" rx="7" fill="#ff8c1a"/>
+    <circle cx="0" cy="0" r="9" fill="#ff8c1a"/>
+  </g>
+</svg>
+<p class="note">SVG 绘制 · SMIL 关键帧蹬踏 · 车轮/曲柄/双腿/身体联动循环</p>
+</body>
+</html>

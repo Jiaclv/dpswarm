@@ -6,9 +6,9 @@ DPswarm 的目标是让主 Agent 根据任务需要调用不同模型协作，�
 
 目前已有 Python 控制面、DSH 插件接入和真实模型实验运行器。**当前定位是有实验证据的研究原型**：固定团队与 CM 已有结果；自主组队、动态路由和模型升级策略的净收益尚未验证。
 
-[实验报告与数据](reports/README.md) · [具体贡献拆解](reports/2026-09-07/component-attribution/REPORT_ZH.md) · [机制设计](DPswarm-机制架构.md) · [Python 实现](dpswarm-plugin/README.md) · [DSH 接入](dpswarm-dsh-plugin/README.md)
+[鹈鹕动画实验快照](reports/2026-09-08/pelican/README.md) · [实验报告与数据](reports/README.md) · [具体贡献拆解](reports/2026-09-07/component-attribution/REPORT_ZH.md) · [机制设计](DPswarm-机制架构.md) · [Python 实现](dpswarm-plugin/README.md) · [DSH 接入](dpswarm-dsh-plugin/README.md)
 
-## 当前实验说明了什么
+## 历史 SWE 实验说明了什么
 
 截至 **2026-09-07**，综合库存包含 **306 次尝试、249 条合格 SWE 评分、26 道去重题目**。不同阶段有重复题、不同模型、预算和运行时版本，这些数是库存，不是 249 道独立题，也不能直接混算总体通过率。
 
@@ -34,7 +34,7 @@ DPswarm 的目标是让主 Agent 根据任务需要调用不同模型协作，�
 | 异构角色 | 运行器支持按 Lead、实现者、测试者配置模型，保存 requested／reported 身份与调用归属 |
 | 上下文 | 摘要压缩、上下文装配、记忆生命周期及保护开关已有实现；只有部分设置有直接效果对照 |
 | 观测 | 分开记录输入、缓存、输出、已知用量、未知用量、预约额度、运行终止与官方结果 |
-| DSH 插件 | 提供模型目录、委派、review、状态工具与本地 sidecar；模拟生命周期和本地联调不等于完整真实宿主验收 |
+| DSH 插件 | 0.7.2 提供原生设置子页面、独立团队／CM 开关、每个子 agent 的额度、真实 Lead 路由继承与持久身份绑定；原生宿主工程链路已验证，插件质量与净收益另按实验判定 |
 | 自主决策 | 自主组队、动态拆分、模型路由、升级与画像闭环是研究目标；固定派生实验不能证明这些策略有效 |
 
 详细实现映射见 [Python 控制面说明](dpswarm-plugin/README.md)，设计约定见 [机制架构](DPswarm-机制架构.md)与[分层架构](DPswarm-架构设计.md)。设计文档中的目标、控制路径的存在和实测净收益分别判定。
@@ -57,6 +57,29 @@ flowchart LR
 ```
 
 worker 完成不等于交付被接受，采用补丁不等于补丁带来了通过，根任务通过也不代表所有 worker 都成功。未知用量保持未知，预约 token 不当作实际使用量。实验中的固定团队由协议创建，不据此宣称 Lead 自主选择了最优团队。
+
+## 在 DPH／DSH 中使用固定团队与 CM
+
+**当前插件版本为 0.7.2，团队与 CM 均默认关闭。** 安装后，在 **设置 → DPswarm → 模型分工** 中选择角色模型，在 **预算与运行** 中设置每个子 agent 的额度，再到已有会话的罗盘菜单中按需开启。
+
+| 角色／选项 | 默认与作用 |
+|---|---|
+| 实现者 | 跟随本次 Lead 实际请求的 Provider、模型与推理强度；可显式选择其他模型 |
+| 测试者 | `glm-5.3-flash`；首次需从 DPH 模型目录保存完整 Provider 与模型 |
+| Reviewer | 当前 Lead，不另开审查 agent；选独立模型后才增加审查，最终验收仍归 Lead |
+| CM | 独立开关，产品默认 `deepseek-v4-flash`、推理 `off`；单 agent 也可使用 |
+| 子 agent 额度 | 默认不限制；可手动填写，或让实际 Lead 读完任务后在正常派发工具中决定每个 worker 的额度与理由 |
+
+手动额度分别属于每个 child；Auto 允许各角色额度不同，没有隐藏评估模型。Lead 主对话和 Lead 的 CM 不受这些子额度限制；每个 worker 的普通请求与自身 CM 记入自己的额度。选择“不做限制”时不添加 token／调用累计限制；角色超时与服务商限制仍各自生效。
+
+0.7.2 修复了“已在对话中换模型，子角色仍继承启动模型”的错路由，并核对推理强度实际到达子模型请求。角色路由绑定真实子会话后持久保存；旧会话缺少可信绑定时拒绝继续执行，原日志仍保留。只开 CM 不创建团队或 worker；CM 的持久审计按需使用本地 sidecar。
+
+```powershell
+node dpswarm-dsh-plugin/bin/setup.mjs --check
+node dpswarm-dsh-plugin/bin/setup.mjs --install --profile web
+```
+
+需要 DSH、Node.js、pnpm 和 Python 3.10+（含 pip、setuptools 68+）。可用 `--python` 指定解释器；安装器自动发现宿主并在独立目录安装 Python 组件。安装后重启 DSH。详见 [安装与使用](dpswarm-dsh-plugin/README.md) 和 [验证范围](dpswarm-dsh-plugin/VALIDATION.md)。**CM 已接入 DSH 的真实历史替换与回放**，开启后在请求前整理较早上下文，失败不采用摘要；宿主原有压缩策略保留。插件工程验证不意味着实验中的节省比例已迁移到 DSH。
 
 ## 快速开始：本地演示
 
@@ -83,7 +106,15 @@ python -m pytest -q
 
 Windows 下跨进程测试需要统一文本编码，可先在 PowerShell 设置 `$env:PYTHONUTF8 = "1"`。不同实验目录存在同名测试模块，合并收集时使用 `--import-mode=importlib`，或分别运行各目录。
 
-本次同步的实际检查结果见 [同步验证记录](reports/2026-09-07/SYNC_VALIDATION.json)。核心控制面测试、依赖本地归档的历史实验合同测试、真实模型实验三者分开记录，不把测试数量当作产品成熟度或 benchmark 胜场。
+0.7.2 的工程检查及本次发布哈希复核见 [同步验证记录](reports/2026-09-08/SYNC_VALIDATION.json)；[2026-09-07 记录](reports/2026-09-07/SYNC_VALIDATION.json) 保留为历史依据。核心控制面测试、依赖本地归档的历史实验合同测试、真实模型实验三者分开记录，不把测试数量当作产品成熟度或 benchmark 胜场。
+
+## DPH 鹈鹕动画实验快照
+
+[实验说明与逐组索引](reports/2026-09-08/pelican/README.md) · [动画对比页](reports/2026-09-08/pelican/index.html)
+
+这批任务在 DPH 中比较对话模型、标准／创造模式、团队与 CM 开关，以及子 worker 额度设置。统一任务是生成“SVG 鹈鹕骑自行车”的 HTML；按任务要求没有运行作品测试。发布的是进行中实验的时点快照，状态、缺失格、失败、恢复和版本差异以报告内记录为准，后续运行不会自动改写这个快照。
+
+**本批 CM 明确配置为 `glm-5.3-flash`，产品默认仍为 DeepSeek。** 作品交付、视觉表现、token 与耗时分别记录；保存后的 HTML 不是 SWE 官方通过结果。该快照独立于上面的历史 SWE 数据，也不能据此宣称 CM 或团队带来因果提升。
 
 ## 报告阅读顺序
 

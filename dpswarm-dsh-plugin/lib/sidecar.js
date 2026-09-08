@@ -2,9 +2,13 @@ import { spawn } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
+const starting = new Map()
+
 export function sidecarSpawnSpec(cfg) {
   const url = new URL(cfg.sidecarUrl)
-  return { command: cfg.pythonCmd, args: ['-m', 'dpswarm.server', '--port', String(Number(url.port) || 80)],
+  const args = ['-m', cfg.sessionIsolation ? 'dpswarm.session_server' : 'dpswarm.server', '--port', String(Number(url.port) || 80)]
+  if (cfg.workspace) args.push('--workspace', cfg.workspace)
+  return { command: cfg.pythonCmd, args,
     options: { cwd: cfg.dpswarmDir || undefined, detached: true, stdio: 'ignore',
       windowsHide: true, shell: false } }
 }
@@ -20,11 +24,37 @@ export class Sidecar {
     this.cfg = { ...cfg, sidecarUrl: url.origin }
   }
 
+  _checkCapabilities(health) {
+    if (this.cfg.sessionIsolation && health.bridge?.session_isolation !== true) {
+      throw new Error('SIDECAR_VERSION_MISMATCH: this port runs the old single-session sidecar; use a separate port or restart it with dpswarm.session_server')
+    }
+    if (this.cfg.auditJournalRequired && health.bridge?.plugin_audit_v1 !== true) {
+      const error = new Error('SIDECAR_AUDIT_VERSION_MISMATCH: this sidecar does not support the durable plugin audit ledger; install the matching version before starting limited workers or CM')
+      error.code = 'SIDECAR_AUDIT_VERSION_MISMATCH'
+      throw error
+    }
+  }
+
   async ensure() {
-    if (await this.probe()) return
+    let health
+    try { health = await this.call('GET', '/api/status', undefined, 2500) } catch { /* May not yet be listening. */ }
+    if (health) {
+      this._checkCapabilities(health)
+      return
+    }
+    const key = this.cfg.sidecarUrl
+    if (starting.has(key)) { await starting.get(key); return this.ensure() }
+    const pending = this._start()
+    starting.set(key, pending)
+    try { await pending } finally { starting.delete(key) }
+    const ready = await this.call('GET', '/api/status')
+    this._checkCapabilities(ready)
+  }
+
+  async _start() {
     if (!this.cfg.autoStart) {
       throw new Error(`DPSwarm sidecar 未启动（${this.cfg.sidecarUrl}）。`
-        + ` 启动：cd ${this.cfg.dpswarmDir || '<dpswarm-plugin 目录>'} && python -m dpswarm.server`)
+        + ' 请运行安装自检，或按插件说明启动与当前版本匹配的控制服务。')
     }
     const launch = sidecarSpawnSpec(this.cfg)
     const child = spawn(launch.command, launch.args, launch.options)
@@ -52,7 +82,7 @@ export class Sidecar {
     if (this._tok) return this._tok
     try {
       this._tok = readFileSync(
-        join(this.cfg.dpswarmDir || '.', '.dpswarm-panel', '.dpswarm-token'),
+        join(this.cfg.workspace || join(this.cfg.dpswarmDir || '.', '.dpswarm-panel'), '.dpswarm-token'),
         'utf8').trim()
     } catch (e) { this._tok = '' }
     return this._tok
@@ -63,6 +93,7 @@ export class Sidecar {
     const timer = setTimeout(() => ctrl.abort(), timeoutMs)
     try {
       const headers = {}
+      if (this.cfg.sessionId) headers['X-DPSwarm-Session'] = this.cfg.sessionId
       if (body !== undefined) headers['Content-Type'] = 'application/json'
       const tok = this._token()
       if (tok) headers.Authorization = 'Bearer ' + tok

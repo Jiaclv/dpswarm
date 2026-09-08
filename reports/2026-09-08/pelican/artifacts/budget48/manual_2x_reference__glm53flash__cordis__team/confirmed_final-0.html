@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>鹈鹕骑自行车 · 2D 循环动画</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: #eaf4fb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  svg {
+    display: block;
+    width: 100%;
+    max-width: 960px;
+    height: auto;
+    box-shadow: 0 8px 30px rgba(30, 60, 90, 0.18);
+  }
+</style>
+</head>
+<body>
+
+<svg id="scene" viewBox="0 0 900 500" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="一只鹈鹕骑着自行车前进的循环动画">
+  <title>Pelican riding a bicycle — looping 2D animation</title>
+
+  <!-- ===== 天空 ===== -->
+  <rect x="0" y="0" width="900" height="500" fill="#bfe3f5"/>
+  <circle cx="812" cy="78" r="40" fill="#ffe08a"/>
+  <circle cx="812" cy="78" r="52" fill="#ffe08a" opacity="0.35"/>
+
+  <!-- ===== 云（平移，制造前进感/视差） ===== -->
+  <g class="cloud" data-base="0"    data-factor="0.22">
+    <ellipse cx="0"  cy="82"  rx="58" ry="22" fill="#ffffff"/>
+    <ellipse cx="-30" cy="92" rx="32" ry="17" fill="#ffffff"/>
+    <ellipse cx="32"  cy="90" rx="36" ry="18" fill="#ffffff"/>
+  </g>
+  <g class="cloud" data-base="470"  data-factor="0.34">
+    <ellipse cx="0"  cy="138" rx="50" ry="19" fill="#ffffff" opacity="0.96"/>
+    <ellipse cx="-26" cy="147" rx="28" ry="15" fill="#ffffff" opacity="0.96"/>
+    <ellipse cx="27"  cy="146" rx="30" ry="16" fill="#ffffff" opacity="0.96"/>
+  </g>
+  <g class="cloud" data-base="950"  data-factor="0.28">
+    <ellipse cx="0"  cy="56"  rx="64" ry="20" fill="#ffffff" opacity="0.92"/>
+    <ellipse cx="-34" cy="66" rx="30" ry="15" fill="#ffffff" opacity="0.92"/>
+    <ellipse cx="36"  cy="64" rx="34" ry="17" fill="#ffffff" opacity="0.92"/>
+  </g>
+
+  <!-- ===== 地面 / 道路 ===== -->
+  <rect x="0" y="430" width="900" height="70" fill="#7cc576"/>
+  <rect x="0" y="430" width="900" height="70" fill="#8f9aa6"/>
+  <line x1="0" y1="430" x2="900" y2="430" stroke="#5d6b78" stroke-width="3"/>
+  <rect x="0" y="488" width="900" height="12" fill="#6fae66"/>
+
+  <!-- 道路标线（平移，制造前进感） -->
+  <g id="ground">
+    <rect x="0"   y="462" width="46" height="7" rx="3" fill="#f4f6f7"/>
+    <rect x="120" y="462" width="46" height="7" rx="3" fill="#f4f6f7"/>
+    <rect x="240" y="462" width="46" height="7" rx="3" fill="#f4f6f7"/>
+    <rect x="360" y="462" width="46" height="7" rx="3" fill="#f4f6f7"/>
+    <rect x="480" y="462" width="46" height="7" rx="3" fill="#f4f6f7"/>
+    <rect x="600" y="462" width="46" height="7" rx="3" fill="#f4f6f7"/>
+    <rect x="720" y="462" width="46" height="7" rx="3" fill="#f4f6f7"/>
+    <rect x="840" y="462" width="46" height="7" rx="3" fill="#f4f6f7"/>
+    <rect x="960" y="462" width="46" height="7" rx="3" fill="#f4f6f7"/>
+    <rect x="1080" y="462" width="46" height="7" rx="3" fill="#f4f6f7"/>
+  </g>
+
+  <!-- ===== 后腿 + 后曲柄/踏板（位于车架之后） ===== -->
+  <g id="crankFar">
+    <line x1="430" y1="368" x2="456" y2="368" stroke="#5a5a5a" stroke-width="6" stroke-linecap="round"/>
+    <rect x="440" y="363" width="26" height="10" rx="2" fill="#2c2c2c"/>
+  </g>
+  <polyline id="legFar" fill="none" stroke="#d07a12" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle id="footFar" cx="404" cy="368" r="7" fill="#d07a12" stroke="#a35c08" stroke-width="1.5"/>
+
+  <!-- ===== 车轮（持续旋转） ===== -->
+  <g id="wheelRear">
+    <circle cx="300" cy="368" r="62" fill="none" stroke="#1b1b1b" stroke-width="9"/>
+    <circle cx="300" cy="368" r="54" fill="none" stroke="#cfd6dd" stroke-width="3"/>
+    <line x1="300" y1="368" x2="300" y2="317" stroke="#9aa4ad" stroke-width="2"/>
+    <line x1="300" y1="368" x2="344" y2="343" stroke="#9aa4ad" stroke-width="2"/>
+    <line x1="300" y1="368" x2="344" y2="393" stroke="#9aa4ad" stroke-width="2"/>
+    <line x1="300" y1="368" x2="256" y2="343" stroke="#9aa4ad" stroke-width="2"/>
+    <line x1="300" y1="368" x2="256" y2="393" stroke="#9aa4ad" stroke-width="2"/>
+    <line x1="300" y1="368" x2="300" y2="419" stroke="#9aa4ad" stroke-width="2"/>
+    <circle cx="300" cy="368" r="9" fill="#2e86c1"/>
+    <circle cx="300" cy="368" r="3" fill="#eaf4fb"/>
+    <circle cx="300" cy="314" r="4" fill="#e74c3c"/>
+  </g>
+  <g id="wheelFront">
+    <circle cx="560" cy="368" r="62" fill="none" stroke="#1b1b1b" stroke-width="9"/>
+    <circle cx="560" cy="368" r="54" fill="none" stroke="#cfd6dd" stroke-width="3"/>
+    <line x1="560" y1="368" x2="560" y2="317" stroke="#9aa4ad" stroke-width="2"/>
+    <line x1="560" y1="368" x2="604" y2="343" stroke="#9aa4ad" stroke-width="2"/>
+    <line x1="560" y1="368" x2="604" y2="393" stroke="#9aa4ad" stroke-width="2"/>
+    <line x1="560" y1="368" x2="516" y2="343" stroke="#9aa4ad" stroke-width="2"/>
+    <line x1="560" y1="368" x2="516" y2="393" stroke="#9aa4ad" stroke-width="2"/>
+    <line x1="560" y1="368" x2="560" y2="419" stroke="#9aa4ad" stroke-width="2"/>
+    <circle cx="560" cy="368" r="9" fill="#2e86c1"/>
+    <circle cx="560" cy="368" r="3" fill="#eaf4fb"/>
+    <circle cx="560" cy="314" r="4" fill="#e74c3c"/>
+  </g>
+
+  <!-- ===== 车架 / 车把 / 座椅 ===== -->
+  <g stroke="#2e86c1" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <line x1="300" y1="368" x2="430" y2="368"/>   <!-- 后下叉 -->
+    <line x1="430" y1="368" x2="352" y2="290"/>   <!-- 座管 -->
+    <line x1="430" y1="368" x2="506" y2="308"/>   <!-- 下管 -->
+    <line x1="352" y1="290" x2="500" y2="290"/>   <!-- 上管 -->
+    <line x1="300" y1="368" x2="352" y2="290"/>   <!-- 后上叉 -->
+    <line x1="506" y1="308" x2="560" y2="368"/>   <!-- 前叉 -->
+    <line x1="500" y1="290" x2="506" y2="308"/>   <!-- 头管 -->
+  </g>
+  <line x1="352" y1="292" x2="352" y2="278" stroke="#2e86c1" stroke-width="5" stroke-linecap="round"/>
+  <ellipse cx="352" cy="278" rx="25" ry="7" fill="#333c44"/>
+  <line x1="500" y1="290" x2="503" y2="274" stroke="#2e86c1" stroke-width="5" stroke-linecap="round"/>
+  <line x1="482" y1="276" x2="522" y2="272" stroke="#2e86c1" stroke-width="6" stroke-linecap="round"/>
+  <line x1="478" y1="278" x2="482" y2="276" stroke="#1f4e79" stroke-width="7" stroke-linecap="round"/>
+  <line x1="522" y1="272" x2="526" y2="270" stroke="#1f4e79" stroke-width="7" stroke-linecap="round"/>
+
+  <!-- ===== 鹈鹕 ===== -->
+  <!-- 尾羽 -->
+  <polygon points="285,258 300,240 288,276" fill="#ffffff" stroke="#d0d0d0" stroke-width="2" stroke-linejoin="round"/>
+  <!-- 脖颈（先画，头/身体覆盖其交界处） -->
+  <line x1="396" y1="240" x2="434" y2="198" stroke="#d0d0d0" stroke-width="26" stroke-linecap="round"/>
+  <line x1="396" y1="240" x2="434" y2="198" stroke="#ffffff" stroke-width="21" stroke-linecap="round"/>
+  <!-- 头部 -->
+  <circle cx="440" cy="190" r="24" fill="#ffffff" stroke="#d0d0d0" stroke-width="2.5"/>
+  <!-- 身体 -->
+  <ellipse cx="345" cy="252" rx="72" ry="52" fill="#ffffff" stroke="#d0d0d0" stroke-width="2.5"/>
+  <!-- 翅膀（轻微扇动） -->
+  <g id="wing">
+    <ellipse cx="345" cy="260" rx="46" ry="25" fill="#eceff1" stroke="#cfd6dd" stroke-width="2"/>
+    <path d="M 320 258 Q 345 272 372 262" fill="none" stroke="#c4ccd2" stroke-width="2" stroke-linecap="round"/>
+  </g>
+  <!-- 眼睛 -->
+  <circle cx="452" cy="180" r="4" fill="#222222"/>
+  <circle cx="453.5" cy="178.5" r="1.5" fill="#ffffff"/>
+  <!-- 大喙（上喙） -->
+  <path d="M 450 172 C 500 170 535 178 550 188 C 557 191 556 197 550 200 C 545 202 540 197 536 193 C 512 194 476 190 450 186 Z"
+        fill="#f39c12" stroke="#c06b0a" stroke-width="2" stroke-linejoin="round"/>
+  <!-- 下喙骨 -->
+  <line x1="450" y1="190" x2="520" y2="196" stroke="#f39c12" stroke-width="4" stroke-linecap="round"/>
+  <!-- 喉囊 -->
+  <path d="M 448 190 Q 456 240 506 246 Q 538 248 547 205 Q 520 218 500 216 Q 472 212 448 190 Z"
+        fill="#f7b267" stroke="#d0904a" stroke-width="2" stroke-linejoin="round"/>
+
+  <!-- ===== 前腿 + 前曲柄/踏板（位于车架与身体之前） ===== -->
+  <g id="crankNear">
+    <line x1="430" y1="368" x2="456" y2="368" stroke="#3f4348" stroke-width="6" stroke-linecap="round"/>
+    <rect x="440" y="363" width="26" height="10" rx="2" fill="#23272b"/>
+  </g>
+  <polyline id="legNear" fill="none" stroke="#f39c12" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle id="footNear" cx="456" cy="368" r="8" fill="#f39c12" stroke="#c06b0a" stroke-width="1.5"/>
+
+</svg>
+
+<script>
+(function () {
+  'use strict';
+
+  // ---- 几何常量 ----
+  var rearC  = { x: 300, y: 368 };
+  var frontC = { x: 560, y: 368 };
+  var crankC = { x: 430, y: 368 };
+  var pedalR = 26;
+  var hipNear = { x: 398, y: 266 };
+  var hipFar  = { x: 384, y: 270 };
+  var thigh = 68;   // 大腿长
+  var shin  = 68;   // 小腿长
+  var wheelR = 62;
+
+  var crankSpeed = 2.4;   // 曲柄角速度 rad/s
+  var gearRatio  = 3.0;   // 齿比：车轮转得比曲柄快
+  var wheelSpeed = crankSpeed * gearRatio;
+
+  var RAD2DEG = 180 / Math.PI;
+
+  // ---- DOM 引用 ----
+  var wheelRear  = document.getElementById('wheelRear');
+  var wheelFront = document.getElementById('wheelFront');
+  var crankNear  = document.getElementById('crankNear');
+  var crankFar   = document.getElementById('crankFar');
+  var legNear    = document.getElementById('legNear');
+  var legFar     = document.getElementById('legFar');
+  var footNear   = document.getElementById('footNear');
+  var footFar    = document.getElementById('footFar');
+  var ground     = document.getElementById('ground');
+  var wing       = document.getElementById('wing');
+  var clouds     = Array.prototype.slice.call(document.querySelectorAll('.cloud')).map(function (el) {
+    return { el: el, base: parseFloat(el.getAttribute('data-base')) || 0, factor: parseFloat(el.getAttribute('data-factor')) || 0.3 };
+  });
+
+  // ---- 膝盖位置：两圆交点，取更靠前（x 更大）的解，保持蹬踏姿态 ----
+  function kneePos(hip, foot) {
+    var dx = foot.x - hip.x;
+    var dy = foot.y - hip.y;
+    var d = Math.hypot(dx, dy) || 1e-6;
+    var a = (thigh * thigh - shin * shin + d * d) / (2 * d);
+    var h2 = thigh * thigh - a * a;
+    var h = Math.sqrt(h2 > 0 ? h2 : 0);
+    var ux = dx / d, uy = dy / d;
+    var mx = hip.x + a * ux, my = hip.y + a * uy;
+    var px = -uy, py = ux;
+    var k1 = { x: mx + h * px, y: my + h * py };
+    var k2 = { x: mx - h * px, y: my - h * py };
+    return k1.x >= k2.x ? k1 : k2;
+  }
+
+  function pedalPos(a) {
+    return { x: crankC.x + pedalR * Math.cos(a), y: crankC.y + pedalR * Math.sin(a) };
+  }
+
+  var last = null;
+  var angle = 0;       // 曲柄角
+  var wheelAngle = 0;  // 车轮角
+  var dist = 0;        // 前进距离（像素）
+
+  function frame(now) {
+    if (last === null) { last = now; }
+    var dt = (now - last) / 1000;
+    last = now;
+    if (dt > 0.1) { dt = 0.1; }  // 标签页切回后避免跳变
+
+    angle += crankSpeed * dt;
+    wheelAngle += wheelSpeed * dt;
+    dist += wheelSpeed * wheelR * dt;
+
+    // 车轮旋转
+    var wdeg = wheelAngle * RAD2DEG;
+    wheelRear.setAttribute('transform', 'rotate(' + wdeg + ' ' + rearC.x + ' ' + rearC.y + ')');
+    wheelFront.setAttribute('transform', 'rotate(' + wdeg + ' ' + frontC.x + ' ' + frontC.y + ')');
+
+    // 曲柄 / 踏板旋转（前后曲柄相位差 180°）
+    var cdeg = angle * RAD2DEG;
+    crankNear.setAttribute('transform', 'rotate(' + cdeg + ' ' + crankC.x + ' ' + crankC.y + ')');
+    crankFar.setAttribute('transform', 'rotate(' + (cdeg + 180) + ' ' + crankC.x + ' ' + crankC.y + ')');
+
+    // 双腿蹬踏
+    var fn = pedalPos(angle);
+    var ff = pedalPos(angle + Math.PI);
+    var kn = kneePos(hipNear, fn);
+    var kf = kneePos(hipFar, ff);
+    legNear.setAttribute('points', hipNear.x + ',' + hipNear.y + ' ' + kn.x + ',' + kn.y + ' ' + fn.x + ',' + fn.y);
+    legFar.setAttribute('points', hipFar.x + ',' + hipFar.y + ' ' + kf.x + ',' + kf.y + ' ' + ff.x + ',' + ff.y);
+    footNear.setAttribute('cx', fn.x); footNear.setAttribute('cy', fn.y);
+    footFar.setAttribute('cx', ff.x); footFar.setAttribute('cy', ff.y);
+
+    // 背景平移：云（视差，慢）+ 地面标线（快）
+    var PERIOD = 1400, MARGIN = 300;
+    clouds.forEach(function (c) {
+      var x = (((c.base - dist * c.factor) % PERIOD) + PERIOD) % PERIOD - MARGIN;
+      c.el.setAttribute('transform', 'translate(' + x + ' 0)');
+    });
+    var spacing = 120;
+    var goff = -(dist % spacing);
+    ground.setAttribute('transform', 'translate(' + goff + ' 0)');
+
+    // 翅膀轻微扇动
+    var flap = Math.sin(now / 1000 * 3) * 6;
+    wing.setAttribute('transform', 'rotate(' + flap + ' 330 250)');
+
+    requestAnimationFrame(frame);
+  }
+
+  requestAnimationFrame(frame);
+})();
+</script>
+
+</body>
+</html>

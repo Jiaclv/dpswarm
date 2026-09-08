@@ -1,362 +1,96 @@
-<!DOCTYPE html>
-<html lang="zh">
-<head>
-<meta charset="utf-8">
-<title>DPSwarm 控制面板</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
-  :root{--bg:#0f1216;--panel:#171c22;--line:#262d36;--fg:#d8dee6;--dim:#8b95a1;
-        --acc:#4f9cf9;--ok:#3ecf8e;--warn:#f2b544;--bad:#ef6b6b;--mono:ui-monospace,Consolas,monospace}
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,"Segoe UI",sans-serif}
-  header{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5}
-  header h1{font-size:16px;margin:0}
-  header .rev{color:var(--dim);font-family:var(--mono)}
-  header button{margin-left:auto}
-  main{display:grid;grid-template-columns:340px 1fr;gap:14px;padding:14px 20px;max-width:1280px;margin:0 auto}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
-  .card h2{font-size:13px;margin:0 0 10px;color:var(--dim);letter-spacing:.05em;text-transform:uppercase}
-  .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:10px}
-  .stat{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
-  .stat b{display:block;font-size:18px;font-family:var(--mono)}
-  .stat span{color:var(--dim);font-size:12px}
-  label{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:7px 0;font-size:13px}
-  label span{color:var(--dim)}
-  input,select{width:130px;background:var(--bg);border:1px solid var(--line);color:var(--fg);
-    border-radius:6px;padding:5px 8px;font-family:var(--mono);font-size:13px}
-  input:focus,select:focus{outline:1px solid var(--acc)}
-  button{background:var(--acc);border:0;color:#fff;border-radius:7px;padding:7px 14px;
-    font-size:13px;cursor:pointer}
-  button:hover{filter:brightness(1.1)}
-  button.ghost{background:transparent;border:1px solid var(--line);color:var(--fg)}
-  button.danger{background:var(--bad)}
-  button:disabled{opacity:.5;cursor:not-allowed}
-  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-  table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px}
-  th{color:var(--dim);text-align:left;font-weight:400;padding:4px 8px;border-bottom:1px solid var(--line)}
-  td{padding:4px 8px;border-bottom:1px solid #1d232b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .tag{display:inline-block;padding:1px 7px;border-radius:9px;font-size:11px}
-  .t-accepted,.t-active,.t-completed{background:#123527;color:var(--ok)}
-  .t-submitted,.t-finalizing,.t-settlement,.t-cutoff{background:#33290f;color:var(--warn)}
-  .t-rejected,.t-failed,.t-blocked,.t-escalated,.t-timed-out{background:#3a1c1c;color:var(--bad)}
-  .t-none,.t-open,.t-provisioning{background:#1e2732;color:var(--dim)}
-  .t-terminated,.t-aborted-finalize{background:#2a2f36;color:var(--dim)}
-  #events{max-height:300px;overflow:auto;font-family:var(--mono);font-size:12px}
-  .ev{padding:3px 6px;border-bottom:1px solid #1d232b;display:flex;gap:8px}
-  .ev .k{color:var(--acc);min-width:180px}
-  .ev .p{color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
-  .ev.new{animation:flash 1s}
-  @keyframes flash{from{background:#1d3a5f}}
-  #msg{position:fixed;bottom:18px;right:18px;background:var(--panel);border:1px solid var(--line);
-    border-radius:8px;padding:10px 16px;font-size:13px;display:none;z-index:9;max-width:420px}
-  #msg.err{border-color:var(--bad);color:var(--bad)}
-  #msg.ok{border-color:var(--ok);color:var(--ok)}
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-  details pre{font-size:12px;color:var(--dim);overflow:auto;max-height:260px}
-  @media(max-width:960px){main{grid-template-columns:1fr}}
-</style>
-</head>
-<body>
-<header>
-  <h1>DPSwarm 控制面板</h1>
-  <span class="rev">spec rev <b id="rev">-</b></span>
-  <span class="rev">graph <b id="grev">0</b></span>
-  <button class="ghost" onclick="tickNow()">tick</button>
-  <button class="danger" onclick="terminal()">停止任务树</button>
-</header>
-<main>
-  <!-- 左列：参数 + 指令 + 任务 -->
-  <div>
-    <div class="card" style="margin-bottom:14px">
-      <h2>RootExecutionSpec（发布新 revision · §2.1）</h2>
-      <div id="specForm"></div>
-      <div class="row" style="margin-top:10px">
-        <button onclick="publishSpec()">发布新 revision</button>
-        <span style="color:var(--dim);font-size:12px">降容不强杀在途，只停新准入</span>
-      </div>
-    </div>
-    <div class="card" style="margin-bottom:14px">
-      <h2>人工指令（§9.2 三类）</h2>
-      <div class="row">
-        <select id="wakeNode" style="width:150px"></select>
-        <button class="ghost" onclick="wakeup()">wakeup（通知不带状态）</button>
-      </div>
-      <div class="row" style="margin-top:8px">
-        <button class="ghost" onclick="sealRoot()">封存 root（三段式）</button>
-      </div>
-    </div>
-    <div class="card">
-      <h2>提交演示任务</h2>
-      <input id="task" style="width:100%" placeholder="任务描述，如：清洗日志并汇总统计" value="整理日志并汇总统计">
-      <div class="row" style="margin-top:8px">
-        <button onclick="runDefault()">默认演示（Mock·single）</button>
-        <button class="ghost" onclick="runFission()">裂变演示（Mock·3片）</button>
-      </div>
-      <div class="row" style="margin-top:8px">
-        <input id="model" placeholder="PROVIDER/MODEL（OpenAI 兼容）" style="width:200px">
-        <button class="ghost" onclick="runModel()">真模型</button>
-      </div>
-    </div>
-  </div>
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark light"><title>DPswarm · 运行概览</title><style>
+:root{color-scheme:dark;--bg:#101316;--surface:#181c20;--raised:#20262d;--field:#13171b;--line:#2c343e;--text:#edf0f5;--muted:#a2adbb;--subtle:#8592a3;--accent:#94afff;--accent-bg:#232e49;--green:#6dd5b0;--green-bg:#18392e;--amber:#f1c17b;--amber-bg:#3b2e1a;--red:#f28b91;--red-bg:#422429;--mono:ui-monospace,Consolas,monospace}
+:root[data-theme=light]{color-scheme:light;--bg:#f5f6f9;--surface:#fff;--raised:#f8f9fc;--field:#fff;--line:#e2e6ed;--text:#222b39;--muted:#626e80;--subtle:#6c788b;--accent:#3e61c8;--accent-bg:#edf1ff;--green:#177655;--green-bg:#e9f7f0;--amber:#956514;--amber-bg:#fff5e4;--red:#b63948;--red-bg:#fff0f1}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}button,input,select{font:inherit}button,a{touch-action:manipulation}button{cursor:pointer}button:disabled,input:disabled,select:disabled{opacity:.45;cursor:not-allowed}a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}:focus-visible{outline:3px solid var(--accent);outline-offset:3px}h1,h2,h3,p{margin:0}h1{font-size:28px;line-height:1.3;letter-spacing:-.025em;font-weight:650}h2{font-size:16px;font-weight:620}.muted{color:var(--muted)}[hidden]{display:none!important}.skip{position:fixed;top:-100px;left:20px;z-index:30;padding:12px;background:var(--surface)}.skip:focus{top:12px}
+.topbar{height:70px;border-bottom:1px solid var(--line);background:var(--surface)}.topbar-inner{height:100%;max-width:1480px;margin:auto;padding:0 36px;display:flex;align-items:center;justify-content:space-between;gap:16px}.brand{display:flex;align-items:center;gap:11px}.brand-mark{display:grid;place-items:center;width:32px;height:32px;background:var(--accent-bg);color:var(--accent);border-radius:10px}.brand-name{font-weight:700;font-size:17px}.brand-context{border-left:1px solid var(--line);padding-left:16px;margin-left:5px;font-size:13px;color:var(--muted)}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.connection{display:flex;gap:7px;align-items:center;font-size:12px;color:var(--muted)}.dot{width:7px;height:7px;border-radius:50%;background:var(--green)}.connection[data-state=offline] .dot{background:var(--red)}.connection[data-state=loading] .dot{background:var(--amber)}
+.btn{min-height:38px;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);border-radius:8px;padding:8px 13px;color:var(--text);background:var(--surface);font-size:13px;font-weight:550;line-height:1.4;white-space:nowrap;transition:background .15s,border-color .15s}.btn:hover{background:var(--raised);border-color:var(--subtle);text-decoration:none}.btn.primary{background:var(--accent);color:var(--bg);border-color:transparent}:root[data-theme=light] .btn.primary{color:#fff}.btn.quiet{border-color:transparent;background:transparent;color:var(--muted)}.btn.danger{color:var(--red);background:var(--red-bg);border-color:transparent}.btn.icon{width:38px;padding:8px}.btn svg{width:16px;height:16px}
+main{max-width:1480px;padding:32px 36px 36px;margin:0 auto;min-width:0}.page-heading{display:flex;justify-content:space-between;align-items:center;gap:24px;margin-bottom:24px}.eyebrow{color:var(--muted);font-size:12px;margin-bottom:8px}.subtitle{color:var(--muted);font-size:13px;margin-top:8px}.notice{display:flex;align-items:center;justify-content:space-between;gap:20px;background:var(--accent-bg);border:1px solid color-mix(in srgb,var(--accent) 20%,var(--line));border-radius:12px;padding:16px 20px;margin-bottom:24px}.notice-title{font-weight:600;font-size:13px}.notice p{font-size:12px;margin-top:3px;color:var(--muted)}.notice-icon{color:var(--accent);display:grid;place-items:center;width:34px;height:34px;border-radius:9px;background:var(--surface);flex:none;font-size:18px}.notice-copy{display:flex;align-items:center;gap:12px}.banner{padding:14px 18px;border-radius:10px;background:var(--amber-bg);color:var(--amber);margin-bottom:20px;font-size:13px}.banner.error{background:var(--red-bg);color:var(--red)}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:24px}.stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px 22px;min-width:0}.stat-top{display:flex;align-items:center;justify-content:space-between;color:var(--muted);font-size:12px}.stat-index{font:11px var(--mono);color:var(--subtle)}.stat-value{font-variant-numeric:tabular-nums;font-size:30px;line-height:1.2;margin-top:12px;font-weight:640;letter-spacing:-.03em}.stat-value small{font-size:15px;font-weight:400;color:var(--subtle);margin-left:6px}.stat-foot{font-size:12px;margin-top:10px;color:var(--muted)}.meter{height:3px;background:var(--line);border-radius:3px;margin-top:16px;overflow:hidden}.meter i{display:block;height:100%;background:var(--accent)}
+.workspace{display:grid;grid-template-columns:minmax(0,1fr) 302px;gap:20px;align-items:start}.main-stack,.side-stack{display:flex;flex-direction:column;gap:20px;min-width:0}.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;min-width:0;overflow:hidden}.card-head{padding:18px 22px;display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line)}.card-head p{font-size:12px;color:var(--muted);margin-top:3px}.card-body{padding:20px 22px}.count{font-size:11px;color:var(--muted);background:var(--raised);padding:2px 7px;border-radius:6px}.tabs{display:flex;gap:24px;padding:0 22px;border-bottom:1px solid var(--line)}.tabs button{display:flex;align-items:center;gap:6px;min-height:51px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--muted);padding:0 1px;font-size:13px}.tabs button[aria-selected=true]{color:var(--text);border-bottom-color:var(--accent);font-weight:600}.table-wrap{overflow-x:auto;scrollbar-width:thin}table{width:100%;border-collapse:collapse;text-align:left;font-size:12px}th{background:var(--raised);color:var(--muted);font-weight:500;font-size:11px;padding:12px 22px;white-space:nowrap}td{padding:14px 22px;border-top:1px solid var(--line);white-space:nowrap}tbody tr:hover{background:var(--raised)}td:first-child{font-family:var(--mono);font-size:12px}.table-note{padding:12px 22px;font-size:11px;color:var(--muted);border-top:1px solid var(--line)}.tag{display:inline-flex;align-items:center;gap:5px;border-radius:6px;font-size:11px;line-height:1.4;font-weight:550;padding:4px 7px;background:var(--raised);color:var(--muted);white-space:nowrap}.tag:before{content:'';width:4px;height:4px;border-radius:50%;background:currentColor}.tag.good{background:var(--green-bg);color:var(--green)}.tag.warn{background:var(--amber-bg);color:var(--amber)}.tag.bad{background:var(--red-bg);color:var(--red)}.empty{text-align:center;padding:40px 22px;color:var(--muted);white-space:normal;font-family:inherit!important}.empty b{display:block;color:var(--text);font-size:14px;margin-bottom:5px}.empty p{font:12px/1.6 "Segoe UI",sans-serif}
+.filter{width:112px!important;min-height:32px!important;padding:5px 8px!important;font-size:12px}.activity{padding:0 22px;max-height:362px;overflow:auto;scrollbar-width:thin}.event{border-bottom:1px solid var(--line)}.event:last-child{border:0}.event summary{display:flex;align-items:center;gap:12px;padding:13px 0;cursor:pointer;list-style:none}.event summary::-webkit-details-marker{display:none}.event-marker{width:7px;height:7px;background:var(--subtle);border-radius:50%;flex:none}.event-marker.good{background:var(--green)}.event-marker.bad{background:var(--red)}.event-marker.warn{background:var(--amber)}.event-body{min-width:0;flex:1}.event-name{font-size:12px;font-weight:500;overflow-wrap:anywhere}.event-detail{font:11px/1.5 var(--mono);color:var(--subtle);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;margin-top:2px}.event-time{font:10px var(--mono);color:var(--subtle);white-space:nowrap}.event-caret{font-size:11px;color:var(--subtle)}.event[open] .event-caret{transform:rotate(90deg)}pre{white-space:pre-wrap;word-break:break-word;font:11px/1.8 var(--mono);color:var(--muted);margin:0;background:var(--field);padding:14px;border:1px solid var(--line);border-radius:8px;max-height:260px;overflow:auto}.event pre{margin:0 0 14px 19px}.activity-footer{display:flex;align-items:center;justify-content:space-between;padding:10px 22px;border-top:1px solid var(--line);font-size:11px;color:var(--subtle)}
+.key-values{display:grid;grid-template-columns:minmax(0,1fr) auto;row-gap:14px;font-size:12px;margin:0}.key-values dt{color:var(--muted)}.key-values dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;max-width:155px;overflow-wrap:anywhere}.divider{height:1px;background:var(--line);margin:18px 0}.caption{font-size:11px;color:var(--muted);line-height:1.7}.usage-line{display:flex;justify-content:space-between;font-size:12px;margin-top:12px}.usage-line:first-child{margin-top:0}.usage-line span{color:var(--muted)}.disclosure>summary{cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:18px 22px;font-weight:600;list-style:none}.disclosure>summary::-webkit-details-marker{display:none}.disclosure>summary:after{content:'＋';font-weight:400;color:var(--subtle)}.disclosure[open]>summary:after{content:'−'}.disclosure[open]>summary{border-bottom:1px solid var(--line)}.field{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}.field>span{font-size:12px;color:var(--muted)}input,select{background:var(--field);border:1px solid var(--line);color:var(--text);border-radius:7px;width:100%;padding:9px 10px;min-width:0;min-height:38px;font-variant-numeric:tabular-nums}.form-actions{display:flex;gap:8px;align-items:center;margin-top:16px}.form-actions .btn{flex:1}.draft-note{font-size:11px;color:var(--amber);margin-bottom:12px}.side-stack .card-head{padding:16px 20px}.side-stack .card-body{padding:18px 20px}.side-stack h2{font-size:13px}.side-stack .disclosure>summary{padding:16px 20px;font-size:13px}.advanced-actions{display:flex;flex-direction:column;gap:10px}.advanced-actions .btn{width:100%}.footer{display:flex;justify-content:space-between;gap:16px;color:var(--subtle);font-size:11px;margin-top:26px}.footer span{overflow-wrap:anywhere}
+dialog{background:var(--surface);border:1px solid var(--line);border-radius:16px;color:var(--text);max-width:440px;width:calc(100% - 32px);padding:26px;box-shadow:0 12px 40px #0003}dialog::backdrop{background:#0009;backdrop-filter:blur(3px)}dialog h2{font-size:18px;margin-bottom:12px}dialog p{color:var(--muted);font-size:13px;line-height:1.8}dialog .row{justify-content:flex-end;margin-top:24px}.settings-steps{display:flex;align-items:center;gap:9px;margin:18px 0;padding:14px;background:var(--raised);border-radius:8px;font-size:12px}#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);max-width:calc(100% - 32px);padding:12px 18px;border:1px solid var(--line);border-radius:10px;background:var(--surface);box-shadow:0 8px 30px #0002;color:var(--text);z-index:30;font-size:13px}#toast[data-kind=error]{border-color:var(--red);color:var(--red)}
+@media(max-width:1100px){.workspace{grid-template-columns:minmax(0,1fr) 274px}.stats{gap:12px}.stat{padding:18px}th,td{padding-left:16px;padding-right:16px}}@media(max-width:880px){.workspace{grid-template-columns:minmax(0,1fr)}.side-stack{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.page-heading{align-items:flex-start}main{padding:24px}.topbar-inner{padding:0 24px}}@media(max-width:540px){.topbar{height:62px}.topbar-inner{padding:0 18px}.brand-context{display:none}.connection{font-size:11px}main{padding:22px 16px}.page-heading{flex-direction:column;gap:18px;margin-bottom:18px}h1{font-size:25px}.heading-actions{width:100%}.heading-actions .btn{flex:1}.notice{align-items:stretch;flex-direction:column;padding:16px;margin-bottom:18px}.notice .btn{align-self:flex-start;margin-left:46px}.stats{gap:10px;margin-bottom:18px}.stat{padding:16px}.stat-value{font-size:26px}.stat-foot{font-size:11px}.side-stack{display:flex;align-items:stretch}.workspace,.main-stack,.side-stack{gap:16px}.card-head,.card-body{padding:16px}.tabs{padding:0 16px;gap:20px}.activity{padding:0 16px}.event-time{display:none}.activity-footer{padding:10px 16px}.footer{flex-direction:column;gap:4px}.card-head h2{font-size:14px}.table-note{padding:12px 16px}}@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style><script>try{document.documentElement.dataset.theme=localStorage.getItem('dpswarm-theme')||(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark')}catch{}</script></head>
 
-  <!-- 右列：状态 + 表格 + 事件 + 观测 -->
-  <div>
-    <div class="card" style="margin-bottom:14px">
-      <h2>运行状态</h2>
-      <div class="stats" id="stats"></div>
-      <div class="grid2">
-        <div>
-          <h2 style="font-size:12px">Work Items</h2>
-          <table><thead><tr><th>id</th><th>kind</th><th>depth</th><th>state</th><th>att</th></tr></thead>
-          <tbody id="items"></tbody></table>
-        </div>
-        <div>
-          <h2 style="font-size:12px">Nodes / Teams</h2>
-          <table><thead><tr><th>id</th><th>role</th><th>life</th><th>blk</th><th>ep</th></tr></thead>
-          <tbody id="nodes"></tbody></table>
-          <table style="margin-top:8px"><thead><tr><th>team</th><th>lead</th><th>cap</th><th>seal</th></tr></thead>
-          <tbody id="teams"></tbody></table>
-        </div>
-      </div>
-    </div>
-    <div class="card" style="margin-bottom:14px">
-      <h2>事件流（唯一真源 · §9.1）</h2>
-      <div id="events"></div>
-    </div>
-    <div class="card">
-      <h2>观测汇总（§4 全账 / §6 经济性）</h2>
-      <details><summary style="cursor:pointer;color:var(--dim)">展开 JSON</summary>
-        <pre id="obs"></pre></details>
-    </div>
-  </div>
-</main>
-<div id="msg"></div>
+<body><a class="skip" href="#main">跳到运行概览</a>
+<header class="topbar"><div class="topbar-inner"><div class="brand"><span class="brand-mark" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9m0-18v9"/></svg></span><span class="brand-name">DPswarm</span><span class="brand-context">协作工作台</span></div><div class="row"><span class="connection" id="connection" data-state="loading" role="status"><span class="dot"></span><span id="connectionText">连接中</span></span><button class="btn icon quiet" id="themeButton" aria-label="切换明暗主题" title="切换明暗主题"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg></button></div></div></header>
+<main id="main"><div class="page-heading"><div><div class="eyebrow">工作台 / 运行概览</div><h1>协作进展，一目了然。</h1><p class="subtitle">查看任务交付、成员状态与最近活动。</p></div><div class="row heading-actions"><button class="btn" id="refreshButton"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M20 7a9 9 0 1 0 1 8M20 3v5h-5"/></svg>刷新状态</button><button class="btn danger" id="stopButton" data-mutation>停止任务</button></div></div>
+<section class="notice" aria-label="模型设置入口"><div class="notice-copy"><span class="notice-icon" aria-hidden="true">⚙</span><div><div class="notice-title">模型与协作，在 DPH 设置中调整</div><p>设置 → DPswarm · 实现者、测试者、Reviewer 与 CM</p></div></div><a class="btn" id="hostSettingsLink" hidden target="_blank" rel="noopener noreferrer">在 DPH 中设置 ↗</a><button class="btn" id="settingsGuideButton">查看设置入口 ↗</button></section>
+<div id="errorBanner" class="banner error" role="alert" hidden></div><div id="waitingBanner" class="banner" role="status" hidden></div>
+<section class="stats" id="stats" aria-label="运行指标"><div class="stat"><span class="muted">正在读取运行状态…</span></div></section>
+<div class="workspace"><div class="main-stack"><section class="card" aria-label="任务与成员"><div class="tabs" role="tablist" aria-label="运行明细"><button id="tab-tasks" role="tab" aria-selected="true" aria-controls="panel-tasks" data-tab="tasks">任务 <span class="count" id="taskCount">—</span></button><button id="tab-members" role="tab" aria-selected="false" aria-controls="panel-members" tabindex="-1" data-tab="members">成员 <span class="count" id="nodeCount">—</span></button><button id="tab-teams" role="tab" aria-selected="false" aria-controls="panel-teams" tabindex="-1" data-tab="teams">团队</button></div>
+<div id="panel-tasks" role="tabpanel" aria-labelledby="tab-tasks"><div class="table-wrap"><table><thead><tr><th scope="col">任务标识</th><th scope="col">类型</th><th scope="col">状态</th><th scope="col">尝试</th><th scope="col">层级</th></tr></thead><tbody id="items"></tbody></table></div><p class="table-note">交付提交后，由 Lead 或人工完成验收。</p></div>
+<div id="panel-members" role="tabpanel" aria-labelledby="tab-members" hidden><div class="table-wrap"><table><thead><tr><th scope="col">成员标识</th><th scope="col">职责</th><th scope="col">状态</th><th scope="col">阻塞</th><th scope="col">上下文版本</th></tr></thead><tbody id="nodes"></tbody></table></div><p class="table-note">成员状态来自当前任务的控制记录。</p></div>
+<div id="panel-teams" role="tabpanel" aria-labelledby="tab-teams" hidden><div class="table-wrap"><table><thead><tr><th scope="col">团队</th><th scope="col">任务数</th><th scope="col">已验收</th><th scope="col">阶段</th></tr></thead><tbody id="teams"></tbody></table></div></div></section>
+<section class="card"><div class="card-head"><div><h2>最近活动</h2><p>按时间倒序，点击活动查看完整记录</p></div><select class="filter" id="eventFilter" aria-label="筛选活动"><option value="all">全部活动</option><option value="delivery">交付与验收</option><option value="problem">异常与阻塞</option></select></div><div class="activity" id="events"></div><div class="activity-footer"><span id="eventTotal">读取活动中…</span><button class="btn quiet" id="autoButton" aria-pressed="true">自动刷新 · 开</button></div></section></div>
+<aside class="side-stack" aria-label="运行详情与管理"><section class="card"><div class="card-head"><h2>本次运行</h2><span id="rootPhase" class="tag">—</span></div><div class="card-body"><dl class="key-values"><dt>配置版本</dt><dd id="rev">—</dd><dt>协作图版本</dt><dd id="grev">—</dd><dt>验收方式</dt><dd id="acceptanceMode">—</dd><dt>最近更新</dt><dd id="lastUpdate">—</dd></dl><div class="divider"></div><p class="caption" id="scopeHint">数据来自本地控制服务。</p></div></section>
+<section class="card"><div class="card-head"><h2>用量记录</h2><span class="count">当前运行</span></div><div class="card-body"><div class="usage-line"><span>输入 token</span><b id="inputTokens">—</b></div><div class="usage-line"><span>输出 token</span><b id="outputTokens">—</b></div><div class="usage-line"><span>已记录费用</span><b id="costUsd">—</b></div><p class="caption" id="usageHint" style="margin-top:14px">缺失用量保留为未知。</p><details style="margin-top:16px"><summary class="caption" style="cursor:pointer">查看完整用量记录</summary><pre id="obs" style="margin-top:10px">等待读取</pre></details></div></section>
+<details class="card disclosure" id="limitsDetails"><summary>运行边界</summary><div class="card-body"><p class="caption" style="margin-bottom:16px">调整当前控制任务的并发与超时。模型选择在 DPH 设置中管理。</p><form id="specForm"><fieldset id="specFields" style="border:0;padding:0;margin:0" disabled></fieldset><p class="draft-note" id="draftNote" role="status" hidden>有未保存的更改</p><div class="form-actions"><button class="btn primary" type="submit" id="saveSpec" data-mutation disabled>保存边界</button><button class="btn" type="button" id="resetSpec">撤销</button></div></form><p class="caption" style="margin-top:12px">降低容量会限制新任务进入，已运行任务继续执行。</p></div></details>
+<details class="card disclosure"><summary>维护操作</summary><div class="card-body"><label class="field"><span>选择需要通知的成员</span><select id="wakeNode"><option value="">选择成员…</option></select></label><div class="advanced-actions"><button class="btn" id="wakeButton" data-mutation>通知成员继续</button><button class="btn" id="tickButton" data-mutation>检查调度</button><button class="btn" id="sealButton" data-mutation>结束接收新任务</button></div></div></details>
+<details class="card disclosure" id="demoPanel"><summary>本地调试</summary><div class="card-body"><p class="caption" style="margin-bottom:14px">使用演示数据检查流程。模拟任务不会调用外部模型。</p><label class="field"><span>任务描述</span><input id="task" value="整理日志并汇总统计"></label><div class="advanced-actions"><button class="btn" id="demoButton" data-mutation>运行单成员演示</button><button class="btn" id="fissionButton" data-mutation>运行三成员演示</button></div><details style="margin-top:18px"><summary class="caption">使用真实模型</summary><label class="field" style="margin-top:12px"><span>Provider / Model</span><input id="model" placeholder="provider/model"></label><button class="btn" id="modelButton" data-mutation>运行真实模型</button></details></div></details></aside></div>
+<footer class="footer"><span>DPswarm · 固定协作与上下文管理</span><span id="footerSource">本地控制记录 · 每 3 秒更新</span></footer></main>
+<div id="toast" role="status" hidden></div><dialog id="confirmDialog" aria-labelledby="confirmTitle"><h2 id="confirmTitle"></h2><p id="confirmText"></p><div class="row"><button class="btn" id="cancelConfirm" autofocus>取消</button><button class="btn danger" id="acceptConfirm">确认</button></div></dialog>
+<dialog id="settingsGuide" aria-labelledby="settingsGuideTitle"><h2 id="settingsGuideTitle">在 DPH 中调整模型</h2><p>打开 DPH 左下角的设置，选择 DPswarm 子页面。</p><div class="settings-steps"><span>设置</span><span class="muted">›</span><b>DPswarm</b><span class="muted">›</span><span>模型分工</span></div><p>实现者、测试者、Reviewer 和 CM 均可选择宿主中的模型。Reviewer 默认沿用 Lead。</p><p style="margin-top:12px">如果还看不到 DPswarm，更新插件并重启 DPH 后再打开设置。</p><div class="row"><button class="btn primary" id="closeGuide">知道了</button></div></dialog><script>
 
-<script>
-/* token 由 sidecar 在 serve 时替换注入，勿在此硬编码真实值 */
+
+/* Replaced only by the local authenticated server; never persist this capability. */
 const DPSWARM_TOKEN = '{{DPSWARM_TOKEN}}';
-const SPEC_FIELDS = [
-  ["max_open_work_items","开放 worker 槽上限",1,32],
-  ["max_active_node_points","节点点数容量",1,256],
-  ["subteam_point_ratio","子 Team 点数比例",0.1,0.9],
-  ["max_depth","拓扑深度（agent 层级）",1,4],
-  ["max_team_workers","裂变规模（同时存活）",1,8],
-  ["max_attempts","attempt 上限（首次+重试）",1,5],
-  ["deadline_seconds","树级 deadline 秒（空=关）",0,86400],
-  ["node_wallclock_timeout","单节点超时秒",1,86400],
-  ["root_acceptance_mode","root 验收模式",0,0],
-];
-let spec = null;
-
-function msg(text, ok=true){
-  const m = document.getElementById('msg');
-  m.textContent = text; m.className = ok ? 'ok' : 'err'; m.style.display = 'block';
-  clearTimeout(m._t); m._t = setTimeout(()=>m.style.display='none', 3500);
-}
-async function api(path, body){
-  const headers = { 'Authorization': 'Bearer ' + DPSWARM_TOKEN };
-  const opts = { headers };
-  if (body){ opts.method = 'POST'; headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
-  const r = await fetch(path, opts);
-  const j = await r.json().catch(()=>({}));
-  if (!r.ok) throw new Error(j.error + (j.message ? ' — ' + j.message : '') || r.status);
-  return j;
-}
-/* 渲染一律走 DOM API 构建节点：事件载荷来自外部可写源，禁止 HTML 字符串拼接 */
-function tag(v){
-  const s = document.createElement('span');
-  s.className = 'tag t-' + (v ?? 'none');
-  s.textContent = v ?? '—';
-  return s;
-}
-function stat(content, label){
-  const d = document.createElement('div');
-  d.className = 'stat';
-  const b = document.createElement('b');
-  if (typeof content === 'string') b.textContent = content; else b.append(content);
-  const sp = document.createElement('span');
-  sp.textContent = label;
-  d.append(b, sp);
-  return d;
-}
-function makeRow(cells){
-  const tr = document.createElement('tr');
-  for (const c of cells){
-    const td = document.createElement('td');
-    if (c.span) td.setAttribute('colspan', c.span);
-    if (c.title) td.setAttribute('title', c.title);
-    if (c.node) td.append(c.node); else td.textContent = c.text;
-    tr.append(td);
-  }
-  return tr;
+const $=id=>document.getElementById(id),sessionId=new URLSearchParams(location.search).get('session');
+const fields=[['max_open_work_items','同时运行的成员',1,32,1],['max_active_node_points','节点容量（点数）',1,256,1],['subteam_point_ratio','子团队容量比例',.1,.9,.05],['max_depth','协作层级上限',1,4,1],['max_team_workers','每个团队的成员上限',1,8,1],['max_attempts','尝试次数（含重试）',1,5,1],['deadline_seconds','任务期限（秒）',0,86400,1],['node_wallclock_timeout','单成员超时（秒）',1,86400,1],['root_acceptance_mode','最终验收方式']];
+const labels={accepted:'已验收',submitted:'待验收',finalizing:'验收中',rejected:'已拒绝',active:'运行中',completed:'已完成',failed:'失败',blocked:'阻塞',escalated:'待处理','timed-out':'已超时',none:'—',open:'可接收任务',provisioning:'准备中',terminated:'已结束','aborted-finalize':'验收终止',cutoff:'停止接收',settlement:'结算中',sealed:'已封存',root:'主任务',derive:'委派',fission:'拆分',split:'协助','root-lead':'Lead','team-lead':'团队 Lead',worker:'执行成员',assistant:'协助成员'};
+const eventLabels={work_item_accepted:'交付已验收',work_item_submitted:'提交交付',work_item_finalizing:'开始验收',work_item_rejected:'交付未通过',work_item_created:'创建任务',node_provisioning:'准备成员',node_activated:'成员开始执行',node_drained:'成员已退出',node_terminated:'成员已结束',node_blocked:'成员遇到阻塞',node_failed:'成员执行失败',lease_acquired:'分配运行容量',lease_released:'释放运行容量',package_stored:'保存交付证据',execution_bound:'绑定执行会话',route_resolved:'确认模型分工',spec_published:'更新运行边界',root_spec_published:'更新运行边界',stop_reason_recorded:'记录结束原因',token_usage_recorded:'记录模型用量',human_directive:'人工操作',seal_phase_changed:'更新团队阶段'};
+let spec=null,snapshot=null,events=[],eventTotal=0,dirty=false,refreshing=false,auto=true,canMutate=false,pending=false,lastEventsKey='',afterRefresh=false;
+const good=new Set(['accepted','active','completed','sealed']),warn=new Set(['submitted','finalizing','settlement','cutoff','provisioning']),bad=new Set(['failed','rejected','blocked','escalated','timed-out']);
+function el(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=String(text);return n}
+function display(v){return labels[v]||v||'—'}
+function badge(v){const n=el('span','tag '+(good.has(v)?'good':warn.has(v)?'warn':bad.has(v)?'bad':''),display(v));if(v)n.title=v;return n}
+function toast(message,error=false){$('toast').textContent=message;$('toast').dataset.kind=error?'error':'ok';$('toast').hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('toast').hidden=true,error?7000:4000)}
+async function api(path,body){const headers={Authorization:'Bearer '+DPSWARM_TOKEN};if(sessionId)headers['X-DPSwarm-Session']=sessionId;const opts={headers,signal:AbortSignal.timeout(body?180000:10000)};if(body!==undefined){opts.method='POST';headers['Content-Type']='application/json';opts.body=JSON.stringify(body)}const r=await fetch(path,opts),data=await r.json();if(!r.ok||data.ok===false)throw new Error(data.message||data.error||(data.errors?Object.keys(data.errors).join('、')+' 参数无效':'请求失败（'+r.status+'）'));return data}
+function updateButtons(){document.querySelectorAll('[data-mutation]').forEach(b=>b.disabled=!canMutate||pending);$('specFields').disabled=!canMutate||pending;$('saveSpec').disabled=!canMutate||pending||!dirty;$('resetSpec').disabled=!dirty||pending;$('wakeNode').disabled=!canMutate||pending}
+function renderSpec(force=false){if(!spec||dirty&&!force)return;const box=$('specFields');box.replaceChildren();for(const [key,label,min,max,step]of fields){const lab=el('label','field');lab.append(el('span','',label));const inp=el(key==='root_acceptance_mode'?'select':'input');inp.dataset.key=key;inp.id='spec-'+key;if(key==='root_acceptance_mode'){for(const [v,name]of [['lead','Lead 验收'],['human','人工验收']]){const opt=el('option','',name);opt.value=v;inp.append(opt)}}else{inp.type='number';inp.min=min;inp.max=max;inp.step=step;inp.required=key!=='deadline_seconds';inp.placeholder=key==='deadline_seconds'?'不设期限':''}inp.value=spec[key]??'';lab.append(inp);box.append(lab)}dirty=false;$('draftNote').hidden=true;updateButtons()}
+function markDirty(){dirty=true;$('draftNote').hidden=false;updateButtons()}
+$('specForm').addEventListener('input',markDirty);$('specForm').addEventListener('change',markDirty);
+function metric(title,index,value,max,foot){const card=el('div','stat'),top=el('div','stat-top');top.append(el('span','',title),el('span','stat-index',index));const v=el('div','stat-value',value===null?'—':value);if(max!==undefined)v.append(el('small','','/ '+max));card.append(top,v,el('p','stat-foot',foot));if(typeof value==='number'&&typeof max==='number'&&max>0){const bar=el('div','meter'),fill=el('i');fill.style.width=Math.max(0,Math.min(100,value/max*100))+'%';bar.append(fill);card.append(bar)}return card}
+function row(cells){const tr=el('tr');for(const c of cells){const td=el('td');if(c instanceof Node)td.append(c);else if(c&&typeof c==='object'){td.textContent=c.text;td.title=c.title||''}else td.textContent=c??'—';tr.append(td)}return tr}
+function emptyRow(id,cols,title,detail){const tr=el('tr'),td=el('td','empty');td.colSpan=cols;td.append(el('b','',title),el('p','',detail));tr.append(td);$(id).append(tr)}
+function renderStatus(s){
+ snapshot=s.snapshot;const waiting=!snapshot;canMutate=Boolean(!waiting&&(!s.bridge||sessionId));
+ $('demoPanel').hidden=Boolean(s.bridge);$('waitingBanner').hidden=!waiting;$('waitingBanner').textContent='当前任务尚未启动协作。在 DPH 输入框旁开启团队，任务开始后会显示运行数据。';
+ $('scopeHint').textContent=sessionId?'当前 DPH 任务 · '+sessionId:s.bridge?'服务概览。请从 DPH 当前任务的罗盘菜单打开对应运行。':'独立控制面板 · 当前本地运行';
+ if(s.bridge&&!sessionId){$('waitingBanner').hidden=false;$('waitingBanner').textContent='当前为服务概览。请从 DPH 当前任务打开控制面板，查看和管理该任务。'}
+ if(waiting){spec=null;$('stats').replaceChildren(...['运行成员','运行容量','任务总数','已验收交付'].map((v,i)=>metric(v,'0'+(i+1),null,undefined,'等待协作启动')));for(const id of ['items','nodes','teams']){$(id).replaceChildren();emptyRow(id,id==='teams'?4:5,'还没有运行记录','协作开始后会自动显示。')}for(const id of ['rev','grev','acceptanceMode','taskCount','nodeCount'])$(id).textContent='—';$('rootPhase').replaceChildren(badge(null));$('specFields').replaceChildren();events=[];eventTotal=0;lastEventsKey='';renderEvents();renderUsage(null);updateButtons();return}
+ const oldRevision=spec?.revision;spec=s.spec;if(!dirty&&(!oldRevision||oldRevision!==spec.revision))renderSpec();if(dirty&&oldRevision!==spec.revision){$('draftNote').hidden=false;$('draftNote').textContent='运行配置已更新；保留了你的修改，保存前请核对。'}
+ const p=snapshot,items=Object.entries(p.work_items||{}),nodes=Object.entries(p.nodes||{}),delegated=items.filter(([,w])=>w.kind!=='root'),accepted=delegated.filter(([,w])=>w.acceptance==='accepted').length,waitingItems=delegated.filter(([,w])=>['submitted','finalizing'].includes(w.acceptance)).length;
+ $('stats').replaceChildren(metric('运行成员','01',p.open_worker_slots_used,spec.max_open_work_items,'同时占用的执行席位'),metric('运行容量','02',p.active_points,spec.max_active_node_points,'按节点点数计算'),metric('任务总数','03',items.length,undefined,waitingItems+' 项交付待验收'),metric('已验收交付','04',accepted,undefined,'共 '+delegated.length+' 项委派任务'));
+ $('rev').textContent='v'+spec.revision;$('grev').textContent=p.graph_revision;$('acceptanceMode').textContent=spec.root_acceptance_mode==='human'?'人工':'Lead';$('rootPhase').replaceWith(Object.assign(badge(p.seal_phase?.root),{id:'rootPhase'}));$('taskCount').textContent=items.length;$('nodeCount').textContent=nodes.length;
+ $('items').replaceChildren();for(const [id,w]of items)$('items').append(row([{text:id.slice(0,12),title:id},display(w.kind),badge(w.acceptance),w.attempt,w.depth]));if(!items.length)emptyRow('items',5,'还没有任务','提交任务后，交付状态会显示在这里。');
+ $('nodes').replaceChildren();for(const [id,n]of nodes)$('nodes').append(row([{text:id.slice(0,12),title:id},display(n.role),badge(n.lifecycle),badge(n.blocked),n.epoch]));if(!nodes.length)emptyRow('nodes',5,'还没有成员','成员开始执行后会自动出现。');
+ const teamNames=new Set([...Object.keys(p.seal_phase||{}),...items.map(([,w])=>w.team).filter(Boolean)]);$('teams').replaceChildren();for(const name of teamNames){const list=items.filter(([,w])=>w.team===name);$('teams').append(row([name==='root'?'主团队':name,list.length,list.filter(([,w])=>w.acceptance==='accepted').length,badge(p.seal_phase?.[name])]))}if(!teamNames.size)emptyRow('teams',4,'还没有团队','团队阶段随运行更新。');
+ const selected=$('wakeNode').value;$('wakeNode').replaceChildren(Object.assign(el('option','','选择成员…'),{value:''}));for(const [id,n]of nodes){if(n.terminated)continue;const opt=el('option','',display(n.role)+' · '+id.slice(0,12));opt.value=id;$('wakeNode').append(opt)}$('wakeNode').value=selected;updateButtons()
 }
 
-function renderSpec(){
-  const f = document.getElementById('specForm');
-  f.textContent = '';
-  for (const [k,label] of SPEC_FIELDS){
-    const v = spec[k];
-    const lab = document.createElement('label');
-    const sp = document.createElement('span');
-    sp.textContent = label;
-    lab.append(sp);
-    if (k === 'root_acceptance_mode'){
-      const sel = document.createElement('select');
-      sel.setAttribute('data-k', k);
-      for (const val of ['lead','human']){
-        const o = document.createElement('option');
-        o.value = val; o.textContent = val;
-        sel.append(o);
-      }
-      lab.append(sel);
-    }else{
-      const inp = document.createElement('input');
-      inp.setAttribute('data-k', k);
-      inp.type = 'number';
-      inp.step = typeof v === 'number' && !Number.isInteger(v) ? '0.05' : '1';
-      inp.value = v ?? '';
-      inp.placeholder = '关闭';
-      lab.append(inp);
-    }
-    f.append(lab);
-  }
-  const sel = f.querySelector(`[data-k=root_acceptance_mode]`);
-  if (sel) sel.value = spec.root_acceptance_mode;
-}
 
-async function refresh(){
-  try{
-    const s = await api('/api/status');
-    spec = s.spec;
-    document.getElementById('rev').textContent = s.spec.revision;
-    document.getElementById('grev').textContent = s.snapshot.graph_revision;
-    renderSpec();
-    const p = s.snapshot;
-    const stats = document.getElementById('stats');
-    stats.textContent = '';
-    stats.append(
-      stat(p.open_worker_slots_used + '/' + spec.max_open_work_items, 'worker 槽'),
-      stat(p.active_points + '/' + spec.max_active_node_points, '节点点数'),
-      stat(String(Object.keys(p.work_items).length), 'work items'),
-      stat(String(Object.keys(p.nodes).length), 'nodes'));
-    for (const [t,ph] of Object.entries(p.seal_phase)) stats.append(stat(tag(ph), 'seal · ' + t));
-    const items = document.getElementById('items');
-    items.textContent = '';
-    const itemRows = Object.entries(p.work_items);
-    if (!itemRows.length) items.append(makeRow([{text:'—', span:5}]));
-    for (const [id,w] of itemRows) items.append(makeRow([
-      {text:id.slice(0,12), title:id},
-      {text:w.kind},
-      {text:w.depth},
-      {node:tag(w.acceptance)},
-      {text:w.attempt},
-    ]));
-    const nodes = document.getElementById('nodes');
-    nodes.textContent = '';
-    const nodeRows = Object.entries(p.nodes);
-    if (!nodeRows.length) nodes.append(makeRow([{text:'—', span:5}]));
-    for (const [id,n] of nodeRows) nodes.append(makeRow([
-      {text:id.slice(0,12), title:id},
-      {text:n.role},
-      {node:tag(n.lifecycle)},
-      n.blocked === 'none' ? {text:'—'} : {node:tag(n.blocked)},
-      {text:n.epoch},
-    ]));
-    const evs = await api('/api/events?limit=50');
-    const box = document.getElementById('events');
-    const top = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
-    box.textContent = '';
-    const frag = document.createDocumentFragment();
-    for (const e of evs.events.slice().reverse()){
-      const div = document.createElement('div');
-      div.className = 'ev';
-      const k = document.createElement('span');
-      k.className = 'k'; k.textContent = e.kind;
-      const pl = document.createElement('span');
-      pl.className = 'p'; pl.textContent = JSON.stringify(e.payload).slice(0,160);
-      div.append(k, pl);
-      frag.append(div);
-    }
-    box.append(frag);
-    const o = await api('/api/observation');
-    document.getElementById('obs').textContent = JSON.stringify(o, null, 1);
-  }catch(e){ msg('刷新失败: '+e.message, false); }
-}
-
-async function publishSpec(){
-  const out = {};
-  document.querySelectorAll('#specForm [data-k]').forEach(el => {
-    let v = el.value;
-    if (el.dataset.k === 'root_acceptance_mode'){ out[el.dataset.k] = v; return; }
-    if (v === ''){ if (el.dataset.k === 'deadline_seconds') out[el.dataset.k] = null; return; }
-    const num = Number(v);
-    if (Number.isFinite(num)) out[el.dataset.k] = num;
-  });
-  try{
-    const r = await api('/api/spec', out);
-    msg(`已发布 revision ${r.revision}（事件 #${r.event_seq}）`);
-    refresh();
-  }catch(e){ msg('发布失败: '+e.message, false); }
-}
-async function terminal(){
-  if (!confirm('终态指令：停止任务树（§9.2 terminal）？')) return;
-  try{ await api('/api/directive', {kind:'terminal', payload:{scope:'root'}}); msg('terminal 指令已入链'); refresh(); }
-  catch(e){ msg(e.message, false); }
-}
-async function wakeup(){
-  const n = document.getElementById('wakeNode').value;
-  if (!n) return msg('无节点可选', false);
-  try{ await api('/api/directive', {kind:'immediate', payload:{op:'wakeup', node_id:n, about:'panel'}}); msg('wakeup 已发（不带状态）'); refresh(); }
-  catch(e){ msg(e.message, false); }
-}
-async function sealRoot(){
-  if (!confirm('封存 root（准入截止→结算→完结，§9.6）？')) return;
-  try{ const r = await api('/api/seal', {team:'root'}); msg('封存完成: ' + r.phase); refresh(); }
-  catch(e){ msg(e.message, false); }
-}
-async function tickNow(){ try{ await api('/api/tick'); refresh(); }catch(e){ msg(e.message,false);} }
-async function runDefault(){ await runTask(null); }
-async function runFission(){
-  await runTask({mock_script:[
-    {text:'{"action":"fission","route":{"provider":"mock","model":"b-kimi"},"subtasks":["分片A","分片B","分片C"]}'},
-    {text:'WORKER-OUTPUT'},
-    {text:'{"verdict":"accept","verdict_reason":"ok"}'},
-  ]});
-}
-async function runModel(){
-  const m = document.getElementById('model').value.trim();
-  if (!m) return msg('填 PROVIDER/MODEL', false);
-  await runTask({model:m});
-}
-async function runTask(extra){
-  const task = document.getElementById('task').value || '示例任务';
-  try{
-    const r = await api('/api/task', {task, ...extra});
-    msg(`任务完成: ${r.result.actions.join(' → ')}`);
-    refresh();
-  }catch(e){ msg('任务失败: '+e.message, false); }
-}
-
-/* 填充 wakeup 节点下拉 */
-new MutationObserver(()=>{
-  const sel = document.getElementById('wakeNode');
-  const nodes = document.querySelectorAll('#nodes tr td:first-child');
-  const cur = sel.value;
-  sel.textContent = '';
-  const head = document.createElement('option');
-  head.value = ''; head.textContent = '选择节点…';
-  sel.append(head);
-  for (const td of nodes){
-    const o = document.createElement('option');
-    o.value = td.title;
-    o.textContent = td.textContent;
-    sel.append(o);
-  }
-  sel.value = cur;
-}).observe(document.getElementById('nodes'), {childList:true});
-
-refresh();
-setInterval(refresh, 3000);
-</script>
-</body>
-</html>
+function eventTone(e){return /fail|reject|blocked|timeout|error/.test(e.kind)?'bad':/accept|complet|drained/.test(e.kind)?'good':/submit|finaliz|cutoff/.test(e.kind)?'warn':''}
+function eventTime(ts){const date=new Date(typeof ts==='number'?ts*1000:ts);return Number.isNaN(date.valueOf())?'':date.toLocaleTimeString('zh-CN',{hour12:false})}
+function renderEvents(){const filter=$('eventFilter').value,key=JSON.stringify([filter,events]);if(key===lastEventsKey)return;lastEventsKey=key;const opened=new Set([...document.querySelectorAll('.event[open]')].map(e=>e.dataset.seq));const list=events.filter(e=>filter==='all'||(filter==='delivery'?/work_item_(submitted|accepted|rejected|finalizing)|package_stored/.test(e.kind):/fail|reject|blocked|timeout|error/.test(e.kind))).slice().reverse(),box=$('events'),scroll=box.scrollTop;box.replaceChildren();if(!list.length){const n=el('div','empty');n.append(el('b','','暂无'+(filter==='problem'?'异常':'活动')),el('p','',events.length?'试试其他筛选条件。':'新的运行活动会显示在这里。'));box.append(n)}for(const e of list){const d=el('details','event');d.dataset.seq=String(e.seq);d.open=opened.has(String(e.seq));const summary=el('summary'),content=el('div','event-body');content.append(el('div','event-name',eventLabels[e.kind]||e.kind),el('div','event-detail',e.kind+' · #'+e.seq));summary.append(el('span','event-marker '+eventTone(e)),content,el('span','event-time',eventTime(e.ts)),el('span','event-caret','›'));d.append(summary,el('pre','',JSON.stringify(e.payload,null,2)));box.append(d)}box.scrollTop=scroll;$('eventTotal').textContent='显示 '+list.length+' 条 · 最近 '+events.length+' / 共 '+eventTotal+' 条'}
+function renderUsage(o){const totals=o?.token_totals,fmt=v=>typeof v==='number'&&Number.isFinite(v)?v.toLocaleString('zh-CN'):'未知';$('inputTokens').textContent=o?fmt(totals?.input):'—';$('outputTokens').textContent=o?fmt(totals?.output):'—';$('costUsd').textContent=typeof totals?.cost==='number'?'$'+totals.cost.toFixed(4):o?'未知':'—';$('usageHint').textContent=o?(Object.values(o.token_unknown_counts||{}).some(v=>v>0)?'部分用量未返回，未知项未计为零。':'仅显示当前控制记录；完整 CM 用量见 DPH 会话。'):'等待运行产生用量记录。';$('obs').textContent=o?JSON.stringify(o,null,2):'暂无用量记录'}
+async function refresh(){if(refreshing){afterRefresh=true;return}refreshing=true;$('refreshButton').disabled=true;try{const s=await api('/api/status');renderStatus(s);if(s.snapshot){const results=await Promise.allSettled([api('/api/events?limit=50'),api('/api/observation')]);if(results[0].status==='fulfilled'){events=results[0].value.events||[];eventTotal=results[0].value.total||0;renderEvents()}if(results[1].status==='fulfilled')renderUsage(results[1].value);const failure=results.find(r=>r.status==='rejected');if(failure)throw new Error('运行状态已更新，详细记录暂不可用：'+failure.reason.message)}$('errorBanner').hidden=true;$('connection').dataset.state='online';$('connectionText').textContent='已连接';$('lastUpdate').textContent=new Date().toLocaleTimeString('zh-CN',{hour12:false})}catch(e){$('connection').dataset.state='offline';$('connectionText').textContent='连接异常';$('errorBanner').textContent='刷新失败，已保留上次数据。'+e.message;$('errorBanner').hidden=false;canMutate=false;updateButtons()}finally{refreshing=false;$('refreshButton').disabled=false;if(afterRefresh){afterRefresh=false;queueMicrotask(refresh)}}}
+async function mutate(work){if(pending||!canMutate)return;pending=true;updateButtons();try{await work();await refresh()}catch(e){toast(e.message,true)}finally{pending=false;updateButtons()}}
+$('specForm').addEventListener('submit',e=>{e.preventDefault();if(!e.target.reportValidity())return;const body={};for(const input of $('specFields').querySelectorAll('[data-key]'))body[input.dataset.key]=input.dataset.key==='root_acceptance_mode'?input.value:input.value===''?null:Number(input.value);mutate(async()=>{const r=await api('/api/spec',body);dirty=false;spec=null;toast('运行边界已保存 · v'+r.revision)})});$('resetSpec').onclick=()=>{dirty=false;renderSpec(true)};
+function confirmAction(title,text,action){$('confirmTitle').textContent=title;$('confirmText').textContent=text;$('acceptConfirm').textContent=action;const dialog=$('confirmDialog');dialog.returnValue='';dialog.showModal();return new Promise(resolve=>dialog.addEventListener('close',()=>resolve(dialog.returnValue==='confirm'),{once:true}))}
+$('cancelConfirm').onclick=()=>$('confirmDialog').close('cancel');$('acceptConfirm').onclick=()=>$('confirmDialog').close('confirm');
+$('stopButton').onclick=async()=>{if(await confirmAction('停止当前任务？','将终止当前任务树中的执行。已有运行记录和交付证据会保留。','停止任务'))mutate(async()=>{await api('/api/directive',{kind:'terminal',payload:{scope:'root'}});toast('停止指令已记录')})};
+$('sealButton').onclick=async()=>{if(await confirmAction('结束接收新任务？','当前团队会停止接收新任务，完成结算后封存。','确认结束'))mutate(async()=>{const r=await api('/api/seal',{team:'root'});toast('团队阶段：'+display(r.phase))})};
+$('wakeButton').onclick=()=>{const id=$('wakeNode').value;if(!id)return toast('请先选择一个成员',true);mutate(async()=>{await api('/api/directive',{kind:'immediate',payload:{op:'wakeup',node_id:id,about:'panel'}});toast('已通知成员')})};$('tickButton').onclick=()=>mutate(async()=>{await api('/api/tick',{});toast('调度检查完成')});
+async function runTask(extra){await mutate(async()=>{const r=await api('/api/task',{task:$('task').value.trim()||'示例任务',...extra});toast('任务已返回：'+(r.result?.actions||[]).join(' → '))})}
+$('demoButton').onclick=()=>runTask({});$('fissionButton').onclick=()=>runTask({mock_script:[{text:'{"action":"fission","route":{"provider":"mock","model":"b-kimi"},"subtasks":["分片A","分片B","分片C"]}'},{text:'WORKER-OUTPUT'},{text:'{"verdict":"accept","verdict_reason":"ok"}'}]});$('modelButton').onclick=()=>{const model=$('model').value.trim();if(!model)return toast('请填写 Provider / Model',true);runTask({model})};
+$('refreshButton').onclick=refresh;$('eventFilter').onchange=renderEvents;$('autoButton').onclick=()=>{auto=!auto;$('autoButton').setAttribute('aria-pressed',String(auto));$('autoButton').textContent='自动刷新 · '+(auto?'开':'关');$('footerSource').textContent='本地控制记录 · '+(auto?'每 3 秒更新':'自动刷新已暂停');if(auto)refresh()};
+for(const button of document.querySelectorAll('[data-tab]')){button.onclick=()=>selectTab(button.dataset.tab);button.onkeydown=e=>{const buttons=[...document.querySelectorAll('[data-tab]')],idx=buttons.indexOf(button);if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const next=e.key==='Home'?0:e.key==='End'?buttons.length-1:(idx+(e.key==='ArrowRight'?1:-1)+buttons.length)%buttons.length;selectTab(buttons[next].dataset.tab);buttons[next].focus()}}
+function selectTab(id){document.querySelectorAll('[data-tab]').forEach(b=>{const selected=b.dataset.tab===id;b.setAttribute('aria-selected',String(selected));b.tabIndex=selected?0:-1;$('panel-'+b.dataset.tab).hidden=!selected})}
+$('themeButton').onclick=()=>{const theme=document.documentElement.dataset.theme==='light'?'dark':'light';document.documentElement.dataset.theme=theme;try{localStorage.setItem('dpswarm-theme',theme)}catch{}};
+$('settingsGuideButton').onclick=()=>$('settingsGuide').showModal();$('closeGuide').onclick=()=>$('settingsGuide').close();
+try{const origin=new URLSearchParams(location.hash.slice(1)).get('dph');if(origin){const host=new URL(origin);if(host.protocol==='http:'&&['localhost','127.0.0.1','[::1]'].includes(host.hostname)&&!host.username&&!host.password&&host.origin!==location.origin){host.pathname='/';host.search='?dpswarm-settings=1';host.hash='';$('hostSettingsLink').href=host.href;$('hostSettingsLink').hidden=false;$('settingsGuideButton').hidden=true}}}catch{}
+updateButtons();refresh();setInterval(()=>{if(auto&&!document.hidden)refresh()},3000);document.addEventListener('visibilitychange',()=>{if(auto&&!document.hidden)refresh()});
+</script></body></html>
