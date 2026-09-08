@@ -15,11 +15,24 @@ export function requireRootCaller(parent) {
 
 
 // Internal adapter; dynamic topology is not exposed by the fixed-team plugin.
-export async function delegateOnce(args, exec, sidecar, subagents, { routeJournal = new AuditJournal({ sidecarFactory: () => sidecar }) } = {}) {
+export async function delegateOnce(args, exec, sidecar, subagents, { routeJournal = new AuditJournal({ sidecarFactory: () => sidecar }), modelRegistry, modelRoutes, hostModels, modelRole } = {}) {
         const parent = exec.agent
         requireRootCaller(parent)
         const leadRoute = effectiveLeadRoute(parent)
+        // Revalidate the complete frozen role set; a removed provider or changed
+        // default cannot dispatch a replacement under an old registration.
+        const validated = modelRegistry ? await modelRegistry.resolve(modelRoutes, { signal: exec.signal, expected: hostModels }) : null
+        if (validated) {
+          modelRegistry.checkLead(effectiveLeadRoute(parent), modelRoutes)
+          const child = validated.models.find(row => row.role === modelRole), task = args.subtasks?.[0]
+          if (args.kind !== 'derive' || args.subtasks?.length !== 1 || !child || !task
+              || child.provider !== task.provider || child.model !== task.model
+              || (task.reasoning_effort !== undefined && child.reasoningEffort !== task.reasoning_effort)) {
+            throw Object.assign(new Error('HOST_MODEL_ROUTE_DRIFT: child is outside the frozen fixed role'), { code: 'HOST_MODEL_ROUTE_DRIFT' })
+          }
+        }
         await sidecar.ensure()
+        if (validated) await modelRegistry.publish(sidecar, validated)
         await sidecar.call('POST', '/api/execution/root', {
           parent_session_id: parent.session.id, delegation_depth: 0,
           provider: leadRoute.provider, model: leadRoute.model,
@@ -77,6 +90,9 @@ export async function delegateOnce(args, exec, sidecar, subagents, { routeJourna
           const agentOptions = {}
           if (st.provider) agentOptions.provider = st.provider
           if (st.model) agentOptions.model = st.model
+          const verifiedRoute = validated?.models.find(row => row.role === modelRole)
+          if (validated && !verifiedRoute) throw Object.assign(new Error('HOST_MODEL_ROUTE_DRIFT: child is outside the frozen host profile'), { code: 'HOST_MODEL_ROUTE_DRIFT' })
+          if (verifiedRoute?.reasoningEffort !== undefined) agentOptions.reasoningEffort = verifiedRoute.reasoningEffort
           if (st.reasoning_effort) agentOptions.reasoningEffort = st.reasoning_effort
           const routeOptions = { provider: st.provider || leadRoute.provider, model: st.model || leadRoute.model, ...agentOptions }
           const prepareRoute = label => {

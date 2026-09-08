@@ -1,4 +1,5 @@
 import { Sidecar } from './sidecar.js'
+import { HostModelRegistry } from './host-model-registry.js'
 import { resolveHostRoot, hostModuleUrl } from './host-modules.js'
 import { runtimePaths } from './paths.js'
 import { FixedTeamController, fixedProfile } from './fixed-team.js'
@@ -17,7 +18,7 @@ const [toolsMod, settingsMod, zMod] = await Promise.all([
 const { defineTool } = toolsMod
 const z = zMod.default ?? zMod
 export const name = 'dpswarm-dsh-plugin'
-export const inject = ['tools', 'subagents', 'settings', 'systemPrompt']
+export const inject = ['tools', 'subagents', 'settings', 'systemPrompt', 'llm']
 export const DPSWARM_NS = 'dpswarm'
 
 export const defaults = Object.freeze({ sidecarUrl: 'http://127.0.0.1:8791', autoStart: true,
@@ -87,8 +88,9 @@ export function apply(ctx, config) {
     }
   }
   if (process.env.DPSWARM_SKIP_TOOLS === '1') return
-  ctx.inject(['tools', 'subagents'], runtime => {
-    controller = new FixedTeamController({ config: resolved, subagents: runtime.subagents, cm, budget })
+  ctx.inject(['tools', 'subagents', 'llm'], runtime => {
+    const modelRegistry = new HostModelRegistry(() => runtime.llm)
+    controller = new FixedTeamController({ config: resolved, subagents: runtime.subagents, cm, budget, modelRegistry })
     runtime.systemPrompt.section({ name: 'dpswm:guide', order: 2500, text: [
       '## DPSwarm: explicitly enabled fixed team',
       'DPSwarm is off by default and the user enables it for a specific host session in the input toolbar. Installation and tool availability are not activation.',
@@ -102,10 +104,10 @@ export function apply(ctx, config) {
     ].join('\n') })
     runtime.tools.register(defineTool({ name: 'dpswarm_status', description: 'Read the independent fixed-team and CM switches, CM adoption records, and execution/review state. Does not enable collaboration.', parameters: {}, output,
       execute: async (_args, exec) => toolJSON({ ...await controller.status(exec.agent), worker_budget: await budget.status(exec.agent) }) }))
-    runtime.tools.register(defineTool({ name: 'dpswarm_models', description: 'Read the exact fixed role configuration selected by the user. The Lead must not substitute routes. Availability is checked by the host when starting each child.', parameters: {}, output,
+    runtime.tools.register(defineTool({ name: 'dpswarm_models', description: 'Read the exact fixed role configuration selected by the user. The Lead must not substitute routes. DPH exact model registration is the source of availability; the same routes are checked again before dispatch.', parameters: {}, output,
       execute: async (_args, exec) => {
         const status = await controller.status(exec.agent)
-        return toolJSON({ ...status, worker_budget: await budget.status(exec.agent), configured_profile: fixedProfile(resolved(), { enabled: status.cm.enabled, profile: status.cm.profile || null }, effectiveLeadRoute(exec.agent)), availability: 'configured routes; not a model-call probe' })
+        return toolJSON({ ...status, worker_budget: await budget.status(exec.agent), configured_profile: fixedProfile(resolved(), { enabled: status.cm.enabled, profile: status.cm.profile || null }, effectiveLeadRoute(exec.agent)), availability: await controller.modelAvailability(exec.agent) })
       } }))
     runtime.tools.register(defineTool({ name: 'dpswarm_run', description: 'Run the user-enabled fixed implementer then tester, followed by a Reviewer only when the user explicitly configured a separate model. Roles and routes are fixed by settings. Return all deliveries to the current Lead for independent verification, repair and explicit review.',
       parameters: { task: { type: 'string', required: true, description: 'Task and permitted scope' }, acceptance: { type: 'string', description: 'Acceptance requirements and constraints; no hidden benchmark answers' }, worker_budgets: { type: 'object', description: 'Only in Auto mode: Lead-chosen independent budgets for implementer, tester, and reviewer when configured. Each role has positive tokenLimit, callLimit, and reason. Omit in manual/unlimited.', properties: Object.fromEntries(['implementer','tester','reviewer'].map(role => [role, { type: 'object', properties: { tokenLimit: { type: 'integer', required: true }, callLimit: { type: 'integer', required: true }, reason: { type: 'string', required: true } }, additionalProperties: false }])), additionalProperties: false } }, output,

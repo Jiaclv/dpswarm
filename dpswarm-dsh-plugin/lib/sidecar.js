@@ -25,6 +25,11 @@ export class Sidecar {
   }
 
   _checkCapabilities(health) {
+    if (this.cfg.hostCatalogRequired && health.bridge?.host_catalog_v1 !== true) {
+      const error = new Error('SIDECAR_HOST_CATALOG_VERSION_MISMATCH: update the DPSwarm control service to use DPH model registration.')
+      error.code = 'SIDECAR_HOST_CATALOG_VERSION_MISMATCH'
+      throw error
+    }
     if (this.cfg.sessionIsolation && health.bridge?.session_isolation !== true) {
       throw new Error('SIDECAR_VERSION_MISMATCH: this port runs the old single-session sidecar; use a separate port or restart it with dpswarm.session_server')
     }

@@ -164,10 +164,13 @@ class ModelFacts:
     level: Level
     aa_dimensional: Dict[str, float] = field(default_factory=dict)  # coding/reasoning/...
     aa_source: str = "declared"  # 'aa@<date>' 外部快照 | 'declared' 声明值 | 'demo' 演示目录
-    context_window: int = 128_000
-    input_price_per_mtok: float = 0.0
-    output_price_per_mtok: float = 0.0
+    context_window: Optional[int] = 128_000
+    input_price_per_mtok: Optional[float] = 0.0
+    output_price_per_mtok: Optional[float] = 0.0
     available: bool = True
+    level_source: str = "catalog"
+    availability_source: str = "catalog"
+    point_weight: Optional[int] = None
 
     def aa_score(self, task_type: str) -> float:
         """按任务类型取 AA 分维评分，全局总分（overall）兜底（§8 V1 选型依据）。"""
@@ -205,6 +208,16 @@ class ModelCatalog:
         ]
         for key, f in sorted(self.facts.items()):
             if not f.available:
+                continue
+            if f.level_source == "fixed-team-policy":
+                score = f"{f.aa_score(task_type):.1f}" if f.aa_dimensional else "unknown"
+                lines.append(
+                    f"  - {key} [运营级别 {f.level.value}；固定点数 {f.point_weight}；非能力评级] "
+                    f"AA[{task_type}]={score} ({f.aa_source}) "
+                    f"ctx={f.context_window if f.context_window is not None else 'unknown'} "
+                    f"in={f.input_price_per_mtok if f.input_price_per_mtok is not None else 'unknown'}/Mtok "
+                    f"out={f.output_price_per_mtok if f.output_price_per_mtok is not None else 'unknown'}/Mtok"
+                )
                 continue
             src = "" if f.aa_source.startswith("aa@") else f" [{f.aa_source}·声明值]"
             lines.append(

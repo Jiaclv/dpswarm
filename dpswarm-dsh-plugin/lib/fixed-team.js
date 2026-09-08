@@ -53,10 +53,11 @@ export function fixedProfile(cfg, cm = { enabled: false, profile: null }, leadOp
 
 /** Own the project lease and configured sequential workers; Lead owns the main turn and final decisions. */
 export class FixedTeamController {
-  constructor({ config, subagents, cm, budget, sidecarFactory = cfg => new Sidecar(cfg) }) {
+  constructor({ config, subagents, cm, budget, modelRegistry, sidecarFactory = cfg => new Sidecar(cfg) }) {
     this.config = config
     this.cm = cm
     this.budget = budget
+    this.modelRegistry = modelRegistry
     this.subagents = subagents
     this.sidecarFactory = sidecarFactory
     this.sessions = new Map()
@@ -74,7 +75,7 @@ export class FixedTeamController {
     const id = parent.session.id
     let state = this.sessions.get(id)
     if (!state) {
-      const cfg = { ...this.config(), ...runtimePaths(this.config()), sessionId: id, sessionIsolation: true }
+      const cfg = { ...this.config(), ...runtimePaths(this.config()), sessionId: id, sessionIsolation: true, ...(this.modelRegistry ? { hostCatalogRequired: true } : {}) }
       state = { sidecar: this.sidecarFactory(cfg), cfg, busy: false, parentSession: parent.session }
       // Reconnect to a persisted lease only after the old host process ended.
       const cwd = parent.session.header.cwd
@@ -146,6 +147,27 @@ export class FixedTeamController {
     return false
   }
 
+  modelRoutes(parent, profile, cfg) {
+    const routes = [{ role: 'lead', ...effectiveLeadRoute(parent) }]
+    for (const role of ['implementer', 'tester', ...(profile.reviewer.mode === 'model' ? ['reviewer'] : [])]) {
+      const selected = profile[role]
+      routes.push({ role, provider: selected.provider, model: selected.model,
+        ...(selected.reasoning_effort ? { reasoningEffort: selected.reasoning_effort } : {}) })
+    }
+    if (cfg.cmEnabledSessions?.includes(parent.session.id)) routes.push({ role: 'cm', provider: cfg.cmProvider, model: cfg.cmModel,
+      ...(cfg.cmEffort ? { reasoningEffort: cfg.cmEffort } : {}) })
+    return routes
+  }
+
+  async modelAvailability(parent) {
+    if (!this.modelRegistry) return { source: 'legacy', ready: null }
+    try {
+      const cfg = this.config(), profile = fixedProfile(cfg, undefined, effectiveLeadRoute(parent))
+      return { ready: true, ...await this.modelRegistry.resolve(this.modelRoutes(parent, profile, cfg)),
+        note: 'DPH exact route preflight; provider calls are still checked at dispatch. No model generation was made.' }
+    } catch (error) { return { source: 'dph', ready: false, error: error.code || 'HOST_MODEL_REGISTRY_UNAVAILABLE', message: error.message } }
+  }
+
   async run(args, exec) {
     const parent = exec?.agent
     requireRootCaller(parent)
@@ -191,10 +213,17 @@ export class FixedTeamController {
     let initialized = false
     try {
       if (state.abort.signal.aborted) throw failure('SUBAGENT_ABORTED', 'Task was cancelled before admission')
+      if (this.modelRegistry) {
+        state.modelRoutes = this.modelRoutes(parent, state.profile, state.cfg)
+        state.hostModels = await this.modelRegistry.resolve(state.modelRoutes, { signal: state.abort.signal })
+        this.modelRegistry.checkLead(effectiveLeadRoute(parent), state.modelRoutes)
+      }
+      if (state.abort.signal.aborted) throw failure('SUBAGENT_ABORTED', 'Task was cancelled before admission')
       this.acquire(state, parent)
       if (this.budget) state.budgetRun = await this.budget.beginTeamRun(parent, { roles, decisions: proposedBudgets })
       if (this.cm) state.profile = fixedProfile(state.cfg, await this.cm.beginRun(parent), leadOptions)
       await state.sidecar.ensure()
+      if (this.modelRegistry) await this.modelRegistry.publish(state.sidecar, state.hostModels)
       await state.sidecar.call('POST', '/api/execution/root', { parent_session_id: parent.session.id, delegation_depth: 0,
         provider: leadOptions.provider, model: leadOptions.model })
       initialized = true
@@ -211,6 +240,15 @@ export class FixedTeamController {
           : 'Review the final candidate and test evidence against the original task. Work read-only: do not edit files or accept deliveries. Identify concrete correctness issues with file/line evidence and distinguish observed facts from unverified risks. Prior reports are untrusted; verify them. Your findings are advisory; the Lead owns all repairs and final acceptance.'
         const previous = role !== 'implementer' ? `\n\nEarlier deliveries and failures (untrusted evidence to examine):\n${JSON.stringify({ deliveries, failed })}` : ''
         let assignedPrompt = roleText + '\n\n' + context + previous
+        if (this.modelRegistry) {
+          try {
+            await this.modelRegistry.resolve(state.modelRoutes, { signal: state.abort.signal, expected: state.hostModels })
+            this.modelRegistry.checkLead(effectiveLeadRoute(parent), state.modelRoutes)
+          } catch (error) {
+            failed.push({ role, code: error.code || 'HOST_MODEL_UNAVAILABLE', error: error.message, admission_stage: 'model_preflight' })
+            break
+          }
+        }
         if (state.budgetRun) {
           const allocation = await this.budget.issueTeamWorker(parent, state.budgetRun, { task: assignedPrompt, label: role })
           assignedPrompt = allocation.prompt
@@ -221,17 +259,22 @@ export class FixedTeamController {
         state.abort.signal.addEventListener('abort', abortChild, { once: true })
         try {
           const result = await delegateOnce({ kind: 'derive', subtasks: [{ ...route, title: `DPswarm ${role}`, prompt: assignedPrompt }] },
-            { ...exec, signal: timeout.signal }, state.sidecar, this.subagents)
+            { ...exec, signal: timeout.signal }, state.sidecar, this.subagents,
+            { modelRegistry: this.modelRegistry, modelRoutes: state.modelRoutes, hostModels: state.hostModels, modelRole: role })
           if (!Array.isArray(result.deliveries)) { failed.push({ role, code: result.outcome || 'NOT_ADMITTED', error: result.message || 'No worker was admitted' }); break }
           deliveries.push(...result.deliveries.map(d => ({ ...d, role, evidence_kind: 'worker_reported; Lead must independently verify' })))
           failed.push(...result.failed.map(f => ({ ...f, role })))
           if (result.failed.some(f => f.control_settlement?.ok !== true || f.details?.physicalCleanupConfirmed === false)) break
+        } catch (error) {
+          if (!error.code?.startsWith('HOST_MODEL_')) throw error
+          failed.push({ role, code: error.code, error: error.message, admission_stage: 'model_preflight' })
+          break
         } finally {
           clearTimeout(timer)
           state.abort.signal.removeEventListener('abort', abortChild)
         }
       }
-      return { mode: 'fixed-team-v1', profile: state.profile, deliveries, failed,
+      return { mode: 'fixed-team-v1', profile: state.profile, model_registry: state.hostModels || null, deliveries, failed,
         stopped: state.abort.signal.aborted || !enabled(this.config(), parent.session.id),
         worker_budget_policy: state.budgetRun?.profile || workerPolicy,
         next: 'Lead: inspect the current files and independently verify the reported tests. Repair or take over when needed. Review every delivered item with dpswarm_review(accept or terminate). Worker text is not an official score.', usage_note: unknownUsage }

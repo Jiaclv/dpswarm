@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { setImmediate as nextTurn } from 'node:timers/promises'
 import { FixedTeamController, fixedProfile } from '../lib/fixed-team.js'
+import { HostModelRegistry } from '../lib/host-model-registry.js'
 import { CMRuntime } from '../lib/cm-runtime.js'
 import { MemoryAuditJournal } from './helpers/memory-audit.mjs'
 import { installBudget } from '../lib/budget.js'
@@ -415,4 +416,58 @@ test('worker without selected effort never inherits startup high; root metadata 
   const registrations=h.calls.filter(c=>c.path==='/api/execution/root')
   assert.ok(registrations.length>=4)
   assert.ok(registrations.every(c=>c.body.provider==='glmcp' && c.body.model==='glm-5.3-flash'))
+})
+
+
+test('DPH-resolved new model reaches real team delegation without AA membership', async t => {
+  const h=fixture(t)
+  h.cfg.implMode='lead'
+  h.parent.session.route={provider:'deepseek-official',model:'deepseek-v4.1-flash-expires-on-0910',reasoningEffort:'max'}
+  h.controller.modelRegistry=new HostModelRegistry(()=>({async resolveCallConfig(input){return {...input}}}))
+  const running=h.controller.run({task:'write the requested artifact'},h.exec)
+  await nextTurn();assert.equal(h.children.length,1)
+  assert.equal(h.children[0].request.agentOptions.model,'deepseek-v4.1-flash-expires-on-0910')
+  assert.equal(h.children[0].request.agentOptions.reasoningEffort,'max')
+  const firstCatalog=h.calls.findIndex(c=>c.path==='/api/models/host-catalog')
+  const firstRoot=h.calls.findIndex(c=>c.path==='/api/execution/root')
+  assert.ok(firstCatalog>=0 && firstCatalog<firstRoot)
+  assert.ok(h.calls[firstCatalog].body.models.some(m=>m.provider==='deepseek-official' && m.model==='deepseek-v4.1-flash-expires-on-0910'))
+  h.finish(0);await nextTurn();assert.equal(h.children.length,2);h.finish(1)
+  const result=await running
+  assert.deepEqual(result.deliveries.map(x=>x.role),['implementer','tester'])
+  assert.equal(result.model_registry.availability_source,'host-resolved')
+  for(const d of result.deliveries) await h.controller.review({item_id:d.item_id,verdict:'accept'},h.exec)
+})
+
+test('host model rejection creates no worker, sidecar item, lease or budget allocation', async t => {
+  const h=fixture(t);let budgetStarts=0
+  h.controller.budget={async beginTeamRun(){budgetStarts++}}
+  h.controller.modelRegistry=new HostModelRegistry(()=>({async resolveCallConfig(){throw Object.assign(new Error('unavailable'),{code:'UNKNOWN_MODEL'})}}))
+  await assert.rejects(h.controller.run({task:'work'},h.exec),{code:'HOST_MODEL_UNAVAILABLE'})
+  assert.equal(h.children.length,0);assert.equal(h.calls.length,0);assert.equal(budgetStarts,0)
+  assert.ok(!h.controller.sessions.get('parent').lease)
+})
+
+
+test('same model in different roles keeps the role-specific reasoning effort', async t => {
+  const h=fixture(t)
+  h.cfg.implMode='lead';h.parent.session.route={provider:'gpt',model:'sol',reasoningEffort:'max'}
+  h.cfg.testProvider='gpt';h.cfg.testModel='sol';h.cfg.testEffort=''
+  h.controller.modelRegistry=new HostModelRegistry(()=>({async resolveCallConfig(input){return {...input,reasoningEffort:input.reasoningEffort??'high'}}}))
+  const running=h.controller.run({task:'work'},h.exec)
+  await nextTurn();assert.equal(h.children[0].request.agentOptions.reasoningEffort,'max')
+  h.finish(0);await nextTurn();assert.equal(h.children[1].request.agentOptions.reasoningEffort,'high');h.finish(1)
+  assert.equal((await running).deliveries.length,2)
+})
+
+for (const change of ['provider-removed','lead-changed']) test(`${change} before tester preserves implementation and skips new allocation`, async t => {
+  const h=fixture(t);let available=true,allocations=0
+  h.controller.budget={async beginTeamRun(){return {profile:{mode:'unlimited'}}},async issueTeamWorker(_parent,_run,{task}){allocations++;return {prompt:task}},async finishTeamRun(){}}
+  h.controller.modelRegistry=new HostModelRegistry(()=>({async resolveCallConfig(input){if(!available)throw new Error('removed');return {...input}}}))
+  const running=h.controller.run({task:'work'},h.exec);await nextTurn();assert.equal(h.children.length,1)
+  if(change==='provider-removed')available=false;else h.parent.session.route={...h.parent.session.route,reasoningEffort:'max'}
+  h.finish(0);const result=await running
+  assert.equal(h.children.length,1);assert.equal(allocations,1);assert.equal(result.deliveries.length,1)
+  assert.equal(result.failed[0].role,'tester');assert.match(result.failed[0].code,/^HOST_MODEL_/)
+  await h.controller.review({item_id:result.deliveries[0].item_id,verdict:'accept'},h.exec)
 })

@@ -163,3 +163,10 @@ Python 首次全量检查因系统 pytest 临时目录 WinError 5 出现 337 个
 0.7.0 最终宿主闭环：真实 Lead `dpswarm_models → dpswarm_run → dpswarm_review → dpswarm_status`、真实 Python 会话控制面与两个原生 child 已通过。两个角色采用 Lead 选择的不同额度；实现者开始后更改全局手动额度，测试者仍沿用原 Auto 分配；两项交付验收后项目 lease 释放。此探针使用本地响应，外部模型调用为 0。日常 DPH 预算设置另有 6 项实际页面检查通过（保存、重新进入、三模式与其他角色/开关保留），证据 `.tmp/worker-budget-host-20260908/daily-budget-ui.json`。
 
 旧默认运行目录有 8 项待处理 lease，原目录与旧记录完整保留。0.7.0 本轮使用独立运行目录 `tihu test/dph-budget-comparison-20260908/runtime` 与本地 8793 控制服务，通过安装器支持的独立状态目录安装；不是强行清除旧任务锁。日常 Settings 显式记录新运行目录、Python 包路径与端口；迁移前后值保存在 `runtime-migration.json`。新实验只有完整通过代码、宿主和设置哈希门槛后才派发。
+
+
+## 0.7.3：DPH 模型注册接入（2026-09-08）
+
+源码检查已通过：Node插件154项，Python控制服务511项；包含新模型不依赖AA即可进入固定团队、Provider撤销、角色推理强度、已交付结果在撤销与重启后继续验收。另有4个原生宿主/冷恢复受控场景通过；均未调用外部模型。新增跨语言集成使用真实本地HTTP侧服务与Fixture子角色，不能称作真实模型效果实验。
+
+可复现入口：`node --test dpswarm-dsh-plugin/tests/*.test.mjs`、`python -m pytest dpswarm-plugin/tests`。本轮原生输出独立存入 `tihu test/dph-timeout60-teamcm-20260908/upgrade-evidence/20260908T104247Z-e16e8c99/PROBES.json`，旧0.7.2记录未覆盖。宿主安装与切换已由本批专属 `HOST_VALIDATION_0.7.3.json` 核验：安装文件与源码一致，宿主和新 sidecar 均在安装完成后启动。已发布[去除本机配置的验证摘要](../reports/2026-09-08/host-model-registry/README.md)；此前实验记录保持原版本。

@@ -14,9 +14,10 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from .server import Handler, PanelState, MAX_BODY_BYTES
+from .control import ControlPlaneError
 from .plugin_audit import PluginAuditError, PluginAuditStore, _strict_json, validate_transaction
 
-BRIDGE = {"protocol": "dpswarm-dsh-fixed-v1", "session_isolation": True, "plugin_audit_v1": True,
+BRIDGE = {"protocol": "dpswarm-dsh-fixed-v1", "session_isolation": True, "plugin_audit_v1": True, "host_catalog_v1": True,
           "context_management": "DSH plugin owns optional CM; query dpswarm_status for session enablement and adoption"}
 
 
@@ -79,6 +80,53 @@ class SessionHub:
 
 
 class SessionHandler(Handler):
+    def _host_catalog(self):
+        self.state = self.server.hub.root
+        if not self._origin_allowed():
+            self._forbid()
+            return
+        if not self._authorized():
+            self._unauthorized()
+            return
+        session_id = self.headers.get("X-DPSwarm-Session")
+        if not session_id:
+            self._json({"ok": False, "error": "SESSION_REQUIRED"}, 400)
+            return
+        try:
+            if self.headers.get("Transfer-Encoding"):
+                raise ControlPlaneError("HOST_CATALOG_INVALID", "Chunked catalog bodies are unsupported")
+            try:
+                length = int(self.headers.get("Content-Length") or "0")
+            except ValueError as exc:
+                raise ControlPlaneError("HOST_CATALOG_INVALID", "Invalid Content-Length") from exc
+            if length > MAX_BODY_BYTES:
+                self._json({"ok": False, "error": "BODY_TOO_LARGE"}, 413)
+                return
+            if length < 1:
+                raise ControlPlaneError("HOST_CATALOG_INVALID", "A host catalog body is required")
+            raw = self.rfile.read(length)
+            if len(raw) != length:
+                raise ControlPlaneError("HOST_CATALOG_INVALID", "Incomplete host catalog body")
+            try:
+                body = _strict_json(raw)
+            except (ValueError, UnicodeError, RecursionError) as exc:
+                raise ControlPlaneError("HOST_CATALOG_INVALID", "Invalid UTF-8 JSON host catalog") from exc
+            # Validate before creating control state for an invalid request.
+            PanelState.validate_host_catalog(body)
+            try:
+                state = self.server.hub.get(session_id, create=True)
+            except ValueError as exc:
+                self._json({"ok": False, "error": "INVALID_SESSION", "message": str(exc)}, 400)
+                return
+            self.state = state
+            self._json(state.sync_host_catalog(body))
+        except ControlPlaneError as exc:
+            status = 503 if exc.code == "HOST_CATALOG_STORAGE_UNAVAILABLE" else 400
+            self._json({"ok": False, "error": exc.code, "message": str(exc)}, status)
+        except OSError:
+            self._json({"ok": False, "error": "HOST_CATALOG_STORAGE_UNAVAILABLE",
+                        "message": "Host catalog storage is unavailable"}, 503)
+
     def _plugin_audit(self, write: bool):
         self.state = self.server.hub.root
         if not self._origin_allowed():
@@ -147,6 +195,9 @@ class SessionHandler(Handler):
         except ValueError as error:
             self._json({"ok": False, "error": "INVALID_SESSION", "message": str(error)}, 400)
             return False
+        except ControlPlaneError as error:
+            self._json({"ok": False, "error": error.code, "message": str(error)}, 503)
+            return False
         if state is None:
             if not write and path == "/api/status":
                 self._json({"session_id": session_id, "state": "not_started", "snapshot": None,
@@ -170,6 +221,9 @@ class SessionHandler(Handler):
             super().do_GET()
 
     def do_POST(self):
+        if urlsplit(self.path).path == "/api/models/host-catalog":
+            self._host_catalog()
+            return
         if urlsplit(self.path).path == "/api/plugin-audit":
             self._plugin_audit(True)
             return

@@ -29,6 +29,7 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import hmac
+import hashlib
 import json
 import os
 import secrets
@@ -102,6 +103,137 @@ class PanelState:
                 root_level = self.aa.level_for(entry)
         self.cp = ControlPlane(store_path=workspace / "events.jsonl",
                                catalog=default_catalog(), root_level=root_level)
+        self.host_catalog = None
+        self._host_catalog_failed = False
+        try:
+            self._restore_host_catalog()
+        except BaseException:
+            self.cp.close()
+            raise
+
+    @staticmethod
+    def validate_host_catalog(body):
+        """Trusted DPH backend projection, never model-supplied capability facts."""
+        if not isinstance(body, dict) or set(body) != {"source", "models"} or body["source"] != "dph":
+            raise ControlPlaneError("HOST_CATALOG_INVALID", "Expected exactly source=dph and models")
+        if not isinstance(body["models"], list) or len(body["models"]) > 4096:
+            raise ControlPlaneError("HOST_CATALOG_INVALID", "models must be an array of at most 4096 entries")
+        pairs = set()
+        for model in body["models"]:
+            if not isinstance(model, dict) or set(model) != {"provider", "model"}:
+                raise ControlPlaneError("HOST_CATALOG_INVALID", "Model entries accept only provider and model")
+            for key in ("provider", "model"):
+                value = model[key]
+                if (not isinstance(value, str) or not value or value != value.strip()
+                        or len(value) > 512 or any(ord(c) < 32 or ord(c) == 127 for c in value)
+                        or (key == "provider" and "/" in value)):
+                    raise ControlPlaneError("HOST_CATALOG_INVALID", "Invalid exact provider/model identifier")
+            pair = (model["provider"], model["model"])
+            if pair in pairs:
+                raise ControlPlaneError("HOST_CATALOG_INVALID", "Duplicate provider/model entry")
+            pairs.add(pair)
+        return [{"provider": p, "model": m} for p, m in sorted(pairs)]
+
+    @staticmethod
+    def _catalog_bytes(value):
+        return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
+
+    def _catalog_identity(self):
+        return {"version": 1, "scope_session_id": getattr(self, "host_session_id", None)}
+
+    def _restore_host_catalog(self):
+        from .plugin_audit import _strict_json
+        marker = self.workspace / "host-model-catalog.required"
+        path = self.workspace / "host-model-catalog.json"
+        if not marker.exists() and not path.exists():
+            return
+        try:
+            if _strict_json(marker.read_bytes()) != self._catalog_identity():
+                raise ValueError("Host catalog identity mismatch")
+            saved = _strict_json(path.read_bytes())
+            if not isinstance(saved, dict) or set(saved) != {"snapshot", "sha256"}:
+                raise ValueError("Invalid host catalog envelope")
+            snapshot = saved["snapshot"]
+            if not isinstance(snapshot, dict) or set(snapshot) != {"version", "scope_session_id", "source", "revision", "models"}:
+                raise ValueError("Invalid host catalog snapshot")
+            if any(snapshot.get(k) != v for k, v in self._catalog_identity().items()):
+                raise ValueError("Host catalog scope mismatch")
+            if type(snapshot["revision"]) is not int or snapshot["revision"] < 1:
+                raise ValueError("Invalid host catalog revision")
+            if saved["sha256"] != hashlib.sha256(self._catalog_bytes(snapshot)).hexdigest():
+                raise ValueError("Host catalog checksum mismatch")
+            models = self.validate_host_catalog({"source": snapshot["source"], "models": snapshot["models"]})
+            if models != snapshot["models"]:
+                raise ValueError("Noncanonical host catalog")
+            self._install_host_catalog(snapshot)
+        except (OSError, ValueError, TypeError, KeyError, ControlPlaneError) as exc:
+            raise ControlPlaneError("HOST_CATALOG_STORAGE_UNAVAILABLE", "Host catalog is missing or corrupt; refusing legacy fallback") from exc
+
+    def _install_host_catalog(self, snapshot):
+        # AA is independent metadata only; temporary IDs must never be normalized.
+        aa_models = self.aa.data.get("models", {}) if self.aa is not None else {}
+        if not isinstance(aa_models, dict):
+            aa_models = {}
+        for key, facts in list(self.cp.catalog.facts.items()):
+            if facts.provider != "mock":
+                self.cp.catalog.facts[key] = dataclasses.replace(facts, available=False)
+        for pair in snapshot["models"]:
+            model = pair["model"]
+            entries = [v for k, v in aa_models.items() if isinstance(v, dict)
+                       and (k == model or (isinstance(v.get("aliases"), list) and model in v["aliases"]))]
+            entry = entries[0] if len(entries) == 1 else None
+            self.cp.catalog.register(ModelFacts(
+                pair["provider"], model, Level.B,
+                aa_dimensional=self.aa.dimensions(entry) if entry is not None else {},
+                aa_source=self.aa.source_tag() if entry is not None else "unknown",
+                context_window=None, input_price_per_mtok=None, output_price_per_mtok=None,
+                level_source="fixed-team-policy", availability_source="host-resolved", point_weight=2))
+        self.host_catalog = snapshot
+
+    def sync_host_catalog(self, body):
+        models = self.validate_host_catalog(body)
+        with self.cp._lock:
+            if self._host_catalog_failed:
+                raise ControlPlaneError("HOST_CATALOG_STORAGE_UNAVAILABLE", "Host catalog persistence previously failed")
+            if self.host_catalog is not None and models == self.host_catalog["models"]:
+                return self.host_catalog_status()
+            snapshot = {**self._catalog_identity(), "source": "dph", "revision":
+                        1 if self.host_catalog is None else self.host_catalog["revision"] + 1, "models": models}
+            marker = self.workspace / "host-model-catalog.required"
+            path = self.workspace / "host-model-catalog.json"
+            temporary = path.with_name(path.name + "." + secrets.token_hex(12) + ".tmp")
+            envelope = {"snapshot": snapshot, "sha256": hashlib.sha256(self._catalog_bytes(snapshot)).hexdigest()}
+            try:
+                if not marker.exists():
+                    with marker.open("xb") as file:
+                        file.write(self._catalog_bytes(self._catalog_identity())); file.flush(); os.fsync(file.fileno())
+                with temporary.open("xb") as file:
+                    file.write(self._catalog_bytes(envelope)); file.flush(); os.fsync(file.fileno())
+                os.replace(temporary, path)
+                if os.name != "nt":
+                    directory = os.open(self.workspace, os.O_RDONLY)
+                    try: os.fsync(directory)
+                    finally: os.close(directory)
+            except OSError as exc:
+                self._host_catalog_failed = True
+                raise ControlPlaneError("HOST_CATALOG_STORAGE_UNAVAILABLE", "Host catalog replacement was not acknowledged") from exc
+            finally:
+                if temporary.exists():
+                    temporary.unlink()
+            self._install_host_catalog(snapshot)
+            return self.host_catalog_status()
+
+    def host_catalog_status(self):
+        if self.host_catalog is None:
+            return None
+        return {"ok": True, "source": "dph", "session_id": getattr(self, "host_session_id", None),
+                "revision": self.host_catalog["revision"], "models": self.host_catalog["models"],
+                "availability_source": "host-resolved", "level_source": "fixed-team-policy",
+                "operating_level": "B", "worker_point_weight": 2}
+
+    @staticmethod
+    def _route_points(facts):
+        return facts.point_weight if facts.point_weight is not None else max(1, facts.context_window // 64_000)
 
     @staticmethod
     def _load_or_create_token(workspace: Path) -> str:
@@ -133,10 +265,13 @@ class PanelState:
             "spec": dataclasses.asdict(p.spec),
             "spec_revisions": sorted(p.spec_revisions.keys()),
             "aa_snapshot": self.aa.meta() if self.aa else None,
+            "host_catalog": self.host_catalog_status(),
             "catalog": [
                 {"provider": f.provider, "model": f.model, "level": f.level.value,
                  "aa": f.aa_dimensional, "src": f.aa_source, "ctx": f.context_window,
-                 "in": f.input_price_per_mtok, "out": f.output_price_per_mtok}
+                 "in": f.input_price_per_mtok, "out": f.output_price_per_mtok,
+                 "available": f.available, "level_source": f.level_source,
+                 "availability_source": f.availability_source, "point_weight": f.point_weight}
                 for f in p and self.cp.catalog.facts.values()
             ],
         }
@@ -206,11 +341,16 @@ class PanelState:
             provider = MockProvider(script=list(mock_script))
         elif model:
             prov, name = model.split("/", 1)
-            facts = register_route_model(self.cp.catalog, self.aa, prov, name,
-                                         aa_hint={"coding": 8.0})
+            if self.host_catalog is not None or self._host_catalog_failed:
+                with self.cp._lock:
+                    self._route_from_subtask({"provider": prov, "model": name})
+                facts = self.cp.catalog.resolve(prov, name)
+            else:
+                facts = register_route_model(self.cp.catalog, self.aa, prov, name,
+                                             aa_hint={"coding": 8.0})
             provider = OpenAICompatProvider()
             lead = ModelRoute(prov, name, level=facts.level,
-                              point_weight=max(1, facts.context_window // 64_000))
+                              point_weight=self._route_points(facts))
         else:
             # 默认演示脚本：single 直通（不依赖外部模型即可看到完整链）
             provider = MockProvider(script=[
@@ -273,7 +413,14 @@ class PanelState:
         if errors:
             raise ControlPlaneError("BAD_SUBTASK", "invalid agent subtask", errors=errors)
         provider, model = st["provider"], st["model"]
+        if self._host_catalog_failed:
+            raise ControlPlaneError("HOST_CATALOG_STORAGE_UNAVAILABLE", "Host catalog persistence failed")
+        host_managed = self.host_catalog is not None and provider != "mock"
+        if host_managed and {"provider": provider, "model": model} not in self.host_catalog["models"]:
+            raise ControlPlaneError("MODEL_UNAVAILABLE", f"{provider}/{model} is absent from the current host catalog")
         facts = self.cp.catalog.resolve(provider, model)
+        if host_managed and (facts is None or facts.level_source != "fixed-team-policy"):
+            raise ControlPlaneError("MODEL_UNAVAILABLE", "Host model facts are unavailable")
         if facts is None:
             entry = self.aa.lookup(model) if self.aa is not None else None
             if entry is None:
@@ -298,7 +445,7 @@ class PanelState:
             reasoning_effort=st.get("reasoning_effort", "default"),
             level=facts.level,
             source=RouteSource.ROUTE_LEAD,
-            point_weight=max(1, facts.context_window // 64_000))
+            point_weight=self._route_points(facts))
         return "lead", route
 
     def _register_agent_routes(self, routes: list[ModelRoute]) -> None:
@@ -318,6 +465,15 @@ class PanelState:
                 "execution_binding": n.execution_binding}
 
     def delegate(self, body: Dict[str, Any]) -> Tuple[bool, Dict[str, Any]]:
+        # Replacements and admission share one lock, so acknowledged removal
+        # cannot race a new admission. Settlement/review remain independent.
+        with self.cp._lock:
+            if self.host_catalog is not None and isinstance(body, dict) and body.get("kind") in {"fission", "split"}:
+                return False, {"ok": False, "error": "HOST_CATALOG_FIXED_TEAM_ONLY",
+                               "message": "Host catalog fixed-team policy does not authorize topology escalation"}
+            return self._delegate(body)
+
+    def _delegate(self, body: Dict[str, Any]) -> Tuple[bool, Dict[str, Any]]:
         """拓扑动作 + 硬准入（§7）：两模式——
         新建：kind + subtasks（可带 deps 0 基下标，§7 DAG；未就绪项不启动、
         列入 pending）；重跑：item_id + subtask（§8 归因重试执行臂 / §7 超时
