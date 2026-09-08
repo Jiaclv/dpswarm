@@ -1,6 +1,6 @@
 {
   "plugin_version": "0.7.4",
-  "validated_at": "2026-09-08T12:08:27.716369+00:00",
+  "validated_at": "2026-09-08T12:11:56.130990+00:00",
   "scope": "Engineering validation in isolated native DSH; no production deployment claim or quality/cost uplift claim.",
   "host_version": "0.1.1-rc.2",
   "external_model_calls": 0,
@@ -8,7 +8,7 @@
     "passed": 229,
     "failed": 0,
     "skipped": 0,
-    "log_sha256": "3783f1275e402b9c7c2cd8b93704c03db1554830534a925c00c93e418155d21a"
+    "log_sha256": "11beda27569db3a829a85bb5f705c2aa3f47b0a7bf63e62e16e7abf368769df2"
   },
   "python_tests": {
     "passed": 512,
@@ -36,7 +36,7 @@
       ],
       "native_session_exports": 3,
       "local_provider_calls": 10,
-      "validation_sha256": "ed868eecb2a98d056650715c8a7f928c42ce03da7c2228328551392543eb1242"
+      "validation_sha256": "080be49b91db2c35ec0082e4de13e69ced3909aa4c1c641e92b6f1b74062bfa9"
     },
     {
       "case": "auto",
@@ -59,7 +59,7 @@
       ],
       "native_session_exports": 3,
       "local_provider_calls": 10,
-      "validation_sha256": "02c565275f3b349ae7d1c1682bb3d77cd9d4a169e08caf5b9078cf42168b72ea"
+      "validation_sha256": "6def159bcf2bc015852ef4969bfb732b8b0b1510793df1bee1eb70234f969f8e"
     },
     {
       "case": "unlimited",
@@ -82,7 +82,7 @@
       ],
       "native_session_exports": 3,
       "local_provider_calls": 12,
-      "validation_sha256": "e4e8b306a5dff791b5a7d69ff7dd6b36c0a20f964e227335708123cc46334d1f"
+      "validation_sha256": "96348627705dc6f9fa0c94415ca38d11770c64162bff7119538781096cd3eefd"
     },
     {
       "case": "code",
@@ -105,7 +105,7 @@
       ],
       "native_session_exports": 3,
       "local_provider_calls": 10,
-      "validation_sha256": "c59ad5b8b8b895e438ab68328647b671f61615b14ac8cbe46883bc43dfa238c8"
+      "validation_sha256": "61c2660fdab0d59b5c8410a27d58cb79d3e6c900660468ffde4d675cf0abd367"
     },
     {
       "case": "text_only",
@@ -113,10 +113,10 @@
       "workers": [],
       "native_session_exports": 1,
       "local_provider_calls": 2,
-      "validation_sha256": "930b6e2d3f89327207e8b521d3d086ae0abf07e0569dce79e4e211548b57d88d"
+      "validation_sha256": "6729f0f2b593d57682a46e9db3a09bffe5fe743db27f2cb108f53997096653a0"
     }
   ],
-  "native_receipt_sha256": "300e94e45139a0984c05a47c01dc507c195d35d76d589b4c4af27a1478a11750",
+  "native_receipt_sha256": "b43a280534f7d8340fca40f4e8a0c22756caa5caf63568782d9a70cd37923d31",
   "native_source_file_count": 49,
   "native_source_hashes": {
     "dpswarm-dsh-plugin/lib/audit.js": "3e4b5d91457ff8ee4da30bdaaeb56c05df204a924ef4a09366def1c4e17ccc6a",
@@ -135,7 +135,7 @@
     "dpswarm-dsh-plugin/lib/sidecar.js": "c6221a9ea043c89c908a653fda02b3f57b01feac05a84fc0d923f0f0f604f6d0",
     "dpswarm-dsh-plugin/lib/subagent-run.js": "5795566d126af7fe26e2b52e359f87de374e01d75d341d2fff902e8e1d1ddeba",
     "dpswarm-dsh-plugin/lib/team-dispatch.js": "939d9759cc4d84a1c0e32ebb1a3a5c9877fb56b192ff59fac71f3e59f97b1ea0",
-    "dpswarm-dsh-plugin/lib/team-required.js": "249cef3a320e3a3e43f844ce718f6e56c1573bd5dd34ff60f440173bd966f560",
+    "dpswarm-dsh-plugin/lib/team-required.js": "6849ed64f5e54ce9236116b5aabd37aed643ee406ef58e78286821f567ca5afc",
     "dpswarm-plugin/dpswarm/aa.py": "f4d1486e39862efd4e6a93c67638530d799b745af9ca32ec625a6de442cf7b1c",
     "dpswarm-plugin/dpswarm/cli.py": "afc8db3f80a33aac94aa68c6fde0fd9ef350182868ffede824904ae608ba800e",
     "dpswarm-plugin/dpswarm/control.py": "1157f76aa85727d54db01ec983b01574e966fe1aff6b79eaf06612db01c218f1",
@@ -185,7 +185,7 @@
     "dpswarm-dsh-plugin/lib/sidecar.js": "888597c23aa2a73444e8e4f97e684c11852cd2e9e434a0efd8ced2eb6b98bc2a",
     "dpswarm-dsh-plugin/lib/subagent-run.js": "30233ebb66d2479efaf4b17b346fc071c85aef37bfcce96dce5ac280a25ec6d9",
     "dpswarm-dsh-plugin/lib/team-dispatch.js": "939d9759cc4d84a1c0e32ebb1a3a5c9877fb56b192ff59fac71f3e59f97b1ea0",
-    "dpswarm-dsh-plugin/lib/team-required.js": "249cef3a320e3a3e43f844ce718f6e56c1573bd5dd34ff60f440173bd966f560",
+    "dpswarm-dsh-plugin/lib/team-required.js": "6849ed64f5e54ce9236116b5aabd37aed643ee406ef58e78286821f567ca5afc",
     "dpswarm-plugin/dpswarm/aa.py": "586409873df75b70b14ca317101451c9f6725326e5c20a09d4899ee7a6713d34",
     "dpswarm-plugin/dpswarm/cli.py": "b2c2fa9280b9c1c6b76e2cb1dac342d1638c2f2738430cbe78665637aec79e9a",
     "dpswarm-plugin/dpswarm/control.py": "26d0e84651834201c8e2c66b954b16df1cf5d6735c4d09ffe210bdb857c29222",
