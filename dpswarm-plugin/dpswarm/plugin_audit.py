@@ -23,8 +23,9 @@ IDENTIFIER = re.compile(r"[A-Za-z0-9_.:-]{1,160}\Z")
 EVENT_TYPES = frozenset({
     *("dpswarm/worker-budget-" + suffix for suffix in (
         "allocation", "allocation-bound", "team-run", "team-run-ended",
-        "frozen", "failure", "admitted", "settled", "closeout", "denied")),
+        "frozen", "failure", "admitted", "settled", "closeout", "denied", "rework-revoked")),
     "dpswarm/worker-diagnostic",
+    "dpswarm/fixed-team-binding", "dpswarm/worker-rework",
     "dpswarm/route-bound",
     *("dpswarm/team-required-" + suffix for suffix in ("bound", "started", "finished")),
     "dpswarm/cm-team", "dpswarm/cm-start", "dpswarm/cm-end", "dpswarm/cm-usage",

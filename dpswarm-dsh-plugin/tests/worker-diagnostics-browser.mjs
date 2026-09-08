@@ -39,7 +39,7 @@ await new Promise(resolveServer => server.listen(0, '127.0.0.1', resolveServer))
 const workers = [
   { session_id: 'impl', role: 'implementer', mode: 'manual', phase: 'working', observed_tokens_lower_bound: 12345, unknown_usage_calls: 1, calls_used: 3, remaining_tokens: 87655, remaining_calls: 2, candidate_count: 0 },
   { session_id: 'test', role: 'tester', mode: 'auto', phase: 'closing', observed_tokens_lower_bound: null, unknown_usage_calls: 1, calls_used: 1, remaining_tokens: 0, remaining_calls: 1, code: 'WORKER_CLOSEOUT_FINAL_ONLY', candidate_count: 1 },
-  { session_id: 'review', role: 'reviewer', mode: 'unlimited', phase: 'completed', observed_tokens_lower_bound: 500, unknown_usage_calls: 0, calls_used: 1, candidate_count: 2 },
+  { session_id: 'review', role: 'implementer', attempt_kind: 'rework', rework_round: 1, mode: 'unlimited', phase: 'completed', observed_tokens_lower_bound: 500, unknown_usage_calls: 0, calls_used: 1, candidate_count: 2 },
   { session_id: 'failed', role: 'implementer', mode: 'manual', phase: 'failed', observed_tokens_lower_bound: 0, unknown_usage_calls: 0, calls_used: 0, remaining_tokens: 6000, remaining_calls: 6, code: 'WORKER_TOKEN_RESERVATION_DENIED', candidate_count: 1 },
 ]
 const checks = [], errors = [], blocked = []
@@ -63,8 +63,9 @@ try {
   await page.locator('#session-a button').click()
   const status = page.getByLabel('子代理执行状态', { exact: true })
   await status.getByText('正在收尾', { exact: true }).waitFor()
-  await status.getByText('需 Lead 接管', { exact: true }).waitFor()
+  await status.getByText('未完成 · 待处理', { exact: true }).waitFor()
   await status.getByText('报告已返回', { exact: true }).waitFor()
+  await status.getByText('实现者 · 返工 1', { exact: true }).waitFor()
   assert.equal(await status.getByText('累计 12,345+ token（部分用量未知） · 3 次调用', { exact: true }).count(), 1)
   assert.equal(await status.getByText('累计 未知+ token（部分用量未知） · 1 次调用', { exact: true }).count(), 1)
   assert.equal(await status.getByText('剩余 87,655 token · 2 次', { exact: true }).count(), 1)
@@ -77,7 +78,7 @@ try {
   assert.equal(await status.getByText('收尾阶段只提交报告', { exact: true }).count(), 1)
   assert.equal(await status.getByText('剩余 token 不足以发送下一次完整请求', { exact: true }).count(), 1)
   assert.equal(await status.getByText('已记录 1 条文件候选记录；由 Lead 核验当前文件', { exact: true }).count(), 2)
-  assert.equal(await status.getByText(/候选.*完成|文件.*完成/).count(), 0, 'candidate evidence must not be presented as completion')
+  assert.equal(await status.locator('p').filter({ hasText: /候选.*(?:已完成|已通过)|文件.*(?:已完成|已通过)/ }).count(), 0, 'candidate evidence must not be presented as completion')
   checks.push('known_unknown_closing_failed_and_candidate_semantics')
   const after = await page.evaluate(() => ({ calls: window.calls.slice(), value: structuredClone(window.scope.getSnapshot().value) }))
   assert.deepEqual(after, before, 'opening diagnostics must not mutate settings')

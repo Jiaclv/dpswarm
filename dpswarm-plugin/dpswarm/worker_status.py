@@ -27,7 +27,13 @@ def worker_status(events, root_session_id, snapshot=None):
             profile = data.get("profile") if isinstance(data.get("profile"), dict) else {}
             binding = data.get("policy_binding") if isinstance(data.get("policy_binding"), dict) else {}
             role = binding.get("label")
+            source = binding.get("source_worker_session_id")
+            is_rework = (binding.get("authority") == "fixed-team-rework"
+                         and valid_session_id(source) and source != sid and source != root_session_id)
+            prior_round = workers.get(source, {}).get("rework_round", 0) if is_rework else 0
             workers.setdefault(sid, {
+                "attempt_kind": "rework" if is_rework else "initial",
+                "rework_round": prior_round + 1 if is_rework else 0,
                 "session_id": sid, "role": role if role in ("implementer", "tester", "reviewer") else "worker",
                 "mode": profile.get("mode") if profile.get("mode") in ("manual", "auto", "unlimited") else "unknown",
                 "token_limit": _number(profile.get("tokenLimit")), "call_limit": _number(profile.get("callLimit")),

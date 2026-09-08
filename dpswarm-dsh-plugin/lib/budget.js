@@ -150,6 +150,8 @@ export function installBudget(ctx, configGetter, { journal = new AuditJournal({ 
     beginTeamRun: (parent, options) => runtime.beginTeamRun(parent, options),
     issueTeamWorker: (parent, handle, assignment) => runtime.issueTeamWorker(parent, handle, assignment),
     finishTeamRun: (parent, handle) => runtime.finishTeamRun(parent, handle),
+    issueRework: (parent, options) => runtime.issueRework(parent, options),
+    revokeRework: (parent, allocationId) => runtime.revokeRework(parent, allocationId),
     status: agent => runtime.status(agent),
     shutdown: () => { runtime.shutdown(); for (const fn of dispose) if (typeof fn === 'function') fn() },
   }

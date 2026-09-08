@@ -1,0 +1,131 @@
+{
+  "ready": true,
+  "version": "0.7.7",
+  "at": "2026-09-08T16:13:48.396119+00:00",
+  "source_hashes": {
+    "dpswarm-dsh-plugin/lib/audit.js": "3e4b5d91457ff8ee4da30bdaaeb56c05df204a924ef4a09366def1c4e17ccc6a",
+    "dpswarm-dsh-plugin/lib/budget-advice.js": "be7f08f5f745315d8e6af258e3919d5f0f4e20cb38fdfd8e25a4b99c11b90f17",
+    "dpswarm-dsh-plugin/lib/budget-runtime.js": "cf928df266bbd1d08ad94e4ec904ff4632c8637b0e457861bda11d348a500352",
+    "dpswarm-dsh-plugin/lib/budget.js": "f3ff4d4e7e73a6b139953dc664ac9a57eb68e7d6cb0094c68ed2ad5c157835dc",
+    "dpswarm-dsh-plugin/lib/client.js": "a3d0b8475d70a04a2f1b2b748e4f84e053dcdbb02596f57cccbe24ecc5782c9a",
+    "dpswarm-dsh-plugin/lib/cm-runtime.js": "a430aec99386e88ddba5d1a6bfbafbb82a6518f48c943d652413d9cd0bfa2b0d",
+    "dpswarm-dsh-plugin/lib/cm.js": "d3674ef7241afd30c6b10716df6e6f611ecf8d81686934c97be44e8a405c1ab2",
+    "dpswarm-dsh-plugin/lib/delegation.js": "f675a9a5c97b853bf25f8bbc6eefc82ff87878a17b6003ae32b3ef1057f06bc4",
+    "dpswarm-dsh-plugin/lib/fixed-team.js": "e3e077249dab347243733a78677b18699403cb46c4a28223ad1345ff17d11e1a",
+    "dpswarm-dsh-plugin/lib/host-model-registry.js": "77c3fb5daa87e532ea453a0802fe91e8cbf4fa125afb832779fe7d7f2995bcd2",
+    "dpswarm-dsh-plugin/lib/host-modules.js": "e013befb1d678ca018dfe8ac7f1ab5349e21532b6d40b8b3a861533b7f3608e3",
+    "dpswarm-dsh-plugin/lib/index.js": "825f9e44dbae21bcd7a4e1cd72c706b351835895947a81b57b9425545c21c423",
+    "dpswarm-dsh-plugin/lib/lead-route.js": "fc79c9e3bb515243acddd21efc8843e26da265460a7b75ef8da7dc120d9cb889",
+    "dpswarm-dsh-plugin/lib/paths.js": "9a6da3c582fe3504d18987aeb73e1afb902c92dde51372eca282750ed5a21aba",
+    "dpswarm-dsh-plugin/lib/role-guidance.js": "a697b005504dca6a9790a0a1e1fb5e1089f4da4e67d298e1d697b368cf9c4f1f",
+    "dpswarm-dsh-plugin/lib/sidecar.js": "c6221a9ea043c89c908a653fda02b3f57b01feac05a84fc0d923f0f0f604f6d0",
+    "dpswarm-dsh-plugin/lib/subagent-run.js": "b0ffcef1468cae54e01ed93c6adf5af26349a928913eefb48095aa2b4388e78d",
+    "dpswarm-dsh-plugin/lib/team-dispatch.js": "08e141b27598b6cc214b66810ea4fb9f121bdcd3bde100c4314dfba29d17371d",
+    "dpswarm-dsh-plugin/lib/team-required.js": "dd2980b0dd14efd3d374e980e514e754f63114492159537f9f246c7ff14f25a3",
+    "dpswarm-dsh-plugin/lib/worker-closeout.js": "bf9d988fd9089f9c28b2afab33c6bf5becec65f199fb869f555f7cc69355e31e",
+    "dpswarm-dsh-plugin/lib/worker-diagnostics.js": "a6cedbe88a4cad85727b5ed9d5d06851448a7a976b9537100c894e9f81f26e0b",
+    "dpswarm-dsh-plugin/package.json": "1347f758ac6a95c793fb973c6078033342f2251fdd5a27bb13c540a2b54758d4",
+    "dpswarm-plugin/dpswarm/__init__.py": "2e0ec9b76db3e34c642885dd9238e4f8a0d10935033f0b7f2c60bfc74f1703ec",
+    "dpswarm-plugin/dpswarm/aa.py": "f4d1486e39862efd4e6a93c67638530d799b745af9ca32ec625a6de442cf7b1c",
+    "dpswarm-plugin/dpswarm/cli.py": "afc8db3f80a33aac94aa68c6fde0fd9ef350182868ffede824904ae608ba800e",
+    "dpswarm-plugin/dpswarm/context/__init__.py": "e5e7ce65c65bfe899f3c6e3bbf7940ac2a686f31656437818fe33dfb5c176e3f",
+    "dpswarm-plugin/dpswarm/context/assembler.py": "1c14ef62fb699364d0fac48f3f65f5c73857107eb1ae98bce510432cf8a08e9c",
+    "dpswarm-plugin/dpswarm/context/manager.py": "7bf40215073ab798ccf3267ce1dcb1c5f28709968e90c47edadf21373e141ce9",
+    "dpswarm-plugin/dpswarm/context/memory.py": "d15f6e0bb76c40fcf48b7bdf2077245283ff570148ea5e7b602ab09f7d5f742f",
+    "dpswarm-plugin/dpswarm/control.py": "1157f76aa85727d54db01ec983b01574e966fe1aff6b79eaf06612db01c218f1",
+    "dpswarm-plugin/dpswarm/events.py": "4054b1d14e861802b320d7a9d45c58cae45bdcd63625b4ebe8bce8ee1565b955",
+    "dpswarm-plugin/dpswarm/invariants.py": "d32921c38bbb1fecca8bdb67a4ad07cc4ee8fcb64f60918fbc8d3a65389832b4",
+    "dpswarm-plugin/dpswarm/levels.py": "2843833f1458dbcde9ec36d8e1e1eadfd51483b547a6e87b5d07481a3ffdf33c",
+    "dpswarm-plugin/dpswarm/observation.py": "0804d3d5fb060a118073c76cbb41a99a9fba469ab0963e30be40d6640f83a2bf",
+    "dpswarm-plugin/dpswarm/orchestrator.py": "cf388935644f08cf4e8969f949def89ae8b047e2f4d8a5f4c64927a27e809e25",
+    "dpswarm-plugin/dpswarm/plugin_audit.py": "97f0ad755072f828ebbb6eab792bf7b92a25fbdce80964fed9ed8d76cde47bb1",
+    "dpswarm-plugin/dpswarm/profile.py": "048c23a7ffeaace66de2ee7512fc5d7ad1d0d5083750618bc2247b8b30f8abaa",
+    "dpswarm-plugin/dpswarm/providers/__init__.py": "303cd73ab65323663b4d5dc7267eaf7da7bcbb2186cf1e3805af87397c8fe47b",
+    "dpswarm-plugin/dpswarm/providers/base.py": "4288267ba5522b144126dace860b33c0686fe1cc4a38c984d40e4d3fd4c2303b",
+    "dpswarm-plugin/dpswarm/providers/mock.py": "d048990ff0d263d0016e2fe5b17804f6453a37a37263846a8f9436104bd0ab95",
+    "dpswarm-plugin/dpswarm/providers/openai_compat.py": "350408954979fa8d0f2007b07407f0e664586a7826fbb45c74f4919b6ce6fca1",
+    "dpswarm-plugin/dpswarm/routing.py": "5b38647e52912e997912966ba6b65ea4be5e5259ebbf1fa93b604572aaa98134",
+    "dpswarm-plugin/dpswarm/server.py": "8a37fa8c5ff4c9a3ff890e88f48c0a2b39b3003ee5f4160c0dcee5496d147c7d",
+    "dpswarm-plugin/dpswarm/session_server.py": "5afc9acb1c00cd4dce3d2a87326d3d7d18bf1ac90cad774db4cc27b07ce8c626",
+    "dpswarm-plugin/dpswarm/state.py": "3f0186d7161d7ed79a95d4cdc9a92c1c184d1e0f864a146a464145ed2bdaa5bc",
+    "dpswarm-plugin/dpswarm/team_runtime/__init__.py": "4e4f7459302c2cd4204f133892e9b7c556aaf39d2c274e3906624a4ffa7cea2e",
+    "dpswarm-plugin/dpswarm/team_runtime/handoff.py": "148199157e36ef4b52ab5d7b28cfe4a6d7e5e9342a42895f70f5638a3805255d",
+    "dpswarm-plugin/dpswarm/team_runtime/ledger.py": "ce9d2ff20787b894a37f27b1c086fcc1817adc7342dc38b151dce634e59b9dfe",
+    "dpswarm-plugin/dpswarm/team_runtime/protocol.py": "8d82378d7f67791bbb49cf3efd85a5301117850f899fc98196ee1fd8d97a189d",
+    "dpswarm-plugin/dpswarm/team_runtime/scheduler.py": "a43aa8f5d5c3d6988b329925adf5f2ec59760162347ea8c87ff43fcf00d17de2",
+    "dpswarm-plugin/dpswarm/types.py": "2f788b0697cd20da2efc9505fd80a1074cf6446e53727bb5d3e931cf3dd08603",
+    "dpswarm-plugin/dpswarm/worker_status.py": "3c0b30924c52e4db45ad5370864f6bd62131c752514ea064be04b95f9c26476f"
+  },
+  "checks": {
+    "node": 307,
+    "python": 521,
+    "browser": 4,
+    "native": 4
+  },
+  "external_model_calls": 0,
+  "scope": "Engineering validation with deterministic local model responses; not real-model obedience, quality or efficiency evidence.",
+  "native_scenes": [
+    {
+      "case": "manual_standard",
+      "passed": true,
+      "external_model_calls": 0,
+      "local_fixture_calls": 11,
+      "checks": [
+        "first-request-root-worker-prompts-isolated",
+        "initial-and-rework-native-children-distinct",
+        "rework-unlimited-independent-profile",
+        "exact-implementer-route-preserved",
+        "native-rework-write-without-lead-edit"
+      ],
+      "receipt_sha256": "10fb8fcd4e1530a44c5d174d38be7f60fef85cd5803ee7d8175a27327d16527b"
+    },
+    {
+      "case": "manual_code",
+      "passed": true,
+      "external_model_calls": 0,
+      "local_fixture_calls": 11,
+      "checks": [
+        "first-request-root-worker-prompts-isolated",
+        "initial-and-rework-native-children-distinct",
+        "rework-unlimited-independent-profile",
+        "exact-implementer-route-preserved",
+        "native-rework-write-without-lead-edit"
+      ],
+      "receipt_sha256": "55add3de91e745e5bcf67ceef7c23c3efe1237f2d54936fddbe28d3b9f01d243"
+    },
+    {
+      "case": "auto_standard",
+      "passed": true,
+      "external_model_calls": 0,
+      "local_fixture_calls": 11,
+      "checks": [
+        "first-request-root-worker-prompts-isolated",
+        "initial-and-rework-native-children-distinct",
+        "rework-unlimited-independent-profile",
+        "exact-implementer-route-preserved",
+        "native-rework-write-without-lead-edit"
+      ],
+      "receipt_sha256": "52dc2dc089eb85ec7bd90e1efdf46ccc4527e10538b391125fa6aef59fe85b83"
+    },
+    {
+      "case": "unlimited_standard",
+      "passed": true,
+      "external_model_calls": 0,
+      "local_fixture_calls": 11,
+      "checks": [
+        "first-request-root-worker-prompts-isolated",
+        "initial-and-rework-native-children-distinct",
+        "rework-unlimited-independent-profile",
+        "exact-implementer-route-preserved",
+        "native-rework-write-without-lead-edit"
+      ],
+      "receipt_sha256": "8802dccfd1912f4a32d3fdd7e6b8fd107ef83221bec274482514c3418f8b1bb8"
+    }
+  ],
+  "receipts": {
+    ".tmp/worker-rework-validation/node-release.log": "abd363877c1c4af0fd81aef0171b0be72b6fa770afa1958f7f321137105ed3fa",
+    ".tmp/worker-rework-validation/python-final.log": "ae2817a88e31c23f7af171606d7025aa670992a7ddf3d281bee2262fa465af90",
+    ".tmp/worker-closeout-ui/results.json": "5263cf6057aaf15552e642a8a39cfacdea4aa4928ca28bf75e7cd1e997a88bd7"
+  },
+  "initial_python_run": "520 passed; one Windows 10053 connection abort. Auth group recheck 5 passed, final full suite 521 passed."
+}

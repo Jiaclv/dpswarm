@@ -89,3 +89,21 @@ def test_missing_cleanup_metadata_is_unknown_not_a_public_status_error():
             "native_stop_reason": "completed", "closeout": {"completion": "completed"},
             "cleanup": None}}}
     assert worker_status([frozen(), diagnostic], "root")["workers"][0]["phase"] == "failed"
+
+
+def test_rework_is_separate_unlimited_attempt_and_keeps_initial_usage():
+    events = [frozen(), event("admitted", call_id="a", reserved_tokens=400),
+              event("settled", call_id="a", observed_tokens=300, usage_complete=True),
+              event("frozen", worker_session_id="rework-1", profile={"mode": "unlimited"},
+                    policy_binding={"label": "implementer", "authority": "fixed-team-rework", "source_worker_session_id": "child"}),
+              event("admitted", worker_session_id="rework-1", call_id="b", reserved_tokens=2000),
+              event("settled", worker_session_id="rework-1", call_id="b", observed_tokens=1700, usage_complete=True),
+              event("frozen", worker_session_id="rework-2", profile={"mode": "unlimited"},
+                    policy_binding={"label": "implementer", "authority": "fixed-team-rework", "source_worker_session_id": "rework-1"})]
+    first, second, third = worker_status(events, "root")["workers"]
+    assert first["remaining_tokens"] == 700 and first["observed_tokens_lower_bound"] == 300
+    assert first["attempt_kind"] == "initial" and first["rework_round"] == 0
+    assert second["remaining_tokens"] is None and second["remaining_calls"] is None
+    assert second["attempt_kind"] == "rework" and second["rework_round"] == 1
+    assert second["observed_tokens_lower_bound"] == 1700
+    assert third["rework_round"] == 2

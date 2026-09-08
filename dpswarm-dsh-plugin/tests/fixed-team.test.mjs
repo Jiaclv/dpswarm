@@ -204,7 +204,7 @@ test('an explicitly selected Reviewer receives both reports, uses its frozen rou
   const request=h.children[2].request
   assert.deepEqual(Object.fromEntries(Object.entries(request.agentOptions)),{provider:'review-provider',model:'review-model',reasoningEffort:'max'})
   assert.match(request.prompt[0].text,/production delivery/);assert.match(request.prompt[0].text,/validation evidence/)
-  assert.match(request.prompt[0].text,/do not edit files or accept deliveries/)
+  assert.match(request.prompt[0].text,/do not edit files or accept deliveries/i)
   h.finish(2,'advisory review')
   const result=await running
   assert.deepEqual(result.deliveries.map(d=>d.role),['implementer','tester','reviewer'])

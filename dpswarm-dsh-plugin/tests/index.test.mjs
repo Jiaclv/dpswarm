@@ -13,14 +13,21 @@ test('real installed DSH tool/schema API accepts the default-off fixed plugin', 
   const ctx={on(){return ()=>{}},provide(name,value){this[name]=value},tools:{register(t){registered.set(t.name,t)}},subagents:{start(){throw new Error('Must not start')}},
     systemPrompt:{section(p){prompts.push(p)}},inject(_deps,fn){fn(ctx)},effect(fn){effects.push(fn)}}
   apply(ctx,{})
-  assert.deepEqual([...registered.keys()].sort(),['dpswarm_models','dpswarm_prepare_worker','dpswarm_review','dpswarm_run','dpswarm_status'])
+  assert.deepEqual([...registered.keys()].sort(),['dpswarm_models','dpswarm_prepare_worker','dpswarm_review','dpswarm_rework','dpswarm_run','dpswarm_status'])
   assert.equal(registered.has('dpswarm_delegate'),false)
   for(const effect of effects) effect()
   const parent={id:'p',session:{id:'p',header:{}},options:{provider:'gpt',model:'sol'}}
   const result=await registered.get('dpswarm_status').execute({}, {agent:parent})
   assert.equal(result.enabled,false)
   await assert.rejects(registered.get('dpswarm_run').execute({task:'work'},{agent:parent}),/DPSWARM_DISABLED/)
-  assert.match(prompts[0].text,/off by default/)
+  const leadPrompt = prompts[0].text({ agent: parent })
+  assert.match(leadPrompt,/off by default/)
+  assert.match(leadPrompt,/NO cumulative token or model-call cap/)
+  const childPrompt = prompts[0].text({ agent: { session: { id: 'child', header: { origin: 'subagent', parentSession: 'p', delegationDepth: 1 } } } })
+  assert.match(childPrompt,/DPSwarm worker: execute/)
+  assert.doesNotMatch(childPrompt,/DPSwarm Lead: plan|call dpswarm_status once/)
+  assert.equal(result.budget_planning.modifies_limits, false)
+  assert.equal(result.budget_planning.envelope_reference, null)
   assert.ok(Config)
 })
 

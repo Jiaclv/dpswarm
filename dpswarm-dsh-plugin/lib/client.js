@@ -89,7 +89,7 @@ window.__ModuleLoader__.load({
       },
       en: {
         name: 'DPSwarm',
-        description: 'Explicit fixed-team collaboration: implementer, tester, then Lead review and repair.',
+        description: 'Explicit fixed-team collaboration: implementer, tester, then Lead acceptance and implementer rework.',
         ok: 'enabled · online', off: 'off', version: 'update sidecar', wait: 'enabled · starting', bad: 'enabled · offline', open: 'Open panel',
         slots: 'worker slots', points: 'points', items: 'items', nodes: 'nodes', rev: 'Spec rev',
         offline: 'Control service offline. Run the installation check and verify the Python path and service version.',
@@ -628,7 +628,7 @@ window.__ModuleLoader__.load({
           onClick: () => setTab(id), onKeyDown: e => changeTab(e, i) }, label))),
         snapshot.status !== 'ready' || !snapshot.writable || snapshot.mode !== 'host' ? h('p', { className: 'dps-error', role: 'alert' }, '当前设置不可写，请连接本机 DPH 后重试。') : null,
         h('div', { role: 'tabpanel', id: 'dps-panel-models', 'aria-labelledby': 'dps-tab-models', hidden: tab !== 'models', className: 'dps-tabPanel' },
-          h('div', { className: 'dps-leadStrip' }, h('span', { className: 'dps-modelGlyph', 'aria-hidden': true }, 'L'), h('div', null, h('b', null, 'Lead · 当前主模型'), h('p', null, '沿用任务中的模型，负责集成与最终验收。')),
+          h('div', { className: 'dps-leadStrip' }, h('span', { className: 'dps-modelGlyph', 'aria-hidden': true }, 'L'), h('div', null, h('b', null, 'Lead · 当前主模型'), h('p', null, '沿用任务中的模型，负责分工、必要返工与最终验收。')),
             typeof close === 'function' ? h('button', { type: 'button', className: 'dps-textButton', onClick: close, 'aria-label': '返回任务调整主模型' }, '回到任务选择 ↗') : null),
           h('div', { className: 'dps-sectionLabel' }, h('span', null, '协作角色'), h('span', null, '只在任务开关启用后执行')),
           h(ModelRouteForm, { role: 'impl', title: '实现者', description: '默认跟随对话模型，形成可交付的代码修改', number: '01', catalog }),
@@ -640,6 +640,7 @@ window.__ModuleLoader__.load({
         h('div', { role: 'tabpanel', id: 'dps-panel-rules', 'aria-labelledby': 'dps-tab-rules', hidden: tab !== 'rules', className: 'dps-tabPanel' },
           h(BudgetSettings),
           h('div', { className: 'dps-settingsCard' }, h('h3', null, '预算内及时收尾'), h('p', { className: 'dps-hint' }, '额度是上限，不必用满。剩余额度接近下一次完整请求的成本时，子 agent 优先返回已完成内容、文件位置和未完成事项；收尾期间不继续调用工具。已保存文件不等于已通过验收，最终仍由 Lead 核验。')),
+          h('div', { className: 'dps-settingsCard' }, h('h3', null, '返工交回实现者'), h('p', { className: 'dps-hint' }, '首次执行遵循上方额度。需要返工时，Lead 提供具体修改意见，实现者继续修复；返工不设累计 token 或调用次数上限，满足原任务要求后停止。首次实现和各次返工的实际消耗分别保留。用户停止和已设置的角色超时仍有效。')),
           h('div', { className: 'dps-settingsCard' }, h('h3', null, '按任务开启'), h('p', { className: 'dps-hint' }, '在输入框旁的罗盘菜单中分别开启团队和 CM。两项默认关闭；只开 CM 不启动团队服务。')),
           h('div', { className: 'dps-settingsCard' }, h('h3', null, '固定顺序与审查'), h('p', { className: 'dps-hint' }, '实现者 → 测试者 → Reviewer → Lead 最终验收。Reviewer 默认由 Lead 承担，不增加模型调用；指定独立模型后才额外执行审查。其输出是待核对意见，不自动接受交付。'),
             h('div', { className: 'dps-route' }, h(SettingsField, { field: 'workerTimeoutSeconds', label: '每个角色超时（秒）', type: 'number' }))),
@@ -688,7 +689,7 @@ window.__ModuleLoader__.load({
       const view = snapshot?.worker_diagnostics
       if (!view || view.available !== true || !Array.isArray(view.workers) || !view.workers.length) return null
       const roles = { implementer: '实现者', tester: '测试者', reviewer: 'Reviewer', worker: '子 agent' }
-      const phases = { working: '执行中', closing: '正在收尾', completed: '报告已返回', ended: '已结束 · 旧记录无详细终态', failed: '需 Lead 接管' }
+      const phases = { working: '执行中', closing: '正在收尾', completed: '报告已返回', ended: '已结束 · 旧记录无详细终态', failed: '未完成 · 待处理' }
       const reasons = {
         WORKER_TOKEN_RESERVATION_DENIED: '剩余 token 不足以发送下一次完整请求',
         WORKER_TOKEN_LIMIT_REACHED: '累计 token 已达上限', WORKER_CALL_LIMIT_REACHED: '调用次数已达上限',
@@ -698,7 +699,7 @@ window.__ModuleLoader__.load({
       return h('section', { className: 'dps-workerStatus', 'aria-label': '子代理执行状态' },
         h('h4', null, '子代理执行状态'),
         ...view.workers.slice(-6).map(row => h('div', { className: 'dps-workerRow', key: row.session_id },
-          h('div', { className: 'dps-workerHeading' }, h('b', null, roles[row.role] || '子 agent'), h('span', null, phases[row.phase] || '状态未知')),
+          h('div', { className: 'dps-workerHeading' }, h('b', null, roles[row.role] || '子 agent', row.attempt_kind === 'rework' ? ' · 返工 ' + amount(row.rework_round) : ''), h('span', null, phases[row.phase] || '状态未知')),
           h('p', { className: 'dps-hint' }, '累计 ', amount(row.observed_tokens_lower_bound), row.unknown_usage_calls ? '+ token（部分用量未知）' : ' token',
             ' · ', amount(row.calls_used), ' 次调用'),
           row.mode !== 'unlimited' ? h('p', { className: 'dps-hint' }, '剩余 ', amount(row.remaining_tokens), ' token · ', amount(row.remaining_calls), ' 次') : null,

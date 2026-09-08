@@ -26,6 +26,7 @@ export class TeamDispatcher {
       const binding = await this.requirement.beforeDispatch(exec.agent)
       let published = false, runId
       const result = await this.controller.run(args, exec, {
+        taskBinding: binding,
         onChildStarted: async details => {
           await this.requirement.markStarted(binding, details)
           published = true
@@ -46,6 +47,20 @@ export class TeamDispatcher {
         })
       }
       return result
+    } finally {
+      this.running.delete(rootId)
+    }
+  }
+
+  async rework(args, exec) {
+    const rootId = this.#acquire(exec)
+    try {
+      const validateTask = async () => {
+        const current = await this.requirement.beforeRun(exec.agent)
+        if (!current.required || current.phase !== 'finished') throw failure('REWORK_TASK_NOT_SETTLED', 'Rework requires the already settled fixed team for the current user task; start or settle that task first.')
+        return current
+      }
+      return await this.controller.rework(args, exec, { taskBinding: await validateTask(), validateTask })
     } finally {
       this.running.delete(rootId)
     }

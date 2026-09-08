@@ -13,6 +13,7 @@ const canonical = value => {
 const same = (left, right) => JSON.stringify(canonical(left)) === JSON.stringify(canonical(right))
 const hash = text => createHash('sha256').update(text, 'utf8').digest('hex')
 const marker = id => `[DPSWARM_WORKER_BUDGET_V1:${id}]`
+const reworkMarker = id => `[DPSWARM_REWORK_WORKER_BUDGET_V1:${id}]`
 const fixedMarker = id => `[DPSWARM_FIXED_WORKER_BUDGET_V1:${id}]`
 const eventName = suffix => `dpswarm/worker-budget-${suffix}`
 const decisionRequired = message => budgetError('WORKER_BUDGET_DECISION_REQUIRED', message || 'Auto requires the current Lead to decide this worker allocation before delegation.')
@@ -37,6 +38,53 @@ const totalsFor = calls => {
     if (call.status === 'active') active++
   }
   return { calls: calls.size, observed_tokens_lower_bound: observed, committed_tokens: committed, unknown_usage_calls: unknown, active_calls: active }
+}
+
+const reworkAllocations = (events, sourceId) => events.filter(e => e.type === eventName('allocation')
+  && e.data?.authority === 'fixed-team-rework' && e.data.source_worker_session_id === sourceId
+  && !events.some(r => r.type === eventName('rework-revoked') && r.data?.allocation_id === e.data.allocation_id))
+const accountingHash = calls => hash(JSON.stringify(canonical([...calls.values()])))
+const settledCalls = (events, workerId) => {
+  const calls = callsFrom(events, workerId)
+  for (const call of calls.values()) if (!events.some(e => e.type === eventName('settled')
+    && e.data?.worker_session_id === workerId && e.data.call_id === call.call_id)) throw budgetError('REWORK_SOURCE_UNSETTLED')
+  return calls
+}
+// Validate the grant lineage from authenticated root-ledger events, including
+// repeated rework. The user explicitly authorized unlimited rework only;
+// initial worker grants and their historical accounting are left untouched.
+function fixedSource(events, workerId, seen = new Set()) {
+  if (seen.has(workerId)) throw budgetError('REWORK_SOURCE_INVALID')
+  seen.add(workerId)
+  const frozen = events.filter(e => e.type === eventName('frozen') && e.data?.worker_session_id === workerId)
+  if (frozen.length !== 1) throw budgetError('REWORK_SOURCE_NOT_FIXED_TEAM')
+  const data = frozen[0].data, binding = data.policy_binding
+  if (!binding || !['fixed-team-run', 'fixed-team-rework'].includes(binding.authority)) throw budgetError('REWORK_SOURCE_NOT_FIXED_TEAM')
+  const issued = events.filter(e => e.type === eventName('allocation') && e.data?.allocation_id === binding.allocation_id)
+  const bound = events.filter(e => e.type === eventName('allocation-bound') && e.data?.allocation_id === binding.allocation_id)
+  if (issued.length !== 1 || bound.length !== 1 || bound[0].data.worker_session_id !== workerId
+    || bound[0].data.owner_session_id !== workerId) throw budgetError('REWORK_SOURCE_INVALID')
+  const a = issued[0].data
+  if (a.authority !== binding.authority || a.run_id !== binding.run_id || a.label !== binding.label
+    || !same(a.profile, data.profile) || !same(binding.profile, data.profile)
+    || !['implementer', 'tester', 'reviewer'].includes(a.label)) throw budgetError('REWORK_SOURCE_INVALID')
+  if (a.authority === 'fixed-team-run') {
+    const runs = events.filter(e => e.type === eventName('team-run') && e.data?.run_id === a.run_id)
+    if (runs.length !== 1 || !runs[0].data.roles.includes(a.label)) throw budgetError('REWORK_SOURCE_INVALID')
+    const run = runs[0].data, chosen = run.profile.mode === 'auto' ? run.decisions[a.label] : run.profile
+    const expected = run.profile.mode === 'unlimited' ? { mode: 'unlimited' }
+      : { mode: run.profile.mode, tokenLimit: chosen.tokenLimit, callLimit: chosen.callLimit }
+    if (!same(expected, data.profile)) throw budgetError('REWORK_SOURCE_INVALID')
+  } else {
+    if (binding.source_worker_session_id !== a.source_worker_session_id
+      || events.some(e => e.type === eventName('rework-revoked') && e.data?.allocation_id === a.allocation_id)) throw budgetError('REWORK_SOURCE_INVALID')
+    const source = fixedSource(events, a.source_worker_session_id, seen)
+    const expected = { mode: 'unlimited' }
+    if (a.source_allocation_id !== source.allocation.allocation_id || a.run_id !== source.allocation.run_id
+      || a.label !== source.allocation.label || !same(a.profile, expected)
+      || a.budget_origin !== 'unlimited_rework' || a.decided_by !== 'user_authorized_unlimited_rework') throw budgetError('REWORK_SOURCE_INVALID')
+  }
+  return { profile: data.profile, binding, allocation: a }
 }
 
 function assignment(session, incoming) {
@@ -102,6 +150,11 @@ export class WorkerBudgetRuntime {
     const events = records => records.filter(e => e.data?.worker_session_id === session.id)
     const workerEvents = events(journal.events || []), frozen = workerEvents.find(e => e.type === eventName('frozen'))
     if (!frozen) return null
+    const rootEvents = (journal.events || []).filter(e => e.data?.root_session_id === root.id)
+    if (frozen.data.policy_binding?.authority === 'fixed-team-rework') {
+      const source = fixedSource(rootEvents, session.id)
+      if (assignment(session, []) !== source.allocation.prompt) throw decisionRequired()
+    }
     const state = { session, rootId: root.id, profile: frozen.data.profile, phase: frozen.data.phase,
       calls: callsFrom(workerEvents, session.id), decision: frozen.data.decision || null,
       policyBinding: frozen.data.policy_binding || null, failure: frozen.data.failure || null,
@@ -154,6 +207,103 @@ export class WorkerBudgetRuntime {
     team.closed = true
     try { await this.append(team.root.id, 'team-run-ended', { run_id: team.record.run_id, ended_at: Date.now(), unbound_allocations: 'revoked' }) } finally { this.teamRuns.delete(handle) }
   }
+  reworkSourceSession(root, workerId) {
+    const source = this.resolveSession(workerId) || this.states.get(workerId)?.session
+    if (!source || !isWorkerSession(source) || source.header?.parentSession !== root.id
+      || this.root(source) !== root) throw budgetError('REWORK_SOURCE_UNAVAILABLE')
+    const own = (source.events || []).slice(source.header?.seedLength || 0)
+    const terminal = own.filter(e => e.type === 'turn/end').at(-1)
+    if (!terminal || !['completed', 'error', 'cancelled', 'aborted', 'interrupted', 'max-tokens'].includes(terminal.data?.reason?.kind)) throw budgetError('REWORK_SOURCE_NOT_TERMINAL')
+    const at = own.indexOf(terminal)
+    if (own.slice(at + 1).some(e => ['turn/start', 'step/start', 'user/message', 'assistant/message', 'request/header', 'request/context', 'tool/call'].includes(e.type))) throw budgetError('REWORK_SOURCE_NOT_TERMINAL')
+    return { source, terminal }
+  }
+  async issueRework(parent, request) {
+    const root = this.trustedLead(parent)
+    if (!request || typeof request !== 'object' || Array.isArray(request)) throw budgetError('REWORK_REQUEST_INVALID')
+    if (Object.keys(request).some(key => !['workerSessionId', 'task'].includes(key))) throw budgetError('REWORK_BUDGET_OVERRIDES_NOT_ALLOWED')
+    const { workerSessionId, task } = request
+    if (typeof workerSessionId !== 'string' || !workerSessionId || typeof task !== 'string' || !task.trim()) throw budgetError('REWORK_REQUEST_INVALID')
+    const profile = { mode: 'unlimited' }
+    this.reworkSourceSession(root, workerSessionId)
+    const allocation_id = randomUUID(), prompt = `${reworkMarker(allocation_id)}\n${task}`
+    const tx = await this.journal.transaction(root.id, snapshot => {
+      const events = (snapshot.events || []).filter(e => e.data?.root_session_id === root.id)
+      const { terminal } = this.reworkSourceSession(root, workerSessionId)
+      const source = fixedSource(events, workerSessionId)
+      if (reworkAllocations(events, workerSessionId).length) throw budgetError('REWORK_ALREADY_CLAIMED')
+      const calls = settledCalls(events, workerSessionId), totals = totalsFor(calls)
+      const data = { version: 3, root_session_id: root.id, owner_session_id: root.id,
+        authority: 'fixed-team-rework', allocation_id, run_id: source.allocation.run_id,
+        source_worker_session_id: workerSessionId, source_allocation_id: source.allocation.allocation_id,
+        budget_origin: 'unlimited_rework',
+        source_profile: source.profile, source_consumption: totals, source_accounting_sha256: accountingHash(calls),
+        source_terminal: { seq: terminal.seq ?? null, at: terminal.time ?? null, kind: terminal.data.reason.kind },
+        task, task_sha256: hash(task), prompt_sha256: hash(prompt), prompt, label: source.allocation.label,
+        profile, ...(profile.mode === 'unlimited' ? {} : { tokenLimit: profile.tokenLimit, callLimit: profile.callLimit }),
+        reason: 'The user explicitly authorized unlimited rework; initial worker limits and all prior usage remain unchanged.',
+        decided_at: Date.now(), decided_by: 'user_authorized_unlimited_rework' }
+      return { events: [{ type: eventName('allocation'), data }], result: {
+        allocation_id, prompt, profile, role: data.label, source_worker_session_id: workerSessionId } }
+    })
+    return tx.result
+  }
+  async revokeRework(parent, allocationId) {
+    const root = this.trustedLead(parent)
+    const tx = await this.journal.transaction(root.id, snapshot => {
+      const events = (snapshot.events || []).filter(e => e.data?.root_session_id === root.id)
+      const issued = events.filter(e => e.type === eventName('allocation') && e.data?.allocation_id === allocationId
+        && e.data.authority === 'fixed-team-rework')
+      if (issued.length !== 1) throw budgetError('REWORK_ALLOCATION_NOT_FOUND')
+      const bindings = events.filter(e => e.type === eventName('allocation-bound') && e.data?.allocation_id === allocationId)
+      if (bindings.length > 1) throw budgetError('REWORK_SOURCE_INVALID')
+      // Safe finally barrier: an already bound grant remains consumed. This is
+      // an observation-only no-op, never revocation or permission to reuse it.
+      if (bindings.length === 1) return { events: [], result: { revoked: false, bound: true,
+        allocation_id: allocationId, source_worker_session_id: issued[0].data.source_worker_session_id,
+        bound_worker_session_id: bindings[0].data.worker_session_id } }
+      const revoked = events.some(e => e.type === eventName('rework-revoked') && e.data?.allocation_id === allocationId)
+      return { events: revoked ? [] : [{ type: eventName('rework-revoked'), data: {
+        version: 3, root_session_id: root.id, owner_session_id: root.id, allocation_id: allocationId,
+        source_worker_session_id: issued[0].data.source_worker_session_id, revoked_at: Date.now() } }],
+        result: { revoked: true, allocation_id: allocationId, source_worker_session_id: issued[0].data.source_worker_session_id } }
+    })
+    return tx.result
+  }
+  async reworkAllocation(root, session, incoming) {
+    if (session.header?.parentSession !== root.id) throw decisionRequired()
+    const prompt = assignment(session, incoming), found = /^\[DPSWARM_REWORK_WORKER_BUDGET_V1:([0-9a-f-]{36})\]\n/.exec(prompt)
+    if (!found) throw decisionRequired()
+    const allocationId = found[1], task = prompt.slice(found[0].length)
+    const tx = await this.journal.transaction(root.id, snapshot => {
+      const events = (snapshot.events || []).filter(e => e.data?.root_session_id === root.id)
+      const issued = events.filter(e => e.type === eventName('allocation') && e.data?.allocation_id === allocationId)
+      if (issued.length !== 1) throw decisionRequired()
+      const a = issued[0].data
+      if (a.authority !== 'fixed-team-rework' || a.prompt !== prompt || a.task_sha256 !== hash(task)
+        || a.prompt_sha256 !== hash(prompt) || a.source_worker_session_id === session.id) throw decisionRequired()
+      const claims = reworkAllocations(events, a.source_worker_session_id)
+      if (claims.length !== 1 || claims[0].data.allocation_id !== allocationId) throw decisionRequired()
+      this.reworkSourceSession(root, a.source_worker_session_id)
+      const source = fixedSource(events, a.source_worker_session_id)
+      settledCalls(events, a.source_worker_session_id)
+      const expected = { mode: 'unlimited' }
+      if (a.source_allocation_id !== source.allocation.allocation_id || a.run_id !== source.allocation.run_id
+        || a.label !== source.allocation.label || !same(a.profile, expected)
+        || a.budget_origin !== 'unlimited_rework' || a.decided_by !== 'user_authorized_unlimited_rework') throw budgetError('REWORK_SOURCE_INVALID')
+      const bound = events.filter(e => e.type === eventName('allocation-bound') && e.data?.allocation_id === allocationId)
+      if (bound.length > 1 || bound.some(e => e.data.worker_session_id !== session.id)) throw decisionRequired()
+      return { events: bound.length ? [] : [{ type: eventName('allocation-bound'), data: {
+        version: 3, root_session_id: root.id, owner_session_id: session.id, worker_session_id: session.id,
+        allocation_id: allocationId, source_worker_session_id: a.source_worker_session_id,
+        task_sha256: a.task_sha256, bound_at: Date.now() } }], result: {
+        allocation_id: allocationId, profile: a.profile, authority: a.authority, run_id: a.run_id,
+        label: a.label, source_worker_session_id: a.source_worker_session_id,
+        task_sha256: a.task_sha256, reason: a.reason, decided_by: a.decided_by, decided_at: a.decided_at,
+        ...(a.profile.mode === 'unlimited' ? {} : { tokenLimit: a.profile.tokenLimit, callLimit: a.profile.callLimit }) } }
+    })
+    return tx.result
+  }
   async plan(parent, requested) {
     const root = this.trustedLead(parent)
     if (workerBudgetProfile(this.config(), root.id).mode !== 'auto') throw budgetError('WORKER_BUDGET_AUTO_REQUIRED')
@@ -198,7 +348,8 @@ export class WorkerBudgetRuntime {
   }
 async initialize(session, incoming, signal) {
     let first = ''; try { first = assignment(session, incoming) } catch {}
-    const fixed = first.startsWith('[DPSWARM_FIXED_WORKER_BUDGET_V1:')
+    const rework = first.startsWith('[DPSWARM_REWORK_WORKER_BUDGET_V1:')
+    const fixed = rework || first.startsWith('[DPSWARM_FIXED_WORKER_BUDGET_V1:')
     let root
     try { root = this.root(session) } catch (error) {
       if (!fixed && (this.config().workerBudgetMode ?? 'unlimited') === 'unlimited'
@@ -230,10 +381,11 @@ async initialize(session, incoming, signal) {
     }
     let profile = configured, decision = null, policyBinding = null
     if (fixed || profile.mode === 'auto') {
-      const allocation = await this.allocation(root, session, incoming, fixed); profile = allocation.profile
+      const allocation = rework ? await this.reworkAllocation(root, session, incoming) : await this.allocation(root, session, incoming, fixed); profile = allocation.profile
       if (profile.mode === 'auto') decision = allocation
       if (fixed) policyBinding = { authority: allocation.authority, run_id: allocation.run_id,
-        allocation_id: allocation.allocation_id, label: allocation.label, profile }
+        allocation_id: allocation.allocation_id, label: allocation.label, profile,
+        ...(rework ? { source_worker_session_id: allocation.source_worker_session_id } : {}) }
     }
     const state = { session, rootId: root.id, profile, decision, policyBinding, phase: 'ready', calls: new Map(),
       failure: null, restored: false, serial: Promise.resolve() }
@@ -261,7 +413,7 @@ async initialize(session, incoming, signal) {
         return durable
       }
     } catch (error) {
-      if (profile.mode !== 'unlimited') throw budgetError(error.code || 'WORKER_BUDGET_BINDING_NOT_DURABLE')
+      if (rework || profile.mode !== 'unlimited') throw budgetError(error.code || 'WORKER_BUDGET_BINDING_NOT_DURABLE')
       state.auditFailure = 'UNLIMITED_OBSERVATION_NOT_PERSISTED'
     }
     this.states.set(session.id, state)

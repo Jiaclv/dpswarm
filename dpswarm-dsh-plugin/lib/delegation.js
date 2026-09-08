@@ -16,7 +16,7 @@ export function requireRootCaller(parent) {
 
 
 // Internal adapter; dynamic topology is not exposed by the fixed-team plugin.
-export async function delegateOnce(args, exec, sidecar, subagents, { routeJournal = new AuditJournal({ sidecarFactory: () => sidecar }), modelRegistry, modelRoutes, hostModels, modelRole, onChildStarted, resolveSession, budget, runId, onDiagnostic } = {}) {
+export async function delegateOnce(args, exec, sidecar, subagents, { routeJournal = new AuditJournal({ sidecarFactory: () => sidecar }), modelRegistry, modelRoutes, hostModels, modelRole, onChildStarted, resolveSession, budget, runId, onDiagnostic, beforeChildStart } = {}) {
         const parent = exec.agent
         requireRootCaller(parent)
         const leadRoute = effectiveLeadRoute(parent)
@@ -155,6 +155,16 @@ export async function delegateOnce(args, exec, sidecar, subagents, { routeJourna
           currentRun = null
           boundFence = null
           physicalCleanupConfirmed = false
+          if (beforeChildStart) {
+            try { await beforeChildStart(); exec.signal?.throwIfAborted() }
+            catch (error) {
+              // The trusted rework task check runs after all preceding awaits,
+              // immediately before creating this child; there is none to drain.
+              physicalCleanupConfirmed = true
+              error.details = { ...error.details, published: false, physicalCleanupConfirmed: true }
+              throw error
+            }
+          }
           const out = await runSubagentToCompletion(subagents, sidecar.cfg.subagentProvider, {
             label: `dpswarm:${st.title ?? it.item_id}`,
             prompt: [{ type: 'text', text: prompt }],

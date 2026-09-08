@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "version": "0.7.7",
+  "at": "2026-09-08T16:14:03.501359+00:00",
+  "source_files_verified": 51,
+  "settings_namespaces_preserved": 13,
+  "historical_state_unchanged": true,
+  "paid_model_calls": 0,
+  "historical_8794_left_running": true,
+  "initial_worker_budget_mode_preserved": "auto",
+  "installed_code_verified": "51 JS/Python sources plus package version; product gate includes 52 files with package.json"
+}
