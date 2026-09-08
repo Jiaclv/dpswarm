@@ -1,0 +1,78 @@
+{
+  "captured_at_utc": "2026-09-08T13:02:47.322904+00:00",
+  "source_audit_sha256": "9ed172ca102590580406a12ac7dba84694a5cb85297c0fd5490c94cf7f6856c5",
+  "scope": "single ongoing user session snapshot; counts are not final session totals",
+  "installed_version_observed": "0.7.3",
+  "lead_model_context_window_observed": 1000000,
+  "old_trigger_surface_tokens": 12000,
+  "roles": [
+    {
+      "role": "lead",
+      "attempts": 12,
+      "adopted": 9,
+      "failed": 2,
+      "pending": 1,
+      "known_duration_seconds": 814.783,
+      "known_tokens_including_cache_and_output": 177348,
+      "surface_before_min": 12268,
+      "surface_before_max": 34795
+    },
+    {
+      "role": "implementer",
+      "attempts": 4,
+      "adopted": 4,
+      "failed": 0,
+      "pending": 0,
+      "known_duration_seconds": 385.205,
+      "known_tokens_including_cache_and_output": 70471,
+      "surface_before_min": 12331,
+      "surface_before_max": 14864
+    },
+    {
+      "role": "tester",
+      "attempts": 3,
+      "adopted": 3,
+      "failed": 0,
+      "pending": 0,
+      "known_duration_seconds": 246.242,
+      "known_tokens_including_cache_and_output": 57915,
+      "surface_before_min": 13381,
+      "surface_before_max": 22893
+    }
+  ],
+  "token_accounting": "input + cacheRead + cacheWrite + output; reasoning not double counted; missing usage remains unknown",
+  "duration_accounting": "sum of CM call durations across roles; not task wall clock",
+  "native_primary_model_context_source": "request/context exact current route",
+  "reconstruction": {
+    "method": "Native Session.fromRestore contiguous session.history event prefix immediately before compaction/start; original header from native export; native TokenMeter.measure. Raw response bodies stay in memory.",
+    "receipt_sha256": "ceee9beb0fa72fa9772da74c3d783b412e8f20ebc7dff47f369654743bacfebd",
+    "samples": [
+      {
+        "sample": "first_cm",
+        "total_tokens": 45672,
+        "surface_tokens": 27716,
+        "header_tokens_estimated": 9915,
+        "occupied_fraction": 0.045672,
+        "sidecar_outcome": "failed"
+      },
+      {
+        "sample": "first_adopted_cm",
+        "total_tokens": 48417,
+        "surface_tokens": 31120,
+        "header_tokens_estimated": 9915,
+        "occupied_fraction": 0.048417,
+        "sidecar_outcome": "adopted"
+      },
+      {
+        "sample": "maximum_surface_cm",
+        "total_tokens": 55116,
+        "surface_tokens": 34795,
+        "header_tokens_estimated": 9915,
+        "occupied_fraction": 0.055116,
+        "sidecar_outcome": "adopted"
+      }
+    ],
+    "history_seq_contiguous": true,
+    "external_model_calls": 0
+  }
+}

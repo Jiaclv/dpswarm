@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { effectiveLeadRoute, installChildRoutes, prepareChildRoute } from '../lib/lead-route.js'
+import { effectiveLeadRoute, installChildRoutes, prepareChildRoute, resolveChildRoute } from '../lib/lead-route.js'
 import { MemoryAuditJournal } from './helpers/memory-audit.mjs'
 import { resolveHostRoot, hostModuleUrl } from '../lib/host-modules.js'
 const { Session } = await import(hostModuleUrl(resolveHostRoot(), 'dsh-session/lib/index.js'))
@@ -160,3 +160,41 @@ for (const mismatch of ['missing', 'owner', 'root', 'parent', 'label', 'duplicat
       /CHILD_ROUTE_BINDING_REQUIRED|CHILD_ROUTE_BINDING_INVALID|CHILD_ROUTE_HEADER_MISMATCH/)
   })
 }
+
+
+test('read-only CM route lookup waits for publication and works before the first native header', async () => {
+  const { ticket, agent, journal } = requestFixture()
+  const abort = new AbortController()
+  let finished = false
+  const pending = resolveChildRoute(agent, { journal, signal: abort.signal }).then(route => { finished = true; return route })
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(finished, false)
+  assert.equal(agent.session.requestHeader(), undefined)
+  await ticket.bind('child')
+  const before = JSON.stringify(await journal.read('root'))
+  const events = JSON.stringify(agent.session.events), options = { ...agent.options }
+  const route = await pending
+  assert.deepEqual(route, { provider: 'chosen', model: 'worker', reasoningEffort: 'max' })
+  assert.ok(Object.isFrozen(route))
+  assert.deepEqual(agent.options, options)
+  assert.equal(JSON.stringify(agent.session.events), events)
+  assert.equal(JSON.stringify(await journal.read('root')), before)
+  assert.equal(agent.session.requestHeader(), undefined)
+  ticket.close()
+  await assert.rejects(resolveChildRoute(agent, { journal }), /CHILD_ROUTE_BINDING_INVALID/)
+})
+
+test('read-only cold CM lookup preserves route checks and leaves ordinary agents alone', async () => {
+  const { ticket, agent, journal } = requestFixture({ provider: 'glmcp', model: 'glm-5.3-flash' })
+  await ticket.bind('child')
+  ticket.close()
+  const cold = { ...agent, options: { provider: 'startup', model: 'old', reasoningEffort: 'high' } }
+  const before = JSON.stringify(await journal.read('root'))
+  assert.deepEqual(await resolveChildRoute(cold, { journal }), { provider: 'glmcp', model: 'glm-5.3-flash' })
+  assert.equal(JSON.stringify(await journal.read('root')), before)
+  await assert.rejects(resolveChildRoute(cold), /CHILD_ROUTE_BINDING_REQUIRED/)
+  const alien = { ...cold, session: { ...cold.session, id: 'child', header: { ...cold.session.header, parentSession: 'other' }, events: cold.session.events } }
+  await assert.rejects(resolveChildRoute(alien, { journal }), /CHILD_ROUTE_BINDING_REQUIRED|CHILD_ROUTE_BINDING_INVALID/)
+  assert.equal(await resolveChildRoute({ id: 'ordinary-root', session: { id: 'ordinary-root', header: {} } }), null)
+  assert.equal(await resolveChildRoute({ ...cold, session: { ...cold.session, header: cold.session.header, events: [] } }), null)
+})

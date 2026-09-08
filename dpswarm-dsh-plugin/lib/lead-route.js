@@ -88,46 +88,56 @@ function recordedRole(agent) {
   return typeof descriptor?.label === 'string' && /^dpswarm:DPswarm (implementer|tester|reviewer)$/.test(descriptor.label)
 }
 
+/** Resolve the exact fixed-role route without preparing or sending a model request.
+ * The same publication barrier and live/cold identity checks govern both CM
+ * pressure measurements and native request dispatch. Ordinary agents return null.
+ */
+export async function resolveChildRoute(agent, { journal, signal } = {}) {
+  const capability = agent?.options?.[childRouteKey]
+  let route
+  if (capability !== undefined) {
+    const state = childRoutes.get(capability)
+    const descriptor = agent?.session?.events?.find(e => e.type === 'subagent/descriptor')?.data
+    if (!state || state.closed || !directChild(agent, state.parentId) || descriptor?.label !== state.label) {
+      throw failure('CHILD_ROUTE_BINDING_INVALID', 'This native child does not own the frozen role route')
+    }
+    const childId = await waitForBinding(state, signal)
+    if (state.closed || childId !== agent.id) throw failure('CHILD_ROUTE_BINDING_INVALID', 'Published child identity differs from the requesting child')
+    route = state.route
+  } else if (recordedRole(agent)) {
+    // The pre-fix native header could have lost effort. Only an independent
+    // durable binding can authorize a cold fixed role; old logs remain readable.
+    if (!journal?.read) throw failure('CHILD_ROUTE_BINDING_REQUIRED', 'Cold fixed role has no trusted route journal')
+    const rootId = agent.session.header.parentSession, snapshot = await journal.read(rootId)
+    const records = snapshot.events.filter(e => e.type === routeEvent
+      && (e.data.child_session_id === agent.id || e.data.owner_session_id === agent.id))
+    if (!records.length) throw failure('CHILD_ROUTE_BINDING_REQUIRED', 'Legacy or incomplete role has no durable frozen route')
+    if (records.length !== 1) throw failure('CHILD_ROUTE_BINDING_INVALID', 'Ambiguous role route binding')
+    const data = records[0].data
+    const label = agent.session.events.find(e => e.type === 'subagent/descriptor').data.label
+    if (snapshot.root_session_id !== rootId || data.protocol !== routeProtocol || data.root_session_id !== rootId
+      || data.parent_session_id !== rootId || data.child_session_id !== agent.id || data.owner_session_id !== agent.id
+      || data.label !== label || !directChild(agent, rootId)) throw failure('CHILD_ROUTE_BINDING_INVALID', 'Cold role identity differs from its binding')
+    route = effectiveLeadRoute({ session: { requestHeader: () => ({ config: data.route }) } })
+    if (Object.keys(data.route).some(key => !['provider', 'model', 'reasoningEffort'].includes(key))) throw failure('CHILD_ROUTE_BINDING_INVALID', 'Frozen route contains unsupported fields')
+    if (agent.session.requestHeader?.()) {
+      const recorded = effectiveLeadRoute(agent)
+      if (['provider', 'model', 'reasoningEffort'].some(key => route[key] !== recorded[key])) {
+        throw failure('CHILD_ROUTE_HEADER_MISMATCH', 'Native role request differs from its durable frozen route')
+      }
+    }
+  } else return null
+  return route
+}
+
 /** Public request waterfall, before native request/header and provider dispatch.
  * Child AgentOptions retain the requested effort, but the host does not project
  * it into call config. Override only a bound DP role, after native selection.
  */
 export function installChildRoutes(ctx, { journal } = {}) {
   return ctx.on('agent/request', async ({ agent, signal }, next) => {
-    const capability = agent?.options?.[childRouteKey]
-    let route
-    if (capability !== undefined) {
-      const state = childRoutes.get(capability)
-      const descriptor = agent?.session?.events?.find(e => e.type === 'subagent/descriptor')?.data
-      if (!state || state.closed || !directChild(agent, state.parentId) || descriptor?.label !== state.label) {
-        throw failure('CHILD_ROUTE_BINDING_INVALID', 'This native child does not own the frozen role route')
-      }
-      const childId = await waitForBinding(state, signal)
-      if (state.closed || childId !== agent.id) throw failure('CHILD_ROUTE_BINDING_INVALID', 'Published child identity differs from the requesting child')
-      route = state.route
-    } else if (recordedRole(agent)) {
-      // The pre-fix native header could have lost effort. Only an independent
-      // durable binding can authorize a cold fixed role; old logs remain readable.
-      if (!journal?.read) throw failure('CHILD_ROUTE_BINDING_REQUIRED', 'Cold fixed role has no trusted route journal')
-      const rootId = agent.session.header.parentSession, snapshot = await journal.read(rootId)
-      const records = snapshot.events.filter(e => e.type === routeEvent
-        && (e.data.child_session_id === agent.id || e.data.owner_session_id === agent.id))
-      if (!records.length) throw failure('CHILD_ROUTE_BINDING_REQUIRED', 'Legacy or incomplete role has no durable frozen route')
-      if (records.length !== 1) throw failure('CHILD_ROUTE_BINDING_INVALID', 'Ambiguous role route binding')
-      const data = records[0].data
-      const label = agent.session.events.find(e => e.type === 'subagent/descriptor').data.label
-      if (snapshot.root_session_id !== rootId || data.protocol !== routeProtocol || data.root_session_id !== rootId
-        || data.parent_session_id !== rootId || data.child_session_id !== agent.id || data.owner_session_id !== agent.id
-        || data.label !== label || !directChild(agent, rootId)) throw failure('CHILD_ROUTE_BINDING_INVALID', 'Cold role identity differs from its binding')
-      route = effectiveLeadRoute({ session: { requestHeader: () => ({ config: data.route }) } })
-      if (Object.keys(data.route).some(key => !['provider', 'model', 'reasoningEffort'].includes(key))) throw failure('CHILD_ROUTE_BINDING_INVALID', 'Frozen route contains unsupported fields')
-      if (agent.session.requestHeader?.()) {
-        const recorded = effectiveLeadRoute(agent)
-        if (['provider', 'model', 'reasoningEffort'].some(key => route[key] !== recorded[key])) {
-          throw failure('CHILD_ROUTE_HEADER_MISMATCH', 'Native role request differs from its durable frozen route')
-        }
-      }
-    } else return next()
+    const route = await resolveChildRoute(agent, { journal, signal })
+    if (route === null) return next()
     const native = await next()
     const { reasoningEffort: _discarded, ...withoutEffort } = native
     return { ...withoutEffort, ...route }

@@ -178,3 +178,8 @@ Python 首次全量检查因系统 pytest 临时目录 WinError 5 出现 337 个
 源码检查已通过：Node插件154项，Python控制服务511项；包含新模型不依赖AA即可进入固定团队、Provider撤销、角色推理强度、已交付结果在撤销与重启后继续验收。另有4个原生宿主/冷恢复受控场景通过；均未调用外部模型。新增跨语言集成使用真实本地HTTP侧服务与Fixture子角色，不能称作真实模型效果实验。
 
 可复现入口：`node --test dpswarm-dsh-plugin/tests/*.test.mjs`、`python -m pytest dpswarm-plugin/tests`。本轮原生输出独立存入 `tihu test/dph-timeout60-teamcm-20260908/upgrade-evidence/20260908T104247Z-e16e8c99/PROBES.json`，旧0.7.2记录未覆盖。宿主安装与切换已由本批专属 `HOST_VALIDATION_0.7.3.json` 核验：安装文件与源码一致，宿主和新 sidecar 均在安装完成后启动。已发布[去除本机配置的验证摘要](../reports/2026-09-08/host-model-registry/README.md)；此前实验记录保持原版本。
+
+
+## 0.7.5：按模型窗口压力触发 CM
+
+[诊断与验证报告](../reports/2026-09-08/cm-window-pressure/README.md)记录原生会话在约4.6%–5.5%窗口占用时被旧12K策略提前压缩的问题。修复后按各角色模型窗口80%触发，保留兼容的usage校准、最小选区保护、角色路由及未知容量跳过。完整Node回归248/248、5类隔离原生场景通过（6个agent）；没有外部模型调用，未部署到正在运行的日常宿主。

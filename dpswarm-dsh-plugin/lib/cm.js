@@ -1,11 +1,14 @@
 import { resolveHostRoot, hostModuleUrl } from './host-modules.js'
-import { cmError, cmHash, completeUsage } from './cm-runtime.js'
+import { cmError, cmHash, completeUsage, CM_POLICY } from './cm-runtime.js'
+import { resolveChildRoute } from './lead-route.js'
 const host = resolveHostRoot()
 const [{ BasicCompactionEngine }, { toolPairingBalancedBefore, toolPairingBalancedAfter },
-  { BlockAssembler, createUserMessage }] = await Promise.all([
+  { BlockAssembler, createUserMessage }, { renderPrompt, renderContextSnapshot }, { canonicalHeader }] = await Promise.all([
   import(hostModuleUrl(host, 'dsh-compaction-basic/lib/index.js')),
   import(hostModuleUrl(host, 'dsh-compaction/lib/index.js')),
   import(hostModuleUrl(host, 'dsh-llm/lib/index.js')),
+  import(hostModuleUrl(host, 'dsh-system-prompt/lib/index.js')),
+  import(hostModuleUrl(host, 'dsh-session/lib/index.js')),
 ])
 
 // Adapted from the tested Python ContextManager contract. This is a prompt constraint,
@@ -30,8 +33,24 @@ export function selectCMRange(session, keepRecent) {
   return null
 }
 
+
+// Price only the dynamic-context message the native loop is about to append.
+// This mirrors its read-only retained-snapshot decision, without appending events.
+function pendingRuntimeContext(session, assembly) {
+  const owned = event => event.type === 'user/message' && event.data?.source?.kind === 'plugin'
+    && event.data.source.plugin === '@deepseek-ai/dsh-system-prompt'
+  const prior = session.events.filter(owned), surface = new Set(session.surface.nodes)
+  const retained = [...prior].reverse().find(event => surface.has(event.seq))
+  const current = renderContextSnapshot(assembly)
+  if (!prior.length && !current) return []
+  const text = current || 'Current runtime context: none. Earlier runtime-context snapshots no longer apply.'
+  const blocks = retained?.data?.content
+  if (blocks?.length === 1 && blocks[0].type === 'text' && blocks[0].text === text) return []
+  return [{ role: 'user', content: [{ type: 'text', text }] }]
+}
+
 /** A second, isolated compaction service. It never replaces the native preset service.
- * Pre-step middleware performs early DPswarm CM; DSH's ordinary pressure/overflow policy
+ * Pre-step middleware uses current-model window pressure; DSH's ordinary pressure/overflow policy
  * remains the fallback. Both use the SAME native durable transaction and token meter.
  */
 export class DPSwarmCM extends BasicCompactionEngine {
@@ -40,27 +59,92 @@ export class DPSwarmCM extends BasicCompactionEngine {
     super(ctx, { auto: false })
     this.runtime = ctx.dpswarmCM
     this.tickets = new WeakMap()
+    this.assemblies = new WeakMap()
+    ctx.on('system-prompt/assemble', async (_assembly, context, next) => {
+      const assembly = await next()
+      if (context?.agent?.session) this.assemblies.set(context.agent.session, { assembly: structuredClone(assembly), signal: context.signal })
+      return assembly
+    }, { prepend: true })
     ctx.effect(() => this.runtime.attach(this), 'dpswarm: CM backend registration')
     ctx.on('agent/pre-step', async ({ agent, signal, messages }, next) => {
       // A limited child must obtain its own frozen budget before even its CM runs.
       await ctx.get?.('dpswarmBudget', false)?.ensure(agent, signal, messages || [])
       if (!signal.aborted) {
-        try { await this.compactIfNeeded(agent, 'pressure', signal) }
+        try { await this.compactIfNeeded(agent, 'pressure', signal, { messages: messages || [] }) }
         catch { ctx.logger?.warn?.('DPswarm CM was not adopted; existing history and native fallback remain available. See the session CM audit.') }
       }
+      this.assemblies.delete(agent.session)
       return next()
     }, { prepend: true })
   }
-  async compactIfNeeded(agent, trigger, signal) {
+  async compactIfNeeded(agent, trigger, signal, pending = {}) {
     const profile = await this.runtime.profile(agent.session)
     if (!profile || signal?.aborted) return null
-    const before = this.ctx.tokenMeter.measure(agent.session)
-    if (before.surfaceTokens < profile.thresholdTokens) return null
+    const evidence = { pressure_source: 'current_prompt_assembly', threshold_ratio: CM_POLICY.thresholdRatio,
+      pressure_limitations: 'Pre-step assembly estimate, not final wire-request proof. Unmatched full request headers use the estimated baseline; later agent/request rerouting or pre-step message replacement is not predicted.' }
+    const skip = reason => { this.runtime.pressureChecked(agent.session, { ...evidence, decision: 'skip', reason }); return null }
+    if (profile.version !== CM_POLICY.version) return skip('legacy_profile_requires_new_run')
+    const captured = this.assemblies.get(agent.session)
+    const assembly = pending.assembly || (captured && (!captured.signal || captured.signal === signal) ? captured.assembly : null)
+    if (!assembly) return skip('missing_current_assembly')
+    let childRoute
+    try { childRoute = await resolveChildRoute(agent, { journal: this.runtime.journal, signal }) }
+    catch (error) { evidence.route_error = error.code || 'CHILD_ROUTE_UNAVAILABLE'; return skip('unavailable_child_route') }
+    const route = childRoute || { provider: assembly.variables?.provider, model: assembly.variables?.model }
+    if (!['provider', 'model'].every(key => typeof route[key] === 'string' && route[key].trim())) return skip('unknown_current_route')
+    evidence.pressure_route = { provider: route.provider, model: route.model }
+    evidence.route_source = childRoute ? 'frozen_child_route' : 'current_prompt_assembly'
+    let modelInfo
+    try { modelInfo = await this.ctx.llm.resolveModelInfo(route.provider, route.model, signal) }
+    catch (error) { evidence.context_error = error.code || 'MODEL_METADATA_UNAVAILABLE'; return skip('unknown_model_context') }
+    const window = modelInfo?.context?.contextWindow
+    if (!Number.isSafeInteger(window) || window <= 0) return skip('unknown_model_context')
+    if (signal?.aborted) return null
+    // Do not import stale system/tool content or unobserved effort defaults from
+    // the previous request. A changed canonical envelope falls back to the
+    // native meter's heuristic instead of reusing an incompatible usage anchor.
+    const header = canonicalHeader({ config: { ...route }, system: renderPrompt(assembly), tools: assembly.tools || [] })
+    const estimated = this.ctx.tokenMeter.measure(agent.session, header)
+    let before = estimated
+    evidence.request_pressure_basis = 'current_assembly_header'
+    const prior = agent.session.requestHeader?.()
+    const sameContent = prior?.config?.provider === route.provider && prior.config.model === route.model
+      && (prior.system || '') === (header.system || '') && cmHash(prior.tools || []) === cmHash(header.tools || [])
+      && (!childRoute || prior.config.reasoningEffort === childRoute.reasoningEffort)
+    if (sameContent) {
+      // Provider input observed for the same route and content envelope supplies
+      // a conservative bound even when pre-step cannot know later config fields.
+      // Never carry this across model, system, tool or frozen-child-effort changes.
+      const observed = this.ctx.tokenMeter.measure(agent.session, prior)
+      if (observed.baseline.kind === 'usage') {
+        evidence.same_route_content_prior_usage_tokens = observed.totalTokens
+        evidence.usage_anchor_header_sha256 = cmHash(prior)
+        if (observed.totalTokens >= estimated.totalTokens) {
+          before = observed
+          evidence.request_pressure_basis = 'same_route_content_prior_usage_upper_bound'
+        }
+      }
+    }
+    const visibleIds = new Set(agent.session.deriveMessages().map(message => message.id).filter(Boolean))
+    const unseen = (pending.messages || []).filter(message => !message.id || !visibleIds.has(message.id))
+    const additions = [...unseen, ...pendingRuntimeContext(agent.session, assembly)]
+    const pendingTokens = additions.reduce((total, message) => total + this.ctx.tokenMeter.estimateMessage(message), 0)
+    const threshold = Math.floor(window * profile.thresholdRatio)
+    Object.assign(evidence, { context_window: window, threshold_tokens: threshold,
+      request_tokens_before_estimate: before.totalTokens + pendingTokens,
+      request_baseline: before.baseline, pending_tokens_estimate: pendingTokens,
+      surface_tokens_before_estimate: before.surfaceTokens, request_header_sha256: cmHash(header) })
+    if (evidence.request_tokens_before_estimate < threshold) return skip('below_threshold')
     const span = selectCMRange(agent.session, profile.keepRecent)
-    if (!span) return null
-    const ticket = await this.runtime.begin(agent, profile, { trigger,
-      surface_tokens_before_estimate: before.surfaceTokens, selected_span: span,
-      source_surface_hash: cmHash(before.nodes) }, signal)
+    if (!span) return skip('no_balanced_span')
+    const first = before.nodes.findIndex(node => node.seq === span[0]), last = before.nodes.findIndex(node => node.seq === span[1])
+    if (first < 0 || last < first) return skip('surface_measurement_changed')
+    const compactableTokens = before.nodes.slice(first, last + 1).reduce((sum, node) => sum + node.tokens, 0)
+    evidence.compactable_tokens_estimate = compactableTokens
+    if (compactableTokens < profile.minCompactableTokens) return skip('compactable_span_too_small')
+    this.runtime.pressureChecked(agent.session, { ...evidence, decision: 'eligible', reason: 'window_pressure' })
+    const ticket = await this.runtime.begin(agent, profile, { trigger, ...evidence,
+      selected_span: span, source_surface_hash: cmHash(before.nodes) }, signal)
     if (!ticket) return null
     this.tickets.set(agent.session, ticket)
     let result, failure

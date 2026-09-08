@@ -1,8 +1,8 @@
 import { createHash, randomUUID } from 'node:crypto'
 
 export const CM_MODEL = 'deepseek-v4-flash'
-export const CM_POLICY = Object.freeze({ version: 'dpswarm-cm-v1', model: CM_MODEL,
-  thresholdTokens: 12000, keepRecent: 4, targetTokens: 2000, maxTokens: 4096,
+export const CM_POLICY = Object.freeze({ version: 'dpswarm-cm-window-v2', model: CM_MODEL,
+  thresholdRatio: 0.8, minCompactableTokens: 4096, keepRecent: 4, targetTokens: 2000, maxTokens: 4096,
   maxCallsPerAgentTurn: 12, timeoutSeconds: 120, reasoningEffort: 'off' })
 export const cmError = code => Object.assign(new Error(code), { code })
 export const cmHash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex')
@@ -47,9 +47,13 @@ export class CMRuntime {
     this.beginning = new Set()
     this.seen = new Map()
     this.engines = new Set()
+    this.pressureChecks = new Map()
     this.closed = false
   }
   attach(engine) { this.engines.add(engine); return () => this.engines.delete(engine) }
+  pressureChecked(session, evidence) {
+    this.pressureChecks.set(session.id, { ...evidence, agent_session_id: session.id, checked_at: Date.now() })
+  }
   async journalFor(id) { return this.journal.read(id) }
   async restoreRun(session) {
     if (!session || isChild(session) || this.frozen.has(session.id)) return this.frozen.get(session?.id) || null
@@ -176,6 +180,8 @@ async begin(agent, profile, details, signal) {
       scope: 'selected session and direct children', model: profile?.model ?? this.config().cmModel ?? CM_MODEL, profile,
       frozen_for_team: this.frozen.has(id), configuration_error: error, attempts: records.length,
       adopted: records.filter(r => r.outcome === 'adopted').length, unknown_usage_calls: records.filter(r => r.llm_stream_calls !== 0 && !r.usage_complete).length,
+      pressure_policy: 'current agent model context window; worker cumulative budgets do not determine pressure',
+      last_pressure_check: this.pressureChecks.get(session.id) || null,
       active_calls: [...this.active.values()].filter(t => t.rootId === id).length, recent: records.slice(-12),
       accounting: 'sidecar audit ledger; native DSH session history is unchanged. Input and cache tokens are disjoint. Context estimates are not net token savings; cost is not computed.' }
   }
