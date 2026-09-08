@@ -15,7 +15,7 @@ export function requireRootCaller(parent) {
 
 
 // Internal adapter; dynamic topology is not exposed by the fixed-team plugin.
-export async function delegateOnce(args, exec, sidecar, subagents, { routeJournal = new AuditJournal({ sidecarFactory: () => sidecar }), modelRegistry, modelRoutes, hostModels, modelRole } = {}) {
+export async function delegateOnce(args, exec, sidecar, subagents, { routeJournal = new AuditJournal({ sidecarFactory: () => sidecar }), modelRegistry, modelRoutes, hostModels, modelRole, onChildStarted } = {}) {
         const parent = exec.agent
         requireRootCaller(parent)
         const leadRoute = effectiveLeadRoute(parent)
@@ -85,6 +85,7 @@ export async function delegateOnce(args, exec, sidecar, subagents, { routeJourna
               execution_provider: sidecar.cfg.subagentProvider,
             })
             await childRoute.bind(run.id)
+            await onChildStarted?.({ execution_session_id: run.id, item_id: it.item_id, node_id: currentNode })
           }
           try {
           const agentOptions = {}

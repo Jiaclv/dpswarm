@@ -9,6 +9,7 @@ import { HostModelRegistry } from '../lib/host-model-registry.js'
 import { CMRuntime } from '../lib/cm-runtime.js'
 import { MemoryAuditJournal } from './helpers/memory-audit.mjs'
 import { installBudget } from '../lib/budget.js'
+import { WorkerBudgetRuntime } from '../lib/budget-runtime.js'
 import { resolveHostRoot, hostModuleUrl } from '../lib/host-modules.js'
 const host = resolveHostRoot()
 const [{ Context }, { Session }] = await Promise.all(['cordis', 'dsh-session'].map(p => import(hostModuleUrl(host, `${p}/lib/index.js`))))
@@ -470,4 +471,51 @@ for (const change of ['provider-removed','lead-changed']) test(`${change} before
   assert.equal(h.children.length,1);assert.equal(allocations,1);assert.equal(result.deliveries.length,1)
   assert.equal(result.failed[0].role,'tester');assert.match(result.failed[0].code,/^HOST_MODEL_/)
   await h.controller.review({item_id:result.deliveries[0].item_id,verdict:'accept'},h.exec)
+})
+
+
+for (const [name, change] of [
+  ['manual values become 1200000/56', cfg => Object.assign(cfg, { workerTokenLimit: 1200000, workerCallLimit: 56 })],
+  ['manual becomes Auto', cfg => { cfg.workerBudgetMode = 'auto' }],
+  ['manual becomes unlimited', cfg => { cfg.workerBudgetMode = 'unlimited' }],
+]) test(`budget change during awaited controller model preflight is rejected: ${name}`, async t => {
+  const h = fixture(t), journal = new MemoryAuditJournal()
+  Object.assign(h.cfg, { workerBudgetMode: 'manual', workerTokenLimit: 600000, workerCallLimit: 28 })
+  h.controller.budget = new WorkerBudgetRuntime({ config: () => h.cfg, journal,
+    resolveSession: id => id === h.parent.session.id ? h.parent.session : null })
+  const registry = new HostModelRegistry(() => ({ async resolveCallConfig(input) { return { ...input } } }))
+  const resolveModels = registry.resolve.bind(registry)
+  let entered, resume
+  const enteredPreflight = new Promise(resolve => { entered = resolve })
+  const pausedPreflight = new Promise(resolve => { resume = resolve })
+  registry.resolve = async (...args) => {
+    entered()
+    await pausedPreflight
+    return resolveModels(...args)
+  }
+  h.controller.modelRegistry = registry
+  const running = h.controller.run({ task: 'Create the requested HTML without tests.' }, h.exec)
+  // Observe rejection immediately so the deliberate async window cannot produce
+  // an unhandled rejection; cleanup also settles a wrongly admitted old path.
+  const outcome = running.then(value => ({ value }), error => ({ error }))
+  try {
+    await enteredPreflight
+    assert.equal(h.children.length, 0)
+    assert.equal(journal.roots.size, 0)
+    change(h.cfg)
+    resume()
+    await nextTurn()
+    assert.equal(h.children.length, 0, 'No worker may start under the changed policy')
+    const result = await outcome
+    assert.equal(result.error?.code, 'WORKER_BUDGET_SETTINGS_CHANGED')
+    assert.equal(h.calls.length, 0, 'No sidecar execution registration/delegation may occur')
+    assert.equal(journal.roots.size, 0, 'No team-run or worker allocation may be persisted')
+    assert.equal(journal.queues.size, 0)
+    assert.equal(h.controller.sessions.get('parent').budgetRun, null)
+    assert.equal(h.controller.sessions.get('parent').lease, null, 'Pre-admission lease must be released')
+    assert.equal(h.controller.sessions.get('parent').busy, false)
+  } finally {
+    resume()
+    await h.controller.shutdown()
+  }
 })

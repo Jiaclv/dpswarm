@@ -114,8 +114,13 @@ export class WorkerBudgetRuntime {
     this.states.set(session.id, state)
     return state
   }
-  async beginTeamRun(parent, { roles, decisions }) {
+  async beginTeamRun(parent, { roles, decisions, expectedProfile }) {
     const root = this.trustedLead(parent), profile = workerBudgetProfile(this.config(), root.id)
+    // Route preflight may await while user settings change. Compare the resolved
+    // policy before any ledger write; an admitted team keeps this frozen policy.
+    if (expectedProfile !== undefined && !same(profile, expectedProfile)) {
+      throw budgetError('WORKER_BUDGET_SETTINGS_CHANGED', 'Worker budget settings changed during team preflight. Start again using the current user settings.')
+    }
     if (!Array.isArray(roles) || !roles.length || new Set(roles).size !== roles.length || roles.some(r => !['implementer', 'tester', 'reviewer'].includes(r))) throw budgetError('WORKER_BUDGET_ROLES_INVALID')
     const chosen = {}
     if (profile.mode === 'auto') {

@@ -25,6 +25,7 @@ EVENT_TYPES = frozenset({
         "allocation", "allocation-bound", "team-run", "team-run-ended",
         "frozen", "failure", "admitted", "settled")),
     "dpswarm/route-bound",
+    *("dpswarm/team-required-" + suffix for suffix in ("bound", "started", "finished")),
     "dpswarm/cm-team", "dpswarm/cm-start", "dpswarm/cm-end", "dpswarm/cm-usage",
 })
 

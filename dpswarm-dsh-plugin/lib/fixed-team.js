@@ -168,7 +168,7 @@ export class FixedTeamController {
     } catch (error) { return { source: 'dph', ready: false, error: error.code || 'HOST_MODEL_REGISTRY_UNAVAILABLE', message: error.message } }
   }
 
-  async run(args, exec) {
+  async run(args, exec, { onChildStarted } = {}) {
     const parent = exec?.agent
     requireRootCaller(parent)
     if (this.closed) throw failure('PLUGIN_DISPOSED', 'Plugin is stopping')
@@ -220,7 +220,7 @@ export class FixedTeamController {
       }
       if (state.abort.signal.aborted) throw failure('SUBAGENT_ABORTED', 'Task was cancelled before admission')
       this.acquire(state, parent)
-      if (this.budget) state.budgetRun = await this.budget.beginTeamRun(parent, { roles, decisions: proposedBudgets })
+      if (this.budget) state.budgetRun = await this.budget.beginTeamRun(parent, { roles, decisions: proposedBudgets, expectedProfile: workerPolicy })
       if (this.cm) state.profile = fixedProfile(state.cfg, await this.cm.beginRun(parent), leadOptions)
       await state.sidecar.ensure()
       if (this.modelRegistry) await this.modelRegistry.publish(state.sidecar, state.hostModels)
@@ -260,7 +260,7 @@ export class FixedTeamController {
         try {
           const result = await delegateOnce({ kind: 'derive', subtasks: [{ ...route, title: `DPswarm ${role}`, prompt: assignedPrompt }] },
             { ...exec, signal: timeout.signal }, state.sidecar, this.subagents,
-            { modelRegistry: this.modelRegistry, modelRoutes: state.modelRoutes, hostModels: state.hostModels, modelRole: role })
+            { modelRegistry: this.modelRegistry, modelRoutes: state.modelRoutes, hostModels: state.hostModels, modelRole: role, onChildStarted: details => onChildStarted?.({ ...details, role, run_id: state.lease.run_id }) })
           if (!Array.isArray(result.deliveries)) { failed.push({ role, code: result.outcome || 'NOT_ADMITTED', error: result.message || 'No worker was admitted' }); break }
           deliveries.push(...result.deliveries.map(d => ({ ...d, role, evidence_kind: 'worker_reported; Lead must independently verify' })))
           failed.push(...result.failed.map(f => ({ ...f, role })))
@@ -277,7 +277,7 @@ export class FixedTeamController {
       return { mode: 'fixed-team-v1', profile: state.profile, model_registry: state.hostModels || null, deliveries, failed,
         stopped: state.abort.signal.aborted || !enabled(this.config(), parent.session.id),
         worker_budget_policy: state.budgetRun?.profile || workerPolicy,
-        next: 'Lead: inspect the current files and independently verify the reported tests. Repair or take over when needed. Review every delivered item with dpswarm_review(accept or terminate). Worker text is not an official score.', usage_note: unknownUsage }
+        next: 'Lead: inspect the current files and verify within the user-permitted scope. If the user forbids tests, do not run or add tests. Repair or take over when needed. Review every delivered item with dpswarm_review(accept or terminate). Worker text is not an official score.', usage_note: unknownUsage }
     } finally {
       let budgetCleanupError
       try { if (state.budgetRun) await this.budget.finishTeamRun(parent, state.budgetRun) }

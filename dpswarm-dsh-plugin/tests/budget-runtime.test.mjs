@@ -125,3 +125,90 @@ test('Auto grant rejects task/content/source tampering and a child cannot mint i
   h.sessions.set(forged.id, forged)
   await assert.rejects(runtime.plan(h.agent(forged), { task: 'forged', tokenLimit: 1, callLimit: 1, reason: 'no' }), { code: 'WORKER_BUDGET_LEAD_REQUIRED' })
 })
+
+
+test('an awaited preflight cannot silently change the user budget before team admission', async t => {
+  const changes = [
+    ['manual to auto', cfg => { cfg.workerBudgetMode = 'auto' }],
+    ['manual to unlimited', cfg => { cfg.workerBudgetMode = 'unlimited' }],
+    ['manual token limit', cfg => { cfg.workerTokenLimit = 1200000 }],
+    ['manual call limit', cfg => { cfg.workerCallLimit = 56 }],
+    ['new session override', cfg => { cfg.workerBudgetSessionOverrides = [{ sessionId: 'lead', mode: 'manual', tokenLimit: 80000, callLimit: 40 }] }],
+  ]
+  for (const [name, change] of changes) await t.test(name, async () => {
+    const h = fixture({ workerTokenLimit: 600000, workerCallLimit: 28 }), runtime = h.runtime()
+    const expectedProfile = workerBudgetProfile(h.cfg, h.root.id)
+    let completePreflight
+    const preflight = new Promise(resolve => { completePreflight = resolve })
+    const attempt = (async () => {
+      await preflight
+      const handle = await runtime.beginTeamRun(h.agent(h.root), { roles: ['implementer', 'tester'], expectedProfile })
+      return runtime.issueTeamWorker(h.agent(h.root), handle, { task: 'Implement the requested artifact.', label: 'implementer' })
+    })()
+    change(h.cfg)
+    completePreflight()
+    await assert.rejects(attempt, { code: 'WORKER_BUDGET_SETTINGS_CHANGED' })
+    assert.equal(h.journal.roots.size, 0, 'Rejected admission must not create a team-run or allocation ledger')
+    assert.equal(h.journal.queues.size, 0)
+    assert.equal(runtime.states.size, 0)
+  })
+})
+
+test('matching preflight profiles preserve manual user values, Auto decisions, and unlimited semantics', async t => {
+  const modes = [
+    { mode: 'manual', expected: { mode: 'manual', tokenLimit: 600000, callLimit: 28 } },
+    { mode: 'auto', expected: { mode: 'auto', tokenLimit: 80000, callLimit: 40 },
+      decisions: { implementer: { tokenLimit: 80000, callLimit: 40, reason: 'Lead estimated this specific subtask.' } } },
+    { mode: 'unlimited', expected: { mode: 'unlimited' } },
+  ]
+  for (const { mode, expected, decisions } of modes) await t.test(mode, async () => {
+    const h = fixture({ workerBudgetMode: mode, workerTokenLimit: 600000, workerCallLimit: 28 }), runtime = h.runtime()
+    const expectedProfile = workerBudgetProfile(h.cfg, h.root.id)
+    await Promise.resolve()
+    const handle = await runtime.beginTeamRun(h.agent(h.root), { roles: ['implementer'], decisions, expectedProfile })
+    const grant = await runtime.issueTeamWorker(h.agent(h.root), handle, { task: 'Implement one SVG.', label: 'implementer' })
+    h.a.events.push({ type: 'user/message', data: { role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: grant.prompt }] } })
+    const state = await runtime.ensure(h.agent(h.a), signal())
+    assert.deepEqual(grant.profile, expected)
+    assert.deepEqual(state.profile, expected)
+    if (mode === 'unlimited') assert.equal(runtime.describe(state).remaining_tokens, null)
+    if (mode === 'auto') assert.equal(state.decision.decided_by, 'current_lead_tool_call')
+    await runtime.finishTeamRun(h.agent(h.root), handle)
+  })
+})
+
+test('a complete session override stays authoritative when unrelated global defaults change during preflight', async () => {
+  const h = fixture({ workerBudgetMode: 'unlimited', workerBudgetSessionOverrides: [
+    { sessionId: 'lead', mode: 'manual', tokenLimit: 600000, callLimit: 28 },
+  ] }), runtime = h.runtime()
+  const expectedProfile = workerBudgetProfile(h.cfg, h.root.id)
+  await Promise.resolve()
+  Object.assign(h.cfg, { workerBudgetMode: 'auto', workerTokenLimit: 1, workerCallLimit: 1 })
+  const handle = await runtime.beginTeamRun(h.agent(h.root), { roles: ['implementer'], expectedProfile })
+  const grant = await runtime.issueTeamWorker(h.agent(h.root), handle, { task: 'Use the session-specific allowance.', label: 'implementer' })
+  assert.deepEqual(grant.profile, { mode: 'manual', tokenLimit: 600000, callLimit: 28 })
+  await runtime.finishTeamRun(h.agent(h.root), handle)
+})
+
+test('once admitted, later roles keep the original independent manual budgets after settings change', async () => {
+  const h = fixture({ workerTokenLimit: 600000, workerCallLimit: 28 }), runtime = h.runtime()
+  const expectedProfile = workerBudgetProfile(h.cfg, h.root.id)
+  const handle = await runtime.beginTeamRun(h.agent(h.root), { roles: ['implementer', 'tester'], expectedProfile })
+  const implementer = await runtime.issueTeamWorker(h.agent(h.root), handle, { task: 'Implement the SVG.', label: 'implementer' })
+  // Settings edits after team admission affect future teams only.
+  Object.assign(h.cfg, { workerBudgetMode: 'unlimited', workerTokenLimit: 1, workerCallLimit: 1 })
+  await Promise.resolve()
+  const tester = await runtime.issueTeamWorker(h.agent(h.root), handle, { task: 'Inspect the saved artifact.', label: 'tester' })
+  for (const [session, grant] of [[h.a, implementer], [h.b, tester]]) {
+    session.events.push({ type: 'user/message', data: { role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: grant.prompt }] } })
+    assert.deepEqual(grant.profile, expectedProfile)
+  }
+  const a = await runtime.ensure(h.agent(h.a), signal()), b = await runtime.ensure(h.agent(h.b), signal())
+  assert.deepEqual(a.profile, expectedProfile)
+  assert.deepEqual(b.profile, expectedProfile)
+  const ticket = await runtime.admit(a, request)
+  await runtime.settle(ticket, usage, 'stop')
+  assert.equal(runtime.describe(a).remaining_calls, 27)
+  assert.equal(runtime.describe(b).remaining_calls, 28)
+  await runtime.finishTeamRun(h.agent(h.root), handle)
+})

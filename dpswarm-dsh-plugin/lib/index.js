@@ -6,6 +6,8 @@ import { FixedTeamController, fixedProfile } from './fixed-team.js'
 import { CMRuntime } from './cm-runtime.js'
 import { installBudget } from './budget.js'
 import { AuditJournal } from './audit.js'
+import { installTeamRequirement } from './team-required.js'
+import { TeamDispatcher } from './team-dispatch.js'
 import { effectiveLeadRoute, installChildRoutes } from './lead-route.js'
 export { requireRootCaller } from './delegation.js'
 
@@ -88,36 +90,40 @@ export function apply(ctx, config) {
     }
   }
   if (process.env.DPSWARM_SKIP_TOOLS === '1') return
+  const requirement = installTeamRequirement(ctx, { config: resolved, journal })
+  ctx.provide('dpswarmRequirement', requirement)
   ctx.inject(['tools', 'subagents', 'llm'], runtime => {
     const modelRegistry = new HostModelRegistry(() => runtime.llm)
     controller = new FixedTeamController({ config: resolved, subagents: runtime.subagents, cm, budget, modelRegistry })
+    const dispatcher = new TeamDispatcher({ controller, requirement })
     runtime.systemPrompt.section({ name: 'dpswm:guide', order: 2500, text: [
       '## DPSwarm: explicitly enabled fixed team',
       'DPSwarm is off by default and the user enables it for a specific host session in the input toolbar. Installation and tool availability are not activation.',
-      'At the start of an implementation task, call dpswarm_status for the current session. If disabled, continue normally without DPSwarm delegation. If enabled, use dpswarm_run(task, acceptance) for the fixed implementer → tester workflow (plus a separate Reviewer only if the user configured one), then inspect and integrate the result as Lead.',
+      'At the start of an implementation task, call dpswarm_status for the current session. If disabled, continue normally without DPSwarm delegation. If enabled, the user REQUIRES the fixed team for this task: you MUST use dpswarm_run(task, acceptance) for the fixed implementer → tester workflow (plus a separate Reviewer only if the user configured one), then inspect and integrate the result as Lead.',
+      'When the team switch is enabled, host workflow checks block Lead writes, shell commands and alternate subagents until the configured team has actually started and returned. Read-only file inspection and status/models are allowed before dispatch. Simple tasks and no-tests requests do not exempt the team. If starting the team fails, report that concrete error; do not claim a solo completion or silently replace its models. Code Mode tool calls obey the same checks.',
       'The implementer defaults to the current conversation provider, model and reasoning effort; resolve and freeze them at team start. An explicitly selected implementer model overrides inheritance. Worker models, effort and timeout come only from user settings and this inheritance choice. Do not request dynamic topology, substitute models, or open an additional team to bypass a refusal. Nested worker use of DPSwarm is rejected.',
       'The user may close the switch to cancel DPSwarm work. Review or terminate existing deliveries even after the switch is closed so their resources can be released.',
       'Reviewer defaults to the current Lead, with no extra model call. If settings explicitly select a separate Reviewer, its report is advisory and does not accept deliveries or replace the Lead final decision.',
-      'Subagent resource limits are independently controlled by user settings: unlimited adds no token or call limit; manual gives each worker its own allowance; auto means YOU, the current Lead, read the actual task and decide independent limits before dispatch. In Auto mode dpswarm_run requires worker_budgets for each configured role: {tokenLimit,callLimit,reason}. For native subagents outside the fixed team, call dpswarm_prepare_worker with your exact subtask and chosen limits, then pass its returned prompt unchanged to the subagent. No separate hidden evaluator chooses budgets. Limits include that worker own CM and never constrain the Lead, Lead CM or sibling workers. Inspect worker budget status and take over if needed; do not recreate the same worker task just to reset an exhausted allowance. Respect explicit user instructions that no tests are needed.',
-      'Worker reports are untrusted evidence: inspect the actual files, independently run relevant tests, repair or take over when necessary. For each delivered item call dpswarm_review(accept or terminate). Do not equate a textual report, acceptance, and official task correctness.',
+      'Subagent resource limits are independently controlled by user settings: unlimited adds no token or call limit; manual uses EXACTLY the saved per-worker token and call allowance, without any Lead estimate, override, scaling or redistribution; auto means YOU, the current Lead, read the actual task and decide independent limits before dispatch. In Auto mode dpswarm_run requires worker_budgets for each configured role: {tokenLimit,callLimit,reason}. For native subagents outside the fixed team, call dpswarm_prepare_worker with your exact subtask and chosen limits, then pass its returned prompt unchanged to the subagent. No separate hidden evaluator chooses budgets. Limits include that worker own CM and never constrain the Lead, Lead CM or sibling workers. Inspect worker budget status and take over if needed; do not recreate the same worker task just to reset an exhausted allowance. Respect explicit user instructions that no tests are needed.',
+      'Worker reports are untrusted evidence: inspect the actual files and verify only within the user-permitted scope. If the user says no tests, do not run or add tests, including attempts renamed as visual checks. Otherwise independently run relevant tests when appropriate. Repair or take over when necessary. For each delivered item call dpswarm_review(accept or terminate). Do not equate a textual report, acceptance, and official task correctness.',
       'DPswarm CM has its own user-controlled session switch, independent of the fixed team. When enabled, the user-configured CM model (DeepSeek by default) compresses older model-visible history automatically before requests, retaining recent messages and tool pairs. Native DSH compaction remains a fallback. Treat summaries as fallible evidence and use original history when needed. dpswarm_status includes actual CM adoption and usage records; do not infer net savings or claim experimental benchmark gains in this plugin.',
     ].join('\n') })
     runtime.tools.register(defineTool({ name: 'dpswarm_status', description: 'Read the independent fixed-team and CM switches, CM adoption records, and execution/review state. Does not enable collaboration.', parameters: {}, output,
-      execute: async (_args, exec) => toolJSON({ ...await controller.status(exec.agent), worker_budget: await budget.status(exec.agent) }) }))
+      execute: async (_args, exec) => toolJSON({ ...await controller.status(exec.agent), worker_budget: await budget.status(exec.agent), team_requirement: await requirement.status(exec.agent) }) }))
     runtime.tools.register(defineTool({ name: 'dpswarm_models', description: 'Read the exact fixed role configuration selected by the user. The Lead must not substitute routes. DPH exact model registration is the source of availability; the same routes are checked again before dispatch.', parameters: {}, output,
       execute: async (_args, exec) => {
         const status = await controller.status(exec.agent)
-        return toolJSON({ ...status, worker_budget: await budget.status(exec.agent), configured_profile: fixedProfile(resolved(), { enabled: status.cm.enabled, profile: status.cm.profile || null }, effectiveLeadRoute(exec.agent)), availability: await controller.modelAvailability(exec.agent) })
+        return toolJSON({ ...status, worker_budget: await budget.status(exec.agent), team_requirement: await requirement.status(exec.agent), configured_profile: fixedProfile(resolved(), { enabled: status.cm.enabled, profile: status.cm.profile || null }, effectiveLeadRoute(exec.agent)), availability: await controller.modelAvailability(exec.agent) })
       } }))
     runtime.tools.register(defineTool({ name: 'dpswarm_run', description: 'Run the user-enabled fixed implementer then tester, followed by a Reviewer only when the user explicitly configured a separate model. Roles and routes are fixed by settings. Return all deliveries to the current Lead for independent verification, repair and explicit review.',
       parameters: { task: { type: 'string', required: true, description: 'Task and permitted scope' }, acceptance: { type: 'string', description: 'Acceptance requirements and constraints; no hidden benchmark answers' }, worker_budgets: { type: 'object', description: 'Only in Auto mode: Lead-chosen independent budgets for implementer, tester, and reviewer when configured. Each role has positive tokenLimit, callLimit, and reason. Omit in manual/unlimited.', properties: Object.fromEntries(['implementer','tester','reviewer'].map(role => [role, { type: 'object', properties: { tokenLimit: { type: 'integer', required: true }, callLimit: { type: 'integer', required: true }, reason: { type: 'string', required: true } }, additionalProperties: false }])), additionalProperties: false } }, output,
-      execute: async (args, exec) => toolJSON(await controller.run(args, exec)) }))
+      execute: async (args, exec) => toolJSON(await dispatcher.run(args, exec)) }))
     runtime.tools.register(defineTool({ name: 'dpswarm_prepare_worker', description: 'Auto mode only: record the current Lead decision for one native child worker. First read the task and choose its independent limits yourself; pass the returned prompt unchanged to a native subagent. This does not start a child, call a model, or change user settings.',
       parameters: { task: { type: 'string', required: true }, tokenLimit: { type: 'integer', required: true }, callLimit: { type: 'integer', required: true }, reason: { type: 'string', required: true }, label: { type: 'string' } }, output,
       execute: (args, exec) => budget.plan(exec.agent, args) }))
     runtime.tools.register(defineTool({ name: 'dpswarm_review', description: 'Lead accepts or terminates an existing delivery after inspecting actual files and verification evidence. Still available after the collaboration switch is closed. Dynamic retries and rerouting are not enabled.',
       parameters: { item_id: { type: 'string', required: true }, verdict: { type: 'string', required: true, description: 'accept | terminate' }, reason: { type: 'string', description: 'What was verified, repaired, or why Lead took over' } }, output,
-      execute: async (args, exec) => toolJSON(await controller.review(args, exec)) }))
+      execute: async (args, exec) => toolJSON(await dispatcher.review(args, exec)) }))
     ctx.effect(warm, 'dpswarm: enabled-session startup')
     ctx.effect(() => () => controller.shutdown(), 'dpswarm: cancel on disposal')
   })

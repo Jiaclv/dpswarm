@@ -351,3 +351,21 @@ def test_invalid_route_binding_never_writes(tmp_path, field, value):
     assert caught.value.code in {"PLUGIN_AUDIT_INVALID_ROUTE","SESSION_SCOPE_MISMATCH"}
     assert store.path.read_bytes() == before and store.read()["revision"] == 0
     store.close()
+
+
+def test_team_requirement_lifecycle_survives_store_restart(tmp_path):
+    directory = tmp_path / "team-required"
+    store = PluginAuditStore(directory, "root", create=True)
+    identity = {"root_session_id": "root", "user_message_id": "user-1", "content_sha256": "a" * 64}
+    body = transaction(events=[
+        {"type": "dpswarm/team-required-bound", "data": identity},
+        {"type": "dpswarm/team-required-started", "data": {**identity, "execution_session_id": "worker-1", "role": "implementer"}},
+        {"type": "dpswarm/team-required-finished", "data": {**identity, "outcome": "completed"}},
+    ])
+    store.append(body)
+    expected = store.read()
+    store.close()
+    restored = PluginAuditStore(directory, "root")
+    assert restored.read() == expected
+    assert [e["type"] for e in expected["events"]] == [e["type"] for e in body["events"]]
+    restored.close()

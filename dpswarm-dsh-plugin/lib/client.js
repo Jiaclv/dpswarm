@@ -359,7 +359,7 @@ window.__ModuleLoader__.load({
 
     function SessionSwitch({ sessionId, cm = false }) {
       const field = cm ? 'cmEnabledSessions' : 'enabledSessions'
-      const label = cm ? '当前任务使用 CM' : '当前任务使用固定团队'
+      const label = cm ? '当前任务使用 CM' : '当前任务必须使用固定团队'
       const snapshot = useSettings(), cfg = snapshot.value || {}
       const [pending, setPending] = useState(false), [error, setError] = useState('')
       const on = (cfg[field] || []).includes(sessionId)
@@ -382,7 +382,7 @@ window.__ModuleLoader__.load({
       return h('div', { className: 'dps-field' },
         h('label', { className: 'dps-switch' }, h('input', { type: 'checkbox', role: 'switch', checked: on,
           disabled: pending || !ready || (!on && missing.length > 0), onChange: change, 'aria-label': label }), label),
-        h('p', { className: 'dps-hint' }, !ready ? '打开一个任务后可开启；需要可写的宿主设置。' : missing.length ? routeHint(missing) : cm ? '所选 CM 模型自动整理较早的上下文；单 agent 也可用。关闭会取消在途压缩，已采用的摘要保留。' : '关闭会取消在途协作；主 agent 仍可验收或终止已有交付。'),
+        h('p', { className: 'dps-hint' }, !ready ? '打开一个任务后可开启；需要可写的宿主设置。' : missing.length ? routeHint(missing) : cm ? '所选 CM 模型自动整理较早的上下文；单 agent 也可用。关闭会取消在途压缩，已采用的摘要保留。' : '开启后必须先启动固定团队，Lead 不能因任务简单而跳过。每个 worker 的额度遵循下方设置；只有 Auto 由 Lead 决定。关闭会取消在途协作，已有交付仍可验收或终止。'),
         error ? h('p', { className: 'dps-error', role: 'alert' }, error) : null)
     }
 
