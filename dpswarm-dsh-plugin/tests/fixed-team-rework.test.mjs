@@ -49,7 +49,7 @@ function fixture() {
     async diagnosticsForSession(workerId) { return { root_session_id: 'root', worker_session_id: workerId, mode: 'manual', tokenLimit: 600000, callLimit: 28, calls: 2, committed_tokens: 40000 } },
     async issueRework(_parent, args) {
       plans.push(structuredClone(args)); if (h.budgetError) throw coded(h.budgetError)
-      await h.onIssue?.()
+      const onIssue = h.onIssue; h.onIssue = null; await onIssue?.()
       if ([...allocations.values()].some(a => a.source === args.workerSessionId && !a.revoked)) throw coded('REWORK_SOURCE_SUPERSEDED')
       const id = `alloc-${allocations.size}`; allocations.set(id, { source: args.workerSessionId, bound: false, revoked: false })
       const profile = cfg.reworkBudgetMode === 'fixed' ? { mode: 'fixed', tokenLimit: cfg.reworkTokenLimit, callLimit: cfg.reworkCallLimit } : { mode: 'unlimited' }
@@ -104,8 +104,9 @@ test('same-task rework uses exact original route, unrestricted new grant and lat
   await assert.rejects(h.rework(old.item_id), /REWORK_SOURCE_SUPERSEDED/)
   const last = reworked.deliveries[0]
   const third = await h.rework(last.item_id)
-  assert.equal(h.plans[1].workerSessionId, last.execution_session_id)
-  assert.equal(third.deliveries.length, 1)
+  const implPlans = h.plans.filter(p => p.task.includes('Necessary corrections'))
+  assert.equal(implPlans[1].workerSessionId, last.execution_session_id)
+  assert.equal(third.deliveries.length, 2)
   const events = (await h.journal.read('root')).events
   assert.equal(events.filter(e => e.type === 'dpswarm/fixed-team-binding').length, 1)
   assert.equal(events.filter(e => e.type === 'dpswarm/worker-rework' && e.data.phase === 'published').length, 2)
@@ -117,7 +118,7 @@ test('failed implementer can rework; no-package accept reports meaningful error 
   assert.equal(old.code, 'WORKER_TOKEN_RESERVATION_DENIED')
   await assert.rejects(h.dispatcher.review({ item_id: old.item_id, verdict: 'accept' }, h.exec), /DELIVERY_PACKAGE_REQUIRED/)
   assert.equal(h.items[old.item_id].acceptance, 'terminated')
-  assert.equal((await h.rework(old.item_id)).deliveries.length, 1)
+  assert.equal((await h.rework(old.item_id)).deliveries.length, 2)
 })
 
 test('rework rejects model/budget argument injection, tester identity, disabled switch and changed user task', async () => {
@@ -197,7 +198,7 @@ test('concurrent rework calls create only one linked child', async () => {
   const running = h.rework(old.item_id)
   while (!release) await new Promise(resolve => setImmediate(resolve))
   await assert.rejects(h.rework(old.item_id), /RUN_PENDING/)
-  release(); await running; assert.equal(h.children.length, 3)
+  release(); await running; assert.equal(h.children.length, 4)
 })
 
 
@@ -205,7 +206,7 @@ test('tester and reviewer setting changes do not substitute or block the origina
   const h = fixture(), initial = await h.run()
   h.cfg.testModel = 'new-tester'; h.cfg.reviewerMode = 'model'; h.cfg.reviewerModel = 'new-reviewer'
   const result = await h.rework(initial.deliveries[0].item_id)
-  assert.equal(result.deliveries.length, 1); assert.equal(h.children.length, 3)
+  assert.equal(result.deliveries.length, 2); assert.equal(h.children.length, 4)
   assert.equal(h.children[2].request.agentOptions.model, 'lead')
 })
 
@@ -214,7 +215,7 @@ test('failed original run can safely reacquire its own workspace after all old d
   for (const item of initial.deliveries) await h.dispatcher.review({ item_id: item.item_id, verdict: 'terminate' }, h.exec)
   assert.equal(h.controller.sessions.get('root').lease, null)
   const result = await h.rework(old.item_id)
-  assert.equal(result.deliveries.length, 1)
+  assert.equal(result.deliveries.length, 2)
   assert.ok(h.controller.sessions.get('root').lease)
 })
 
@@ -226,7 +227,7 @@ test('published cancellation remains a failed linked attempt and latest item can
   assert.equal(result.stopped, true); assert.equal(result.deliveries.length, 0)
   assert.equal(result.failed[0].code, 'WORKER_PARENT_CANCELLED')
   h.signal = new AbortController(); h.exec.signal = h.signal.signal
-  assert.equal((await h.rework(result.failed[0].item_id)).deliveries.length, 1)
+  assert.equal((await h.rework(result.failed[0].item_id)).deliveries.length, 2)
 })
 
 test('unconfirmed revoke retains the lease and reports cleanup error', async () => {
@@ -262,7 +263,7 @@ test('real budget runtime: completed bound rework is not revoked, old usage stay
   const initial = await h.run(), first = initial.deliveries[0]
   const original = await runtime.diagnosticsForSession(first.execution_session_id)
   const repaired = await h.rework(first.item_id)
-  assert.equal(repaired.deliveries.length, 1); assert.equal(repaired.cleanup.budget_error, null)
+  assert.equal(repaired.deliveries.length, 2); assert.equal(repaired.cleanup.budget_error, null)
   const next = await runtime.diagnosticsForSession(repaired.deliveries[0].execution_session_id)
   assert.equal(next.mode, 'unlimited'); assert.equal(next.remaining_tokens, null); assert.equal(next.calls, 1)
   assert.deepEqual(await runtime.diagnosticsForSession(first.execution_session_id), original)
@@ -270,7 +271,7 @@ test('real budget runtime: completed bound rework is not revoked, old usage stay
   assert.deepEqual(await runtime.revokeRework(h.parent, allocation.allocation_id), { revoked: false, bound: true, allocation_id: allocation.allocation_id, source_worker_session_id: first.execution_session_id, bound_worker_session_id: repaired.deliveries[0].execution_session_id })
   await assert.rejects(runtime.issueRework(h.parent, { workerSessionId: first.execution_session_id, task: 'duplicate' }), /REWORK_ALREADY_CLAIMED/)
   const last = await h.rework(repaired.deliveries[0].item_id)
-  for (const item of [...initial.deliveries.slice(1), ...last.deliveries]) await h.dispatcher.review({ item_id: item.item_id, verdict: 'accept' }, h.exec)
+  for (const item of [...initial.deliveries.slice(1), ...repaired.deliveries.slice(1), ...last.deliveries]) await h.dispatcher.review({ item_id: item.item_id, verdict: 'accept' }, h.exec)
   assert.equal(h.controller.sessions.get('root').lease, null)
   assert.equal((await h.journal.read('root')).events.filter(e => e.type === 'dpswarm/worker-budget-rework-revoked').length, 0)
 })
@@ -289,10 +290,10 @@ for (const bound of [false, true]) test(`real budget: published cancellation ${b
   h.signal = new AbortController(); h.exec.signal = h.signal.signal; h.skipReworkBinding = false
   if (bound) {
     await assert.rejects(h.rework(source.item_id), /REWORK_SOURCE_SUPERSEDED/)
-    assert.equal((await h.rework(cancelled.item_id)).deliveries.length, 1)
+    assert.equal((await h.rework(cancelled.item_id)).deliveries.length, 2)
   } else {
     await assert.rejects(h.rework(cancelled.item_id), /REWORK_ALLOCATION_REVOKED/)
-    assert.equal((await h.rework(source.item_id)).deliveries.length, 1)
+    assert.equal((await h.rework(source.item_id)).deliveries.length, 2)
     const revoked = (await h.journal.read('root')).events.find(e => e.type === 'dpswarm/worker-rework' && e.data.phase === 'revoked')
     assert.equal(revoked.data.source_retry_allowed, true)
     assert.equal(revoked.data.published_child_eligible, false)

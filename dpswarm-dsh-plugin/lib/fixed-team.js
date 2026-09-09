@@ -300,6 +300,7 @@ export class FixedTeamController {
         ...(subtasks ? { subtasks: clone(subtasks) } : {}),
         configuration_fingerprint: configurationFingerprint(state.cfg), lead_route: clone(leadOptions) }
       state.implementers = new Map()
+      state.testers = new Map()
       this.writeScope?.clear(parent.session.id)
       if (state.fixedTask.task_binding) await state.journal.append(parent.session.id, 'dpswarm/fixed-team-binding', state.fixedTask)
       const context = `Explicit task constraints apply to every role and take precedence over default role guidance. If the task says no tests (including 不需要任何测试), do not run tests or add tests. Use only permitted read-only inspection and report unverified behavior honestly.\n\nTask:\n${args.task}\n\nAcceptance requirements:\n${args.acceptance || 'Derive requirements from the task; identify uncertainty explicitly.'}`
@@ -372,6 +373,7 @@ export class FixedTeamController {
               runId: state.lease.run_id, onDiagnostic: value => state.diagnostics.push(value),
               modelRegistry: this.modelRegistry, modelRoutes: state.modelRoutes, hostModels: state.hostModels, modelRole: role, onChildStarted: async details => {
                 if (role === 'implementer') state.implementers.set(details.item_id, { item_id: details.item_id, worker_session_id: details.execution_session_id, run_id: state.lease.run_id, superseded: false })
+                if (role === 'tester') state.testers.set(details.item_id, { item_id: details.item_id, worker_session_id: details.execution_session_id, run_id: state.lease.run_id })
                 await onChildStarted?.({ ...details, role, run_id: state.lease.run_id })
               } })
           if (!Array.isArray(result.deliveries)) { failed.push({ role, code: result.outcome || 'NOT_ADMITTED', error: result.message || 'No worker was admitted' }); break }
@@ -503,7 +505,17 @@ export class FixedTeamController {
         ? 'This is a linked rework of the original implementer without a token or call cap.'
         : `This is a linked rework of the original implementer with a fixed allowance of ${reworkProfile.tokenLimit} cumulative tokens and ${reworkProfile.callLimit} model calls.`
       const sourceScope = source.subtask != null ? frozen.subtasks?.find(row => row.id === source.subtask) : null
-      const task = `${workerRolePrompt('implementer')}\n\n${allowanceNote} Earlier usage remains separately recorded. Repair the specified defects until the original requirements are met; do not polish beyond the task. Fix only the concrete defects below within the original scope. Preserve unrelated work; do not add requirements or optional validation. Explicit no-tests instructions take precedence. Deliver the current candidate promptly.${sourceScope ? scopeClause(sourceScope) : ''}\n\nOriginal task:\n${frozen.task}\n\nOriginal acceptance:\n${frozen.acceptance || 'Use only the original task requirements.'}\n\nNecessary corrections:\n${args.feedback}`
+      // Carry the predecessor's own conclusions into the linked session: final
+      // report + provably saved candidate paths. Untrusted evidence, but the
+      // continuation no longer restarts blind. (Full session resume needs host
+      // fork/seed plumbing; tracked as a later mechanism upgrade.)
+      const priorDiagnostic = evidence[0].diagnostic
+      const priorReport = priorDiagnostic.closeout?.report?.text || ''
+      const priorCandidates = (priorDiagnostic.closeout?.candidates || []).map(c => c?.path).filter(Boolean)
+      const priorContext = '\n\nPrior attempt context (same task lineage; untrusted evidence, verify before relying):\n'
+        + (priorReport ? priorReport.slice(0, 12000) + (priorReport.length > 12000 ? '\n… [prior report truncated]' : '') : '(the prior attempt produced no report)')
+        + (priorCandidates.length ? `\n\nPreviously saved candidate files:\n${priorCandidates.join('\n')}` : '\n\nNo files were provably saved by the prior attempt.')
+      const task = `${workerRolePrompt('implementer')}\n\n${allowanceNote} Earlier usage remains separately recorded. Repair the specified defects until the original requirements are met; do not polish beyond the task. Fix only the concrete defects below within the original scope. Preserve unrelated work; do not add requirements or optional validation. Explicit no-tests instructions take precedence. Deliver the current candidate promptly.${sourceScope ? scopeClause(sourceScope) : ''}\n\nOriginal task:\n${frozen.task}\n\nOriginal acceptance:\n${frozen.acceptance || 'Use only the original task requirements.'}\n\nNecessary corrections:\n${args.feedback}${priorContext}`
       await check()
       allocation = await this.budget.issueRework(parent, { workerSessionId: source.worker_session_id, task })
       const sameProfile = (a, b) => !!a && !!b && a.mode === b.mode && a.tokenLimit === b.tokenLimit && a.callLimit === b.callLimit
@@ -551,12 +563,75 @@ export class FixedTeamController {
         clearTimeout(timer)
         state.abort.signal.removeEventListener('abort', abortChild)
       }
+      // Same-lineage re-verification: the original tester continues against the
+      // reworked candidate with its own rework-chain allocation; its earlier
+      // report carries over as untrusted context. Skipped silently when the
+      // original run had no tester or the rework delivered nothing.
+      let testerAllocation = null
+      try {
+        const testerSource = state.testers?.size ? [...state.testers.values()].at(-1) : null
+        if (deliveries.length && testerSource) {
+          const testerRecords = await this.diagnostics(state, testerSource.item_id)
+          const testerEvidence = testerRecords.filter(row => row.worker_session_id === testerSource.worker_session_id && row.run_id === testerSource.run_id && row.role === 'tester')
+          const testerDiagnostic = testerEvidence.length === 1 ? testerEvidence[0].diagnostic : null
+          const testerTerminal = testerDiagnostic?.native_terminal != null
+            && testerDiagnostic?.cleanup?.physical_cleanup_confirmed === true && !testerDiagnostic?.audit_error
+          if (!testerTerminal) {
+            failed.push({ role: 'tester', code: 'REVERIFY_SOURCE_UNAVAILABLE', error: 'The original tester has no trusted terminal record; Lead verifies the reworked candidate directly.' })
+          } else {
+            const priorTesterReport = testerDiagnostic.closeout?.report?.text || ''
+            const reworkReport = deliveries[0]?.output || ''
+            const testerRoute = frozen.profile.tester
+            const verifyPrompt = `${workerRolePrompt('tester')}\n\nThis is a linked re-verification after implementer rework, continuing the original tester's assignment. Re-verify the CURRENT candidate: the implementer just repaired the defects below. Original constraints (including any no-tests instruction) apply unchanged. Report a verdict with evidence.\n\nOriginal task:\n${frozen.task}\n\nOriginal acceptance:\n${frozen.acceptance || 'Use only the original task requirements.'}\n\nCorrections the implementer was asked to make:\n${args.feedback}\n\nRework delivery report (untrusted; verify against the actual files):\n${reworkReport.slice(0, 12000)}${reworkReport.length > 12000 ? '\n… [truncated]' : ''}\n\nYour earlier pass's final report (untrusted context; the files have changed since):\n${priorTesterReport ? priorTesterReport.slice(0, 12000) : '(no earlier report)'}`
+            await check()
+            testerAllocation = await this.budget.issueRework(parent, { workerSessionId: testerSource.worker_session_id, task: verifyPrompt })
+            const verifyRoutes = [{ role: 'lead', ...frozen.lead_route }, { role: 'tester', provider: testerRoute.provider,
+              model: testerRoute.model, ...(testerRoute.reasoning_effort ? { reasoningEffort: testerRoute.reasoning_effort } : {}) }]
+            if (this.modelRegistry) await this.modelRegistry.resolve(verifyRoutes, { signal: state.abort.signal })
+            const verifyTimeout = new AbortController()
+            const verifyAbortChild = () => verifyTimeout.abort(state.abort.signal.reason)
+            const verifyTimer = setTimeout(() => verifyTimeout.abort(failure('WORKER_TIMEOUT', 'Tester re-verification exceeded its wall-time limit')), frozen.profile.workerTimeoutSeconds * 1000)
+            state.abort.signal.addEventListener('abort', verifyAbortChild, { once: true })
+            try {
+              const result = await delegateOnce({ kind: 'derive', subtasks: [{ provider: testerRoute.provider, model: testerRoute.model,
+                reasoning_effort: testerRoute.reasoning_effort, title: 'DPswarm tester re-verify', prompt: testerAllocation.prompt }] },
+              { ...exec, signal: verifyTimeout.signal }, state.sidecar, this.subagents, {
+                routeJournal: state.journal, resolveSession: this.resolveSession, budget: this.budget, runId: reworkId,
+                onDiagnostic: value => state.diagnostics.push(value), modelRegistry: this.modelRegistry,
+                modelRoutes: verifyRoutes, hostModels: undefined, modelRole: 'tester', beforeChildStart: check,
+                onChildStarted: async details => {
+                  // The continuation becomes the latest tester lineage; the next
+                  // rework re-verifies from it.
+                  state.testers.set(details.item_id, { item_id: details.item_id, worker_session_id: details.execution_session_id, run_id: reworkId })
+                  await record('verification-published', { item_id: details.item_id, worker_session_id: details.execution_session_id })
+                } })
+              if (!Array.isArray(result.deliveries)) failed.push({ role: 'tester', code: result.outcome || 'NOT_ADMITTED', error: result.message || 'No re-verification worker was admitted' })
+              else {
+                deliveries.push(...result.deliveries.map(value => ({ ...value, role: 'tester', verification_of: deliveries[0]?.item_id ?? null })))
+                failed.push(...result.failed.map(value => ({ ...value, role: 'tester', verification_of: deliveries[0]?.item_id ?? null })))
+              }
+            } finally {
+              clearTimeout(verifyTimer)
+              state.abort.signal.removeEventListener('abort', verifyAbortChild)
+            }
+          }
+        }
+      } catch (error) {
+        failed.push({ role: 'tester', code: error?.code || 'REVERIFY_FAILED', error: String(error?.message ?? error) })
+      } finally {
+        // Observation-only revoke: an unbound tester allocation is released; a
+        // bound one stays consumed on its chain, same rule as the implementer.
+        if (testerAllocation?.allocation_id) {
+          try { await this.budget.revokeRework(parent, testerAllocation.allocation_id) }
+          catch (error) { state.cleanup.budget_error = { code: error?.code || 'REWORK_REVOKE_FAILED', message: String(error?.message || error) } }
+        }
+      }
       await record('finished', { published, delivery_item_ids: deliveries.map(value => value.item_id),
         failed_item_ids: failed.map(value => value.item_id).filter(Boolean), failure_codes: failed.map(value => value.code) })
       return { mode: 'fixed-implementer-rework-v1', source_item_id: source.item_id, source_worker_session_id: source.worker_session_id,
         worker_budget_policy: allocation.profile, deliveries: deliveries.map(compactWorkerEntry), failed: failed.map(compactWorkerEntry),
         stopped: state.abort.signal.aborted || !enabled(this.config(), parent.session.id), cleanup: state.cleanup, rework_recovery: recovery,
-        next: 'Inspect the necessary corrections within the original permitted scope. Accept only an item in deliveries. A failed or partial candidate is not an accepted worker delivery; use the latest implementer item for any further necessary rework.' }
+        next: 'Inspect the necessary corrections within the original permitted scope. Accept only an implementer item in deliveries. When a tester re-verification item is present, treat its report as advisory evidence for your review. A failed or partial candidate is not an accepted worker delivery; use the latest implementer item for any further necessary rework.' }
     } catch (error) {
       if (prepared) {
         try { await record('failed', { published, error_code: error?.code || 'REWORK_FAILED' }) }

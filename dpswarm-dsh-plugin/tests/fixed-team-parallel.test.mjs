@@ -125,10 +125,13 @@ test('rework of a parallel item re-claims the same subtask scope for its continu
   const result = await h.run()
   const itemA = result.deliveries.find(d => d.subtask === 'part-a')
   const reworked = await h.dispatcher.rework({ item_id: itemA.item_id, feedback: 'Fix the off-by-one in part A only.' }, h.exec)
-  assert.equal(reworked.deliveries.length, 1)
-  const reworkChild = h.children.at(-1)
+  assert.equal(reworked.deliveries.length, 2, 'implementer rework plus the original tester re-verification')
+  const reworkChild = h.children[3], verifyChild = h.children[4]
   assert.match(reworkChild.request.prompt[0].text, /写范围（工具层强制）/)
   assert.match(reworkChild.request.prompt[0].text, /src\/a\/\*\*/)
+  assert.match(reworkChild.request.prompt[0].text, /Prior attempt context/)
+  assert.match(verifyChild.request.prompt[0].text, /linked re-verification after implementer rework/)
+  assert.match(verifyChild.request.prompt[0].text, /Corrections the implementer was asked to make/)
   // The claim moved to the rework session; part-b's claim is untouched.
   assert.equal(h.writeScope.forSession('child-0'), null)
   assert.equal(h.writeScope.forSession(reworkChild.id).subtask, 'part-a')
