@@ -71,16 +71,19 @@ test('911 closeout re-evaluated: with meter-accurate estimates the same budget d
   // this: 110,000 remaining vs 70,000 inputs must trigger final-only).
 })
 
-test('17:32 tester: under the rail model it neither parks early nor gets squeezed (the 0.8.1 floor trigger is superseded)', async () => {
+test('17:32 tester: the 0.9.2 slack parks this ledger before the estimate-error death zone (supersedes the no-park pin)', async () => {
   const h = fixture({ workerTokenLimit: 60000, workerCallLimit: 8 }), r = h.runtime(), state = await r.ensure(h.agent(h.a), signal())
   // Real ledger: two settled calls, 24,148 committed of 60,000 (35,852 remain).
   await r.settle(await r.admit(state, call()), { inputTokens: 2565, outputTokens: 223, cacheReadTokens: 9216 }, 'tool-calls')
   await r.settle(await r.admit(state, call()), { inputTokens: 304, outputTokens: 64, cacheReadTokens: 11776 }, 'tool-calls')
-  // One more full step (≈14,028 in) plus a report still fits; no park, and the
-  // next call keeps its full output bound — the 5,710-token squeeze death of
-  // the real 17:32 run cannot happen anymore.
+  // Bare arithmetic said one more 14,028 step plus a report fits; in production
+  // this zone is where estimate skew lets a worker walk straight onto the hard
+  // rail and die without a report (00:14 implementer). With the 1/3 slack:
+  // 35,852 < ceil(28,056 * 4/3) + 6,144 = 43,552, so it parks and reports.
   await r.prepareCloseout(state, { inputEstimate: 14028, finalInputEstimate: 14028 }, signal())
-  assert.equal(state.closeout, undefined)
+  assert.equal(state.closeout.mode, 'final_only')
+  assert.equal(state.closeout.trigger, 'budget_rail')
+  // The parked call still keeps its full output bound — no squeeze returns.
   assert.equal(r.outputLimit(state, 14028, 32768), 21824)
 })
 

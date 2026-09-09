@@ -1,3 +1,9 @@
+# 0.9.2 收尾停泊估计误差余量验证（2026-09-10）
+
+插件回归 **360/360**、控制服务 **580/580** 通过（不含外部模型调用）。00:14 真实运行的死因分析：final-only 停泊按 pre-step 估算输入判断、硬轨按请求时刻实测信封判断，二者不一致时永远是估算偏乐观，实现者在文件落盘后的下一步被 `request_output_limit` 直接打死且无报告（该点上报告/CM 请求的输入同样塞不进额度，提前停泊是唯一有效手段）。修复：`closeoutForecast` 对（当前步输入 + 最终步输入）加 `CLOSEOUT_ESTIMATE_SLACK_RATIO = 1/3` 余量，forecast 新增 `estimate_slack` 观测字段；Auto 预算建议文案补充"写完再自查还要花几个全量信封"的口径。曾评估在 `agent/request` 用实测信封重判停泊，核查宿主 dsh-agent-loop 后放弃：system 在 `agent/request` waterfall 之前已渲染成串（lib/index.js:611 vs 708），此时注入的报告指令上不了线，只会把死因换成 `WORKER_CLOSEOUT_INSTRUCTION_MISSING`。表征更新：17:32 账本（35,852 剩余 / 14,028 步）从"不停泊"改钉为"以 budget_rail 停泊且 estimate_slack=9,352"（budget-rail-characterization 与 mechanism-911 各一处，原为 0.8.2 钉死的不停泊行为，本次为有意变更）；其余预算钉全部保持不变。未跑真实模型试点。
+
+---
+
 # 0.9.1 用户侧协作模式选择（串行/并行/分阶段门禁）验证（2026-09-09）
 
 插件回归 **360/360**、控制服务 **580/580** 通过（不含外部模型调用）。新增：设置项 `teamModeOverrides`（按会话，重复条目取最后）+ `teamModeFor()` + `run()` 用户模式门禁（serial 拒 `subtasks`/`staged` → `USER_TEAM_MODE_SERIAL`；parallel 拒 `staged` → `USER_TEAM_MODE_PARALLEL`；staged 拒 `subtasks` → `USER_TEAM_MODE_STAGED`；缺省 serial）；罗盘弹层三档选择器（`teamModeOf` 与后端同语义，写设置经既有原子 mutate 通道）。表征测试新增「用户模式门禁」用例（默认拒拆分/越形态拒绝/放行匹配形态）；`fixed-team-parallel` fixture 默认 parallel、staged 用例逐个翻模式。SSR 冒烟（宿主 React 18.3.1 + react-dom/server 渲染三个 slot，`.tmp/ssr-smoke/smoke.mjs`）通过：弹层含三枚模式 chip 且按 `teamModeOverrides` 正确选中。`client-browser.mjs` 未跑（本机无 Playwright，选择器交互未经真实浏览器检查）。

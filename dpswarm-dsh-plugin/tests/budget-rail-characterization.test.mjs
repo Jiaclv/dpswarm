@@ -1,7 +1,8 @@
 /**
- * Rail-model characterization (0.8.2): limits are anomaly rails, not tight
- * plans. No output squeeze; closeout = safe park when one more full step plus
- * a report no longer fits; the Lead decides continuation via linked rework.
+ * Rail-model characterization (0.8.2, slack added 0.9.2): limits are anomaly
+ * rails, not tight plans. No output squeeze; closeout = safe park when one more
+ * full step plus a report (plus a 1/3 estimate-uncertainty slack) no longer
+ * fits; the Lead decides continuation via linked rework.
  * Numbers are the real ledger values from the 911 and 17:32 production runs.
  */
 import assert from 'node:assert/strict'
@@ -23,14 +24,19 @@ function fixture(config = {}) {
 const signal = () => new AbortController().signal
 const call = (extra = {}) => ({ provider: 'p', model: 'm', messages: [], maxTokens: 32768, ...extra })
 
-test('rail model: the 17:32 tester numbers do NOT close out early and are NOT squeezed (it died from the squeeze, not the budget)', async () => {
+test('rail model: the 17:32 tester numbers now park (0.9.2 slack closes the estimate-error death zone)', async () => {
   const h = fixture({ workerTokenLimit: 60000, workerCallLimit: 8 }), r = h.runtime(), state = await r.ensure(h.agent(h.a), signal())
   await r.settle(await r.admit(state, call()), { inputTokens: 2565, outputTokens: 223, cacheReadTokens: 9216 }, 'tool-calls')
   await r.settle(await r.admit(state, call()), { inputTokens: 304, outputTokens: 64, cacheReadTokens: 11776 }, 'tool-calls')
-  // 35,852 remain. One more full step (14,028 in) plus a report still fits.
+  // 35,852 remain. Bare arithmetic said one more 14,028 step plus a report fits
+  // (35,852 >= 28,056 + 6,144) — but the 00:14 implementer died in exactly this
+  // zone: the estimate understated the measured envelope, the park never engaged,
+  // and the hard rail killed the turn with no report. The 1/3 slack parks it now.
   await r.prepareCloseout(state, { inputEstimate: 14028, finalInputEstimate: 14028 }, signal())
-  assert.equal(state.closeout, undefined, 'no park while a full step plus a report fits')
-  // No halving: the report call gets the full requested room bounded only by what remains.
+  assert.equal(state.closeout.mode, 'final_only')
+  assert.equal(state.closeout.trigger, 'budget_rail')
+  assert.equal(state.closeout.estimate_slack, 9352)
+  // Still no squeeze of the parked delivery: full remaining room, bounded only by what remains.
   assert.equal(r.outputLimit(state, 14028, 32768), 21824)
 })
 
