@@ -564,8 +564,11 @@ async admit(state, options) {
             if (closeout) {
               state.closeout = plain(closeout)
               if (options.purpose === 'compaction') denied('WORKER_CLOSEOUT_CM_DEFERRED')
-              if (totals.calls > closeout.calls_at_closeout) denied('WORKER_CLOSEOUT_ALREADY_SENT')
-              if ((options.tools || []).length) denied('WORKER_CLOSEOUT_TOOLS_NOT_EMPTY')
+              // Tool schemas stay in the request: DeepSeek-class models answer a
+              // tools-stripped prompt with DSML markup instead of prose (20:24
+              // run). Execution is denied at the tool gate; allow one tool-attempt
+              // step plus the final report call.
+              if (totals.calls >= closeout.calls_at_closeout + 2) denied('WORKER_CLOSEOUT_ALREADY_SENT')
               if (typeof options.system !== 'string' || !options.system.includes(CLOSEOUT_MARKER)) denied('WORKER_CLOSEOUT_INSTRUCTION_MISSING')
             }
 

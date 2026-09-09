@@ -48,7 +48,11 @@ test('911 closeout: tester entered final-only with 53% budget and 9 calls left, 
   await r.settle(final, { inputTokens: 19000, outputTokens: 2516 }, 'stop')
   assert.equal(r.describe(state).remaining_tokens, 84562)
   assert.equal(r.describe(state).remaining_calls, 8)
-  await assert.rejects(r.admit(state, call()), { code: 'WORKER_CLOSEOUT_ALREADY_SENT' })
+  // Rail closeout: a marker-less call is refused for the missing instruction;
+  // one tool-attempt step plus the report call may still be admitted past it.
+  await assert.rejects(r.admit(state, call()), { code: 'WORKER_CLOSEOUT_INSTRUCTION_MISSING' })
+  await r.settle(await r.admit(state, call({ system: CLOSEOUT_INSTRUCTION })), { inputTokens: 500, outputTokens: 100 }, 'stop')
+  await assert.rejects(r.admit(state, call({ system: CLOSEOUT_INSTRUCTION })), { code: 'WORKER_CLOSEOUT_ALREADY_SENT' })
 })
 
 test('911 closeout re-evaluated: with meter-accurate estimates the same budget does NOT close out (Phase 2b gate evidence: the reserve rule stays)', async () => {

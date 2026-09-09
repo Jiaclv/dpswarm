@@ -32,12 +32,9 @@ export function installBudget(ctx, configGetter, { journal = new AuditJournal({ 
   const limited = state => state && state.profile.mode !== 'unlimited'
   const applyCloseout = (state, assembly) => {
     if (!state?.closeout || !assembly) return
-    // DSH renders system/tools after pre-step from this assembly. Its complete
-    // persona wrapper may copy the outer object, so retain/mutate these arrays.
-    // A wire guard below refuses dispatch if a host stops preserving them.
-    if (!Array.isArray(assembly.tools) || !Array.isArray(assembly.sections)
-      || Object.isFrozen(assembly.tools) || Object.isFrozen(assembly.sections)) throw budgetError('WORKER_CLOSEOUT_ASSEMBLY_IMMUTABLE')
-    assembly.tools.splice(0)
+    // Tools stay listed so the model keeps its native call→result→report
+    // pattern; the tool gate denies execution with the report instruction.
+    if (!Array.isArray(assembly.sections) || Object.isFrozen(assembly.sections)) throw budgetError('WORKER_CLOSEOUT_ASSEMBLY_IMMUTABLE')
     if (!assembly.sections.some(s => s.name === 'dpswarm-worker-closeout')) assembly.sections.push({ name: 'dpswarm-worker-closeout', text: CLOSEOUT_INSTRUCTION })
   }
   dispose.push(ctx.on('system-prompt/assemble', async (_assembly, context, next) => {
@@ -91,7 +88,7 @@ export function installBudget(ctx, configGetter, { journal = new AuditJournal({ 
         && m.content?.length === 1 && m.content[0]?.text === context)
       const pendingContext = context && !alreadyRetained && !alreadyPending ? [{ role: 'user', content: [{ type: 'text', text: context }] }] : []
       const history = [...visible, ...incoming, ...pendingContext]
-      const system = renderPrompt(assembly), tools = assembly.tools || []
+      const system = renderPrompt(assembly) || '', tools = assembly.tools || []
       const pending = [...incoming, ...pendingContext]
       // Same basis as agent/request below: prefer the native meter, keep the
       // chars/3 serialization as a floor and as the no-meter fallback.
@@ -117,7 +114,7 @@ export function installBudget(ctx, configGetter, { journal = new AuditJournal({ 
     return decision
   }, { prepend: true, global: true }))
   const toolGuard = exec => runtime.states.get(exec.agent?.session?.id)?.closeout?.mode === 'final_only'
-    ? 'WORKER_CLOSEOUT_FINAL_ONLY: return the saved candidate and unfinished work without further tools.' : undefined
+    ? 'WORKER_CLOSEOUT_FINAL_ONLY: budget rail reached and tool calls are disabled. Write the final report now as plain text: what is complete, saved file paths, what remains.' : undefined
   if (get('tools')?.guard) dispose.push(get('tools').guard(toolGuard))
   dispose.push(ctx.on('tools/pre-execute', async (exec, next) => {
     // Cold restored children can reach tool execution without a new pre-step.
@@ -139,7 +136,7 @@ export function installBudget(ctx, configGetter, { journal = new AuditJournal({ 
         ? captured.assembly : await promptService.assemble(assembleContextFor(agent, signal))
       signal?.throwIfAborted()
       applyCloseout(state, assembly)
-      const system = renderPrompt(assembly), messages = session.deriveMessages?.() || []
+      const system = renderPrompt(assembly) || '', messages = session.deriveMessages?.() || []
       const native = await get('llm').resolveCallConfig(original, signal)
       // A previous header can contain tools removed for final-only. Measure the
       // current envelope instead of charging that stale schema again.

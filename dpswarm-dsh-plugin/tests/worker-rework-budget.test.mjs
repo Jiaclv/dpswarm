@@ -218,17 +218,17 @@ test('native max-tokens is a terminal source while unknown terminal reasons stil
 })
 
 test('fixed rework mode issues an independently limited grant and enforces it like any limited worker', async () => {
-  const h = fixture({ reworkBudgetMode: 'fixed', reworkTokenLimit: 100000, reworkCallLimit: 2 })
+  const h = fixture({ reworkBudgetMode: 'fixed', reworkTokenLimit: 100000, reworkCallLimit: 4 })
   const r = h.runtime(), old = await h.original(r)
   await r.settle(await r.admit(old.state, request), { inputTokens: 150, outputTokens: 50 }, 'stop')
   h.end(old.session)
   const grant = await r.issueRework(h.lead, { workerSessionId: old.session.id, task: 'Repair the saved geometry.' })
-  assert.deepEqual(grant.profile, { mode: 'fixed', tokenLimit: 100000, callLimit: 2 })
+  assert.deepEqual(grant.profile, { mode: 'fixed', tokenLimit: 100000, callLimit: 4 })
   const next = h.child('fixed-repair', grant.prompt), state = await r.ensure({ session: next }, signal())
   assert.deepEqual(state.profile, grant.profile)
   assert.equal(state.policyBinding.authority, 'fixed-team-rework')
   assert.equal(r.describe(state).remaining_tokens, 100000)
-  assert.equal(r.describe(state).remaining_calls, 2)
+  assert.equal(r.describe(state).remaining_calls, 4)
   const issued = (await h.journal.read(h.root.id)).events.find(e => e.data.allocation_id === grant.allocation_id).data
   assert.equal(issued.budget_origin, 'fixed_rework')
   assert.equal(issued.decided_by, 'user_settings_at_rework')
@@ -239,8 +239,9 @@ test('fixed rework mode issues an independently limited grant and enforces it li
   await r.prepareCloseout(state, { inputEstimate: 30000, finalInputEstimate: 30000 }, signal())
   assert.equal(state.closeout.mode, 'final_only')
   await r.settle(await r.admit(state, { ...request, system: CLOSEOUT_INSTRUCTION, tools: [], maxTokens: 100 }), { inputTokens: 20000, outputTokens: 5000 }, 'stop')
-  // Closeout admission rules fire before the plain call ceiling for the final grant.
-  await assert.rejects(r.admit(state, request), { code: 'WORKER_CLOSEOUT_ALREADY_SENT' })
+  // Rail closeout admits a tool-attempt step plus the report call, then refuses.
+  await r.settle(await r.admit(state, { ...request, system: CLOSEOUT_INSTRUCTION, tools: [{ name: 'write' }], maxTokens: 100 }), { inputTokens: 100, outputTokens: 50 }, 'stop')
+  await assert.rejects(r.admit(state, { ...request, system: CLOSEOUT_INSTRUCTION, tools: [], maxTokens: 100 }), { code: 'WORKER_CLOSEOUT_ALREADY_SENT' })
 })
 
 test('fixed rework rejects oversize reservations and its lineage chains and restores correctly', async () => {

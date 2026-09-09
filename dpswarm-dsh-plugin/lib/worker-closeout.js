@@ -6,7 +6,7 @@ export const CLOSEOUT_OUTPUT_RESERVE = 2048
 // early hands the decision to the Lead instead of silently squeezing outputs.
 export const CLOSEOUT_REPORT_FLOOR = 4096
 export const CLOSEOUT_INSTRUCTION = `[${CLOSEOUT_MARKER}]
-This worker reached its budget rail. Stop expanding the task and return your final report now: what is complete, which files were provably saved (exact paths), what remains unfinished, and an estimate of what is left. If nothing was provably saved, say so explicitly. The Lead will decide whether to continue the work in a linked continuation, accept the partial result, or stop. No tools are available. Do not claim unperformed tests, successful delivery, or completion without evidence. Do not emit tool calls, ask for more budget, or wait for another step. This instruction does not change the task or increase your allowance.`
+This worker reached its budget rail. Stop expanding the task and return your final report now: what is complete, which files were provably saved (exact paths), what remains unfinished, and an estimate of what is left. If nothing was provably saved, say so explicitly. Tool calls are disabled and will be rejected — write the report as plain prose, never as tool-call markup. The Lead will decide whether to continue the work in a linked continuation, accept the partial result, or stop. Do not claim unperformed tests, successful delivery, or completion without evidence. Do not ask for more budget or wait for another step. This instruction does not change the task or increase your allowance.`
 
 export function closeoutForecast({ remainingTokens, remainingCalls, inputEstimate, finalInputEstimate }) {
   // Rail model: park when one more full step plus a viable report no longer

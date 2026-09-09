@@ -48,8 +48,8 @@ test('settings service is the authority and cannot be replaced by model argument
 test('worker limits have independent modes and old settings stay unrestricted', () => {
   const old = Config({})
   assert.equal(old.workerBudgetMode, 'unlimited')
-  assert.equal(old.workerTokenLimit, 600000)
-  assert.equal(old.workerCallLimit, 28)
+  assert.equal(old.workerTokenLimit, 1200000)
+  assert.equal(old.workerCallLimit, 50)
   assert.deepEqual(old.workerBudgetSessionOverrides, [])
   assert.equal(old.reworkBudgetMode, 'unlimited')
   assert.equal(old.reworkTokenLimit, 600000)

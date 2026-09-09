@@ -115,7 +115,7 @@ test('two-call worker can save a candidate first and sends tool-free delivery on
   await h.stream('child', { ...first.config, system: first.system, tools: first.assembly.tools, messages: first.messages })
   h.child.append('user/message', assignment('write succeeded: candidate.html was saved; final report has not yet been sent.'), { surfaceOp: 'append' })
   const last = await prepared(h, 'child')
-  assert.deepEqual(last.assembly.tools, [])
+  assert.equal(last.assembly.tools.length, 1, 'tool schemas stay visible in the final-only assembly')
   assert.match(last.system, /DPSWARM_WORKER_FINAL_ONLY/)
   assert.match(last.system, /If nothing was provably saved/)
   assert.equal((await h.service.diagnosticsForSession('child')).remaining_calls, 1)
@@ -125,37 +125,41 @@ test('two-call worker can save a candidate first and sends tool-free delivery on
   h.service.shutdown()
 })
 
-test('final-only refuses stray tool schemas, extra requests and tools after cold restore', async () => {
-  const h = fixture({ workerTokenLimit: 100000, workerCallLimit: 1 })
+test('final-only keeps tool schemas visible, denies their execution, and bounds extra calls', async () => {
+  const h = fixture({ workerTokenLimit: 6000, workerCallLimit: 10 })
   h.assembly.tools = [{ name: 'run_code', parameters: { type: 'object' } }]
+  // Token rail parks the worker at arrival (6,000 < input + final + 4,096 + 2,048).
   const last = await prepared(h, 'child')
-  await assert.rejects(h.stream('child', { system: last.system, tools: [{ name: 'write' }] }), { code: 'WORKER_CLOSEOUT_TOOLS_NOT_EMPTY' })
-  assert.equal(h.calls.length, 0)
+  assert.equal(last.assembly.tools.length, 1, 'schemas stay visible; execution is denied at the tool gate instead')
+  assert.match(last.system, /DPSWARM_WORKER_FINAL_ONLY/)
+  // A tool-attempt step is admitted but the tool never executes (cold-restore path covered).
   h.service.runtime.states.clear()
   let executed = 0
   for (const name of ['write', 'run_code']) {
     await assert.rejects(h.ctx.waterfall('tools/pre-execute', { agent: h.agents.get('child'), name }, async () => { executed++; return {} }), { code: 'WORKER_CLOSEOUT_FINAL_ONLY' })
-    assert.match(h.guards[0]({ agent: h.agents.get('child'), name }), /WORKER_CLOSEOUT_FINAL_ONLY/)
+    assert.match(h.guards[0]({ agent: h.agents.get('child'), name }), /budget rail reached/)
   }
   assert.equal(executed, 0)
+  // The report call follows; a third post-closeout call is refused.
+  await h.stream('child', { system: last.system, tools: last.assembly.tools, messages: last.messages })
   await h.stream('child', { system: last.system, tools: [], messages: last.messages })
   await assert.rejects(h.stream('child', { system: last.system, tools: [] }), { code: 'WORKER_CLOSEOUT_ALREADY_SENT' })
-  assert.equal(h.calls.length, 1)
+  assert.equal(h.calls.length, 2)
   h.service.shutdown()
 })
 
-test('a tiny first grant preserves truthful incomplete delivery and charges the injected system prompt', async () => {
+test('a tiny grant is refused before dispatch with the real (never-stripped) envelope priced in', async () => {
   const h = fixture({ workerTokenLimit: 500, workerCallLimit: 1 })
   h.assembly.tools = [{ name: 'write', description: 'large schema'.repeat(1000) }]
-  const last = await prepared(h, 'child')
-  assert.deepEqual(last.assembly.tools, [])
-  assert.match(last.system, /If nothing was provably saved, say so explicitly/)
-  assert.ok(last.config.maxTokens > 0 && last.config.maxTokens < 500)
-  await h.stream('child', { ...last.config, system: last.system, tools: [], messages: last.messages })
+  // Tool schemas are never stripped now, so a grant too small for the real
+  // envelope gets an honest pre-dispatch denial instead of a fake-worked report.
+  await assert.rejects(prepared(h, 'child'), { code: 'WORKER_TOKEN_RESERVATION_DENIED' })
   const d = await h.service.diagnosticsForSession('child')
-  assert.ok(d.recent[0].input_estimate > 200)
-  assert.ok(d.recent[0].reserved_tokens <= 500)
+  assert.equal(h.calls.length, 0)
   assert.equal(d.closeout.mode, 'final_only')
+  assert.equal(d.last_denial.code, 'WORKER_TOKEN_RESERVATION_DENIED')
+  assert.equal(d.last_denial.stage, 'request_output_limit')
+  assert.ok(d.last_denial.input_estimate > 500)
   h.service.shutdown()
 })
 
@@ -216,6 +220,7 @@ test('cancelled pre-step and immutable schema fail before any model dispatch', a
   const signal = new AbortController().signal
   const assembly = await h.ctx.get('systemPrompt').assemble({ agent, signal })
   Object.freeze(assembly.tools)
+  Object.freeze(assembly.sections)
   await assert.rejects(h.service.prepareStep(agent, { signal }), { code: 'WORKER_CLOSEOUT_ASSEMBLY_IMMUTABLE' })
   assert.equal(h.calls.length, 0)
   assert.equal((await h.service.diagnosticsForSession('child')).last_denial.code, 'WORKER_CLOSEOUT_ASSEMBLY_IMMUTABLE')
@@ -223,8 +228,9 @@ test('cancelled pre-step and immutable schema fail before any model dispatch', a
 })
 
 
-test('final report input measurement uses the current empty tools rather than an old large schema', async () => {
-  const h = fixture({ workerTokenLimit: 1000, workerCallLimit: 1 })
+test('final report input measurement prices the retained tool schemas (they are never stripped)', async () => {
+  const h = fixture({ workerTokenLimit: 11000, workerCallLimit: 3 })
+  h.assembly.sections = [{ name: 'system', text: 'S'.repeat(9500) }]
   h.assembly.tools = [{ name: 'old_tool', description: 'T'.repeat(6000) }]
   let measuredHeader
   h.ctx.provide('tokenMeter', { measure: (_session, header) => {
@@ -232,10 +238,10 @@ test('final report input measurement uses the current empty tools rather than an
     return { totalTokens: header ? 300 : 5000 }
   } })
   const step = await prepared(h, 'child')
-  assert.deepEqual(measuredHeader.tools || [], [])
+  assert.equal((measuredHeader.tools || []).length, 1, 'the retained schema is priced into the envelope instead of charging a stale or a stripped one')
   assert.match(measuredHeader.system, /DPSWARM_WORKER_FINAL_ONLY/)
   assert.ok(step.config.maxTokens > 0)
-  await h.stream('child', { ...step.config, system: step.system, tools: [], messages: step.messages })
+  await h.stream('child', { ...step.config, system: step.system, tools: step.assembly.tools, messages: step.messages })
   assert.equal(h.calls.length, 1)
   h.service.shutdown()
 })
