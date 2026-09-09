@@ -263,6 +263,12 @@ window.__ModuleLoader__.load({
 .dps-masterSwitch b{font-size:13px;font-weight:600;line-height:1.4}
 .dps-masterSwitch small{display:block;margin-top:2px;font-size:11px;line-height:1.5;color:var(--dsw-alias-label-tertiary)}
 .dps-masterSwitch input{flex-shrink:0;width:18px;height:18px;accent-color:var(--dsw-alias-brand-primary)}
+/* 关键参数与总 token 占比条（弹层） */
+.dps-keyParams{font-size:11px;gap:3px 10px}
+.dps-keyParams dd{color:var(--dsw-alias-label-secondary)}
+.dps-tokenShare{display:flex;flex-direction:column;gap:6px}
+.dps-tokenBar{display:flex;height:6px;border-radius:4px;overflow:hidden;background:var(--dsw-alias-bg-module-platform)}
+.dps-tokenBar i{display:block;height:100%;min-width:2px}
 `
     function ensureStyles() {
       try {
@@ -658,18 +664,6 @@ window.__ModuleLoader__.load({
         error ? h('p', { className: 'dps-error', role: 'alert' }, error) : null)
     }
 
-    function BudgetSummary({ sessionId }) {
-      const cfg = useSettings().value || {}
-      const override = Array.isArray(cfg.workerBudgetSessionOverrides) ? cfg.workerBudgetSessionOverrides.find(row => row?.sessionId === sessionId) : null
-      const mode = budgetMode(override ? override.mode : cfg.workerBudgetMode)
-      const totalTokens = override ? override.tokenLimit : cfg.workerTokenLimit ?? 600000
-      const maxCalls = override ? override.callLimit : cfg.workerCallLimit ?? 28
-      const description = mode === 'auto' ? '每次派发前由 Lead 分别决定' : mode === 'manual' ? budgetNumber(totalTokens) + ' token · ' + budgetNumber(maxCalls) + ' 次调用' : '不启用子 agent token／调用上限'
-      return h('div', { className: 'dps-budgetSummary', 'aria-label': '当前任务子 agent 限额配置' }, h('div', null,
-        h('b', null, '子 agent 限额 · ' + (mode === 'auto' ? 'Lead 自动分配' : mode === 'manual' ? '手动' : '不做限制')),
-        h('p', { className: 'dps-hint' }, description), override ? h('p', { className: 'dps-hint' }, '此任务使用独立的子 agent 限额配置') : null), h(SettingsShortcut, { budget: true }))
-    }
-
     function ModelSummary() {
       const cfg = useSettings().value || {}
       return h('dl', { className: 'dps-summary' }, h('dt', null, 'Lead'), h('dd', null, '沿用当前任务的主模型'),
@@ -706,7 +700,7 @@ window.__ModuleLoader__.load({
           h(BudgetSettings),
           h('div', { className: 'dps-settingsCard' }, h('h3', null, '预算内及时收尾'), h('p', { className: 'dps-hint' }, '额度是上限，不必用满。剩余额度接近下一次完整请求的成本时，子 agent 优先返回已完成内容、文件位置和未完成事项；收尾期间不继续调用工具。已保存文件不等于已通过验收，最终仍由 Lead 核验。')),
           h(ReworkBudgetSettings),
-          h('div', { className: 'dps-settingsCard' }, h('h3', null, '按任务开启'), h('p', { className: 'dps-hint' }, '在输入框旁的罗盘菜单中分别开启团队和 CM。两项默认关闭；只开 CM 不启动团队服务。')),
+          h('div', { className: 'dps-settingsCard' }, h('h3', null, '按任务开启'), h('p', { className: 'dps-hint' }, '在输入框旁的罗盘菜单中一键开启：固定团队与 CM 同时对本任务生效。默认关闭；开启要求团队角色与 CM 路由均已配置。')),
           h('div', { className: 'dps-settingsCard' }, h('h3', null, '固定顺序与审查'), h('p', { className: 'dps-hint' }, '实现者 → 测试者 → Reviewer → Lead 最终验收。Reviewer 默认由 Lead 承担，不增加模型调用；指定独立模型后才额外执行审查。其输出是待核对意见，不自动接受交付。'),
             h('div', { className: 'dps-route' }, h(SettingsField, { field: 'workerTimeoutSeconds', label: '每个角色超时（秒）', type: 'number' }))),
           h('div', { className: 'dps-settingsCard' }, h('h3', null, 'CM 与配置生效'), h('p', { className: 'dps-hint' }, 'CM 按每个角色当前模型的上下文窗口分别判断，估算占用达到 80% 时才整理较早历史。窗口容量从 DPH 模型注册表读取，与每 worker 的累计 token／调用预算无关。'),
@@ -748,29 +742,6 @@ window.__ModuleLoader__.load({
         : 'dps-dot dps-dotWait'
       const label = phase === 'off' ? L.off : phase === 'version' ? L.version : phase === 'ok' ? L.ok : phase === 'bad' ? L.bad : L.wait
       return h('span', { className: 'dps-badge' }, h('span', { className: cls }), label)
-    }
-
-    function WorkerDiagnostics({ snapshot }) {
-      const view = snapshot?.worker_diagnostics
-      if (!view || view.available !== true || !Array.isArray(view.workers) || !view.workers.length) return null
-      const roles = { implementer: '实现者', tester: '测试者', reviewer: 'Reviewer', worker: '子 agent' }
-      const phases = { working: '执行中', closing: '正在收尾', completed: '报告已返回', ended: '已结束 · 旧记录无详细终态', failed: '未完成 · 待处理' }
-      const reasons = {
-        WORKER_TOKEN_RESERVATION_DENIED: '剩余 token 不足以发送下一次完整请求',
-        WORKER_TOKEN_LIMIT_REACHED: '累计 token 已达上限', WORKER_CALL_LIMIT_REACHED: '调用次数已达上限',
-        SUBAGENT_TIMEOUT: '角色运行超时', WORKER_TIMEOUT: '角色运行超时', WORKER_USER_CANCELLED: '用户已停止', WORKER_PARENT_CANCELLED: '上级任务已取消', WORKER_OUTPUT_LIMIT_REACHED: '单次输出达到上限', SUBAGENT_ABORTED: '已取消', WORKER_CLOSEOUT_FINAL_ONLY: '收尾阶段只提交报告',
-      }
-      const amount = value => Number.isSafeInteger(value) && value >= 0 ? value.toLocaleString('zh-CN') : '未知'
-      return h('section', { className: 'dps-workerStatus', 'aria-label': '子代理执行状态' },
-        h('h4', null, '子代理执行状态'),
-        ...view.workers.slice(-6).map(row => h('div', { className: 'dps-workerRow', key: row.session_id },
-          h('div', { className: 'dps-workerHeading' }, h('b', null, roles[row.role] || '子 agent', row.attempt_kind === 'rework' ? ' · 返工 ' + amount(row.rework_round) : ''), h('span', null, phases[row.phase] || '状态未知')),
-          h('p', { className: 'dps-hint' }, '累计 ', amount(row.observed_tokens_lower_bound), row.unknown_usage_calls ? '+ token（部分用量未知）' : ' token',
-            ' · ', amount(row.calls_used), ' 次调用'),
-          row.mode !== 'unlimited' ? h('p', { className: 'dps-hint' }, '剩余 ', amount(row.remaining_tokens), ' token · ', amount(row.remaining_calls), ' 次') : null,
-          row.code ? h('p', { className: 'dps-workerReason' }, reasons[row.code] || '运行诊断：' + String(row.code)) : null,
-          row.candidate_count > 0 ? h('p', { className: 'dps-hint' }, '已记录 ', amount(row.candidate_count), ' 条文件候选记录；由 Lead 核验当前文件') : null)),
-        h('p', { className: 'dps-hint' }, '累计 token 含缓存输入；文件保存、报告返回和最终验收分别记录。'))
     }
 
     function chipsRow(chips) {
@@ -850,7 +821,7 @@ window.__ModuleLoader__.load({
           : null)
     }
 
-    /** 🧭 弹层的紧凑面板：同 token，无卡片外壳（弹层自身即菜单面）。 */
+    /** 🧭 弹层：主开关 + 关键参数 + 总 token 占比条；明细在后台面板与设置页。 */
     function DpswarmPanel({ sessionId }) {
       const [phase, st] = useSidecar(4000, sessionId)
       let status
@@ -860,15 +831,57 @@ window.__ModuleLoader__.load({
           h('span', { className: 'dps-popName' }, L.name),
           statusBadge(status.phase)),
         h(DpswarmSwitch, { sessionId }),
+        h(KeyParams, null),
+        h(TokenShareBar, { status: st }),
         status.connected
-          ? (status.waiting ? h('p', { className: 'dps-hint' }, '服务已就绪，等待主 agent 启动当前任务的固定协作。') : chipsRow(status.chips))
+          ? (status.waiting ? h('p', { className: 'dps-hint' }, '服务已就绪，等待主 agent 启动当前任务的固定协作。') : null)
           : phase === 'off' ? null
             : h('p', { className: 'dps-hint' },
                 status.phase === 'version' ? '此地址运行旧版控制服务，请更换端口或更新为 session_server。' : status.phase === 'wait' ? L.hintStarting : L.offline),
-        h(ModelSummary, null),
-        h(BudgetSummary, { sessionId }),
-        h(WorkerDiagnostics, { snapshot: st }),
         h('div', { className: 'dps-popFoot' }, h(SettingsShortcut), openPanelLink(sessionId)))
+    }
+
+    /** 关键参数一览：模型分工、限额与超时；完整配置与运行明细在设置页和后台面板。 */
+    function KeyParams() {
+      const cfg = useSettings().value || {}
+      const facts = [
+        ['实现者', implMode(cfg) === 'lead' ? '跟随对话' : (cfg.implModel || '待配置')],
+        ['测试者', cfg.testModel || '待配置'],
+        ['Reviewer', cfg.reviewerMode === 'model' ? (cfg.reviewerModel || '待配置') : '沿用 Lead'],
+        ['CM', cfg.cmModel || 'deepseek-v4-flash'],
+        ['限额', { unlimited: '不做限制', manual: '手动', auto: 'Lead 分配' }[cfg.workerBudgetMode] || '不做限制'],
+        ['返工', reworkMode(cfg.reworkBudgetMode) === 'fixed' ? '固定 ' + budgetNumber(cfg.reworkTokenLimit) + ' / ' + budgetNumber(cfg.reworkCallLimit) + ' 次' : '不限'],
+        ['超时', String(cfg.workerTimeoutSeconds ?? 600) + 's'],
+      ]
+      return h('dl', { className: 'dps-summary dps-keyParams', 'aria-label': '关键参数' },
+        facts.flatMap(([k, v]) => [h('dt', { key: k }, k), h('dd', { key: k + '-v' }, v)]))
+    }
+
+    /** 总 token 消耗占比条：按角色分段（含各自 CM），悬停看明细；Lead 主对话不计量。 */
+    function TokenShareBar({ status }) {
+      const view = status?.worker_diagnostics
+      if (!view || view.available !== true || !Array.isArray(view.workers) || !view.workers.length) return null
+      const names = { implementer: '实现者', tester: '测试者', reviewer: 'Reviewer', worker: '子 agent' }
+      const colors = { implementer: 'var(--dsw-alias-brand-primary)', tester: 'var(--dsw-alias-state-success-primary)', reviewer: 'var(--dsw-alias-state-warn-primary)', worker: 'var(--dsw-alias-label-tertiary)' }
+      const amount = value => Number.isSafeInteger(value) && value >= 0 ? value.toLocaleString('zh-CN') : '未知'
+      const byRole = new Map(), calls = new Map(), remaining = new Map()
+      let grand = 0
+      for (const row of view.workers) {
+        const role = names[row.role] ? row.role : 'worker'
+        const tokens = Number.isSafeInteger(row.observed_tokens_lower_bound) ? row.observed_tokens_lower_bound : 0
+        byRole.set(role, (byRole.get(role) || 0) + tokens); grand += tokens
+        calls.set(role, (calls.get(role) || 0) + (Number.isSafeInteger(row.calls_used) ? row.calls_used : 0))
+        if (Number.isSafeInteger(row.remaining_tokens)) remaining.set(role, (remaining.get(role) || 0) + row.remaining_tokens)
+      }
+      if (grand <= 0) return null
+      const order = ['implementer', 'tester', 'reviewer', 'worker'].filter(role => byRole.has(role))
+      return h('div', { className: 'dps-tokenShare' },
+        h('div', { className: 'dps-tokenBar', role: 'img', 'aria-label': 'worker 总消耗 ' + amount(grand) + ' token，按角色分段' },
+          order.map(role => h('i', { key: role,
+            style: { width: (byRole.get(role) / grand * 100).toFixed(2) + '%', background: colors[role] },
+            title: names[role] + '：' + amount(byRole.get(role)) + ' token · ' + amount(calls.get(role)) + ' 次调用'
+              + (remaining.has(role) ? ' · 剩余 ' + amount(remaining.get(role)) + ' token' : '') }))),
+        h('p', { className: 'dps-hint' }, '总消耗 ', h('b', null, amount(grand)), ' token（', order.map(role => names[role]).join(' / '), '），悬停分段查看明细；含各 worker 自身 CM，Lead 主对话不计量。'))
     }
 
     /** composer 工具行的罗盘启动按钮：角落三态状态灯，点开菜单面弹层。 */
