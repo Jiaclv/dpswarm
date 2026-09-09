@@ -1,4 +1,4 @@
-# DPswarm for DSH · 0.7.8
+# DPswarm for DSH · 0.8.0
 
 给当前 DSH 主 agent 增加**用户显式开启的固定团队**：实现者 → 测试者 → Lead 复核与验收；必要修复交回实现者。Reviewer 默认由 Lead 承担；用户指定独立模型时才增加一道审查。安装后默认关闭；每个已有会话独立开启。模型不能通过工具参数打开开关、换角色或动态扩队。
 
@@ -72,6 +72,18 @@ Lead 的主要职责是理解原任务、分工、指出具体缺陷和最终验
 
 Auto 的首轮预算提示明确累计输入、输出、缓存输入与自身 CM 都计入 worker 用量。状态和模型工具提供最近一次 Lead 完整请求及系统／工具占用的估算参考，标明它只是近似参考，不等于子模型的精确 tokenizer 成本，也不会代替 Lead 选择额度。手动设置原样执行，初次“不限制”不采用残留手动值。
 
+## 并行实现者与写范围认领（0.8.0）
+
+默认仍是串行固定团队。面对**宽而明确独立**的任务，Lead 可在 `dpswarm_run` 中传 `subtasks`（1–3 条）触发并行实现者相位：每条子任务带唯一 `id`、自己的 `task` 和互不相交的 `write_scope` glob 列表；Auto 模式下 `worker_budgets.implementer` 按子任务顺序逐条给出。所有实现者并行执行后，单个测试者（与可选 Reviewer）才进场汇合；任何单个子任务失败不拖死其余，交付、验收与返工全部按 item 独立。
+
+写范围在**工具层强制执行**，不只是提示：实现者 worker 的 write/edit 落点必须命中自己的 `write_scope`，越界立即拒绝并记录（`WORKER_SCOPE_VIOLATION`）；读取不受限。拆分有重叠、缺范围或超过 3 条时，派发前直接拒绝。shell 等自由文本工具本期不做路径解析——并行模式下角色纪律要求不得用 shell 写文件，实际写操作仍由候选记录与审计兜底。共享接口与契约必须在派发前写进任务文本（这是 Lead 的职责，没有隐藏模型代拆）。
+
+返工延续原子任务的写范围：返工子会话接续同一 `write_scope`（原子任务的 worker 已终止才被允许返工），其余子任务的认领不受影响。并行不改变 TEAM_REQUIRED、CM、收尾、预算与审计的任何语义；控制面零改动（多 subtask 派发与容量是既有 §7 能力，默认 4 槽/8 点正好容纳 3 路并行 + 汇合）。
+
+### 与业界方案的关系
+
+调研了 Claude Code（原生 git worktree 隔离）、Codex（每任务独立容器/分支出 PR）、Magentic-One（Orchestrator 双账本）等 2025–2026 方案：主流是"隔离工作区 + 合入审查"。DSH 任务目录不保证是 git 仓库，worktree 不可用且合并不必要地复杂化验收，因此本期选择共享工作区 + 强制写范围认领（单工作区工具链惯例），架构上预留 worktree 后端。带状态的中间产物与挂起/唤醒式等待（更细的黑板协调）留待后续版本，认领表与审计事件已预留扩展点。
+
 ## 返工限额、收尾估算与报告读取（0.7.8）
 
 动机来自 0.7.7 的首次真实模型运行（2026-09-09，动画任务会话）：一次返工实际消耗（约 94 万 token）超过首轮实现者全程（约 59 万，且首轮有 70 万上限）；测试者在剩余 53% 额度、9/12 次调用时被提前收尾（随后实际交付只用了 2.1 万）；Lead 在会话内无法读取 worker 的完整报告（600 字符截断，只能人工访问受鉴权审计接口）。本轮只调整机制，不改既有语义承诺：
@@ -98,7 +110,7 @@ DPH 罗盘弹层只保留主开关、关键参数与按角色分段的总 token 
 |---|---|
 | `dpswarm_status` | 分开读取团队、CM 开关与挂载状态；查看 CM 采用/失败、子 worker 额度与实际决定、团队执行/验收情况 |
 | `dpswarm_models` | 读取用户固定的角色路由；不是模型连通性探测 |
-| `dpswarm_run(task, acceptance, worker_budgets?)` | 仅在当前会话已显式开启时执行固定流程；Auto 必须由 Lead 给出每个启用角色的 tokenLimit、callLimit、reason |
+| `dpswarm_run(task, acceptance, subtasks?, worker_budgets?)` | 仅在当前会话已显式开启时执行固定流程；Auto 必须由 Lead 给出每个启用角色的 tokenLimit、callLimit、reason。0.8.0 起可选 `subtasks`（1–3 条互不重叠写范围的子任务）触发并行实现者相位 |
 | `dpswarm_prepare_worker(task, tokenLimit, callLimit, reason, label?)` | Auto 下记录当前 Lead 对一个普通原生子任务的决定；返回 prompt 原样交给原生 subagent，不额外调用评估模型 |
 | `dpswarm_rework(item_id, feedback)` | 将必要缺陷交回当前任务的原实现者；返工额度默认不限，0.7.8 起可在“预算与运行”改为固定限额；原用量保留 |
 | `dpswarm_review(item_id, verdict, reason)` | Lead 验收或终止，`verdict` 为 `accept` 或 `terminate` |

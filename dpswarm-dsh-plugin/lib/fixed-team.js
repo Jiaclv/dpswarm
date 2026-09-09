@@ -9,6 +9,35 @@ import { delegateOnce, requireRootCaller } from './delegation.js'
 import { workerBudgetProfile, reworkBudgetProfile } from './budget-runtime.js'
 import { effectiveLeadRoute } from './lead-route.js'
 import { workerRolePrompt } from './role-guidance.js'
+import { scopesOverlap } from './write-scope.js'
+
+/** Parallel implementer split: 1–3 disjoint write scopes, Lead-authored. */
+function validateSubtasks(value) {
+  if (!Array.isArray(value) || !value.length || value.length > 3) {
+    throw failure('PARALLEL_SUBTASKS_INVALID', 'subtasks must be an array of 1–3 entries (parallel implementer phase; omit for the sequential team)')
+  }
+  const ids = new Set()
+  for (const [index, st] of value.entries()) {
+    if (!st || typeof st !== 'object' || Array.isArray(st)
+      || typeof st.id !== 'string' || !st.id.trim() || ids.has(st.id)
+      || typeof st.task !== 'string' || !st.task.trim()
+      || !Array.isArray(st.write_scope) || !st.write_scope.length || st.write_scope.some(s => typeof s !== 'string' || !s.trim())
+      || (st.acceptance !== undefined && typeof st.acceptance !== 'string')
+      || Object.keys(st).some(key => !['id', 'task', 'write_scope', 'acceptance'].includes(key))) {
+      throw failure('PARALLEL_SUBTASKS_INVALID', `subtasks[${index}] needs a unique id, a task and a nonempty write_scope glob list`)
+    }
+    ids.add(st.id)
+  }
+  for (let i = 0; i < value.length; i++) for (let j = i + 1; j < value.length; j++) {
+    if (scopesOverlap(value[i].write_scope, value[j].write_scope)) {
+      throw failure('WORKER_SCOPE_OVERLAP', `write_scope of "${value[i].id}" overlaps with "${value[j].id}"; split disjoint file regions before dispatch`)
+    }
+  }
+  return value.map(st => ({ id: st.id.trim(), task: st.task, write_scope: st.write_scope.map(s => s.trim()),
+    ...(st.acceptance ? { acceptance: st.acceptance } : {}) }))
+}
+
+const scopeClause = st => `\n\n写范围（工具层强制）：只能写入或修改匹配 ${st.write_scope.join('、')} 的文件；读取不限。其他实现者正在并行处理其余子任务——他们的范围不属于你，越界写会被拒绝并记录。`
 
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex')
 const failure = (code, message) => Object.assign(new Error(`${code}: ${message}`), { code })
@@ -59,7 +88,7 @@ export function fixedProfile(cfg, cm = { enabled: false, profile: null }, leadOp
 
 /** Own the project lease and configured sequential workers; Lead owns the main turn and final decisions. */
 export class FixedTeamController {
-  constructor({ config, subagents, cm, budget, modelRegistry, resolveSession, sidecarFactory = cfg => new Sidecar(cfg) }) {
+  constructor({ config, subagents, cm, budget, modelRegistry, resolveSession, sidecarFactory = cfg => new Sidecar(cfg), writeScope = null }) {
     this.config = config
     this.cm = cm
     this.budget = budget
@@ -67,6 +96,7 @@ export class FixedTeamController {
     this.subagents = subagents
     this.resolveSession = resolveSession
     this.sidecarFactory = sidecarFactory
+    this.writeScope = writeScope
     this.sessions = new Map()
   }
 
@@ -198,9 +228,10 @@ export class FixedTeamController {
     if (this.closed) throw failure('PLUGIN_DISPOSED', 'Plugin is stopping')
     if (!enabled(this.config(), parent.session.id)) throw failure('DPSWARM_DISABLED', 'Enable DPSwarm for this task in the input toolbar first')
     if (!args || typeof args.task !== 'string' || !args.task.trim() || args.task.length > 100000) throw failure('TASK_REQUIRED', 'A nonempty bounded task description is required')
-    const allowed = new Set(['task', 'acceptance', 'worker_budgets'])
+    const allowed = new Set(['task', 'acceptance', 'worker_budgets', 'subtasks'])
     if (Object.keys(args).some(key => !allowed.has(key))) throw failure('FIXED_MODE_ONLY', 'Models, roles and topology come from user settings')
     if (args.acceptance != null && (typeof args.acceptance !== 'string' || args.acceptance.length > 40000)) throw failure('INVALID_ACCEPTANCE', 'Acceptance requirements must be text')
+    const subtasks = args.subtasks === undefined ? null : validateSubtasks(args.subtasks)
     let state = this.session(parent)
     if (state.busy || state.lease) throw failure('RUN_PENDING', 'Finish or review the current fixed-team run first')
     // Configuration edits apply to a new run; active execution and review keep their connection snapshot.
@@ -216,11 +247,20 @@ export class FixedTeamController {
       if (!this.budget || !proposedBudgets || typeof proposedBudgets !== 'object' || Array.isArray(proposedBudgets)
         || Object.keys(proposedBudgets).some(role => !roles.includes(role))) throw failure('WORKER_BUDGET_DECISION_REQUIRED', 'Read the task and provide your own worker_budgets for every enabled role before dispatch.')
       for (const role of roles) {
-        const plan=proposedBudgets[role]
-        if (!plan || !Number.isSafeInteger(plan.tokenLimit) || plan.tokenLimit < 1 || !Number.isSafeInteger(plan.callLimit) || plan.callLimit < 1
-          || typeof plan.reason !== 'string' || !plan.reason.trim() || plan.reason.length > 4000
-          || Object.keys(plan).some(k => !['tokenLimit','callLimit','reason'].includes(k))) {
-          throw failure('WORKER_BUDGET_DECISION_REQUIRED', `Lead must provide positive tokenLimit, callLimit and a short reason for ${role}.`)
+        const plan = proposedBudgets[role]
+        const plans = role === 'implementer' && subtasks ? plan : [plan]
+        if (role === 'implementer' && subtasks && (!Array.isArray(plan) || plan.length !== subtasks.length)) {
+          throw failure('WORKER_BUDGET_DECISION_REQUIRED', 'Parallel implementers need one index-aligned worker_budgets.implementer entry per subtask.')
+        }
+        if (!(role === 'implementer' && subtasks) && Array.isArray(plan)) {
+          throw failure('WORKER_BUDGET_DECISION_REQUIRED', `worker_budgets.${role} must be a single decision object outside a parallel implementer phase.`)
+        }
+        for (const entry of plans) {
+          if (!entry || !Number.isSafeInteger(entry.tokenLimit) || entry.tokenLimit < 1 || !Number.isSafeInteger(entry.callLimit) || entry.callLimit < 1
+            || typeof entry.reason !== 'string' || !entry.reason.trim() || entry.reason.length > 4000
+            || Object.keys(entry).some(k => !['tokenLimit','callLimit','reason'].includes(k))) {
+            throw failure('WORKER_BUDGET_DECISION_REQUIRED', `Lead must provide positive tokenLimit, callLimit and a short reason for ${role}.`)
+          }
         }
       }
     } else if (proposedBudgets !== undefined) {
@@ -257,8 +297,10 @@ export class FixedTeamController {
       state.fixedTask = { version: 1, root_session_id: parent.session.id, owner_session_id: parent.session.id,
         run_id: state.lease.run_id, task_binding: taskBinding?.binding ? clone(taskBinding.binding) : null,
         task: args.task, acceptance: args.acceptance || '', profile: clone(state.profile),
+        ...(subtasks ? { subtasks: clone(subtasks) } : {}),
         configuration_fingerprint: configurationFingerprint(state.cfg), lead_route: clone(leadOptions) }
       state.implementers = new Map()
+      this.writeScope?.clear(parent.session.id)
       if (state.fixedTask.task_binding) await state.journal.append(parent.session.id, 'dpswarm/fixed-team-binding', state.fixedTask)
       const context = `Explicit task constraints apply to every role and take precedence over default role guidance. If the task says no tests (including 不需要任何测试), do not run tests or add tests. Use only permitted read-only inspection and report unverified behavior honestly.\n\nTask:\n${args.task}\n\nAcceptance requirements:\n${args.acceptance || 'Derive requirements from the task; identify uncertainty explicitly.'}`
       for (const role of roles) {
@@ -277,7 +319,8 @@ export class FixedTeamController {
             break
           }
         }
-        if (state.budgetRun) {
+        const parallelImplementers = role === 'implementer' && subtasks
+        if (state.budgetRun && !parallelImplementers) {
           const allocation = await this.budget.issueTeamWorker(parent, state.budgetRun, { task: assignedPrompt, label: role })
           assignedPrompt = allocation.prompt
         }
@@ -286,6 +329,43 @@ export class FixedTeamController {
         const abortChild = () => timeout.abort(state.abort.signal.reason)
         state.abort.signal.addEventListener('abort', abortChild, { once: true })
         try {
+          if (parallelImplementers) {
+            // Parallel implementer phase: one derive dispatch fans out N children
+            // with per-subtask allocations and enforced write-scope claims.
+            const assigned = []
+            for (const [index, st] of subtasks.entries()) {
+              let prompt = roleText + '\n\n' + context
+                + `\n\n你负责的子任务（${st.id}）：\n${st.task}`
+                + (st.acceptance ? `\n\n本子任务验收：\n${st.acceptance}` : '')
+                + scopeClause(st)
+              if (state.budgetRun) {
+                const allocation = await this.budget.issueTeamWorker(parent, state.budgetRun, { task: prompt, label: 'implementer', subtask: st.id, subtaskIndex: index })
+                prompt = allocation.prompt
+              }
+              assigned.push({ ...route, title: `DPswarm implementer · ${st.id}`, prompt })
+            }
+            const result = await delegateOnce({ kind: 'derive', subtasks: assigned },
+              { ...exec, signal: timeout.signal }, state.sidecar, this.subagents,
+              { routeJournal: state.journal, resolveSession: this.resolveSession, budget: this.budget,
+                runId: state.lease.run_id, onDiagnostic: value => state.diagnostics.push(value),
+                modelRegistry: this.modelRegistry, modelRoutes: state.modelRoutes, hostModels: state.hostModels, modelRole: role, onChildStarted: async details => {
+                  const st = subtasks[details.subtask_index]
+                  if (st && this.writeScope) {
+                    // A rework continuation re-claims the same subtask region; the
+                    // source worker is provably terminal before rework starts.
+                    await this.writeScope.claim({ rootId: parent.session.id, sessionId: details.execution_session_id,
+                      subtask: st.id, scopes: st.write_scope, runId: state.lease.run_id })
+                  }
+                  state.implementers.set(details.item_id, { item_id: details.item_id, worker_session_id: details.execution_session_id,
+                    run_id: state.lease.run_id, subtask: st?.id ?? null, superseded: false })
+                  await onChildStarted?.({ ...details, role, run_id: state.lease.run_id })
+                } })
+            if (!Array.isArray(result.deliveries)) { failed.push({ role, code: result.outcome || 'NOT_ADMITTED', error: result.message || 'No worker was admitted' }); break }
+            deliveries.push(...result.deliveries.map(d => ({ ...d, role, subtask: subtasks[d.subtask_index]?.id ?? null, evidence_kind: 'worker_reported; Lead must independently verify' })))
+            failed.push(...result.failed.map(f => ({ ...f, role, subtask: subtasks[f.subtask_index]?.id ?? null })))
+            if (result.failed.some(f => f.control_settlement?.ok !== true || f.details?.physicalCleanupConfirmed === false)) break
+            continue
+          }
           const result = await delegateOnce({ kind: 'derive', subtasks: [{ ...route, title: `DPswarm ${role}`, prompt: assignedPrompt }] },
             { ...exec, signal: timeout.signal }, state.sidecar, this.subagents,
             { routeJournal: state.journal, resolveSession: this.resolveSession, budget: this.budget,
@@ -422,7 +502,8 @@ export class FixedTeamController {
       const allowanceNote = reworkProfile.mode === 'unlimited'
         ? 'This is a linked rework of the original implementer without a token or call cap.'
         : `This is a linked rework of the original implementer with a fixed allowance of ${reworkProfile.tokenLimit} cumulative tokens and ${reworkProfile.callLimit} model calls.`
-      const task = `${workerRolePrompt('implementer')}\n\n${allowanceNote} Earlier usage remains separately recorded. Repair the specified defects until the original requirements are met; do not polish beyond the task. Fix only the concrete defects below within the original scope. Preserve unrelated work; do not add requirements or optional validation. Explicit no-tests instructions take precedence. Deliver the current candidate promptly.\n\nOriginal task:\n${frozen.task}\n\nOriginal acceptance:\n${frozen.acceptance || 'Use only the original task requirements.'}\n\nNecessary corrections:\n${args.feedback}`
+      const sourceScope = source.subtask != null ? frozen.subtasks?.find(row => row.id === source.subtask) : null
+      const task = `${workerRolePrompt('implementer')}\n\n${allowanceNote} Earlier usage remains separately recorded. Repair the specified defects until the original requirements are met; do not polish beyond the task. Fix only the concrete defects below within the original scope. Preserve unrelated work; do not add requirements or optional validation. Explicit no-tests instructions take precedence. Deliver the current candidate promptly.${sourceScope ? scopeClause(sourceScope) : ''}\n\nOriginal task:\n${frozen.task}\n\nOriginal acceptance:\n${frozen.acceptance || 'Use only the original task requirements.'}\n\nNecessary corrections:\n${args.feedback}`
       await check()
       allocation = await this.budget.issueRework(parent, { workerSessionId: source.worker_session_id, task })
       const sameProfile = (a, b) => !!a && !!b && a.mode === b.mode && a.tokenLimit === b.tokenLimit && a.callLimit === b.callLimit
@@ -452,8 +533,12 @@ export class FixedTeamController {
             published = true
             publishedChild = { item_id: details.item_id, worker_session_id: details.execution_session_id }
             source.superseded = true
+            if (sourceScope && this.writeScope) {
+              await this.writeScope.claim({ rootId: parent.session.id, sessionId: details.execution_session_id,
+                subtask: sourceScope.id, scopes: sourceScope.write_scope, runId: reworkId })
+            }
             state.implementers.set(details.item_id, { item_id: details.item_id, worker_session_id: details.execution_session_id,
-              run_id: reworkId, superseded: false })
+              run_id: reworkId, subtask: source.subtask ?? null, superseded: false })
             await record('published', { item_id: details.item_id, worker_session_id: details.execution_session_id })
           },
         })

@@ -1,3 +1,11 @@
+# 0.8.0 并行实现者与写范围认领验证（2026-09-09）
+
+插件回归 **340/340**、控制服务 **536/536** 通过（不含外部模型调用）。实现要点：`dpswarm_run` 可选 `subtasks`（1–3 条互不重叠写范围）触发并行实现者相位，join 后测试者／Reviewer 串行汇合；写范围经 `tools/pre-execute` 在 write/edit 落点强制执行（`write-scope.js`，Windows 路径规范化、保守相交判定、审计事件 `dpswarm/write-scope`、冷恢复可重建）；预算发放扩展为"角色+子任务"键（`budget-runtime.js` 血统/返工/收尾全链路对齐）；`delegateOnce` 的冻结路由校验放开为"同路由 N 子任务"（`delegation.js`）；返工子会话接续原子任务写范围。串行缺省行为由表征测试钉死（`tests/fixed-team-v2-characterization.test.mjs`），并行端到端、部分失败汇合、返工认领、Auto 按子任务预算见 `tests/fixed-team-parallel.test.mjs`。
+
+浏览器套件未运行（本机无 Playwright／esbuild），弹层 token 条按子任务分段、后台面板子任务标识仅经 SSR 冒烟。真实模型下 Lead 拆分质量与并行净收益未测量——需另行试点（全角色 glm-5.3-flash）后再下结论。shell 类工具的路径解析本期不做，已在文档明示。
+
+---
+
 # 0.7.8 返工限额、收尾估算与报告读取验证（2026-09-09）
 
 插件回归 **328/328**、控制服务 **536/536** 通过。外部模型调用为 0；动机证据为 0.7.7 首次真实模型运行（911 动画任务会话）审计账本中的实际数字。

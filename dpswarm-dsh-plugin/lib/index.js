@@ -5,6 +5,7 @@ import { HostModelRegistry } from './host-model-registry.js'
 import { resolveHostRoot, hostModuleUrl } from './host-modules.js'
 import { runtimePaths } from './paths.js'
 import { FixedTeamController, fixedProfile } from './fixed-team.js'
+import { WriteScopeRegistry, installWriteScope } from './write-scope.js'
 import { compactBudgetStatus } from './worker-diagnostics.js'
 import { CMRuntime } from './cm-runtime.js'
 import { installBudget } from './budget.js'
@@ -99,9 +100,12 @@ export function apply(ctx, config) {
   if (process.env.DPSWARM_SKIP_TOOLS === '1') return
   const requirement = installTeamRequirement(ctx, { config: resolved, journal })
   ctx.provide('dpswarmRequirement', requirement)
+  const writeScope = new WriteScopeRegistry({ journal })
+  ctx.provide('dpswarmWriteScope', writeScope)
+  ctx.effect(() => installWriteScope(ctx, writeScope), 'dpswarm: enforce parallel worker write scopes')
   ctx.inject(['tools', 'subagents', 'llm'], runtime => {
     const modelRegistry = new HostModelRegistry(() => runtime.llm)
-    controller = new FixedTeamController({ config: resolved, subagents: runtime.subagents, cm, budget, modelRegistry,
+    controller = new FixedTeamController({ config: resolved, subagents: runtime.subagents, cm, budget, modelRegistry, writeScope,
       resolveSession: id => ctx.get?.('sessions', false)?.get(id) || ctx.sessions?.get(id) })
     const dispatcher = new TeamDispatcher({ controller, requirement })
     const advice = installBudgetAdvice(runtime, resolved)
@@ -116,7 +120,7 @@ export function apply(ctx, config) {
         return toolJSON({ ...status, worker_budget: compactBudgetStatus(await budget.status(exec.agent)), budget_planning: advice.status(exec.agent), team_requirement: await requirement.status(exec.agent), configured_profile: fixedProfile(resolved(), { enabled: status.cm.enabled, profile: status.cm.profile || null }, effectiveLeadRoute(exec.agent)), availability: await controller.modelAvailability(exec.agent) })
       } }))
     runtime.tools.register(defineTool({ name: 'dpswarm_run', description: 'Run the user-enabled fixed implementer then tester, followed by a Reviewer only when the user explicitly configured a separate model. Roles and routes are fixed by settings. Return deliveries to the Lead for scoped review, implementer rework when necessary, and explicit acceptance.',
-      parameters: { task: { type: 'string', required: true, description: 'Task and permitted scope' }, acceptance: { type: 'string', description: 'Acceptance requirements and constraints; no hidden benchmark answers' }, worker_budgets: { type: 'object', description: 'Only in Auto mode: Lead-chosen independent budgets for implementer, tester, and reviewer when configured. Each role has positive tokenLimit, callLimit, and reason. Omit in manual/unlimited.', properties: Object.fromEntries(['implementer','tester','reviewer'].map(role => [role, { type: 'object', properties: { tokenLimit: { type: 'integer', required: true }, callLimit: { type: 'integer', required: true }, reason: { type: 'string', required: true } }, additionalProperties: false }])), additionalProperties: false } }, output,
+      parameters: { task: { type: 'string', required: true, description: 'Task and permitted scope' }, acceptance: { type: 'string', description: 'Acceptance requirements and constraints; no hidden benchmark answers' }, subtasks: { type: 'array', description: 'Optional parallel implementer split: 1-3 disjoint subtasks, each with a unique id, a task, and a nonempty write_scope glob list (write/edit calls outside a worker scope are rejected). Omit for the sequential team. Auto mode then needs one worker_budgets.implementer entry per subtask, index-aligned.', items: { type: 'object', properties: { id: { type: 'string', required: true }, task: { type: 'string', required: true }, write_scope: { type: 'array', required: true }, acceptance: { type: 'string' } }, additionalProperties: false } }, worker_budgets: { type: 'object', description: 'Only in Auto mode: Lead-chosen independent budgets for implementer, tester, and reviewer when configured. Each role has positive tokenLimit, callLimit, and reason. Omit in manual/unlimited.', properties: Object.fromEntries(['implementer','tester','reviewer'].map(role => [role, { type: 'object', properties: { tokenLimit: { type: 'integer', required: true }, callLimit: { type: 'integer', required: true }, reason: { type: 'string', required: true } }, additionalProperties: false }])), additionalProperties: false } }, output,
       execute: async (args, exec) => toolJSON(await dispatcher.run(args, exec)) }))
     runtime.tools.register(defineTool({ name: 'dpswarm_prepare_worker', description: 'Auto mode only: record the current Lead decision for one native child worker. First read the task and choose its independent limits yourself; pass the returned prompt unchanged to a native subagent. This does not start a child, call a model, or change user settings.',
       parameters: { task: { type: 'string', required: true }, tokenLimit: { type: 'integer', required: true }, callLimit: { type: 'integer', required: true }, reason: { type: 'string', required: true }, label: { type: 'string' } }, output,

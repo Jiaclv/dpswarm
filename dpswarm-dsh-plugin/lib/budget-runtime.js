@@ -66,12 +66,18 @@ function fixedSource(events, workerId, seen = new Set()) {
     || bound[0].data.owner_session_id !== workerId) throw budgetError('REWORK_SOURCE_INVALID')
   const a = issued[0].data
   if (a.authority !== binding.authority || a.run_id !== binding.run_id || a.label !== binding.label
+    || (a.subtask ?? null) !== (binding.subtask ?? null)
     || !same(a.profile, data.profile) || !same(binding.profile, data.profile)
     || !['implementer', 'tester', 'reviewer'].includes(a.label)) throw budgetError('REWORK_SOURCE_INVALID')
   if (a.authority === 'fixed-team-run') {
     const runs = events.filter(e => e.type === eventName('team-run') && e.data?.run_id === a.run_id)
     if (runs.length !== 1 || !runs[0].data.roles.includes(a.label)) throw budgetError('REWORK_SOURCE_INVALID')
-    const run = runs[0].data, chosen = run.profile.mode === 'auto' ? run.decisions[a.label] : run.profile
+    const run = runs[0].data
+    let chosen = run.profile.mode === 'auto' ? run.decisions[a.label] : run.profile
+    if (Array.isArray(chosen)) {
+      if (!Number.isSafeInteger(a.subtask_index) || !chosen[a.subtask_index]) throw budgetError('REWORK_SOURCE_INVALID')
+      chosen = chosen[a.subtask_index]
+    }
     const expected = run.profile.mode === 'unlimited' ? { mode: 'unlimited' }
       : { mode: run.profile.mode, tokenLimit: chosen.tokenLimit, callLimit: chosen.callLimit }
     if (!same(expected, data.profile)) throw budgetError('REWORK_SOURCE_INVALID')
@@ -79,6 +85,7 @@ function fixedSource(events, workerId, seen = new Set()) {
     if (binding.source_worker_session_id !== a.source_worker_session_id
       || events.some(e => e.type === eventName('rework-revoked') && e.data?.allocation_id === a.allocation_id)) throw budgetError('REWORK_SOURCE_INVALID')
     const source = fixedSource(events, a.source_worker_session_id, seen)
+    if ((a.subtask ?? null) !== (source.allocation.subtask ?? null)) throw budgetError('REWORK_SOURCE_INVALID')
     const attribution = validReworkProfile(a.profile) ? reworkAttribution(a.profile) : null
     if (a.source_allocation_id !== source.allocation.allocation_id || a.run_id !== source.allocation.run_id
       || a.label !== source.allocation.label || !attribution
@@ -199,21 +206,36 @@ export class WorkerBudgetRuntime {
     const chosen = {}
     if (profile.mode === 'auto') {
       if (!decisions || typeof decisions !== 'object' || Object.keys(decisions).some(r => !roles.includes(r))) throw decisionRequired()
-      for (const role of roles) { const d = validateWorkerDecision({ ...decisions[role], task: role }); chosen[role] = { tokenLimit: d.tokenLimit, callLimit: d.callLimit, reason: d.reason } }
+      for (const role of roles) {
+        const entry = decisions[role]
+        // Parallel implementer phases pass one decision per subtask, index-aligned.
+        const list = Array.isArray(entry) ? entry : [entry]
+        if (!list.length) throw decisionRequired()
+        const validated = list.map(value => { const d = validateWorkerDecision({ ...value, task: role }); return { tokenLimit: d.tokenLimit, callLimit: d.callLimit, reason: d.reason } })
+        chosen[role] = Array.isArray(entry) ? validated : validated[0]
+      }
     } else if (decisions !== undefined) throw budgetError('USER_WORKER_LIMITS_AUTHORITATIVE')
     const record = { run_id: randomUUID(), profile: plain(profile), roles: [...roles], decisions: chosen, frozen_at: Date.now() }
     await this.append(root.id, 'team-run', record)
     const handle = Object.freeze({ run_id: record.run_id, profile: Object.freeze({ ...profile }) })
     this.teamRuns.set(handle, { root, record, issued: new Set(), closed: false }); return handle
   }
-  async issueTeamWorker(parent, handle, { task, label }) {
+  async issueTeamWorker(parent, handle, { task, label, subtask = null, subtaskIndex = null }) {
     const root = this.trustedLead(parent), team = this.teamRuns.get(handle)
     if (!team || team.closed || team.root !== root) throw budgetError('WORKER_BUDGET_TEAM_HANDLE_INVALID')
-    if (!team.record.roles.includes(label) || team.issued.has(label) || typeof task !== 'string' || !task.trim()) throw budgetError('WORKER_BUDGET_ROLE_ALREADY_ISSUED')
-    const choice = team.record.decisions[label], profile = team.record.profile.mode === 'auto' ? { mode: 'auto', tokenLimit: choice.tokenLimit, callLimit: choice.callLimit } : team.record.profile
+    const key = subtask === null ? label : `${label}#${subtask}`
+    if (!team.record.roles.includes(label) || team.issued.has(key) || typeof task !== 'string' || !task.trim()) throw budgetError('WORKER_BUDGET_ROLE_ALREADY_ISSUED')
+    let choice = team.record.decisions[label]
+    if (Array.isArray(choice)) {
+      if (!Number.isSafeInteger(subtaskIndex) || subtaskIndex < 0 || subtaskIndex >= choice.length) throw decisionRequired()
+      choice = choice[subtaskIndex]
+    }
+    const profile = team.record.profile.mode === 'auto' ? { mode: 'auto', tokenLimit: choice.tokenLimit, callLimit: choice.callLimit } : team.record.profile
     const allocation_id = randomUUID(), prompt = `${fixedMarker(allocation_id)}\n${task}`
-    const data = { authority: 'fixed-team-run', allocation_id, run_id: team.record.run_id, task, task_sha256: hash(task), prompt_sha256: hash(prompt), prompt, label, profile, ...(choice || {}), decided_at: team.record.frozen_at, decided_by: team.record.profile.mode === 'auto' ? 'current_lead_tool_call' : 'user_settings_at_team_start' }
-    await this.append(root.id, 'allocation', data); team.issued.add(label)
+    const data = { authority: 'fixed-team-run', allocation_id, run_id: team.record.run_id, task, task_sha256: hash(task), prompt_sha256: hash(prompt), prompt, label, profile,
+      ...(subtask === null ? {} : { subtask, subtask_index: subtaskIndex }),
+      ...(choice || {}), decided_at: team.record.frozen_at, decided_by: team.record.profile.mode === 'auto' ? 'current_lead_tool_call' : 'user_settings_at_team_start' }
+    await this.append(root.id, 'allocation', data); team.issued.add(key)
     return { allocation_id, prompt, profile: { ...profile }, ...(choice || {}) }
   }
   async finishTeamRun(parent, handle) {
@@ -258,6 +280,7 @@ export class WorkerBudgetRuntime {
         source_profile: source.profile, source_consumption: totals, source_accounting_sha256: accountingHash(calls),
         source_terminal: { seq: terminal.seq ?? null, at: terminal.time ?? null, kind: terminal.data.reason.kind },
         task, task_sha256: hash(task), prompt_sha256: hash(prompt), prompt, label: source.allocation.label,
+        ...(source.allocation.subtask != null ? { subtask: source.allocation.subtask, subtask_index: source.allocation.subtask_index } : {}),
         profile, ...(profile.mode === 'unlimited' ? {} : { tokenLimit: profile.tokenLimit, callLimit: profile.callLimit }),
         reason: profile.mode === 'unlimited'
           ? 'The user explicitly authorized unlimited rework; initial worker limits and all prior usage remain unchanged.'
@@ -309,7 +332,7 @@ export class WorkerBudgetRuntime {
       settledCalls(events, a.source_worker_session_id)
       const attribution = validReworkProfile(a.profile) ? reworkAttribution(a.profile) : null
       if (a.source_allocation_id !== source.allocation.allocation_id || a.run_id !== source.allocation.run_id
-        || a.label !== source.allocation.label || !attribution
+        || a.label !== source.allocation.label || (a.subtask ?? null) !== (source.allocation.subtask ?? null) || !attribution
         || a.budget_origin !== attribution.budget_origin || a.decided_by !== attribution.decided_by) throw budgetError('REWORK_SOURCE_INVALID')
       const bound = events.filter(e => e.type === eventName('allocation-bound') && e.data?.allocation_id === allocationId)
       if (bound.length > 1 || bound.some(e => e.data.worker_session_id !== session.id)) throw decisionRequired()
@@ -319,6 +342,7 @@ export class WorkerBudgetRuntime {
         task_sha256: a.task_sha256, bound_at: Date.now() } }], result: {
         allocation_id: allocationId, profile: a.profile, authority: a.authority, run_id: a.run_id,
         label: a.label, source_worker_session_id: a.source_worker_session_id,
+        ...(a.subtask != null ? { subtask: a.subtask, subtask_index: a.subtask_index } : {}),
         task_sha256: a.task_sha256, reason: a.reason, decided_by: a.decided_by, decided_at: a.decided_at,
         ...(a.profile.mode === 'unlimited' ? {} : { tokenLimit: a.profile.tokenLimit, callLimit: a.profile.callLimit }) } }
     })
@@ -346,7 +370,12 @@ export class WorkerBudgetRuntime {
       if (fixed) {
         const runs = events.filter(e => e.type === eventName('team-run') && e.data.run_id === a.run_id)
         if (runs.length !== 1 || !runs[0].data.roles.includes(a.label)) throw decisionRequired()
-        const record = runs[0].data, selected = record.profile.mode === 'auto' ? record.decisions[a.label] : record.profile
+        const record = runs[0].data
+        let selected = record.profile.mode === 'auto' ? record.decisions[a.label] : record.profile
+        if (Array.isArray(selected)) {
+          if (!Number.isSafeInteger(a.subtask_index) || !selected[a.subtask_index]) throw decisionRequired()
+          selected = selected[a.subtask_index]
+        }
         profile = record.profile.mode === 'unlimited' ? { mode: 'unlimited' } : { mode: record.profile.mode, tokenLimit: selected.tokenLimit, callLimit: selected.callLimit }
         if (!same(profile, a.profile) || (profile.mode === 'auto' && a.reason !== selected.reason)) throw decisionRequired()
       }
@@ -354,7 +383,7 @@ export class WorkerBudgetRuntime {
       const bindings = events.filter(e => e.type === eventName('allocation-bound') && e.data.allocation_id === allocationId)
       if (bindings.some(e => e.data.worker_session_id !== session.id) || bindings.length > 1) throw decisionRequired()
       if (fixed && !bindings.length && events.some(e => e.type === eventName('team-run-ended') && e.data.run_id === a.run_id)) throw decisionRequired()
-      const result = { allocation_id: allocationId, task_sha256: a.task_sha256, profile, ...(profile.mode === 'unlimited' ? {} : { tokenLimit: profile.tokenLimit, callLimit: profile.callLimit }), ...(a.reason === undefined ? {} : { reason: a.reason }), ...(fixed ? { run_id: a.run_id, authority: a.authority } : {}), ...(a.label === undefined ? {} : { label: a.label }), decided_by: a.decided_by, decided_at: a.decided_at }
+      const result = { allocation_id: allocationId, task_sha256: a.task_sha256, profile, ...(profile.mode === 'unlimited' ? {} : { tokenLimit: profile.tokenLimit, callLimit: profile.callLimit }), ...(a.reason === undefined ? {} : { reason: a.reason }), ...(fixed ? { run_id: a.run_id, authority: a.authority } : {}), ...(a.label === undefined ? {} : { label: a.label }), ...(a.subtask != null ? { subtask: a.subtask, subtask_index: a.subtask_index } : {}), decided_by: a.decided_by, decided_at: a.decided_at }
       return { events: bindings.length ? [] : [{ type: eventName('allocation-bound'), data: { version: 3, root_session_id: root.id, allocation_id: allocationId, worker_session_id: session.id, owner_session_id: session.id, task_sha256: a.task_sha256, bound_at: Date.now() } }], result }
     })
     return tx.result
@@ -405,6 +434,7 @@ async initialize(session, incoming, signal) {
       if (profile.mode === 'auto') decision = allocation
       if (fixed) policyBinding = { authority: allocation.authority, run_id: allocation.run_id,
         allocation_id: allocation.allocation_id, label: allocation.label, profile,
+        ...(allocation.subtask != null ? { subtask: allocation.subtask } : {}),
         ...(rework ? { source_worker_session_id: allocation.source_worker_session_id } : {}) }
     }
     const state = { session, rootId: root.id, profile, decision, policyBinding, phase: 'ready', calls: new Map(),

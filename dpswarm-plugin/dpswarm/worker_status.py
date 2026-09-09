@@ -35,7 +35,8 @@ def worker_status(events, root_session_id, snapshot=None):
                 "attempt_kind": "rework" if is_rework else "initial",
                 "rework_round": prior_round + 1 if is_rework else 0,
                 "session_id": sid, "role": role if role in ("implementer", "tester", "reviewer") else "worker",
-                "mode": profile.get("mode") if profile.get("mode") in ("manual", "auto", "unlimited") else "unknown",
+                "subtask": binding.get("subtask"),
+                "mode": profile.get("mode") if profile.get("mode") in ("manual", "auto", "unlimited", "fixed") else "unknown",
                 "token_limit": _number(profile.get("tokenLimit")), "call_limit": _number(profile.get("callLimit")),
                 "phase": "working", "code": None, "calls": {}, "candidate_count": 0,
             })

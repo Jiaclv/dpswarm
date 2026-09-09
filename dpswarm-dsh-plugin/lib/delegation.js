@@ -25,10 +25,13 @@ export async function delegateOnce(args, exec, sidecar, subagents, { routeJourna
         const validated = modelRegistry ? await modelRegistry.resolve(modelRoutes, { signal: exec.signal, expected: hostModels }) : null
         if (validated) {
           modelRegistry.checkLead(effectiveLeadRoute(parent), modelRoutes)
-          const child = validated.models.find(row => row.role === modelRole), task = args.subtasks?.[0]
-          if (args.kind !== 'derive' || args.subtasks?.length !== 1 || !child || !task
-              || child.provider !== task.provider || child.model !== task.model
-              || (task.reasoning_effort !== undefined && child.reasoningEffort !== task.reasoning_effort)) {
+          const child = validated.models.find(row => row.role === modelRole)
+          const tasks = args.subtasks ?? []
+          // The fixed team dispatches one subtask per role — or N same-route
+          // subtasks in a parallel implementer phase.
+          if (args.kind !== 'derive' || !tasks.length || !child
+              || tasks.some(task => !task || child.provider !== task.provider || child.model !== task.model
+                || (task.reasoning_effort !== undefined && child.reasoningEffort !== task.reasoning_effort))) {
             throw Object.assign(new Error('HOST_MODEL_ROUTE_DRIFT: child is outside the frozen fixed role'), { code: 'HOST_MODEL_ROUTE_DRIFT' })
           }
         }
@@ -91,7 +94,8 @@ export async function delegateOnce(args, exec, sidecar, subagents, { routeJourna
               execution_provider: sidecar.cfg.subagentProvider,
             })
             await childRoute.bind(run.id)
-            await onChildStarted?.({ execution_session_id: run.id, item_id: it.item_id, node_id: currentNode })
+            await onChildStarted?.({ execution_session_id: run.id, item_id: it.item_id, node_id: currentNode,
+              subtask_index: it.subtask_index ?? null, subtask_title: st?.title ?? null })
           }
           const terminal = async info => {
             const diagnostic = await workerDiagnostics({ ...info,
@@ -184,6 +188,7 @@ export async function delegateOnce(args, exec, sidecar, subagents, { routeJourna
             item_id: it.item_id, title: st.title, kind: it.kind,
             level: it.level, stop_reason: out.stopReason, output: out.text,
             execution_session_id: out.sessionId, token_usage: unknownUsage,
+            subtask_index: it.subtask_index ?? null,
             diagnostic: out.diagnostic, budget: out.diagnostic?.budget || null,
             closeout: out.diagnostic?.closeout || null, failure: out.diagnostic?.failure || null,
           }
@@ -219,6 +224,7 @@ export async function delegateOnce(args, exec, sidecar, subagents, { routeJourna
           if (s.status === 'fulfilled') deliveries.push(s.value)
           else failed.push({
             item_id: it.item_id,
+            subtask_index: it.subtask_index ?? null,
             code: s.reason?.code ?? 'SUBAGENT_EXECUTION_FAILED',
             error: String(s.reason?.message ?? s.reason),
             execution_session_id: s.reason?.details?.sessionId || null,

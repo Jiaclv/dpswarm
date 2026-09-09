@@ -851,37 +851,41 @@ window.__ModuleLoader__.load({
         ['CM', cfg.cmModel || 'deepseek-v4-flash'],
         ['限额', { unlimited: '不做限制', manual: '手动', auto: 'Lead 分配' }[cfg.workerBudgetMode] || '不做限制'],
         ['返工', reworkMode(cfg.reworkBudgetMode) === 'fixed' ? '固定 ' + budgetNumber(cfg.reworkTokenLimit) + ' / ' + budgetNumber(cfg.reworkCallLimit) + ' 次' : '不限'],
+        ['并行', '≤3（Lead 按任务拆分）'],
         ['超时', String(cfg.workerTimeoutSeconds ?? 600) + 's'],
       ]
       return h('dl', { className: 'dps-summary dps-keyParams', 'aria-label': '关键参数' },
         facts.flatMap(([k, v]) => [h('dt', { key: k }, k), h('dd', { key: k + '-v' }, v)]))
     }
 
-    /** 总 token 消耗占比条：按角色分段（含各自 CM），悬停看明细；Lead 主对话不计量。 */
+    /** 总 token 消耗占比条：按角色分段（并行时细化到子任务，含各自 CM），悬停看明细；Lead 主对话不计量。 */
     function TokenShareBar({ status }) {
       const view = status?.worker_diagnostics
       if (!view || view.available !== true || !Array.isArray(view.workers) || !view.workers.length) return null
       const names = { implementer: '实现者', tester: '测试者', reviewer: 'Reviewer', worker: '子 agent' }
       const colors = { implementer: 'var(--dsw-alias-brand-primary)', tester: 'var(--dsw-alias-state-success-primary)', reviewer: 'var(--dsw-alias-state-warn-primary)', worker: 'var(--dsw-alias-label-tertiary)' }
       const amount = value => Number.isSafeInteger(value) && value >= 0 ? value.toLocaleString('zh-CN') : '未知'
-      const byRole = new Map(), calls = new Map(), remaining = new Map()
+      const byKey = new Map(), calls = new Map(), remaining = new Map(), labels = new Map()
       let grand = 0
       for (const row of view.workers) {
-        const role = names[row.role] ? row.role : 'worker'
+        const base = names[row.role] ? row.role : 'worker'
+        const key = row.subtask ? `${base}:${row.subtask}` : base
+        labels.set(key, names[base] + (row.subtask ? '·' + row.subtask : ''))
         const tokens = Number.isSafeInteger(row.observed_tokens_lower_bound) ? row.observed_tokens_lower_bound : 0
-        byRole.set(role, (byRole.get(role) || 0) + tokens); grand += tokens
-        calls.set(role, (calls.get(role) || 0) + (Number.isSafeInteger(row.calls_used) ? row.calls_used : 0))
-        if (Number.isSafeInteger(row.remaining_tokens)) remaining.set(role, (remaining.get(role) || 0) + row.remaining_tokens)
+        byKey.set(key, (byKey.get(key) || 0) + tokens); grand += tokens
+        calls.set(key, (calls.get(key) || 0) + (Number.isSafeInteger(row.calls_used) ? row.calls_used : 0))
+        if (Number.isSafeInteger(row.remaining_tokens)) remaining.set(key, (remaining.get(key) || 0) + row.remaining_tokens)
       }
       if (grand <= 0) return null
-      const order = ['implementer', 'tester', 'reviewer', 'worker'].filter(role => byRole.has(role))
+      const rank = key => ['implementer', 'tester', 'reviewer', 'worker'].indexOf(key.split(':')[0])
+      const order = [...byKey.keys()].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b))
       return h('div', { className: 'dps-tokenShare' },
         h('div', { className: 'dps-tokenBar', role: 'img', 'aria-label': 'worker 总消耗 ' + amount(grand) + ' token，按角色分段' },
-          order.map(role => h('i', { key: role,
-            style: { width: (byRole.get(role) / grand * 100).toFixed(2) + '%', background: colors[role] },
-            title: names[role] + '：' + amount(byRole.get(role)) + ' token · ' + amount(calls.get(role)) + ' 次调用'
-              + (remaining.has(role) ? ' · 剩余 ' + amount(remaining.get(role)) + ' token' : '') }))),
-        h('p', { className: 'dps-hint' }, '总消耗 ', h('b', null, amount(grand)), ' token（', order.map(role => names[role]).join(' / '), '），悬停分段查看明细；含各 worker 自身 CM，Lead 主对话不计量。'))
+          order.map(key => h('i', { key,
+            style: { width: (byKey.get(key) / grand * 100).toFixed(2) + '%', background: colors[key.split(':')[0]] },
+            title: labels.get(key) + '：' + amount(byKey.get(key)) + ' token · ' + amount(calls.get(key)) + ' 次调用'
+              + (remaining.has(key) ? ' · 剩余 ' + amount(remaining.get(key)) + ' token' : '') }))),
+        h('p', { className: 'dps-hint' }, '总消耗 ', h('b', null, amount(grand)), ' token（', order.map(key => labels.get(key)).join(' / '), '），悬停分段查看明细；含各 worker 自身 CM，Lead 主对话不计量。'))
     }
 
     /** composer 工具行的罗盘启动按钮：角落三态状态灯，点开菜单面弹层。 */

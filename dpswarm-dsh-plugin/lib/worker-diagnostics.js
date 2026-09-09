@@ -159,7 +159,7 @@ export function compactBudgetStatus(value) {
     detail_source: 'authenticated /api/plugin-audit; per-call receipts omitted from model view' }
   return { ...fields(value, budgetFields),
     decision: fields(value.decision, ['tokenLimit', 'callLimit', 'reason']),
-    policy_binding: fields(value.policy_binding, ['authority', 'run_id', 'label']),
+    policy_binding: fields(value.policy_binding, ['authority', 'run_id', 'label', 'subtask']),
     closeout: fields(value.closeout, ['mode', 'trigger', 'at', 'remaining_tokens', 'remaining_calls']),
     last_denial: fields(value.last_denial, denialFields) }
 }
@@ -191,7 +191,7 @@ export function compactWorkerDiagnostic(value) {
 
 export function compactWorkerEntry(value) {
   const result = { ...fields(value, ['item_id', 'title', 'kind', 'role', 'level', 'stop_reason', 'execution_session_id',
-    'code', 'error', 'admission_stage', 'evidence_kind']), diagnostic: compactWorkerDiagnostic(value.diagnostic) }
+    'code', 'error', 'admission_stage', 'evidence_kind', 'subtask', 'subtask_index']), diagnostic: compactWorkerDiagnostic(value.diagnostic) }
   if (typeof value.output === 'string') {
     result.output = excerpt(value.output, 600); result.output_original_chars = value.output.length
     result.output_truncated = value.output.length > 600
