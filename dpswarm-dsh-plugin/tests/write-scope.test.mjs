@@ -86,3 +86,19 @@ test('claim rejects overlap with an existing sibling claim and clears per run', 
     h.registry.claim({ rootId: 'root', sessionId: 'w3', subtask: 'empty', scopes: [] }),
     { code: 'WORKER_SCOPE_INVALID' })
 })
+
+test('v3-P0: claim records carry state/version so the artifact entity can extend them later', async () => {
+  const journal = new MemoryAuditJournal()
+  const registry = new WriteScopeRegistry({ journal })
+  const record = await registry.claim({ rootId: 'root', sessionId: 'w1', subtask: 'part-a', scopes: ['src/a/**'] })
+  assert.equal(record.state, 'claimed')
+  assert.equal(record.version, 1)
+  const events = (await journal.read('root')).events.filter(e => e.type === 'dpswarm/write-scope')
+  assert.equal(events[0].data.state, 'claimed')
+  assert.equal(events[0].data.version, 1)
+  // Legacy-shaped records (no state/version, as written by 0.8.0) still read back.
+  const legacy = { root_session_id: 'root', worker_session_id: 'w-old', subtask: 'legacy', scopes: ['old/**'], run_id: null, claimed_at: 1 }
+  registry.bySession.set('w-old', legacy)
+  assert.equal(registry.forSession('w-old').subtask, 'legacy')
+  assert.equal(registry.forSession('w-old').state, undefined)
+})

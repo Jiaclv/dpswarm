@@ -88,7 +88,9 @@ export class WriteScopeRegistry {
       throw failure('WORKER_SCOPE_INVALID', 'Each parallel subtask needs a nonempty write_scope glob list')
     }
     const record = { root_session_id: rootId, worker_session_id: sessionId, subtask,
-      scopes: scopes.map(norm), run_id: runId || null, claimed_at: Date.now() }
+      scopes: scopes.map(norm), run_id: runId || null, claimed_at: Date.now(),
+      // v3 extension point: the artifact entity builds staged states on these.
+      state: 'claimed', version: 1 }
     // A subtask's region passes to its rework continuation: the prior claimant is
     // provably terminal before rework starts, so replace rather than overlap.
     const prior = this.claimsFor(rootId).find(row => row.subtask === subtask)
