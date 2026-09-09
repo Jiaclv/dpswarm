@@ -1,13 +1,16 @@
 # 0.7.8 返工限额、收尾估算与报告读取验证（2026-09-09）
 
-插件回归 **325/325**、控制服务 **521/521** 通过。外部模型调用为 0；动机证据为 0.7.7 首次真实模型运行（911 动画任务会话）审计账本中的实际数字。
+插件回归 **328/328**、控制服务 **536/536** 通过。外部模型调用为 0；动机证据为 0.7.7 首次真实模型运行（911 动画任务会话）审计账本中的实际数字。
 
 - 911 表征测试（`tests/mechanism-911-characterization.test.mjs`，9 项）钉死真实运行数字：测试者剩 106,078/200,000 token 与 9/12 次调用时触发 `cannot_afford_exploration_and_delivery`（差额仅 18 token），最终交付调用实际只需 21,516；返工在 manual／auto／unlimited 三种首轮模式下均为不限额；5,422 字符报告截断至 600。
 - 收尾预测接入宿主 token meter（`budget.js` pre-step 与 `agent/request` 同一基准，取实测与字符估算的较大者）后，911 场景在实测估算（≈31,000／调用）下不再触发提前收尾；既有「110,000 剩余 vs 70,000 输入必须收尾」下界测试保持绿色，储备规则与 outputLimit 联动未改。
 - 返工限额新增 `reworkBudgetMode`（默认 `unlimited`，保持 0.7.7 语义）与 `fixed`（配合 `reworkTokenLimit`／`reworkCallLimit`）：fixed 返工与首轮 worker 共用受限路径（预约、收尾、逐调用账本、链式血统与冷恢复校验），无效配置、发放与宣告不一致均在子会话启动前拒绝，且不终止原交付。
 - `dpswarm_report(item_id, offset, limit)` 从审计账本分页读取完整 worker 报告：分页拼接一致、越界、未知 item、非 root 身份、空报告与冷恢复均有测试。
+- 收尾估算的路由解析按会话缓存（`budget.js`）：冷恢复子会话不再每次 pre-step 全量重读审计账本。
+- 控制面三处持久化／恢复接缝修复（`dpswarm-plugin/tests/test_p2_recovery_fixes_20260909.py`，15 项）：证据文件在事件事务前 fsync（崩溃后 accept 不再因 `EVIDENCE_NOT_READABLE` 断链）；seal 的 CUTOFF／SETTLEMENT 断点可幂等续走（两事务间隙崩溃不再永久卡死，终态重入仍拒绝）；迟到 cleanup 确认可对已终止 item 落账、delegate 门改按各执行会话最新失败观测判定、且 cutoff 仅因未确认清理时随确认同事务安全恢复 OPEN（手动 cutoff 不回退）。JS 侧子 agent disposal 增加有界重试（0/250/750ms，取消即停），瞬时清理失败可直接确认。
+- 罗盘弹层重构为「主开关 + 关键参数 + 按角色分段的总 token 占比条（悬停查看各角色明细，含各自 CM；Lead 主对话不计量）」；子代理执行状态明细移入控制面板新增的「子代理执行状态」卡片。
 
-浏览器设置页新增「返工限额」卡片，罗盘弹层合并为单个「开启 DPSwarm」主开关（同时写入 `enabledSessions` 与 `cmEnabledSessions`，部分开启时提示并一键补齐，缺路由时禁止开启并列出缺项）：`tests/client-browser.mjs` 的开关相关预期已同步更新（合并开关启停、隔离、缺配置拦截、开启后轮询），但本机无 Playwright／esbuild，浏览器套件未运行，安装后需人工核对保存与开关交互。原生 DPH 探针未重跑。真实模型的服从程度、质量和成本收益仍未测量；911 日志仅作动机证据，不计入工程验证计数。
+浏览器检查（设置页返工卡片、合并开关、弹层新版面、控制面板新卡片）：`tests/client-browser.mjs` 预期已同步（合并开关启停、隔离、缺配置拦截、开启后轮询），但本机无 Playwright／esbuild，浏览器套件未运行；仅做了 SSR 冒烟渲染（三个 slot 均通过）。安装后需人工核对开关与保存交互。原生 DPH 探针未重跑。真实模型的服从程度、质量和成本收益仍未测量；911 日志仅作动机证据，不计入工程验证计数。
 
 ---
 

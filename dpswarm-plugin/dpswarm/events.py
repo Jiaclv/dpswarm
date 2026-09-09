@@ -87,6 +87,9 @@ EVENT_KINDS = {
     "successor_reset",
     # 封存三段式（§9.6）
     "seal_admission_cutoff",
+    # P2-3：迟到 cleanup 确认后的单向安全回退（仅 CUTOFF→OPEN，
+    # 由 server 层限定清理类 cutoff 且无其他未确认失败时发射）
+    "seal_admission_resumed",
     "seal_settlement_started",
     "seal_completed",
     "seal_timed_out",

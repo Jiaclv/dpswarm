@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import threading
 import time
 from dataclasses import asdict
@@ -635,13 +636,26 @@ class ControlPlane:
     def write_artifact(self, content: str) -> Optional[str]:
         """内容寻址证据落盘（§4 链外步骤，P1-3）：artifacts/<sha256>.txt，
         幂等。内存态（无 store_path）返回 None 不落盘。全文可恢复的前提：
-        package_stored 只记 hash/预览/ref，正文以文件为准。"""
+        package_stored 只记 hash/预览/ref，正文以文件为准。
+        P2-2：写完即 flush+fsync（含 artifacts 目录项，Windows 无目录
+        fsync 跳过）——必须在引用它的事件事务 _transact 落盘之前完成，
+        否则崩溃后事件先于证据可读，accept 时 EVIDENCE_NOT_READABLE。"""
         sha = hashlib.sha256(content.encode("utf-8")).hexdigest()
         if self.store.path is None:
             return None
         d = Path(self.store.path).parent / "artifacts"
         d.mkdir(parents=True, exist_ok=True)
-        (d / f"{sha}.txt").write_bytes(content.encode("utf-8"))
+        path = d / f"{sha}.txt"
+        with open(path, "wb") as f:
+            f.write(content.encode("utf-8"))
+            f.flush()
+            os.fsync(f.fileno())
+        if os.name != "nt":
+            dfd = os.open(d, os.O_RDONLY)
+            try:
+                os.fsync(dfd)
+            finally:
+                os.close(dfd)
         return sha
 
     def _submission_package(self, item_id: str, package_id: str, content: str,
@@ -1054,12 +1068,32 @@ class ControlPlane:
     # 封存三段式（§9.6）与时间护栏（§7）
     # ------------------------------------------------------------------
 
+    def _last_team_event(self, team_id: str, kind: str) -> Optional[Event]:
+        """team 维度最后一次指定 seal 事件（断点续走幂等放行时返回原事件）。"""
+        for ev in reversed(self.store.read_all()):
+            if ev.kind == kind and (ev.payload.get("team_id")
+                                    or ev.payload.get("team")) == team_id:
+                return ev
+        return None
+
     def begin_seal(self, team_id: str = "root") -> Event:
         """准入截止：停止一切新准入；同时封死 start_node（item 创建与节点启动是
-        同一扇门的两侧）。in-flight finalizing 允许在结算期完成 accepted。"""
+        同一扇门的两侧）。in-flight finalizing 允许在结算期完成 accepted。
+        P2-1 断点续走：begin_seal 与 begin_settlement 是两个独立事务，进程在
+        间隙崩溃后 root 合法停留于 CUTOFF/SETTLEMENT——已过 cutoff 的重试
+        幂等放行（不重复发射事件，返回原 cutoff 事件），仅终态相位拒绝重入；
+        严格线性（OPEN→CUTOFF→SETTLEMENT→终态）由 invariants._pre_seal 保持。"""
+        current = self.proj.seal_phase.get(team_id, SealPhase.OPEN)
+        if current in (SealPhase.CUTOFF, SealPhase.SETTLEMENT):
+            return self._last_team_event(team_id, "seal_admission_cutoff")
         return self._transact(("seal_admission_cutoff", {"team_id": team_id}))[0]
 
     def begin_settlement(self, team_id: str = "root") -> Event:
+        """P2-1：已在 SETTLEMENT（settlement 事务已提交、finish_seal 前崩溃）
+        的重试幂等放行；其余相位仍走 invariants 的严格 SEAL_ORDER 校验。"""
+        current = self.proj.seal_phase.get(team_id, SealPhase.OPEN)
+        if current == SealPhase.SETTLEMENT:
+            return self._last_team_event(team_id, "seal_settlement_started")
         return self._transact(("seal_settlement_started", {"team_id": team_id}))[0]
 
     def finish_seal(self, team_id: str = "root", timed_out: bool = False) -> Event:

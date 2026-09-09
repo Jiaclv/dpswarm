@@ -895,6 +895,21 @@ def _pre_seal(p: Projection, payload: Dict[str, Any], kind: str) -> None:
                  f"（CUTOFF→SETTLEMENT→COMPLETED/TIMED_OUT 线性，§9.6 决策 11）")
 
 
+def _pre_seal_admission_resumed(p: Projection, payload: Dict[str, Any]) -> None:
+    """P2-3：迟到 cleanup 确认后的准入恢复。单向安全：仅 CUTOFF 可回退 OPEN；
+    SETTLEMENT/COMPLETED/TIMED_OUT 永不回退（封存三段式严格线性不变，
+    §9.6 决策 11）。发射侧（server）另限定：仅清理类 cutoff 且事件账上
+    已无未确认失败时才发射。"""
+    team_id = payload.get("team") or payload.get("team_id") or ROOT_TEAM_ID
+    if team_id not in p.teams:
+        raise _v("TEAM_UNKNOWN", f"team 不存在: {team_id}")
+    current = p.seal_phase.get(team_id, SealPhase.OPEN)
+    if current != SealPhase.CUTOFF:
+        raise _v("SEAL_ORDER",
+                 f"team {team_id} 相位 {current.value}，seal_admission_resumed "
+                 f"仅允许 CUTOFF → OPEN（SETTLEMENT 及之后不可回退，§9.6/P2-3）")
+
+
 def _pre_peer_channel_opened(p: Projection, payload: Dict[str, Any]) -> None:
     channel_id = _req(payload, "channel_id")
     if channel_id in p.peer_channels:
@@ -1003,6 +1018,7 @@ _PRE_CHECKS: Dict[str, Callable[[Projection, Dict[str, Any]], None]] = {
     "successor_registered": _pre_successor_registered,
     "successor_reset": _pre_successor_reset,
     "seal_admission_cutoff": lambda p, pl: _pre_seal(p, pl, "seal_admission_cutoff"),
+    "seal_admission_resumed": _pre_seal_admission_resumed,
     "seal_settlement_started": lambda p, pl: _pre_seal(p, pl, "seal_settlement_started"),
     "seal_completed": lambda p, pl: _pre_seal(p, pl, "seal_completed"),
     "seal_timed_out": lambda p, pl: _pre_seal(p, pl, "seal_timed_out"),

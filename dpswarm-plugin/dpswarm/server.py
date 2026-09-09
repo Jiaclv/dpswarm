@@ -473,6 +473,32 @@ class PanelState:
                                "message": "Host catalog fixed-team policy does not authorize topology escalation"}
             return self._delegate(body)
 
+    def _unconfirmed_execution_cleanups(self) -> Dict[Tuple[str, str], Dict[str, Any]]:
+        """P2-3：按 (item_id, node_id) 执行会话取**最新一条**已发布失败观测，
+        返回仍未确认物理清理的会话集合。迟到的确认观测（observation_recorded，
+        同 item/node 追加、cleanup_confirmation 标记）落账后即取代旧的未确认
+        记录——delegate 准入不再被历史快照永久封死。"""
+        latest: Dict[Tuple[str, str], Dict[str, Any]] = {}
+        for event in self.cp.store.read_all():
+            if event.kind != "observation_recorded":
+                continue
+            failure = event.payload.get("execution_failure")
+            if isinstance(failure, dict) and failure.get("published"):
+                key = (str(event.payload.get("item_id")), str(event.payload.get("node_id")))
+                latest[key] = failure
+        return {key: failure for key, failure in latest.items()
+                if not failure.get("physical_cleanup_confirmed")}
+
+    def _last_cutoff_reason(self, team_id: str) -> Optional[str]:
+        """该 team 最后一次 seal_admission_cutoff 的 reason（无 reason 的手动
+        cutoff 返回 None，不参与单向回退判定）。"""
+        for event in reversed(self.cp.store.read_all()):
+            if (event.kind == "seal_admission_cutoff"
+                    and (event.payload.get("team_id")
+                         or event.payload.get("team")) == team_id):
+                return event.payload.get("reason")
+        return None
+
     def _delegate(self, body: Dict[str, Any]) -> Tuple[bool, Dict[str, Any]]:
         """拓扑动作 + 硬准入（§7）：两模式——
         新建：kind + subtasks（可带 deps 0 基下标，§7 DAG；未就绪项不启动、
@@ -481,9 +507,7 @@ class PanelState:
         from dpswarm.types import DelegationKind
         if not isinstance(body, dict):
             return False, {"ok": False, "error": "BAD_REQUEST", "message": "body must be an object"}
-        if any(event.kind == "observation_recorded" and event.payload.get("execution_failure", {}).get("published")
-               and not event.payload["execution_failure"].get("physical_cleanup_confirmed")
-               for event in self.cp.store.read_all()):
+        if self._unconfirmed_execution_cleanups():
             return False, {"ok": False, "error": "EXECUTION_CLEANUP_UNCONFIRMED",
                            "message": "A published DSH child has unconfirmed cleanup; root admission remains sealed"}
         if body.get("item_id"):
@@ -723,9 +747,28 @@ class PanelState:
         except ControlPlaneError as exc:
             return False, {"ok": False, "error": exc.code, "message": str(exc)}
 
+    def _prior_published_failure(self, item_id: str, node_id: str) -> Optional[Dict[str, Any]]:
+        """该 (item, node) 执行会话最近一条已发布失败观测（无则 None）。"""
+        for event in reversed(self.cp.store.read_all()):
+            if (event.kind == "observation_recorded"
+                    and event.payload.get("item_id") == item_id
+                    and event.payload.get("node_id") == node_id):
+                failure = event.payload.get("execution_failure")
+                if isinstance(failure, dict) and failure.get("published"):
+                    return failure
+        return None
+
     def fail_execution(self, body: Dict[str, Any]) -> Tuple[bool, Dict[str, Any]]:
-        """宿主明确终止本次执行的控制权，保留原错误和物理清理是否确认。"""
+        """宿主明确终止本次执行的控制权，保留原错误和物理清理是否确认。
+
+        P2-3 迟到确认：item 已终止时，带 physical_cleanup_confirmed=true 且
+        身份字段（fence：attempt/context_epoch/reservation/execution session，
+        上方已校验）与既存失败记录同一执行会话的请求，追加一条只增量的
+        确认观测事件（正常不变量校验与落盘），不再静默早返回；确认后若事件
+        账上已无未确认失败，同事务把清理类 cutoff 单向恢复为 open。身份不符
+        或 cleanup 仍为 false 时保持原早返回行为。"""
         from .invariants import TERMINAL_ACCEPTANCE
+        from .types import SealPhase
         with self.cp._lock:
             item = self.cp.proj.work_items.get(body.get("item_id"))
             node = self.cp.proj.nodes.get(body.get("node_id"))
@@ -737,7 +780,33 @@ class PanelState:
                     or (binding and body.get("execution_session_id") != binding.get("execution_session_id"))):
                 return False, {"ok": False, "error": "FENCE_VIOLATION"}
             if item.acceptance in TERMINAL_ACCEPTANCE:
-                return True, {"ok": True, "outcome": item.acceptance.value, "already_terminal": True}
+                early = {"ok": True, "outcome": item.acceptance.value, "already_terminal": True}
+                if body.get("physical_cleanup_confirmed") is not True:
+                    return True, early
+                prior = self._prior_published_failure(item.item_id, node.node_id)
+                if prior is None or prior.get("physical_cleanup_confirmed"):
+                    # 无已发布失败可确认（未发布 / 非失败终局），或确认已落账
+                    return True, early
+                confirmation = dict(prior)
+                confirmation["physical_cleanup_confirmed"] = True
+                pairs = [("observation_recorded", {
+                    "node_id": node.node_id, "item_id": item.item_id,
+                    "execution_failure": confirmation, "cleanup_confirmation": True})]
+                others = {key for key in self._unconfirmed_execution_cleanups()
+                          if key != (item.item_id, node.node_id)}
+                if (not others
+                        and self.cp.proj.seal_phase.get("root", SealPhase.OPEN) == SealPhase.CUTOFF
+                        and self._last_cutoff_reason("root") == "execution-cleanup-unconfirmed"):
+                    # 单向安全回退：仅清理类 cutoff、且确认后无任何未确认失败
+                    # 残留；SETTLEMENT 及之后由 invariants 拒绝回退
+                    pairs.append(("seal_admission_resumed", {
+                        "team_id": "root", "reason": "execution-cleanup-confirmed"}))
+                try:
+                    self.cp._transact(*pairs)
+                    return True, {"ok": True, "outcome": "cleanup-confirmed",
+                                  "already_terminal": True, "failure": confirmation}
+                except ControlPlaneError as exc:
+                    return False, {"ok": False, "error": exc.code, "message": str(exc)}
             error = {"code": str(body.get("code") or "SUBAGENT_EXECUTION_FAILED"),
                      "message": str(body.get("error") or "DSH execution failed")[:2000],
                      "details": body.get("details") if isinstance(body.get("details"), dict) else {},
@@ -750,7 +819,6 @@ class PanelState:
                      ("observation_recorded", {"node_id": node.node_id, "item_id": item.item_id,
                                                 "execution_failure": error})]
             if error["published"] and not error["physical_cleanup_confirmed"]:
-                from .types import SealPhase
                 if self.cp.proj.seal_phase.get("root", SealPhase.OPEN) == SealPhase.OPEN:
                     pairs.append(("seal_admission_cutoff", {"team_id": "root", "reason": "execution-cleanup-unconfirmed"}))
             pairs += self.cp._channel_close_pairs(item.item_id) + self.cp._drain_pairs(item.item_id)

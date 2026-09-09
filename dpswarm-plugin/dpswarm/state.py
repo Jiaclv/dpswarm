@@ -505,6 +505,10 @@ def apply_event(proj: Projection, event: Event) -> None:
     # -- 封存三段式（§9.6）--------------------------------------------------
     elif kind == "seal_admission_cutoff":
         proj.seal_phase[_seal_team_of(payload)] = SealPhase.CUTOFF
+    elif kind == "seal_admission_resumed":
+        # P2-3：迟到 cleanup 确认后的单向安全回退——仅 CUTOFF→OPEN
+        # （相位前置由 invariants._pre_seal_admission_resumed 保证）
+        proj.seal_phase[_seal_team_of(payload)] = SealPhase.OPEN
     elif kind == "seal_settlement_started":
         proj.seal_phase[_seal_team_of(payload)] = SealPhase.SETTLEMENT
         proj.seal_settlement_ts[_seal_team_of(payload)] = event.ts

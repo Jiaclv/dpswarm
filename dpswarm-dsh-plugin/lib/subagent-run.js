@@ -82,13 +82,21 @@ export async function runSubagentToCompletion(subagents, provider, request, { on
     if (failure && typeof failure === 'object') failure.details = { ...failure.details, published: run != null }
   } finally {
     if (typeof run?.dispose === 'function') {
-      try {
-        await run.dispose()
+      // Disposal can hit a transient host error. Bounded retries let a recovered
+      // host confirm cleanup; the control plane records a late confirmation and
+      // reopens admission instead of sealing the session on a one-off failure.
+      let error = null, disposed = false
+      for (const delay of [0, 250, 750]) {
+        if (delay && request.signal?.aborted) break
+        if (delay) await new Promise(r => setTimeout(r, delay))
+        try { await run.dispose(); disposed = true; break } catch (e) { error = e }
+      }
+      if (disposed) {
         cleanup.physical_cleanup_confirmed = true
         if (failure && typeof failure === 'object') {
           failure.details = { ...failure.details, physicalCleanupConfirmed: true }
         }
-      } catch (error) {
+      } else {
         cleanup.code = 'SUBAGENT_DISPOSAL_FAILED'
         cleanup.message = String(error?.message ?? error)
         if (failure && typeof failure === 'object') {

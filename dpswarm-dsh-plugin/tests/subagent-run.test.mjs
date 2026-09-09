@@ -127,3 +127,32 @@ test('publication binding failure still disposes child and rejects delivery', as
   }), /binding rejected/)
   assert.equal(f.handle.disposals, 1)
 })
+
+test('a transient disposal failure is retried and confirmed before giving up', async () => {
+  const f = fixture()
+  f.pending.resolve({ output: [{ type: 'text', text: 'done' }], stopReason: 'completed' })
+  let attempts = 0
+  f.handle.dispose = async () => { attempts++; if (attempts === 1) throw new Error('transient host busy') }
+  const result = await runSubagentToCompletion(f.subagents, 'spawn', f.request)
+  assert.equal(result.text, 'done')
+  assert.equal(attempts, 2)
+})
+
+test('persistent disposal failure still fails closed after bounded retries', async () => {
+  const f = fixture()
+  f.pending.resolve({ output: [{ type: 'text', text: 'done' }], stopReason: 'completed' })
+  f.handle.dispose = async () => { f.handle.disposals++; throw new Error('still running') }
+  await assert.rejects(runSubagentToCompletion(f.subagents, 'spawn', f.request), { code: 'SUBAGENT_DISPOSAL_FAILED' })
+  assert.equal(f.handle.disposals, 3)
+})
+
+test('an aborted request does not wait out the disposal retry backoff', async () => {
+  const f = fixture()
+  const promise = runSubagentToCompletion(f.subagents, 'spawn', f.request)
+  f.signal.abort()
+  f.handle.dispose = async () => { f.handle.disposals++; throw new Error('busy') }
+  const started = Date.now()
+  await assert.rejects(promise)
+  assert.equal(f.handle.disposals, 1)
+  assert.ok(Date.now() - started < 900, 'no retry backoff after cancellation')
+})
