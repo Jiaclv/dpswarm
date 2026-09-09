@@ -48,6 +48,12 @@ const configurationFingerprint = cfg => hash(Object.fromEntries(['sidecarUrl', '
 const sameTask = (a, b) => a && b && ['root_session_id', 'binding_id', 'user_message_id', 'user_content_sha256'].every(key => typeof a[key] === 'string' && a[key] === b[key])
 const unknownUsage = 'Host subagent results do not provide a complete usage ledger; unknown values remain null.'
 
+// Mirrors Projection.team_open_workers: non-terminal derive/fission items hold
+// against spec.max_team_workers. Acceptance values follow AcceptanceState.
+const TERMINAL_ACCEPTANCE = new Set(['accepted', 'terminated', 'escalated', 'aborted-finalize'])
+const openWorkerItems = snapshot => Object.values(snapshot?.work_items || {})
+  .filter(item => ['derive', 'fission'].includes(item.kind) && !TERMINAL_ACCEPTANCE.has(item.acceptance ?? 'active')).length
+
 // An unset mode preserves a previously explicit route on upgrade; a fresh
 // installation has no implementer provider and therefore follows the conversation.
 export function implementerMode(cfg) {
@@ -197,8 +203,34 @@ export class FixedTeamController {
     if (!status.snapshot) return false
     const snapshot = status.snapshot
     if (snapshot.seal_phase?.root === 'cutoff') return false
+    // Restore the raised team-worker cap once every item reached a terminal
+    // state; a crash in between simply leaves the raised (audited) spec.
+    const raisedFrom = state.fixedTask?.raised_team_workers
+    if (raisedFrom !== undefined && openWorkerItems(snapshot) === 0) {
+      try {
+        await state.sidecar.call('POST', '/api/spec', { max_team_workers: raisedFrom })
+        state.fixedTask.raised_team_workers = undefined
+      } catch (error) {
+        state.cleanup.reconcile_error = { code: error?.code || 'SPEC_RESTORE_FAILED', message: String(error?.message ?? error) }
+      }
+    }
     if (snapshot.open_worker_slots_used === 0 && (!state.lease?.recovered || state.recoveryReviewed)) { await this.release(state); return true }
     return false
+  }
+
+  /**
+   * The fixed topology must fit the §7 team-worker cap (non-terminal items
+   * count). Publish an audited spec revision raising only max_team_workers to
+   * the needed level; reconcile() restores the original value after settle.
+   */
+  async ensureTeamCapacity(state, parent, need) {
+    const status = await state.sidecar.call('GET', '/api/status')
+    const current = status.spec?.max_team_workers
+    if (!Number.isSafeInteger(current)) return
+    const required = Math.min(8, openWorkerItems(status.snapshot) + need)
+    if (current >= required) return
+    await state.sidecar.call('POST', '/api/spec', { max_team_workers: required })
+    if (state.fixedTask && state.fixedTask.raised_team_workers === undefined) state.fixedTask.raised_team_workers = current
   }
 
   modelRoutes(parent, profile, cfg) {
@@ -303,6 +335,9 @@ export class FixedTeamController {
       state.testers = new Map()
       this.writeScope?.clear(parent.session.id)
       if (state.fixedTask.task_binding) await state.journal.append(parent.session.id, 'dpswarm/fixed-team-binding', state.fixedTask)
+      // The fixed topology must fit the §7 team-worker cap before dispatch;
+      // rework headroom is raised on demand in rework().
+      await this.ensureTeamCapacity(state, parent, (subtasks ? subtasks.length : 1) + roles.length - 1)
       const context = `Explicit task constraints apply to every role and take precedence over default role guidance. If the task says no tests (including 不需要任何测试), do not run tests or add tests. Use only permitted read-only inspection and report unverified behavior honestly.\n\nTask:\n${args.task}\n\nAcceptance requirements:\n${args.acceptance || 'Derive requirements from the task; identify uncertainty explicitly.'}`
       for (const role of roles) {
         if (state.abort.signal.aborted || !enabled(this.config(), parent.session.id)) break
@@ -491,6 +526,9 @@ export class FixedTeamController {
       const before = await state.sidecar.call('GET', '/api/status'), item = before.snapshot?.work_items?.[source.item_id]
       if (!item || !['submitted', 'terminated'].includes(item.acceptance)) throw failure('REWORK_ITEM_NOT_ELIGIBLE', 'Only a submitted or terminated original implementer item is eligible; accepted deliveries are final.')
       if (before.snapshot.seal_phase?.root === 'cutoff') throw failure('REWORK_WORKSPACE_UNCONFIRMED', 'The root is sealed because cleanup is uncertain.')
+      // Rework adds an implementer plus the tester re-verification; both count
+      // against the §7 team-worker cap alongside the still-open original items.
+      await this.ensureTeamCapacity(state, parent, 2)
       const routes = [{ role: 'lead', ...frozen.lead_route }, { role: 'implementer', provider: frozen.profile.implementer.provider,
         model: frozen.profile.implementer.model, ...(frozen.profile.implementer.reasoning_effort ? { reasoningEffort: frozen.profile.implementer.reasoning_effort } : {}) }]
       const expectedModels = state.hostModels ? { ...state.hostModels, models: state.hostModels.models.filter(row => ['lead', 'implementer'].includes(row.role)) } : undefined

@@ -22,19 +22,21 @@ function fixture() {
   const parent = { id: 'root', options: {}, session: { id: 'root', header: { id: 'root', cwd, origin: 'root', delegationDepth: 0 },
     events: [{ type: 'user/message', seq: 0, data: { id: 'user-task-1', role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: 'Create the two parts.' }] } }],
     requestHeader() { return { config: this.route } }, route: { provider: 'fixture', model: 'lead', reasoningEffort: 'max' } } }
-  const journal = new MemoryAuditJournal(), items = {}, children = [], plans = [], allocations = new Map(), sessions = new Map()
-  const h = { cfg, parent, journal, items, children, plans, allocations, sessions, failAt: null }
+  const journal = new MemoryAuditJournal(), items = {}, children = [], plans = [], allocations = new Map(), sessions = new Map(), specCalls = []
+  const h = { cfg, parent, journal, items, children, plans, allocations, sessions, failAt: null, specCalls, spec: { max_team_workers: 3 } }
   const sidecarFactory = cfg => ({ cfg, async ensure() {}, async call(method, path, body) {
     if (path === '/api/plugin-audit') {
       if (method === 'POST') return (await journal.transaction(cfg.sessionId, () => ({ events: body.events }))).journal
       return journal.read(cfg.sessionId)
     }
-    if (path === '/api/status') return { snapshot: { work_items: items,
+    if (path === '/api/status') return { spec: { max_team_workers: h.spec.max_team_workers }, snapshot: { work_items: items,
       open_worker_slots_used: Object.values(items).filter(item => !['accepted', 'terminated'].includes(item.acceptance)).length,
       seal_phase: {} } }
+    if (path === '/api/spec') { specCalls.push(structuredClone(body)); if (Number.isSafeInteger(body?.max_team_workers)) h.spec.max_team_workers = body.max_team_workers
+      return { ok: true, revision: 1 } }
     if (path === '/api/delegate') {
       return { items: body.subtasks.map((st, i) => {
-        const item_id = `item-${Object.keys(items).length}`; items[item_id] = { acceptance: 'active', submission_package_id: null }
+        const item_id = `item-${Object.keys(items).length}`; items[item_id] = { acceptance: 'active', submission_package_id: null, kind: 'derive' }
         return { item_id, node_id: item_id, session_id: `reservation-${item_id}`, context_epoch: 0, attempt: 1, kind: 'derive', subtask_index: i }
       }) }
     }
@@ -177,4 +179,38 @@ test('auto mode hands each parallel implementer its own index-aligned decision',
   // A same-subtask repeat issuance stays one-use.
   const events = (await h.journal.read('root')).events.filter(e => e.type === 'dpswarm/worker-budget-allocation' && e.data.authority === 'fixed-team-run')
   assert.equal(events.length, 3)
+})
+
+test('a 3-way split raises the team-worker cap before dispatch and restores it after settle', async () => {
+  const h = fixture()
+  const result = await h.dispatcher.run({ task: 'Create three parts.', acceptance: 'All exist.', subtasks: [
+    { id: 'part-a', task: 'Build part A.', write_scope: ['src/a/**'] },
+    { id: 'part-b', task: 'Build part B.', write_scope: ['src/b/**'] },
+    { id: 'part-c', task: 'Build part C.', write_scope: ['src/c/**'] },
+  ] }, h.exec)
+  assert.equal(result.failed.length, 0)
+  // 3 implementers + tester join = 4 non-terminal worker items > default cap 3.
+  assert.deepEqual(h.specCalls.map(c => c.max_team_workers), [4])
+  assert.equal(h.spec.max_team_workers, 4)
+  for (const delivery of result.deliveries) await h.dispatcher.review({ item_id: delivery.item_id, verdict: 'accept' }, h.exec)
+  assert.deepEqual(h.specCalls.map(c => c.max_team_workers), [4, 3], 'cap restored after the last review settles every item')
+  assert.equal(h.spec.max_team_workers, 3)
+})
+
+test('a 2-way split fits the default cap and never touches the spec', async () => {
+  const h = fixture()
+  const result = await h.run()
+  assert.equal(result.failed.length, 0)
+  assert.deepEqual(h.specCalls, [], '2 implementers + tester = 3, exactly the default cap')
+})
+
+test('rework raises the cap for the implementer plus tester continuation while originals are open', async () => {
+  const h = fixture()
+  const result = await h.run()
+  const itemA = result.deliveries.find(d => d.subtask === 'part-a')
+  // Original items remain submitted (unreviewed): 3 open + 2 new = cap 5.
+  const reworked = await h.dispatcher.rework({ item_id: itemA.item_id, feedback: 'Fix part A only.' }, h.exec)
+  assert.equal(reworked.failed.length, 0)
+  assert.deepEqual(h.specCalls.map(c => c.max_team_workers), [5])
+  assert.equal(reworked.deliveries.length, 2)
 })
