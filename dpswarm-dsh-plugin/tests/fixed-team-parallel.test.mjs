@@ -19,7 +19,7 @@ function fixture() {
   const cfg = { workspace, sidecarUrl: 'http://127.0.0.1:8791', autoStart: false, enabledSessions: ['root'],
     subagentProvider: 'spawn', implMode: 'lead', testProvider: 'fixture', testModel: 'tester',
     workerTimeoutSeconds: 600, workerBudgetMode: 'manual', workerTokenLimit: 600000, workerCallLimit: 28,
-    teamModeOverrides: [{ sessionId: 'root', mode: 'parallel' }] }
+    reworkBudgetMode: 'unlimited', teamModeOverrides: [{ sessionId: 'root', mode: 'parallel' }] }
   const parent = { id: 'root', options: {}, session: { id: 'root', header: { id: 'root', cwd, origin: 'root', delegationDepth: 0 },
     events: [{ type: 'user/message', seq: 0, data: { id: 'user-task-1', role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: 'Create the two parts.' }] } }],
     requestHeader() { return { config: this.route } }, route: { provider: 'fixture', model: 'lead', reasoningEffort: 'max' } } }

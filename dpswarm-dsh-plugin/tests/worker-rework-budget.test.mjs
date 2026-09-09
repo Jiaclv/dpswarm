@@ -10,7 +10,7 @@ const request = { provider: 'fixture', model: 'frozen-worker', messages: [], max
 function fixture(config = {}) {
   const root = { id: 'lead', header: { id: 'lead' }, events: [] }
   const sessions = new Map([[root.id, root]])
-  const cfg = { workerBudgetMode: 'manual', workerTokenLimit: 1000, workerCallLimit: 4, ...config }
+  const cfg = { workerBudgetMode: 'manual', workerTokenLimit: 1000, workerCallLimit: 4, reworkBudgetMode: 'unlimited', ...config }
   const journal = new MemoryAuditJournal()
   const runtime = () => new WorkerBudgetRuntime({ config: () => cfg, resolveSession: id => sessions.get(id), listSessions: () => [...sessions.values()], journal })
   const child = (id, prompt, parent = root) => {
@@ -31,7 +31,7 @@ function fixture(config = {}) {
 }
 
 test('exhausted manual worker can rework without caps while its original grant and ledger stay intact', async () => {
-  const h = fixture({ workerTokenLimit: 200, workerCallLimit: 1 }), r = h.runtime(), old = await h.original(r)
+  const h = fixture({ workerTokenLimit: 200, workerCallLimit: 1, reworkBudgetMode: 'unlimited' }), r = h.runtime(), old = await h.original(r)
   await r.settle(await r.admit(old.state, request), { inputTokens: 150, outputTokens: 50 }, 'stop')
   h.end(old.session)
   const before = await r.diagnosticsForSession(old.session.id)
@@ -51,7 +51,7 @@ test('exhausted manual worker can rework without caps while its original grant a
 })
 
 test('initial Auto decision remains limited, but rework needs no decision and rejects budget overrides', async () => {
-  const h = fixture({ workerBudgetMode: 'auto' }), r = h.runtime(), old = await h.original(r); h.end(old.session)
+  const h = fixture({ workerBudgetMode: 'auto', reworkBudgetMode: 'unlimited' }), r = h.runtime(), old = await h.original(r); h.end(old.session)
   for (const override of [{ decision: { tokenLimit: 9000, callLimit: 7, reason: 'not applicable' } },
     { expectedProfile: { mode: 'auto' } }, { tokenLimit: 1 }, { callLimit: 1 }, { mode: 'manual' }]) {
     await assert.rejects(r.issueRework(h.lead, { workerSessionId: old.session.id, task: 'Fix feedback.', ...override }), { code: 'REWORK_BUDGET_OVERRIDES_NOT_ALLOWED' })

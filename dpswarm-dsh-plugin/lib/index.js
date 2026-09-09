@@ -33,7 +33,7 @@ export const defaults = Object.freeze({ sidecarUrl: 'http://127.0.0.1:8791', aut
   testProvider: '', testModel: 'glm-5.3-flash', testEffort: '',
   reviewerMode: 'lead', reviewerProvider: '', reviewerModel: '', reviewerEffort: '',
   workerBudgetMode: 'unlimited', workerTokenLimit: 1200000, workerCallLimit: 50, workerBudgetSessionOverrides: [],
-  reworkBudgetMode: 'unlimited', reworkTokenLimit: 600000, reworkCallLimit: 28,
+  reworkBudgetMode: 'fixed', reworkTokenLimit: 600000, reworkCallLimit: 28,
   teamModeOverrides: [],
   workerTimeoutSeconds: 600, cmEnabledSessions: [], cmProvider: 'deepseek', cmModel: 'deepseek-v4-flash', cmEffort: 'off' })
 

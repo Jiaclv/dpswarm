@@ -1,3 +1,9 @@
+# 0.9.5 返工默认护栏验证（2026-09-10）
+
+插件回归 **364/364**、控制服务 **580/580** 通过（不含外部模型调用）。起因：01:56 真实运行中一次要求精确数值 IK 的返工在出厂默认的 unlimited 返工额度下螺旋失控——57 次调用 / 371 万 token 反复写数值脚本，最终打穿 DeepSeek 账户余额（QUOTA），整个会话失败。改动仅默认值：`reworkBudgetMode` 出厂默认 unlimited → fixed（沿用既有 600,000 token / 28 次字段默认）；`budget-runtime` 缺省回退同步改为 fixed。固定返工本就走与首轮 worker 完全相同的受限执行路径（预约-结算、1/3 slack 收尾停泊、逐调用账本），worker 提示词本就声明"触轨即报告已存内容、Lead 裁决"——本次只是把默认打开。测试语义分层：index.test 改钉 Config 新默认与 Lead 提示词的固定额度文案；fixed-team-rework 与 worker-rework-budget 两个套件显式传入 `reworkBudgetMode: 'unlimited'`，继续钉 unlimited 模式的机器行为（该模式仍受支持，只是不再是默认）。已显式保存过 rework 模式的安装不受影响。未跑真实模型试点。
+
+---
+
 # 0.9.4 终态 item 验收幂等化验证（2026-09-10）
 
 插件回归 **363/363**、控制服务 **580/580** 通过（不含外部模型调用）。01:45 真实运行中 Lead 试图验收已被返工派发自动终止的原始实现者 item，被控制面状态机以 `ILLEGAL_TRANSITION`（terminated → finalizing）拒绝——信息真实但生硬，且同一瑕疵在 01:03 已出现一次。修复：`dpswarm_review` 对已处于终态的 item 返回幂等结果 `already_accepted` / `already_terminated`（附"请验收最新实现者 item"说明），不再落到状态机；防虚假验收防线保持不变——无交付包的失败 worker 被 accept 时仍抛 `DELIVERY_PACKAGE_REQUIRED`（fixed-team-rework 既有表征钉死，本轮一度被初版改动撞红后按"有交付包才幂等"收紧）。返工返回体 `next` 明示源 item 已终止。新增表征：fixed-team-parallel 钉"终止后 accept → already_terminated 且无幻影迁移"。未跑真实模型试点。

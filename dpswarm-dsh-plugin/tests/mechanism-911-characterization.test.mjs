@@ -139,13 +139,23 @@ async function completedFixedImplementer(h, decisions) {
   return r
 }
 
-test('911 rework: issueRework is hardcoded unlimited under every initial-worker mode (pins 0.7.7; 0.7.8 adds an opt-in fixed mode, default stays unlimited)', async t => {
+test('911 rework: issueRework follows the rework budget mode under every initial-worker mode (0.9.5 flips the shipped default to fixed)', async t => {
   for (const mode of ['manual', 'auto', 'unlimited']) await t.test(mode, async () => {
-    const h = fixture({ workerBudgetMode: mode })
+    const h = fixture({ workerBudgetMode: mode, reworkTokenLimit: 600000, reworkCallLimit: 28 })
     const decisions = mode === 'auto' ? { implementer: { tokenLimit: 80000, callLimit: 40, reason: 'bounded implementer' } } : undefined
     const r = await completedFixedImplementer(h, decisions)
-    // 911 evidence: one geometry rework burned 943,467 tokens / 10 calls under
-    // this unlimited grant — more than the capped first-pass implementer (590,284).
+    // 911 evidence: one geometry rework burned 943,467 tokens / 10 calls under an
+    // unlimited grant; the 01:56 run spiraled to 3.71M and hit the provider
+    // quota. 0.9.5 ships the fixed rail as the default.
+    const rework = await r.issueRework(h.agent(h.root), { workerSessionId: 'a', task: 'Fix the reviewed defects only.' })
+    assert.deepEqual(rework.profile, { mode: 'fixed', tokenLimit: 600000, callLimit: 28 })
+    const allocation = (await h.journal.read('lead')).events.find(e => e.type === 'dpswarm/worker-budget-allocation' && e.data.authority === 'fixed-team-rework').data
+    assert.equal(allocation.budget_origin, 'fixed_rework')
+    assert.equal(allocation.decided_by, 'user_settings_at_rework')
+  })
+  await t.test('explicit unlimited still issues the unlimited grant', async () => {
+    const h = fixture({ workerBudgetMode: 'manual', reworkBudgetMode: 'unlimited' })
+    const r = await completedFixedImplementer(h)
     const rework = await r.issueRework(h.agent(h.root), { workerSessionId: 'a', task: 'Fix the reviewed defects only.' })
     assert.deepEqual(rework.profile, { mode: 'unlimited' })
     const allocation = (await h.journal.read('lead')).events.find(e => e.type === 'dpswarm/worker-budget-allocation' && e.data.authority === 'fixed-team-rework').data

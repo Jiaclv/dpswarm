@@ -117,7 +117,7 @@ export function workerBudgetProfile(config, rootId) {
   return { mode, tokenLimit, callLimit }
 }
 export function reworkBudgetProfile(config) {
-  const mode = config.reworkBudgetMode ?? 'unlimited'
+  const mode = config.reworkBudgetMode ?? 'fixed'
   if (!['unlimited', 'fixed'].includes(mode)) throw budgetError('REWORK_BUDGET_MODE_INVALID')
   if (mode === 'unlimited') return { mode }
   const tokenLimit = config.reworkTokenLimit, callLimit = config.reworkCallLimit

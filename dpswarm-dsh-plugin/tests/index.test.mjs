@@ -27,7 +27,7 @@ test('real installed DSH tool/schema API accepts the default-off fixed plugin', 
   assert.equal(result.team_mode.source,'default')
   const leadPrompt = prompts[0].text({ agent: parent })
   assert.match(leadPrompt,/off by default/)
-  assert.match(leadPrompt,/NO cumulative token or model-call cap/)
+  assert.match(leadPrompt,/fixed rework allowance \(600000 tokens \/ 28 calls per rework attempt\)/)
   const childPrompt = prompts[0].text({ agent: { session: { id: 'child', header: { origin: 'subagent', parentSession: 'p', delegationDepth: 1 } } } })
   assert.match(childPrompt,/DPSwarm worker: execute/)
   assert.doesNotMatch(childPrompt,/DPSwarm Lead: plan|call dpswarm_status once/)
@@ -56,7 +56,7 @@ test('worker limits have independent modes and old settings stay unrestricted', 
   assert.equal(old.workerTokenLimit, 1200000)
   assert.equal(old.workerCallLimit, 50)
   assert.deepEqual(old.workerBudgetSessionOverrides, [])
-  assert.equal(old.reworkBudgetMode, 'unlimited')
+  assert.equal(old.reworkBudgetMode, 'fixed')
   assert.equal(old.reworkTokenLimit, 600000)
   assert.equal(old.reworkCallLimit, 28)
   const custom=Config({workerBudgetMode:'manual',workerTokenLimit:123456,workerCallLimit:17,
