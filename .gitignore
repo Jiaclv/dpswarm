@@ -96,3 +96,6 @@ modelbench/mechanism_ablation_20260906/recovery_tools/
 
 # Native DPH runs contain local settings, journals and credentials; publish curated copies under reports/.
 /tihu test/
+
+# 本地废弃文件堆放处（不入库、不推送）
+/waste/
