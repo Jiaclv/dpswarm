@@ -7,7 +7,7 @@
 - 返工限额新增 `reworkBudgetMode`（默认 `unlimited`，保持 0.7.7 语义）与 `fixed`（配合 `reworkTokenLimit`／`reworkCallLimit`）：fixed 返工与首轮 worker 共用受限路径（预约、收尾、逐调用账本、链式血统与冷恢复校验），无效配置、发放与宣告不一致均在子会话启动前拒绝，且不终止原交付。
 - `dpswarm_report(item_id, offset, limit)` 从审计账本分页读取完整 worker 报告：分页拼接一致、越界、未知 item、非 root 身份、空报告与冷恢复均有测试。
 
-浏览器设置页新增「返工限额」卡片：本机无 Playwright／esbuild，`tests/client-browser.mjs` 未运行，安装后需人工核对保存与恢复交互。原生 DPH 探针未重跑。真实模型的服从程度、质量和成本收益仍未测量；911 日志仅作动机证据，不计入工程验证计数。
+浏览器设置页新增「返工限额」卡片，罗盘弹层合并为单个「开启 DPSwarm」主开关（同时写入 `enabledSessions` 与 `cmEnabledSessions`，部分开启时提示并一键补齐，缺路由时禁止开启并列出缺项）：`tests/client-browser.mjs` 的开关相关预期已同步更新（合并开关启停、隔离、缺配置拦截、开启后轮询），但本机无 Playwright／esbuild，浏览器套件未运行，安装后需人工核对保存与开关交互。原生 DPH 探针未重跑。真实模型的服从程度、质量和成本收益仍未测量；911 日志仅作动机证据，不计入工程验证计数。
 
 ---
 

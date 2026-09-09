@@ -76,7 +76,7 @@ window.__ModuleLoader__.load({
     const DICT = {
       zh: {
         name: 'DPSwarm',
-        description: '分别设置 Lead、实现者、测试者和 CM；两个开关按任务启用。',
+        description: '分别设置 Lead、实现者、测试者和 CM；按任务一键开启。',
         ok: '已开启 · 已连接', off: '固定团队关闭', version: '服务需更新', wait: '已开启 · 启动中', bad: '已开启 · 未连接', open: '打开控制面板',
         slots: 'worker 槽', points: '点数', items: 'items', nodes: 'nodes', rev: 'Spec rev',
         offline: '控制服务未连接，请运行安装自检并检查 Python 路径；旧版服务需要更新或更换端口。',
@@ -253,7 +253,16 @@ window.__ModuleLoader__.load({
 .dps-empty{padding:28px 16px;text-align:center;color:var(--dsw-alias-label-secondary);font-size:13px}.dps-empty p{font-size:12px;line-height:1.5;color:var(--dsw-alias-label-tertiary)}
 .dps-pickerFooter{border-top:1px solid var(--dsw-alias-border-l2);padding:12px 20px;margin:0;font-size:11px;color:var(--dsw-alias-label-tertiary)}
 @media(max-width:600px){.dps-roleControls{grid-template-columns:minmax(0,1fr)}.dps-effortField select{height:38px}.dps-roleCard{padding:12px}.dps-leadStrip{flex-wrap:wrap}.dps-leadStrip .dps-textButton{margin-left:40px}.dps-sectionLabel{align-items:flex-start;flex-direction:column;gap:4px}.dps-roleFooter{flex-wrap:wrap}.dps-roleFooter .dps-actions{margin-left:auto}.dps-tabs{gap:18px}.dps-pickerHeader{padding:16px}.dps-pickerSearch{padding:0 16px}}
-
+/* 主开关条：一键同时开启固定团队与 CM（弹层内唯一开关） */
+.dps-masterSwitch{display:flex;align-items:center;gap:10px;box-sizing:border-box;width:100%;cursor:pointer;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-layer-3);padding:10px 12px;color:var(--dsw-alias-label-primary)}
+.dps-masterSwitch:hover{border-color:var(--dsw-alias-label-dimmed)}
+.dps-masterSwitch:has(input:focus-visible){outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}
+.dps-masterSwitch:has(input:disabled){opacity:.6;cursor:default}
+.dps-masterSwitch>svg{flex-shrink:0;color:var(--dsw-alias-brand-primary)}
+.dps-masterSwitch>div{flex:1;min-width:0}
+.dps-masterSwitch b{font-size:13px;font-weight:600;line-height:1.4}
+.dps-masterSwitch small{display:block;margin-top:2px;font-size:11px;line-height:1.5;color:var(--dsw-alias-label-tertiary)}
+.dps-masterSwitch input{flex-shrink:0;width:18px;height:18px;accent-color:var(--dsw-alias-brand-primary)}
 `
     function ensureStyles() {
       try {
@@ -321,7 +330,9 @@ window.__ModuleLoader__.load({
 
     function useSidecar(pollMs, sessionId) {
       const settings = useSettings(), value = settings.value || {}
-      const on = sessionId ? (value.enabledSessions || []).includes(sessionId) : (value.enabledSessions || []).length > 0
+      const on = sessionId
+        ? (value.enabledSessions || []).includes(sessionId) || (value.cmEnabledSessions || []).includes(sessionId)
+        : (value.enabledSessions || []).length > 0
       const url = panelUrl()
       const [phase, setPhase] = useState('wait'), [snap, setSnap] = useState(null)
       useEffect(() => {
@@ -362,14 +373,15 @@ window.__ModuleLoader__.load({
     }
     const routeHint = missing => '尚未配置：' + missing.join('、') + '。请在设置 → DPswarm 选择模型并保存。'
 
-    function SessionSwitch({ sessionId, cm = false }) {
-      const field = cm ? 'cmEnabledSessions' : 'enabledSessions'
-      const label = cm ? '当前任务使用 CM' : '当前任务必须使用固定团队'
+    /** 唯一主开关：固定团队与 CM 同时开启/关闭；后端两个数组仍分别记录。 */
+    function DpswarmSwitch({ sessionId }) {
       const snapshot = useSettings(), cfg = snapshot.value || {}
       const [pending, setPending] = useState(false), [error, setError] = useState('')
-      const on = (cfg[field] || []).includes(sessionId)
+      const teamOn = (cfg.enabledSessions || []).includes(sessionId)
+      const cmOn = (cfg.cmEnabledSessions || []).includes(sessionId)
+      const on = teamOn && cmOn, partial = teamOn !== cmOn
       const ready = snapshot.status === 'ready' && snapshot.writable === true && snapshot.mode === 'host' && typeof sessionId === 'string' && !!sessionId
-      const missing = missingRoutes(cfg, cm)
+      const missing = [...missingRoutes(cfg, false), ...missingRoutes(cfg, true)]
       const change = async event => {
         const next = event.target.checked
         setPending(true); setError('')
@@ -377,17 +389,26 @@ window.__ModuleLoader__.load({
           const latest = settingsScope.getSnapshot()
           if (latest.status !== 'ready' || !latest.writable || latest.mode !== 'host') throw new Error('Host settings are unavailable')
           await writeSettings(value => {
-            const ids = value[field] || []
-            const missing = missingRoutes(value, cm)
+            const missing = [...missingRoutes(value, false), ...missingRoutes(value, true)]
             if (next && missing.length) throw new Error(routeHint(missing))
-            return { [field]: next ? [...new Set([...ids, sessionId])] : ids.filter(id => id !== sessionId) }
+            const enable = ids => [...new Set([...(ids || []), sessionId])]
+            const disable = ids => (ids || []).filter(id => id !== sessionId)
+            const apply = next ? enable : disable
+            return { enabledSessions: apply(value.enabledSessions), cmEnabledSessions: apply(value.cmEnabledSessions) }
           })
         } catch (e) { setError(String(e.message || e)) } finally { setPending(false) }
       }
-      return h('div', { className: 'dps-field' },
-        h('label', { className: 'dps-switch' }, h('input', { type: 'checkbox', role: 'switch', checked: on,
-          disabled: pending || !ready || (!on && missing.length > 0), onChange: change, 'aria-label': label }), label),
-        h('p', { className: 'dps-hint' }, !ready ? '打开一个任务后可开启；需要可写的宿主设置。' : missing.length ? routeHint(missing) : cm ? '所选 CM 模型自动整理较早的上下文；单 agent 也可用。关闭会取消在途压缩，已采用的摘要保留。' : '开启后必须先启动固定团队，Lead 不能因任务简单而跳过。每个 worker 的额度遵循下方设置；只有 Auto 由 Lead 决定。关闭会取消在途协作，已有交付仍可验收或终止。'),
+      const caption = !ready ? '打开一个任务后可开启；需要可写的宿主设置。'
+        : !on && missing.length ? routeHint(missing)
+          : partial ? (teamOn ? '当前仅固定团队已开启' : '当前仅 CM 已开启') + '；开启后两者同时生效。'
+            : on ? '固定团队 + CM 已开启。关闭会取消在途协作与压缩；已采用摘要与已有交付保留。'
+              : '固定团队（实现者 → 测试者 → 审查）+ CM 上下文管理，一键同时开启。'
+      return h('div', null,
+        h('label', { className: 'dps-masterSwitch' },
+          h(Compass16, { 'aria-hidden': 'true' }),
+          h('div', null, h('b', null, '开启 DPSwarm'), h('small', null, caption)),
+          h('input', { type: 'checkbox', role: 'switch', checked: on,
+            disabled: pending || !ready || (!on && missing.length > 0), onChange: change, 'aria-label': '开启 DPSwarm（固定团队 + CM）' })),
         error ? h('p', { className: 'dps-error', role: 'alert' }, error) : null)
     }
 
@@ -838,24 +859,24 @@ window.__ModuleLoader__.load({
         h('div', { className: 'dps-popHead' },
           h('span', { className: 'dps-popName' }, L.name),
           statusBadge(status.phase)),
+        h(DpswarmSwitch, { sessionId }),
         status.connected
           ? (status.waiting ? h('p', { className: 'dps-hint' }, '服务已就绪，等待主 agent 启动当前任务的固定协作。') : chipsRow(status.chips))
-          : h('p', { className: 'dps-hint' },
-              status.phase === 'off' ? '协作默认关闭，服务在启用后按需启动。' : status.phase === 'version' ? '此地址运行旧版控制服务，请更换端口或更新为 session_server。' : status.phase === 'wait' ? L.hintStarting : L.offline),
+          : phase === 'off' ? null
+            : h('p', { className: 'dps-hint' },
+                status.phase === 'version' ? '此地址运行旧版控制服务，请更换端口或更新为 session_server。' : status.phase === 'wait' ? L.hintStarting : L.offline),
         h(ModelSummary, null),
-        h('p', { className: 'dps-hint' }, '调整模型：设置 → DPswarm。以上为已保存配置，正在运行的团队保持启动时配置。'),
         h(BudgetSummary, { sessionId }),
         h(WorkerDiagnostics, { snapshot: st }),
-        h(SessionSwitch, { sessionId }),
-        h(SessionSwitch, { sessionId, cm: true }),
-        h('p', { className: 'dps-hint' }, 'Reviewer 默认由 Lead 承担；指定独立模型后增加审查。CM 开关独立生效，并覆盖当前任务的直接子 agent。'),
         h('div', { className: 'dps-popFoot' }, h(SettingsShortcut), openPanelLink(sessionId)))
     }
 
     /** composer 工具行的罗盘启动按钮：角落三态状态灯，点开菜单面弹层。 */
     function DpswarmLaunch({ sessionId }) {
       const snapshot = useSettings()
+      const teamOn = (snapshot.value?.enabledSessions || []).includes(sessionId)
       const cmOn = (snapshot.value?.cmEnabledSessions || []).includes(sessionId)
+      const partial = teamOn !== cmOn
       const [phase] = useSidecar(4000, sessionId)
       const [open, setOpen] = useState(false)
       const wrapRef = useRef(null)
@@ -890,10 +911,12 @@ window.__ModuleLoader__.load({
           document.removeEventListener('keydown', onKeyDown)
         }
       }, [open])
-      const dotCls = phase === 'off' ? (cmOn ? 'dps-launchDot dps-launchDotOk' : 'dps-launchDot dps-launchDotOff') : phase === 'ok' ? 'dps-launchDot dps-launchDotOk'
+      const dotCls = phase === 'off' ? 'dps-launchDot dps-launchDotOff' : phase === 'ok' ? 'dps-launchDot dps-launchDotOk'
         : phase === 'bad' ? 'dps-launchDot dps-launchDotBad'
           : 'dps-launchDot dps-launchDotWait'
-      const label = phase === 'off' ? (cmOn ? 'DPSwarm（CM 已开启 · 固定团队关闭）' : L.launchOff) : phase === 'ok' ? L.launchOk : phase === 'bad' ? L.launchBad : L.launchWait
+      const label = phase === 'off' ? L.launchOff
+        : partial ? `DPSwarm（部分开启 · ${teamOn ? '仅固定团队' : '仅 CM'}）`
+          : phase === 'ok' ? L.launchOk : phase === 'bad' ? L.launchBad : L.launchWait
       return h('div', { ref: wrapRef, style: { position: 'relative', display: 'inline-block' } },
         h('button', { type: 'button', className: 'dps-launch', title: label,
           'aria-label': label, 'aria-expanded': open, onClick: toggle },
