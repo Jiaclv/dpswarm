@@ -191,7 +191,7 @@ export function compactWorkerDiagnostic(value) {
 
 export function compactWorkerEntry(value) {
   const result = { ...fields(value, ['item_id', 'title', 'kind', 'role', 'level', 'stop_reason', 'execution_session_id',
-    'code', 'error', 'admission_stage', 'evidence_kind', 'subtask', 'subtask_index']), diagnostic: compactWorkerDiagnostic(value.diagnostic) }
+    'code', 'error', 'admission_stage', 'evidence_kind', 'subtask', 'subtask_index', 'verification_of']), diagnostic: compactWorkerDiagnostic(value.diagnostic) }
   if (typeof value.output === 'string') {
     result.output = excerpt(value.output, 600); result.output_original_chars = value.output.length
     result.output_truncated = value.output.length > 600

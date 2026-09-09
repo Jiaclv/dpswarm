@@ -242,6 +242,36 @@ test('rework raises the cap for the implementer plus tester continuation while o
   assert.equal(reworked.deliveries.length, 2)
 })
 
+test('whoever raised the defect re-checks it: a configured reviewer lineage re-reviews after rework and its verdict gates (0.9.6)', async () => {
+  const h = fixture()
+  h.cfg.reviewerMode = 'model'; h.cfg.reviewerProvider = 'fixture'; h.cfg.reviewerModel = 'reviewer'
+  const result = await h.run()
+  assert.equal(result.deliveries.length, 4, '2 implementers + tester + reviewer')
+  const implA = result.deliveries.find(d => d.subtask === 'part-a')
+  // Realistic flow: the initial reviewer's verdict drove the rework, so the Lead
+  // settles it as evidence first; the lineage gate counts every open item.
+  const firstReview = result.deliveries.find(d => d.role === 'reviewer')
+  await h.dispatcher.review({ item_id: firstReview.item_id, verdict: 'accept' }, h.exec)
+  const reworked = await h.dispatcher.rework({ item_id: implA.item_id, feedback: 'Fix the reviewed defects only.' }, h.exec)
+  assert.equal(reworked.failed.length, 0)
+  assert.deepEqual(reworked.deliveries.map(d => d.role), ['implementer', 'tester', 'reviewer'], 'rework round re-runs the whole verification chain')
+  const reReview = reworked.deliveries.find(d => d.role === 'reviewer')
+  assert.equal(reReview.verification_of, reworked.deliveries[0].item_id)
+  assert.match(reReview.title, /re-review/)
+  // The continuation is the latest reviewer lineage and its prompt carries its own earlier verdict context.
+  const continuation = h.children.at(-1)
+  assert.match(continuation.request.prompt[0].text, /linked re-review after implementer rework/)
+  // Capacity: the initial run raised the cap for 4 roles; after the first
+  // review, 3 originals stay open, so rework raises for 3 continuations to 6.
+  assert.deepEqual(h.specCalls.map(c => c.max_team_workers), [4, 6])
+  // The pending re-review verdict gates acceptance of the reworked delivery.
+  const newImpl = reworked.deliveries[0]
+  await assert.rejects(h.dispatcher.review({ item_id: newImpl.item_id, verdict: 'accept' }, h.exec), /REVIEWER_PENDING/)
+  await h.dispatcher.review({ item_id: reReview.item_id, verdict: 'accept' }, h.exec)
+  await h.dispatcher.review({ item_id: newImpl.item_id, verdict: 'accept' }, h.exec)
+  assert.equal(h.items[newImpl.item_id].acceptance, 'accepted')
+})
+
 test('role separation: with a configured reviewer, accepting the implementer before its verdict is refused', async () => {
   const h = fixture()
   h.cfg.reviewerMode = 'model'; h.cfg.reviewerProvider = 'fixture'; h.cfg.reviewerModel = 'reviewer'

@@ -714,9 +714,11 @@ export class FixedTeamController {
       const before = await state.sidecar.call('GET', '/api/status'), item = before.snapshot?.work_items?.[source.item_id]
       if (!item || !['submitted', 'terminated'].includes(item.acceptance)) throw failure('REWORK_ITEM_NOT_ELIGIBLE', 'Only a submitted or terminated original implementer item is eligible; accepted deliveries are final.')
       if (before.snapshot.seal_phase?.root === 'cutoff') throw failure('REWORK_WORKSPACE_UNCONFIRMED', 'The root is sealed because cleanup is uncertain.')
-      // Rework adds an implementer plus the tester re-verification; both count
+      // Rework adds an implementer plus the tester re-verification and, when a
+      // separate reviewer is configured, its lineage re-review; all count
       // against the §7 team-worker cap alongside the still-open original items.
-      await this.ensureTeamCapacity(state, parent, 2)
+      await this.ensureTeamCapacity(state, parent, 1 + (state.testers?.size ? 1 : 0)
+        + (state.reviewers?.size && frozen.profile.reviewer?.mode === 'model' ? 1 : 0))
       const routes = [{ role: 'lead', ...frozen.lead_route }, { role: 'implementer', provider: frozen.profile.implementer.provider,
         model: frozen.profile.implementer.model, ...(frozen.profile.implementer.reasoning_effort ? { reasoningEffort: frozen.profile.implementer.reasoning_effort } : {}) }]
       const expectedModels = state.hostModels ? { ...state.hostModels, models: state.hostModels.models.filter(row => ['lead', 'implementer'].includes(row.role)) } : undefined
@@ -852,12 +854,73 @@ export class FixedTeamController {
           catch (error) { state.cleanup.budget_error = { code: error?.code || 'REWORK_REVOKE_FAILED', message: String(error?.message || error) } }
         }
       }
+      // Whoever raised a defect re-checks the fix: with a configured independent
+      // reviewer, its lineage re-reviews the reworked candidate (its earlier
+      // verdict and findings carry over as untrusted context) and the new
+      // verdict gates acceptance through the same REVIEWER_PENDING rule.
+      let reviewerAllocation = null
+      try {
+        const reviewerSource = state.reviewers?.size ? [...state.reviewers.values()].at(-1) : null
+        if (deliveries.length && reviewerSource && frozen.profile.reviewer?.mode === 'model') {
+          const reviewerRecords = await this.diagnostics(state, reviewerSource.item_id)
+          const reviewerEvidence = reviewerRecords.filter(row => row.worker_session_id === reviewerSource.worker_session_id && row.run_id === reviewerSource.run_id && row.role === 'reviewer')
+          const reviewerDiagnostic = reviewerEvidence.length === 1 ? reviewerEvidence[0].diagnostic : null
+          const reviewerTerminal = reviewerDiagnostic?.native_terminal != null
+            && reviewerDiagnostic?.cleanup?.physical_cleanup_confirmed === true && !reviewerDiagnostic?.audit_error
+          if (!reviewerTerminal) {
+            failed.push({ role: 'reviewer', code: 'REVERIFY_SOURCE_UNAVAILABLE', error: 'The original reviewer has no trusted terminal record; Lead verifies the reworked candidate directly.' })
+          } else {
+            const priorReviewerReport = reviewerDiagnostic.closeout?.report?.text || ''
+            const reworkReport = deliveries[0]?.output || ''
+            const reviewerRoute = frozen.profile.reviewer
+            const reReviewPrompt = `${workerRolePrompt('reviewer')}\n\nThis is a linked re-review after implementer rework, continuing your own earlier review. The implementer was asked to fix the defects below; re-review the CURRENT candidate read-only against the original task and acceptance. Whoever raised a defect verifies the fix: your earlier findings are yours to confirm as resolved or reject as still present. Original constraints (including any no-tests instruction) apply unchanged. End with a verdict line exactly like "VERDICT: pass" | "VERDICT: needs-rework" | "VERDICT: blocked".\n\nOriginal task:\n${frozen.task}\n\nOriginal acceptance:\n${frozen.acceptance || 'Use only the original task requirements.'}\n\nCorrections the implementer was asked to make:\n${args.feedback}\n\nRework delivery report (untrusted; verify against the actual files):\n${reworkReport.slice(0, 12000)}${reworkReport.length > 12000 ? '\n… [truncated]' : ''}\n\nYour earlier review report (untrusted context; the files have changed since):\n${priorReviewerReport ? priorReviewerReport.slice(0, 12000) : '(no earlier report)'}`
+            await check()
+            reviewerAllocation = await this.budget.issueRework(parent, { workerSessionId: reviewerSource.worker_session_id, task: reReviewPrompt })
+            const reviewRoutes = [{ role: 'lead', ...frozen.lead_route }, { role: 'reviewer', provider: reviewerRoute.provider,
+              model: reviewerRoute.model, ...(reviewerRoute.reasoning_effort ? { reasoningEffort: reviewerRoute.reasoning_effort } : {}) }]
+            if (this.modelRegistry) await this.modelRegistry.resolve(reviewRoutes, { signal: state.abort.signal })
+            const reviewTimeout = new AbortController()
+            const reviewAbortChild = () => reviewTimeout.abort(state.abort.signal.reason)
+            const reviewTimer = setTimeout(() => reviewTimeout.abort(failure('WORKER_TIMEOUT', 'Reviewer re-review exceeded its wall-time limit')), frozen.profile.workerTimeoutSeconds * 1000)
+            state.abort.signal.addEventListener('abort', reviewAbortChild, { once: true })
+            try {
+              const result = await delegateOnce({ kind: 'derive', subtasks: [{ provider: reviewerRoute.provider, model: reviewerRoute.model,
+                reasoning_effort: reviewerRoute.reasoning_effort, title: 'DPswarm reviewer re-review', prompt: reviewerAllocation.prompt }] },
+              { ...exec, signal: reviewTimeout.signal }, state.sidecar, this.subagents, {
+                routeJournal: state.journal, resolveSession: this.resolveSession, budget: this.budget, runId: reworkId,
+                onDiagnostic: value => state.diagnostics.push(value), modelRegistry: this.modelRegistry,
+                modelRoutes: reviewRoutes, hostModels: undefined, modelRole: 'reviewer', beforeChildStart: check,
+                onChildStarted: async details => {
+                  // The continuation becomes the latest reviewer lineage; the next
+                  // rework re-reviews from it and the acceptance gate follows it.
+                  state.reviewers.set(details.item_id, { item_id: details.item_id, worker_session_id: details.execution_session_id, run_id: reworkId })
+                  await record('verification-published', { item_id: details.item_id, worker_session_id: details.execution_session_id })
+                } })
+              if (!Array.isArray(result.deliveries)) failed.push({ role: 'reviewer', code: result.outcome || 'NOT_ADMITTED', error: result.message || 'No re-review worker was admitted' })
+              else {
+                deliveries.push(...result.deliveries.map(value => ({ ...value, role: 'reviewer', verification_of: deliveries[0]?.item_id ?? null })))
+                failed.push(...result.failed.map(value => ({ ...value, role: 'reviewer', verification_of: deliveries[0]?.item_id ?? null })))
+              }
+            } finally {
+              clearTimeout(reviewTimer)
+              state.abort.signal.removeEventListener('abort', reviewAbortChild)
+            }
+          }
+        }
+      } catch (error) {
+        failed.push({ role: 'reviewer', code: error?.code || 'REREVIEW_FAILED', error: String(error?.message ?? error) })
+      } finally {
+        if (reviewerAllocation?.allocation_id) {
+          try { await this.budget.revokeRework(parent, reviewerAllocation.allocation_id) }
+          catch (error) { state.cleanup.budget_error = { code: error?.code || 'REWORK_REVOKE_FAILED', message: String(error?.message || error) } }
+        }
+      }
       await record('finished', { published, delivery_item_ids: deliveries.map(value => value.item_id),
         failed_item_ids: failed.map(value => value.item_id).filter(Boolean), failure_codes: failed.map(value => value.code) })
       return { mode: 'fixed-implementer-rework-v1', source_item_id: source.item_id, source_worker_session_id: source.worker_session_id,
         worker_budget_policy: allocation.profile, deliveries: deliveries.map(compactWorkerEntry), failed: failed.map(compactWorkerEntry),
         stopped: state.abort.signal.aborted || !enabled(this.config(), parent.session.id), cleanup: state.cleanup, rework_recovery: recovery,
-        next: 'Inspect the necessary corrections within the original permitted scope. The source item was terminated by this rework dispatch; review only items in this delivery. Accept only an implementer item in deliveries. When a tester re-verification item is present, treat its report as advisory evidence for your review. A failed or partial candidate is not an accepted worker delivery; use the latest implementer item for any further necessary rework.' }
+        next: 'Inspect the necessary corrections within the original permitted scope. The source item was terminated by this rework dispatch; review only items in this delivery. Accept only an implementer item in deliveries. When a tester re-verification item is present, treat its report as advisory evidence for your review. When a reviewer re-review item is present, its verdict gates acceptance of the implementer item (REVIEWER_PENDING) — review it first. A failed or partial candidate is not an accepted worker delivery; use the latest implementer item for any further necessary rework.' }
     } catch (error) {
       if (prepared) {
         try { await record('failed', { published, error_code: error?.code || 'REWORK_FAILED' }) }

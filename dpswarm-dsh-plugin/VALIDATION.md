@@ -1,3 +1,9 @@
+# 0.9.6 谁提的缺陷谁验收（Reviewer 血缘返工复核）验证（2026-09-10）
+
+插件回归 **365/365**、控制服务 **580/580** 通过（不含外部模型调用）。原则核对：谁写谁修此前已成立（返工恒回原实现者血缘）；谁提谁验只覆盖测试者（0.8.1 复验），Reviewer 发现的缺陷在返工后无人回头确认（01:03 实证：真缺陷是 Reviewer 抓的）。改动：rework() 在测试者复验之后接续 Reviewer 血缘复核（可信终态校验、上一论 verdict 与发现作为不可信上下文、VERDICT 收尾、独立返工链额度），新 verdict 经既有 REVIEWER_PENDING 门禁自动门控本轮实现者交付（state.reviewers 录入新血缘即生效）；容量自适应从"实现者+测试者"扩到按真实接续数计算；`compactWorkerEntry` 补出 `verification_of` 字段（此前测试者复验的归属标记被摘要层吞掉）。新增表征：配置 Reviewer 的返工轮交付序列为 [implementer, tester, reviewer]、复核 prompt 携带其上轮报告、容量 4→6、复核未结案时 REVIEWER_PENDING、结案后可验收。Lead 提示词与 rework 返回体 next 同步更新。未跑真实模型试点。
+
+---
+
 # 0.9.5 返工默认护栏验证（2026-09-10）
 
 插件回归 **364/364**、控制服务 **580/580** 通过（不含外部模型调用）。起因：01:56 真实运行中一次要求精确数值 IK 的返工在出厂默认的 unlimited 返工额度下螺旋失控——57 次调用 / 371 万 token 反复写数值脚本，最终打穿 DeepSeek 账户余额（QUOTA），整个会话失败。改动仅默认值：`reworkBudgetMode` 出厂默认 unlimited → fixed（沿用既有 600,000 token / 28 次字段默认）；`budget-runtime` 缺省回退同步改为 fixed。固定返工本就走与首轮 worker 完全相同的受限执行路径（预约-结算、1/3 slack 收尾停泊、逐调用账本），worker 提示词本就声明"触轨即报告已存内容、Lead 裁决"——本次只是把默认打开。测试语义分层：index.test 改钉 Config 新默认与 Lead 提示词的固定额度文案；fixed-team-rework 与 worker-rework-budget 两个套件显式传入 `reworkBudgetMode: 'unlimited'`，继续钉 unlimited 模式的机器行为（该模式仍受支持，只是不再是默认）。已显式保存过 rework 模式的安装不受影响。未跑真实模型试点。
