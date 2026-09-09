@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { resolveHostRoot, hostModuleUrl } from './host-modules.js'
+import { teamModeFor, teamModeGuidance } from './role-guidance.js'
 
 const host = resolveHostRoot()
 const [{ createUserMessage }] = await Promise.all([
@@ -123,7 +124,7 @@ export class TeamRequirement {
       native_child_bound_count: state.starts.length,
       model_request_observed: null,
       ...(state.finish ? { finish: clone(state.finish) } : {}),
-      next: state.phase === 'required' ? 'Call dpswarm_run for this user task.'
+      next: state.phase === 'required' ? `Call dpswarm_run for this user task. ${teamModeGuidance(teamModeFor(this.config(), agent.session.id))}`
         : state.phase === 'started' ? 'A native child is bound but the team run is not settled; restore/review it before new work.'
           : 'The fixed-team run settled; Lead follow-up is permitted.',
     }

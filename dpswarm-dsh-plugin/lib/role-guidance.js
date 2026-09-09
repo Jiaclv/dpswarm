@@ -7,6 +7,14 @@ export function teamModeFor(config, sessionId) {
   return ['serial', 'parallel', 'staged'].includes(mode) ? mode : 'serial'
 }
 
+// The popover mode is the user's intent, not just a ceiling: the Lead must see
+// it before planning. The run() gate still refuses cross-form calls.
+export function teamModeGuidance(mode) {
+  if (mode === 'parallel') return 'The user set this task to parallel: if it splits into 1-3 subtasks with disjoint write scopes, pass subtasks so the implementers run concurrently. If it is genuinely indivisible (e.g. one cohesive file), run the sequential team and say briefly why in the final reply.'
+  if (mode === 'staged') return 'The user set this task to staged: drive it with the staged artifact board (phases plus artifacts with write_globs and deps). Plain subtasks need the user to switch the mode to parallel first.'
+  return 'The user left this task serial (the default): run the sequential implementer-tester team; subtasks and staged are refused by the user-mode gate.'
+}
+
 export const WORKER_GUIDANCE = [
   '## DPSwarm worker: execute your assigned subtask',
   'You are a child worker, not the Lead. Follow the specific role and original user constraints in your assignment. Do not call dpswarm_status, dpswarm_models, dpswarm_run, dpswarm_prepare_worker, dpswarm_rework or dpswarm_review, and do not delegate to another agent. Those orchestration tools belong to the Lead.',

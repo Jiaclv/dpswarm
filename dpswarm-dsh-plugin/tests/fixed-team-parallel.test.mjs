@@ -90,6 +90,18 @@ function fixture() {
   return h
 }
 
+test('the user team mode reaches the Lead: status surfaces it and a formless run under parallel says so (0.9.3)', async () => {
+  const h = fixture()   // fixture overrides root to parallel
+  const status = await h.controller.status(h.parent)
+  assert.equal(status.team_mode.mode, 'parallel')
+  assert.equal(status.team_mode.source, 'user popover override')
+  assert.match(status.team_mode.instruction, /subtasks/)
+  const result = await h.dispatcher.run({ task: 'Create the two parts.', acceptance: 'Both parts exist.' }, h.exec)
+  assert.equal(result.team_mode.mode, 'parallel')
+  assert.equal(result.team_mode.split_form, 'serial')
+  assert.match(result.team_mode.note, /no matching split form/)
+})
+
 test('parallel implementers fan out with claims and per-item identity, tester joins after', async () => {
   const h = fixture()
   const result = await h.run()

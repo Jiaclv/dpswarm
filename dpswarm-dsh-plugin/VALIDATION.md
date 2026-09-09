@@ -1,3 +1,9 @@
+# 0.9.3 模式透传与 staged 工具声明验证（2026-09-10）
+
+插件回归 **362/362**、控制服务 **580/580** 通过（不含外部模型调用）。起因：01:03 真实运行中用户已在弹层把任务切为 parallel（`~/.dsh/settings.yaml` 的 `teamModeOverrides` 已正确持久化、sessionId 键与 `enabledSessions` 同构），但 Lead 全程看不到该选择——并行只是上限不是意图，单文件任务按惯性跑了串行（合法但非用户所愿）。修复：`teamModeGuidance(mode)`（role-guidance）统一生成给 Lead 的指引文案；`dpswarm_status` 新增 `team_mode{mode,source,instruction}`；`team_requirement.next` 在 required 相位携带同一指引；`dpswarm_run` 返回体新增 `team_mode{mode,split_form,note?}`（parallel/staged 下未拆分会显式记录说明）。另发现并修复 0.9.0 遗留缺口：`staged` 形态从未声明进 `dpswarm_run` 工具 schema（模型不可见、不可调），本期补全（phases 1–4、artifacts 1–8，字段与 `validateStaged` 对齐，含互斥/无环/相位顺序语义的描述）。新增表征：index（schema 双形态声明 + status team_mode 默认 serial）、team-required（next 文案随模式切换）、fixed-team-parallel（status team_mode 为 parallel 且无形拆分运行时返回体带 note）。未跑真实模型试点。
+
+---
+
 # 0.9.2 收尾停泊估计误差余量验证（2026-09-10）
 
 插件回归 **360/360**、控制服务 **580/580** 通过（不含外部模型调用）。00:14 真实运行的死因分析：final-only 停泊按 pre-step 估算输入判断、硬轨按请求时刻实测信封判断，二者不一致时永远是估算偏乐观，实现者在文件落盘后的下一步被 `request_output_limit` 直接打死且无报告（该点上报告/CM 请求的输入同样塞不进额度，提前停泊是唯一有效手段）。修复：`closeoutForecast` 对（当前步输入 + 最终步输入）加 `CLOSEOUT_ESTIMATE_SLACK_RATIO = 1/3` 余量，forecast 新增 `estimate_slack` 观测字段；Auto 预算建议文案补充"写完再自查还要花几个全量信封"的口径。曾评估在 `agent/request` 用实测信封重判停泊，核查宿主 dsh-agent-loop 后放弃：system 在 `agent/request` waterfall 之前已渲染成串（lib/index.js:611 vs 708），此时注入的报告指令上不了线，只会把死因换成 `WORKER_CLOSEOUT_INSTRUCTION_MISSING`。表征更新：17:32 账本（35,852 剩余 / 14,028 步）从"不停泊"改钉为"以 budget_rail 停泊且 estimate_slack=9,352"（budget-rail-characterization 与 mechanism-911 各一处，原为 0.8.2 钉死的不停泊行为，本次为有意变更）；其余预算钉全部保持不变。未跑真实模型试点。

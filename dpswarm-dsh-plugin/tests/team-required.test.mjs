@@ -45,6 +45,15 @@ test('a new real user message has a new requirement even after the previous team
   assert.equal(second.phase, 'required'); assert.notEqual(second.binding.binding_id, first.binding.binding_id)
 })
 
+test('status next text carries the user team mode guidance so the Lead sees the picker choice (0.9.3)', async () => {
+  const h = fixture(), lead = agent(h.root)
+  assert.match((await h.req.status(lead)).next, /left this task serial/)
+  h.cfg.teamModeOverrides = [{ sessionId: 'root', mode: 'parallel' }]
+  assert.match((await h.req.status(lead)).next, /set this task to parallel/)
+  h.cfg.teamModeOverrides = [{ sessionId: 'root', mode: 'staged' }]
+  assert.match((await h.req.status(lead)).next, /set this task to staged/)
+})
+
 test('raw session user events survive compaction-shaped history and child agents are outside the root gate', async () => {
   const h = fixture(), lead = agent(h.root)
   h.root.deriveMessages = () => [{ role: 'user', source: { kind: 'plugin' }, content: [] }]

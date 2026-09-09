@@ -8,7 +8,7 @@ import { runtimePaths } from './paths.js'
 import { delegateOnce, requireRootCaller } from './delegation.js'
 import { workerBudgetProfile, reworkBudgetProfile } from './budget-runtime.js'
 import { effectiveLeadRoute } from './lead-route.js'
-import { workerRolePrompt, teamModeFor } from './role-guidance.js'
+import { workerRolePrompt, teamModeFor, teamModeGuidance } from './role-guidance.js'
 import { scopesOverlap } from './write-scope.js'
 
 /** Parallel implementer split: 1–3 disjoint write scopes, Lead-authored. */
@@ -218,7 +218,11 @@ export class FixedTeamController {
     requireRootCaller(parent)
     const cfg = this.config(), on = enabled(cfg, parent.session.id)
     const existing = this.sessions.get(parent.session.id)
+    const teamMode = teamModeFor(cfg, parent.session.id)
     const base = { enabled: on, mode: 'fixed-team-v1', session_id: parent.session.id,
+      team_mode: { mode: teamMode,
+        source: (cfg.teamModeOverrides || []).some(row => row?.sessionId === parent.session.id) ? 'user popover override' : 'default',
+        instruction: teamModeGuidance(teamMode) },
       cm: (await this.cm?.status(parent)) || { enabled: false, attached: false }, usage_note: unknownUsage }
     if (!on && !existing) return { ...base, state: 'off' }
     const state = existing || this.session(parent)
@@ -605,6 +609,10 @@ export class FixedTeamController {
         }
       }
       return { mode: 'fixed-team-v1', profile: state.profile, model_registry: state.hostModels || null, deliveries: deliveries.map(compactWorkerEntry), failed: failed.map(compactWorkerEntry),
+        team_mode: { mode: teamMode, split_form: subtasks ? 'parallel' : staged ? 'staged' : 'serial',
+          ...(teamMode !== 'serial' && !subtasks && !staged
+            ? { note: `The user set this task to ${teamMode}, but no matching split form was passed, so the sequential team ran. Prefer subtasks (parallel) or the staged board (staged) when the task is divisible.` }
+            : {}) },
         diagnostic_detail_source: 'Unabridged reports page through dpswarm_report(item_id); full records remain in authenticated /api/plugin-audit; model view is bounded.', cleanup: state.cleanup,
         stopped: state.abort.signal.aborted || !enabled(this.config(), parent.session.id),
         worker_budget_policy: state.budgetRun?.profile || workerPolicy,
