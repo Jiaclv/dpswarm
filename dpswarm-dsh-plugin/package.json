@@ -1,6 +1,6 @@
 {
   "name": "dpswarm-dsh-plugin",
-  "version": "0.9.3",
+  "version": "0.9.4",
   "description": "Explicit fixed-team and independent DeepSeek context management for DSH",
   "type": "module",
   "private": true,

@@ -1,3 +1,9 @@
+# 0.9.4 终态 item 验收幂等化验证（2026-09-10）
+
+插件回归 **363/363**、控制服务 **580/580** 通过（不含外部模型调用）。01:45 真实运行中 Lead 试图验收已被返工派发自动终止的原始实现者 item，被控制面状态机以 `ILLEGAL_TRANSITION`（terminated → finalizing）拒绝——信息真实但生硬，且同一瑕疵在 01:03 已出现一次。修复：`dpswarm_review` 对已处于终态的 item 返回幂等结果 `already_accepted` / `already_terminated`（附"请验收最新实现者 item"说明），不再落到状态机；防虚假验收防线保持不变——无交付包的失败 worker 被 accept 时仍抛 `DELIVERY_PACKAGE_REQUIRED`（fixed-team-rework 既有表征钉死，本轮一度被初版改动撞红后按"有交付包才幂等"收紧）。返工返回体 `next` 明示源 item 已终止。新增表征：fixed-team-parallel 钉"终止后 accept → already_terminated 且无幻影迁移"。未跑真实模型试点。
+
+---
+
 # 0.9.3 模式透传与 staged 工具声明验证（2026-09-10）
 
 插件回归 **362/362**、控制服务 **580/580** 通过（不含外部模型调用）。起因：01:03 真实运行中用户已在弹层把任务切为 parallel（`~/.dsh/settings.yaml` 的 `teamModeOverrides` 已正确持久化、sessionId 键与 `enabledSessions` 同构），但 Lead 全程看不到该选择——并行只是上限不是意图，单文件任务按惯性跑了串行（合法但非用户所愿）。修复：`teamModeGuidance(mode)`（role-guidance）统一生成给 Lead 的指引文案；`dpswarm_status` 新增 `team_mode{mode,source,instruction}`；`team_requirement.next` 在 required 相位携带同一指引；`dpswarm_run` 返回体新增 `team_mode{mode,split_form,note?}`（parallel/staged 下未拆分会显式记录说明）。另发现并修复 0.9.0 遗留缺口：`staged` 形态从未声明进 `dpswarm_run` 工具 schema（模型不可见、不可调），本期补全（phases 1–4、artifacts 1–8，字段与 `validateStaged` 对齐，含互斥/无环/相位顺序语义的描述）。新增表征：index（schema 双形态声明 + status team_mode 默认 serial）、team-required（next 文案随模式切换）、fixed-team-parallel（status team_mode 为 parallel 且无形拆分运行时返回体带 note）。未跑真实模型试点。

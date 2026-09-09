@@ -857,7 +857,7 @@ export class FixedTeamController {
       return { mode: 'fixed-implementer-rework-v1', source_item_id: source.item_id, source_worker_session_id: source.worker_session_id,
         worker_budget_policy: allocation.profile, deliveries: deliveries.map(compactWorkerEntry), failed: failed.map(compactWorkerEntry),
         stopped: state.abort.signal.aborted || !enabled(this.config(), parent.session.id), cleanup: state.cleanup, rework_recovery: recovery,
-        next: 'Inspect the necessary corrections within the original permitted scope. Accept only an implementer item in deliveries. When a tester re-verification item is present, treat its report as advisory evidence for your review. A failed or partial candidate is not an accepted worker delivery; use the latest implementer item for any further necessary rework.' }
+        next: 'Inspect the necessary corrections within the original permitted scope. The source item was terminated by this rework dispatch; review only items in this delivery. Accept only an implementer item in deliveries. When a tester re-verification item is present, treat its report as advisory evidence for your review. A failed or partial candidate is not an accepted worker delivery; use the latest implementer item for any further necessary rework.' }
     } catch (error) {
       if (prepared) {
         try { await record('failed', { published, error_code: error?.code || 'REWORK_FAILED' }) }
@@ -975,13 +975,23 @@ export class FixedTeamController {
       delegation_depth: 0, provider: leadRoute.provider, model: leadRoute.model })
     const prior = await state.sidecar.call('GET', '/api/status')
     const terminal = args.verdict === 'accept' ? 'accepted' : 'terminated'
-    if (prior.snapshot?.work_items?.[args.item_id]?.acceptance === terminal) {
+    const item = prior.snapshot?.work_items?.[args.item_id]
+    const existingAcceptance = item?.acceptance
+    if (existingAcceptance === terminal) {
       state.recoveryReviewed = true
       await this.reconcile(state)
       return { ok: true, outcome: `already_${terminal}`, note: 'Existing decision retained; no duplicate acceptance event',
         worker_diagnostics: compactDiagnosticRecords(await this.diagnostics(state, args.item_id)) }
     }
-    const item = prior.snapshot?.work_items?.[args.item_id]
+    // Terminal the other way (e.g. superseded by a rework dispatch): answer
+    // idempotently instead of letting the sidecar reject the transition. A
+    // failed worker has no delivery package, so an accept on it still falls
+    // through to the no-package guard — a false acceptance stays impossible.
+    if (['accepted', 'terminated'].includes(existingAcceptance)
+      && (args.verdict === 'terminate' || item?.submission_package_id)) {
+      return { ok: true, outcome: `already_${existingAcceptance}`, note: `Item is already ${existingAcceptance}; no transition attempted. Review the latest implementer item instead.`,
+        worker_diagnostics: compactDiagnosticRecords(await this.diagnostics(state, args.item_id)) }
+    }
     if (args.verdict === 'accept' && item && item.acceptance !== 'submitted' && !item.submission_package_id) {
       throw failure('DELIVERY_PACKAGE_REQUIRED', 'This worker has no submitted delivery package. Failed or partial files require independent Lead verification; they cannot be accepted as this worker delivery. Use dpswarm_rework for an eligible implementer. If unavailable, report the exact blocker and preserve the candidate.')
     }

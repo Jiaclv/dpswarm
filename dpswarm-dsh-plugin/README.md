@@ -1,4 +1,4 @@
-# DPswarm for DSH · 0.9.3
+# DPswarm for DSH · 0.9.4
 
 给当前 DSH 主 agent 增加**用户显式开启的固定团队**：实现者 → 测试者 → Lead 复核与验收；必要修复交回实现者。Reviewer 默认由 Lead 承担；用户指定独立模型时才增加一道审查。安装后默认关闭；每个已有会话独立开启。模型不能通过工具参数打开开关、换角色或动态扩队。
 
@@ -70,6 +70,10 @@ Provider、模型和推理强度点击保存后整组提交；Reviewer 的模式
 - **挂起/唤醒**：worker 缺他人就绪产物时保存进度并以 `[DPSWARM_WAITING: <产物id>]` 收尾（零资源空转）；该产物转 ready 后由**链接延续**会话唤醒继续（携带前序进度报告，同子任务认领、同血缘预算键）。等待超时记 `ARTIFACT_WAIT_TIMEOUT` 报 Lead。
 - **相位交接**：新相位首波提示词带前序相位交付摘要（有界截断、标注不可信、以实际文件为准）。CM 精选摘要分发是后续升级（见根目录 v3 备忘）。
 - 真实 resume（同会话续跑）经接口级核查可行但未验证轮次驱动，列为后续探针轮次；本期唤醒走已验证的链接延续路径。
+
+## 终态 item 验收幂等化（0.9.4）
+
+01:45 真实运行里 Lead 尽职地去验收已被返工派发自动终止的原始实现者 item，吃到一条生硬的 `ILLEGAL_TRANSITION`（terminated → finalizing）。修复：`dpswarm_review` 对已处于终态的 item 直接返回幂等的 `already_accepted` / `already_terminated` 并附说明，不再打到控制面状态机；**防虚假验收防线不变**——对没有交付包的失败 worker 执行 accept 仍落入 `DELIVERY_PACKAGE_REQUIRED`（表征测试钉死）。返工返回体的 `next` 同时明示"源 item 已被本返工终止，只验收本次交付里的 item"，从源头避免这次多余调用。
 
 ## 模式透传与 staged 工具声明（0.9.3）
 

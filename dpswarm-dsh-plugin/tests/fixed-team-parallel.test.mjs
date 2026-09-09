@@ -102,6 +102,18 @@ test('the user team mode reaches the Lead: status surfaces it and a formless run
   assert.match(result.team_mode.note, /no matching split form/)
 })
 
+test('reviewing an already-terminal item the other way answers idempotently instead of hitting ILLEGAL_TRANSITION (0.9.4)', async () => {
+  const h = fixture()
+  const result = await h.run()
+  const impl = result.deliveries.find(d => d.role === 'implementer')
+  await h.controller.review({ item_id: impl.item_id, verdict: 'terminate', reason: 'superseded by a rework chain' }, h.exec)
+  const again = await h.controller.review({ item_id: impl.item_id, verdict: 'accept', reason: 'late closeout attempt' }, h.exec)
+  assert.equal(again.ok, true)
+  assert.equal(again.outcome, 'already_terminated')
+  assert.match(again.note, /already terminated/)
+  assert.equal(h.items[impl.item_id].acceptance, 'terminated', 'no phantom transition landed')
+})
+
 test('parallel implementers fan out with claims and per-item identity, tester joins after', async () => {
   const h = fixture()
   const result = await h.run()
