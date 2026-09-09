@@ -333,6 +333,7 @@ export class FixedTeamController {
         configuration_fingerprint: configurationFingerprint(state.cfg), lead_route: clone(leadOptions) }
       state.implementers = new Map()
       state.testers = new Map()
+      state.reviewers = new Map()
       this.writeScope?.clear(parent.session.id)
       if (state.fixedTask.task_binding) await state.journal.append(parent.session.id, 'dpswarm/fixed-team-binding', state.fixedTask)
       // The fixed topology must fit the §7 team-worker cap before dispatch;
@@ -409,6 +410,7 @@ export class FixedTeamController {
               modelRegistry: this.modelRegistry, modelRoutes: state.modelRoutes, hostModels: state.hostModels, modelRole: role, onChildStarted: async details => {
                 if (role === 'implementer') state.implementers.set(details.item_id, { item_id: details.item_id, worker_session_id: details.execution_session_id, run_id: state.lease.run_id, superseded: false })
                 if (role === 'tester') state.testers.set(details.item_id, { item_id: details.item_id, worker_session_id: details.execution_session_id, run_id: state.lease.run_id })
+                if (role === 'reviewer') state.reviewers.set(details.item_id, { item_id: details.item_id, worker_session_id: details.execution_session_id, run_id: state.lease.run_id })
                 await onChildStarted?.({ ...details, role, run_id: state.lease.run_id })
               } })
           if (!Array.isArray(result.deliveries)) { failed.push({ role, code: result.outcome || 'NOT_ADMITTED', error: result.message || 'No worker was admitted' }); break }
@@ -773,6 +775,18 @@ export class FixedTeamController {
     const item = prior.snapshot?.work_items?.[args.item_id]
     if (args.verdict === 'accept' && item && item.acceptance !== 'submitted' && !item.submission_package_id) {
       throw failure('DELIVERY_PACKAGE_REQUIRED', 'This worker has no submitted delivery package. Failed or partial files require independent Lead verification; they cannot be accepted as this worker delivery. Use dpswarm_rework for an eligible implementer. If unavailable, report the exact blocker and preserve the candidate.')
+    }
+    // Role separation: with a configured independent reviewer, verification
+    // judgment belongs to it. The Lead cannot accept a production delivery while
+    // the reviewer verdict is pending; review the reviewer item first, or
+    // terminate it with a documented takeover reason and verify yourself.
+    if (args.verdict === 'accept' && state.fixedTask?.profile?.reviewer?.mode === 'model'
+        && state.implementers?.has(args.item_id)) {
+      const openReviewer = [...(state.reviewers?.values() || [])].find(r => {
+        const acceptance = prior.snapshot?.work_items?.[r.item_id]?.acceptance
+        return acceptance && !['accepted', 'terminated'].includes(acceptance)
+      })
+      if (openReviewer) throw failure('REVIEWER_PENDING', 'The configured reviewer has not submitted or settled its verdict. Review the reviewer item first (accept as evidence, or terminate with your takeover reason), then decide the production delivery.')
     }
     const result = await state.sidecar.call('POST', '/api/review', { item_id: args.item_id,
       verdict: args.verdict, reason: args.verdict === 'terminate' ? 'manual-stopped' : undefined, review_note: args.reason || '' })

@@ -1,3 +1,14 @@
+# 0.8.4 职责分离与 Reviewer 裁决门禁验证（2026-09-09）
+
+插件回归 **351/351**（无外部模型调用）。动机：用户设计决策——Lead 负责调度/安排/掌控全局，核查判断归 Reviewer。
+
+- 配置独立 Reviewer（reviewerMode=model）时，`dpswarm_review` 接受实现者交付须先看到 Reviewer 结论：Reviewer item 未结案时接受被 `REVIEWER_PENDING` 拒绝；Reviewer 死亡/失败时须显式终止其 item 并记录接管原因，Lead 才可直接核验（接管路径有审计）。
+- Reviewer 提示词升级为"核查权威"：必须读实际文件、不信任报告，以 `VERDICT: pass|needs-rework|blocked` 收尾；其结论驱动验收，Lead 不复核其覆盖范围。
+- Lead 指引按 reviewerMode 分支：配了独立 Reviewer 时 Lead 只做编排（派发、依据 Reviewer 发现管理返工、执行控制面裁决）；未配置时维持 Lead 自行核验的原语义。
+- 无 Reviewer 配置时门禁不生效（既有测试钉死）。
+
+---
+
 # 0.8.3 收尾报告可读性修复验证（2026-09-09）
 
 插件回归 **348/348**（无外部模型调用）。动机证据：20:24 真实运行中三个 worker 的 closeout 最终报告全是 DSML 工具调用标记而非文本（Lead 实测"reports are mostly tool-call traces"）。

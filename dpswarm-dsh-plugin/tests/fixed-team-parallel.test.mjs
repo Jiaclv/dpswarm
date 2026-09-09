@@ -214,3 +214,37 @@ test('rework raises the cap for the implementer plus tester continuation while o
   assert.deepEqual(h.specCalls.map(c => c.max_team_workers), [5])
   assert.equal(reworked.deliveries.length, 2)
 })
+
+test('role separation: with a configured reviewer, accepting the implementer before its verdict is refused', async () => {
+  const h = fixture()
+  h.cfg.reviewerMode = 'model'; h.cfg.reviewerProvider = 'fixture'; h.cfg.reviewerModel = 'reviewer'
+  const result = await h.run()
+  assert.equal(result.deliveries.length, 4, '2 implementers + tester + reviewer')
+  const reviewer = result.deliveries.find(d => d.role === 'reviewer')
+  const implA = result.deliveries.find(d => d.subtask === 'part-a')
+  await assert.rejects(h.dispatcher.review({ item_id: implA.item_id, verdict: 'accept' }, h.exec), /REVIEWER_PENDING/)
+  assert.equal(h.items[implA.item_id].acceptance, 'submitted', 'production delivery is not accepted while review is pending')
+  await h.dispatcher.review({ item_id: reviewer.item_id, verdict: 'accept' }, h.exec)
+  await h.dispatcher.review({ item_id: implA.item_id, verdict: 'accept' }, h.exec)
+  assert.equal(h.items[implA.item_id].acceptance, 'accepted')
+})
+
+test('reviewer takeover: terminating the reviewer item with a reason unlocks Lead acceptance', async () => {
+  const h = fixture()
+  h.cfg.reviewerMode = 'model'; h.cfg.reviewerProvider = 'fixture'; h.cfg.reviewerModel = 'reviewer'
+  const result = await h.run()
+  const reviewer = result.deliveries.find(d => d.role === 'reviewer')
+  const implA = result.deliveries.find(d => d.subtask === 'part-a')
+  await assert.rejects(h.dispatcher.review({ item_id: implA.item_id, verdict: 'accept' }, h.exec), /REVIEWER_PENDING/)
+  await h.dispatcher.review({ item_id: reviewer.item_id, verdict: 'terminate', reason: 'Reviewer died mid-run; Lead verified the files directly.' }, h.exec)
+  await h.dispatcher.review({ item_id: implA.item_id, verdict: 'accept' }, h.exec)
+  assert.equal(h.items[implA.item_id].acceptance, 'accepted')
+})
+
+test('without a configured reviewer the gate stays off (Lead verifies as before)', async () => {
+  const h = fixture()
+  const result = await h.run()
+  const implA = result.deliveries.find(d => d.subtask === 'part-a')
+  await h.dispatcher.review({ item_id: implA.item_id, verdict: 'accept' }, h.exec)
+  assert.equal(h.items[implA.item_id].acceptance, 'accepted')
+})

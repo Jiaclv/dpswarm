@@ -204,15 +204,16 @@ test('an explicitly selected Reviewer receives both reports, uses its frozen rou
   const request=h.children[2].request
   assert.deepEqual(Object.fromEntries(Object.entries(request.agentOptions)),{provider:'review-provider',model:'review-model',reasoningEffort:'max'})
   assert.match(request.prompt[0].text,/production delivery/);assert.match(request.prompt[0].text,/validation evidence/)
-  assert.match(request.prompt[0].text,/do not edit files or accept deliveries/i)
+  assert.match(request.prompt[0].text,/verification authority/i);assert.match(request.prompt[0].text,/Do not edit files/)
   h.finish(2,'advisory review')
   const result=await running
   assert.deepEqual(result.deliveries.map(d=>d.role),['implementer','tester','reviewer'])
   assert.equal(h.calls.filter(c=>c.path==='/api/review').length,0)
   const lease=h.controller.sessions.get('parent').lease.path
-  for(const d of result.deliveries.slice(0,2))await h.controller.review({item_id:d.item_id,verdict:'accept'},h.exec)
-  assert.equal(existsSync(lease),true)
+  // Reviewer verdict precedes production acceptance (role separation gate).
   await h.controller.review({item_id:result.deliveries[2].item_id,verdict:'accept'},h.exec)
+  assert.equal(existsSync(lease),true)
+  for(const d of result.deliveries.slice(0,2))await h.controller.review({item_id:d.item_id,verdict:'accept'},h.exec)
   assert.equal(existsSync(lease),false)
 })
 
@@ -365,6 +366,10 @@ for (const scenario of [
   }
   assert.equal(result.worker_budget_policy.mode, scenario.before)
   assert.equal((await h.journal.read('parent')).events.filter(e => e.type.endsWith('team-run-ended')).length, 1)
+  // Role separation gate: with a configured reviewer, its verdict precedes
+  // production acceptance.
+  const reviewerDelivery = result.deliveries.find(d => d.role === 'reviewer')
+  if (reviewerDelivery) await h.controller.review({ item_id: reviewerDelivery.item_id, verdict: 'accept' }, h.exec)
   for (const d of result.deliveries) await h.controller.review({ item_id: d.item_id, verdict: 'accept' }, h.exec)
 })
 
