@@ -329,3 +329,20 @@ test('a wait whose artifact never turns ready fails honestly with ARTIFACT_WAIT_
   assert.ok(timeout)
   assert.equal(timeout.subtask, 'bird')
 })
+
+test('staged phase handoff: a wave opening a new phase carries the prior deliveries digest', async () => {
+  const h = fixture()
+  const result = await h.dispatcher.run({ task: 'Build.', acceptance: 'Done.', staged: {
+    phases: [{ id: 'contracts', task: 'Write the contract.' }, { id: 'build', task: 'Build per the contract.' }],
+    artifacts: [
+      { id: 'layout', title: '布局契约', task: 'Define the layout.', write_globs: ['src/layout/**'], phase: 'contracts' },
+      { id: 'bike', title: '自行车', task: 'Build it per the contract.', write_globs: ['src/bike/**'], phase: 'build', deps: ['layout'] },
+    ],
+  } }, h.exec)
+  assert.equal(result.failed.length, 0)
+  assert.equal(h.children.length, 3)
+  assert.match(h.children[1].request.prompt[0].text, /前序相位交付摘要/)
+  assert.match(h.children[1].request.prompt[0].text, /【layout】/)
+  assert.match(h.children[1].request.prompt[0].text, /done:child-0/, 'the digest carries the prior delivery excerpt')
+  assert.doesNotMatch(h.children[0].request.prompt[0].text, /前序相位交付摘要/, 'the first phase gets no digest')
+})

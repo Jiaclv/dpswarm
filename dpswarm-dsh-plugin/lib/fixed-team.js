@@ -108,7 +108,7 @@ function planWaves(staged) {
       const ready = mine.filter(a => pending.has(a.id)
         && (a.deps || []).every(d => done.has(d) || artifactPhase.get(d) < phaseIndex.get(phase.id)))
       if (!ready.length) break
-      waves.push(ready.map(a => ({ id: a.id, title: a.title, task: a.task, write_scope: a.write_globs })))
+      waves.push(ready.map(a => ({ id: a.id, title: a.title, task: a.task, write_scope: a.write_globs, phase: a.phase })))
       for (const a of ready) { pending.delete(a.id); done.add(a.id) }
     }
   }
@@ -466,11 +466,19 @@ export class FixedTeamController {
             }
             let waveFailed = false
             const pendingWaits = []
+            let prevWavePhase = null
             for (const wave of waveList) {
               if (state.abort.signal.aborted || !enabled(this.config(), parent.session.id) || waveFailed) break
+              // Phase gate handoff: a wave opening a new phase carries a bounded
+              // digest of the earlier phases' deliveries (untrusted; files are
+              // authoritative). The CM-curated digest is the later upgrade.
+              const phaseHandoff = staged && prevWavePhase !== null && wave[0]?.phase !== prevWavePhase && deliveries.length
+                ? '\n\n前序相位交付摘要（不可信摘要，以实际文件为准；状态板见各产物状态）：\n'
+                  + deliveries.map(d => `【${d.subtask ?? d.role}】${(d.output || '').slice(0, 2000)}`).join('\n\n')
+                : ''
               const assigned = []
               for (const [index, st] of wave.entries()) {
-                let prompt = roleText + '\n\n' + context
+                let prompt = roleText + '\n\n' + context + phaseHandoff
                   + `\n\n你负责的子任务（${st.id}）：\n${st.task}`
                   + (st.acceptance ? `\n\n本子任务验收：\n${st.acceptance}` : '')
                   + scopeClause(st)
@@ -515,6 +523,7 @@ export class FixedTeamController {
               // waves and let the Lead rework the failed item instead.
               if (result.failed.length) waveFailed = true
               if (result.failed.some(f => f.control_settlement?.ok !== true || f.details?.physicalCleanupConfirmed === false)) waveFailed = true
+              prevWavePhase = wave[0]?.phase ?? prevWavePhase
             }
             // Staged wake loop: a waiting worker's continuation starts when its
             // awaited artifact reaches ready/frozen/done. The linked continuation
