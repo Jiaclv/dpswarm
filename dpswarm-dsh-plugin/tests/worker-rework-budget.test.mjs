@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { WorkerBudgetRuntime } from '../lib/budget-runtime.js'
+import { CLOSEOUT_INSTRUCTION } from '../lib/worker-closeout.js'
 import { MemoryAuditJournal } from './helpers/memory-audit.mjs'
 
 const message = text => ({ role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text }] })
@@ -214,4 +215,62 @@ test('native max-tokens is a terminal source while unknown terminal reasons stil
   const allocation = (await h.journal.read(h.root.id)).events.find(e => e.data.allocation_id === grant.allocation_id).data
   assert.equal(allocation.source_terminal.kind, 'max-tokens')
   assert.equal(allocation.source_consumption.committed_tokens, 120)
+})
+
+test('fixed rework mode issues an independently limited grant and enforces it like any limited worker', async () => {
+  const h = fixture({ reworkBudgetMode: 'fixed', reworkTokenLimit: 100000, reworkCallLimit: 2 })
+  const r = h.runtime(), old = await h.original(r)
+  await r.settle(await r.admit(old.state, request), { inputTokens: 150, outputTokens: 50 }, 'stop')
+  h.end(old.session)
+  const grant = await r.issueRework(h.lead, { workerSessionId: old.session.id, task: 'Repair the saved geometry.' })
+  assert.deepEqual(grant.profile, { mode: 'fixed', tokenLimit: 100000, callLimit: 2 })
+  const next = h.child('fixed-repair', grant.prompt), state = await r.ensure({ session: next }, signal())
+  assert.deepEqual(state.profile, grant.profile)
+  assert.equal(state.policyBinding.authority, 'fixed-team-rework')
+  assert.equal(r.describe(state).remaining_tokens, 100000)
+  assert.equal(r.describe(state).remaining_calls, 2)
+  const issued = (await h.journal.read(h.root.id)).events.find(e => e.data.allocation_id === grant.allocation_id).data
+  assert.equal(issued.budget_origin, 'fixed_rework')
+  assert.equal(issued.decided_by, 'user_settings_at_rework')
+  // The initial worker grant stays intact and separately accounted.
+  assert.equal(old.state.profile.tokenLimit, 1000)
+  await r.settle(await r.admit(state, request), { inputTokens: 40000, outputTokens: 10000 }, 'stop')
+  // Limited path applies: final-only closeout and the hard admission floor.
+  await r.prepareCloseout(state, { inputEstimate: 30000, finalInputEstimate: 30000 }, signal())
+  assert.equal(state.closeout.mode, 'final_only')
+  await r.settle(await r.admit(state, { ...request, system: CLOSEOUT_INSTRUCTION, tools: [], maxTokens: 100 }), { inputTokens: 20000, outputTokens: 5000 }, 'stop')
+  // Closeout admission rules fire before the plain call ceiling for the final grant.
+  await assert.rejects(r.admit(state, request), { code: 'WORKER_CLOSEOUT_ALREADY_SENT' })
+})
+
+test('fixed rework rejects oversize reservations and its lineage chains and restores correctly', async () => {
+  const h = fixture({ reworkBudgetMode: 'fixed', reworkTokenLimit: 1000, reworkCallLimit: 5 })
+  const r = h.runtime(), old = await h.original(r); h.end(old.session)
+  const first = await r.issueRework(h.lead, { workerSessionId: old.session.id, task: 'First repair.' })
+  const next = h.child('fixed-first', first.prompt), state = await r.ensure({ session: next }, signal())
+  await r.settle(await r.admit(state, request), { inputTokens: 700, outputTokens: 200 }, 'stop')
+  await assert.rejects(r.admit(state, { ...request, maxTokens: 200 }), { code: 'WORKER_TOKEN_RESERVATION_DENIED' })
+  h.end(next)
+  // Cold restore of a fixed rework worker keeps the limited profile.
+  const cold = h.runtime(), restored = await cold.ensure({ session: next }, signal())
+  assert.deepEqual(restored.profile, { mode: 'fixed', tokenLimit: 1000, callLimit: 5 })
+  assert.equal(cold.describe(restored).remaining_tokens, 100)
+  // Chained rework of the fixed rework worker is itself fixed and validates lineage.
+  const second = await cold.issueRework(h.lead, { workerSessionId: next.id, task: 'Second repair.' })
+  assert.deepEqual(second.profile, { mode: 'fixed', tokenLimit: 1000, callLimit: 5 })
+  const last = h.child('fixed-second', second.prompt), lastState = await cold.ensure({ session: last }, signal())
+  assert.equal(lastState.policyBinding.authority, 'fixed-team-rework')
+  assert.equal(lastState.policyBinding.source_worker_session_id, next.id)
+})
+
+test('fixed rework mode requires valid positive limits and ignores broken initial-worker settings', async () => {
+  const h = fixture({ reworkBudgetMode: 'fixed', reworkTokenLimit: 0, reworkCallLimit: 28 })
+  const r = h.runtime(), old = await h.original(r); h.end(old.session)
+  await assert.rejects(r.issueRework(h.lead, { workerSessionId: old.session.id, task: 'Repair.' }), { code: 'REWORK_BUDGET_LIMIT_INVALID' })
+  h.cfg.reworkBudgetMode = 'nonsense'; h.cfg.reworkTokenLimit = 1000
+  await assert.rejects(r.issueRework(h.lead, { workerSessionId: old.session.id, task: 'Repair.' }), { code: 'REWORK_BUDGET_MODE_INVALID' })
+  // The rework settings are self-contained: broken initial-worker values never leak in.
+  h.cfg.reworkBudgetMode = 'fixed'; h.cfg.workerBudgetMode = 'invalid-new-setting'; h.cfg.workerTokenLimit = -1; h.cfg.workerCallLimit = -1
+  const grant = await r.issueRework(h.lead, { workerSessionId: old.session.id, task: 'Repair.' })
+  assert.deepEqual(grant.profile, { mode: 'fixed', tokenLimit: 1000, callLimit: 28 })
 })

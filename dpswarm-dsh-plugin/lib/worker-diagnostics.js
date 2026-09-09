@@ -195,7 +195,7 @@ export function compactWorkerEntry(value) {
   if (typeof value.output === 'string') {
     result.output = excerpt(value.output, 600); result.output_original_chars = value.output.length
     result.output_truncated = value.output.length > 600
-    result.detail_source = 'authenticated /api/plugin-audit dpswarm/worker-diagnostic; inspect original task and files before deciding'
+    result.detail_source = 'Full report: dpswarm_report(item_id, offset, limit) pages the unabridged text; authenticated /api/plugin-audit remains the audit of record. Inspect original task and files before deciding'
     // Avoid emitting the exact same report twice in a single role entry.
     if (result.diagnostic?.closeout) delete result.diagnostic.closeout.report
   }
@@ -209,5 +209,5 @@ export function compactDiagnosticRecords(records) {
   return records.slice(-6).map(row => ({ item_id: row.item_id, role: row.role,
     worker_session_id: row.worker_session_id || row.execution_session_id,
     diagnostic: compactWorkerDiagnostic(row.diagnostic),
-    detail_source: 'authenticated /api/plugin-audit dpswarm/worker-diagnostic' }))
+    detail_source: 'dpswarm_report(item_id) pages the full report; authenticated /api/plugin-audit keeps the complete record' }))
 }

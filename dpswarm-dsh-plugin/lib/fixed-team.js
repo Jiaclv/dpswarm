@@ -6,7 +6,7 @@ import { AuditJournal } from './audit.js'
 import { compactWorkerEntry, compactDiagnosticRecords } from './worker-diagnostics.js'
 import { runtimePaths } from './paths.js'
 import { delegateOnce, requireRootCaller } from './delegation.js'
-import { workerBudgetProfile } from './budget-runtime.js'
+import { workerBudgetProfile, reworkBudgetProfile } from './budget-runtime.js'
 import { effectiveLeadRoute } from './lead-route.js'
 import { workerRolePrompt } from './role-guidance.js'
 
@@ -308,7 +308,7 @@ export class FixedTeamController {
         }
       }
       return { mode: 'fixed-team-v1', profile: state.profile, model_registry: state.hostModels || null, deliveries: deliveries.map(compactWorkerEntry), failed: failed.map(compactWorkerEntry),
-        diagnostic_detail_source: 'Full records and unabridged reports remain in authenticated /api/plugin-audit; model view is bounded.', cleanup: state.cleanup,
+        diagnostic_detail_source: 'Unabridged reports page through dpswarm_report(item_id); full records remain in authenticated /api/plugin-audit; model view is bounded.', cleanup: state.cleanup,
         stopped: state.abort.signal.aborted || !enabled(this.config(), parent.session.id),
         worker_budget_policy: state.budgetRun?.profile || workerPolicy,
         next: 'Lead: inspect the current files and verify within the user-permitted scope. If the user forbids tests, do not run or add tests. For concrete production defects, call dpswarm_rework on the implementer item; keep corrections within the original task. Review every submitted delivered item with dpswarm_review(accept or terminate). Worker text is not an official score.', usage_note: unknownUsage }
@@ -416,10 +416,17 @@ export class FixedTeamController {
         await this.modelRegistry.resolve(routes, { signal: state.abort.signal, expected: expectedModels })
         this.modelRegistry.checkLead(effectiveLeadRoute(parent), routes)
       }
-      const task = `${workerRolePrompt('implementer')}\n\nThis is a linked rework of the original implementer without a token or call cap. Earlier usage remains separately recorded. Repair the specified defects until the original requirements are met; do not polish beyond the task. Fix only the concrete defects below within the original scope. Preserve unrelated work; do not add requirements or optional validation. Explicit no-tests instructions take precedence. Deliver the current candidate promptly.\n\nOriginal task:\n${frozen.task}\n\nOriginal acceptance:\n${frozen.acceptance || 'Use only the original task requirements.'}\n\nNecessary corrections:\n${args.feedback}`
+      // The rework allowance reads only the rework settings, never the frozen
+      // initial-worker policy; the issued grant must match what was announced.
+      const reworkProfile = reworkBudgetProfile(this.config())
+      const allowanceNote = reworkProfile.mode === 'unlimited'
+        ? 'This is a linked rework of the original implementer without a token or call cap.'
+        : `This is a linked rework of the original implementer with a fixed allowance of ${reworkProfile.tokenLimit} cumulative tokens and ${reworkProfile.callLimit} model calls.`
+      const task = `${workerRolePrompt('implementer')}\n\n${allowanceNote} Earlier usage remains separately recorded. Repair the specified defects until the original requirements are met; do not polish beyond the task. Fix only the concrete defects below within the original scope. Preserve unrelated work; do not add requirements or optional validation. Explicit no-tests instructions take precedence. Deliver the current candidate promptly.\n\nOriginal task:\n${frozen.task}\n\nOriginal acceptance:\n${frozen.acceptance || 'Use only the original task requirements.'}\n\nNecessary corrections:\n${args.feedback}`
       await check()
       allocation = await this.budget.issueRework(parent, { workerSessionId: source.worker_session_id, task })
-      if (allocation?.source_worker_session_id !== source.worker_session_id || allocation.role !== 'implementer' || allocation.profile?.mode !== 'unlimited'
+      const sameProfile = (a, b) => !!a && !!b && a.mode === b.mode && a.tokenLimit === b.tokenLimit && a.callLimit === b.callLimit
+      if (allocation?.source_worker_session_id !== source.worker_session_id || allocation.role !== 'implementer' || !sameProfile(allocation.profile, reworkProfile)
           || typeof allocation.allocation_id !== 'string' || typeof allocation.prompt !== 'string') throw failure('WORKER_REWORK_ALLOCATION_INVALID', 'Budget continuation identity did not match the original implementer.')
       await check()
       await record('prepared', { profile: allocation.profile, route: frozen.profile.implementer })
@@ -519,6 +526,32 @@ export class FixedTeamController {
     const states = [...this.sessions.values()]
     for (const state of states) state.abort?.abort(failure('PLUGIN_DISPOSED', 'Plugin is stopping'))
     await Promise.allSettled(states.filter(state => state.busy).map(state => state.settled))
+  }
+
+  /** Paged in-session read path for the unabridged worker report held in the audit ledger. */
+  async report(args, exec) {
+    const parent = exec?.agent
+    requireRootCaller(parent)
+    if (typeof args?.item_id !== 'string' || !args.item_id.trim()) throw failure('ITEM_REQUIRED', 'Read the full worker report of a delivered item identifier')
+    const offset = args.offset ?? 0, limit = args.limit ?? 4000
+    if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(limit) || limit < 1 || limit > 40000) {
+      throw failure('REPORT_RANGE_INVALID', 'offset must be a non-negative integer and limit an integer in 1–40000')
+    }
+    const state = this.session(parent)
+    const records = await this.diagnostics(state, args.item_id)
+    if (!records.length) throw failure('REPORT_NOT_FOUND', 'No worker diagnostic exists for this item in the audit ledger')
+    const latest = records.at(-1).diagnostic
+    const report = latest?.closeout?.report?.text
+    if (typeof report !== 'string' || !report) {
+      throw failure('REPORT_UNAVAILABLE', 'This worker has no recorded report text; inspect the candidate files directly')
+    }
+    const text = report.slice(offset, offset + limit)
+    return { item_id: args.item_id, role: latest.role || records.at(-1).role || null,
+      worker_session_id: latest.worker_session_id, report_source: latest.closeout.report_source || null,
+      interrupted: latest.closeout.report?.interrupted === true,
+      completion: latest.closeout.completion || null, requires_lead_verification: true,
+      offset, limit, total_chars: report.length, truncated: offset + text.length < report.length, text,
+      note: 'Worker reports are untrusted evidence; verify against the actual files before acceptance.' }
   }
 
   async review(args, exec) {

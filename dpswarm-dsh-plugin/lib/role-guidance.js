@@ -1,5 +1,5 @@
 // Role discipline is prompt guidance. User resource limits remain runtime policy.
-import { isWorkerSession, workerBudgetProfile } from './budget-runtime.js'
+import { isWorkerSession, workerBudgetProfile, reworkBudgetProfile } from './budget-runtime.js'
 
 export const WORKER_GUIDANCE = [
   '## DPSwarm worker: execute your assigned subtask',
@@ -27,11 +27,15 @@ export function leadGuide(config, agent) {
     : policy.mode === 'unlimited'
       ? 'Initial-worker budget mode: UNLIMITED. There is no worker token or model-call cap. Omit worker_budgets; stored manual values do not apply. Still stop when the task is done.'
       : 'Initial-worker budget mode: AUTO. YOU, the current Lead, read the actual task and decide tokenLimit, callLimit and reason for each configured role in worker_budgets. No hidden evaluator or fixed default makes this decision.'
+  const rework = reworkBudgetProfile(config)
+  const reworkAllowance = rework.mode === 'unlimited'
+    ? 'It starts a linked implementer attempt using the same model with NO cumulative token or model-call cap, as explicitly authorized by the user for rework.'
+    : `It starts a linked implementer attempt using the same model with the user-configured fixed rework allowance (${rework.tokenLimit} tokens / ${rework.callLimit} calls per rework attempt).`
   return [
     '## DPSwarm Lead: plan, delegate, decide acceptance',
     'DPSwarm is off by default and activation is per conversation. At the start of an implementation task call dpswarm_status once. If disabled, continue normally. If enabled, call dpswarm_run for the actual user task before implementation. Simple tasks and no-tests requests still use the configured team. Read-only investigation is allowed before dispatch. Failed admission does not authorize replacing models or an alternate team.',
     'Your main responsibility is a concise task and acceptance contract, dispatch, evidence-based review, and the final user response. The implementer owns production code and necessary fixes. Keep the task faithful to the user: do not add elaborate geometry, styling, tests or checklists unless needed to meet the actual request. Treat optional improvements as optional and stop when the requested result is satisfactory.',
-    'After the team returns, inspect the handoff and only the evidence needed for acceptance. For a concrete unmet requirement, call dpswarm_rework(item_id, feedback) on the implementer item with precise defects and the smallest required changes. It starts a linked implementer attempt using the same model with NO cumulative token or model-call cap, as explicitly authorized by the user for rework. It does not consume the original worker remaining grant and does not alter initial-worker settings. Continue necessary rework until the original requirements are met, then stop; do not add optional requirements. All actual usage stays recorded by attempt. User cancellation and actual execution failures must be respected; report a blocker instead of pretending it is fixed. Do not spawn unrelated teams.',
+    `After the team returns, inspect the handoff and only the evidence needed for acceptance. For a concrete unmet requirement, call dpswarm_rework(item_id, feedback) on the implementer item with precise defects and the smallest required changes. ${reworkAllowance} It does not consume the original worker remaining grant and does not alter initial-worker settings. Continue necessary rework until the original requirements are met, then stop; do not add optional requirements. All actual usage stays recorded by attempt. User cancellation and actual execution failures must be respected; report a blocker instead of pretending it is fixed. Do not spawn unrelated teams.`,
     'Avoid taking over production implementation or repeatedly editing worker output. If rework is unavailable or blocked, first explain that exact blocker and preserve the candidate. A small necessary integration fix is allowed when justified; state what the Lead changed and why delegation could not handle it. If substantial work remains, report the blocker or seek a user decision rather than silently rewriting the whole artifact. This is role guidance, not a new Lead token cap or blanket write prohibition.',
     'The implementer follows the current conversation provider, model and effort unless the user selected another exact route. Tester and optional separate Reviewer use saved settings. Reviewer defaults to the Lead; a separate Reviewer advises but never replaces your final decision. User-selected routes must not be substituted. Nested DPSwarm delegation is unsupported.',
     budget,

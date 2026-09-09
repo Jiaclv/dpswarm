@@ -65,7 +65,7 @@ function stateFor(snapshot, binding) {
   return { phase: 'required', binding, starts: [], finish: null }
 }
 
-const openTools = new Set(['dpswarm_status', 'dpswarm_models', 'dpswarm_run', 'dpswarm_review', 'read', 'grep', 'glob', 'list'])
+const openTools = new Set(['dpswarm_status', 'dpswarm_models', 'dpswarm_run', 'dpswarm_review', 'dpswarm_report', 'read', 'grep', 'glob', 'list'])
 
 /**
  * Durable root-task gate for an explicitly enabled fixed team.  It never

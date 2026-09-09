@@ -79,10 +79,10 @@ function fixedSource(events, workerId, seen = new Set()) {
     if (binding.source_worker_session_id !== a.source_worker_session_id
       || events.some(e => e.type === eventName('rework-revoked') && e.data?.allocation_id === a.allocation_id)) throw budgetError('REWORK_SOURCE_INVALID')
     const source = fixedSource(events, a.source_worker_session_id, seen)
-    const expected = { mode: 'unlimited' }
+    const attribution = validReworkProfile(a.profile) ? reworkAttribution(a.profile) : null
     if (a.source_allocation_id !== source.allocation.allocation_id || a.run_id !== source.allocation.run_id
-      || a.label !== source.allocation.label || !same(a.profile, expected)
-      || a.budget_origin !== 'unlimited_rework' || a.decided_by !== 'user_authorized_unlimited_rework') throw budgetError('REWORK_SOURCE_INVALID')
+      || a.label !== source.allocation.label || !attribution
+      || a.budget_origin !== attribution.budget_origin || a.decided_by !== attribution.decided_by) throw budgetError('REWORK_SOURCE_INVALID')
   }
   return { profile: data.profile, binding, allocation: a }
 }
@@ -109,6 +109,22 @@ export function workerBudgetProfile(config, rootId) {
   if (!positive(tokenLimit) || !positive(callLimit)) throw budgetError('WORKER_BUDGET_LIMIT_INVALID')
   return { mode, tokenLimit, callLimit }
 }
+export function reworkBudgetProfile(config) {
+  const mode = config.reworkBudgetMode ?? 'unlimited'
+  if (!['unlimited', 'fixed'].includes(mode)) throw budgetError('REWORK_BUDGET_MODE_INVALID')
+  if (mode === 'unlimited') return { mode }
+  const tokenLimit = config.reworkTokenLimit, callLimit = config.reworkCallLimit
+  if (!positive(tokenLimit) || !positive(callLimit)) throw budgetError('REWORK_BUDGET_LIMIT_INVALID')
+  return { mode, tokenLimit, callLimit }
+}
+// Rework lineage accepts exactly the two shapes reworkBudgetProfile can issue;
+// the allocation/frozen equality above already ties values to the frozen record.
+const validReworkProfile = profile => same(profile, { mode: 'unlimited' })
+  || (profile?.mode === 'fixed' && positive(profile.tokenLimit) && positive(profile.callLimit)
+    && same(profile, { mode: 'fixed', tokenLimit: profile.tokenLimit, callLimit: profile.callLimit }))
+const reworkAttribution = profile => profile.mode === 'unlimited'
+  ? { budget_origin: 'unlimited_rework', decided_by: 'user_authorized_unlimited_rework' }
+  : { budget_origin: 'fixed_rework', decided_by: 'user_settings_at_rework' }
 export function budgetUsage(raw) {
   const usage = raw && typeof raw === 'object' ? Object.fromEntries(['inputTokens', 'outputTokens', 'cacheReadTokens', 'cacheWriteTokens', 'reasoningTokens'].filter(k => Number.isSafeInteger(raw[k]) && raw[k] >= 0).map(k => [k, raw[k]])) : null
   const complete = !!usage && 'inputTokens' in usage && 'outputTokens' in usage && Object.values(raw).every(n => Number.isSafeInteger(n) && n >= 0)
@@ -224,7 +240,9 @@ export class WorkerBudgetRuntime {
     if (Object.keys(request).some(key => !['workerSessionId', 'task'].includes(key))) throw budgetError('REWORK_BUDGET_OVERRIDES_NOT_ALLOWED')
     const { workerSessionId, task } = request
     if (typeof workerSessionId !== 'string' || !workerSessionId || typeof task !== 'string' || !task.trim()) throw budgetError('REWORK_REQUEST_INVALID')
-    const profile = { mode: 'unlimited' }
+    // The rework allowance reads only its own rework settings; the initial
+    // worker policy (including stale or invalid values) never leaks in.
+    const profile = reworkBudgetProfile(this.config())
     this.reworkSourceSession(root, workerSessionId)
     const allocation_id = randomUUID(), prompt = `${reworkMarker(allocation_id)}\n${task}`
     const tx = await this.journal.transaction(root.id, snapshot => {
@@ -236,13 +254,15 @@ export class WorkerBudgetRuntime {
       const data = { version: 3, root_session_id: root.id, owner_session_id: root.id,
         authority: 'fixed-team-rework', allocation_id, run_id: source.allocation.run_id,
         source_worker_session_id: workerSessionId, source_allocation_id: source.allocation.allocation_id,
-        budget_origin: 'unlimited_rework',
+        ...reworkAttribution(profile),
         source_profile: source.profile, source_consumption: totals, source_accounting_sha256: accountingHash(calls),
         source_terminal: { seq: terminal.seq ?? null, at: terminal.time ?? null, kind: terminal.data.reason.kind },
         task, task_sha256: hash(task), prompt_sha256: hash(prompt), prompt, label: source.allocation.label,
         profile, ...(profile.mode === 'unlimited' ? {} : { tokenLimit: profile.tokenLimit, callLimit: profile.callLimit }),
-        reason: 'The user explicitly authorized unlimited rework; initial worker limits and all prior usage remain unchanged.',
-        decided_at: Date.now(), decided_by: 'user_authorized_unlimited_rework' }
+        reason: profile.mode === 'unlimited'
+          ? 'The user explicitly authorized unlimited rework; initial worker limits and all prior usage remain unchanged.'
+          : 'Rework uses the user-configured fixed allowance; initial worker limits and all prior usage remain unchanged.',
+        decided_at: Date.now() }
       return { events: [{ type: eventName('allocation'), data }], result: {
         allocation_id, prompt, profile, role: data.label, source_worker_session_id: workerSessionId } }
     })
@@ -287,10 +307,10 @@ export class WorkerBudgetRuntime {
       this.reworkSourceSession(root, a.source_worker_session_id)
       const source = fixedSource(events, a.source_worker_session_id)
       settledCalls(events, a.source_worker_session_id)
-      const expected = { mode: 'unlimited' }
+      const attribution = validReworkProfile(a.profile) ? reworkAttribution(a.profile) : null
       if (a.source_allocation_id !== source.allocation.allocation_id || a.run_id !== source.allocation.run_id
-        || a.label !== source.allocation.label || !same(a.profile, expected)
-        || a.budget_origin !== 'unlimited_rework' || a.decided_by !== 'user_authorized_unlimited_rework') throw budgetError('REWORK_SOURCE_INVALID')
+        || a.label !== source.allocation.label || !attribution
+        || a.budget_origin !== attribution.budget_origin || a.decided_by !== attribution.decided_by) throw budgetError('REWORK_SOURCE_INVALID')
       const bound = events.filter(e => e.type === eventName('allocation-bound') && e.data?.allocation_id === allocationId)
       if (bound.length > 1 || bound.some(e => e.data.worker_session_id !== session.id)) throw decisionRequired()
       return { events: bound.length ? [] : [{ type: eventName('allocation-bound'), data: {

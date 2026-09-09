@@ -1,6 +1,7 @@
 import { WorkerBudgetRuntime, budgetError, estimateRequestTokens, isWorkerSession } from './budget-runtime.js'
 import { CLOSEOUT_INSTRUCTION } from './worker-closeout.js'
 import { AuditJournal } from './audit.js'
+import { resolveChildRoute } from './lead-route.js'
 import { resolveHostRoot, hostModuleUrl } from './host-modules.js'
 
 const host = resolveHostRoot()
@@ -43,6 +44,24 @@ export function installBudget(ctx, configGetter, { journal = new AuditJournal({ 
     }
     return assembly
   }, { prepend: true, global: true }))
+  const meteredInput = async (agent, { system, tools, pending, signal }) => {
+    const meter = get('tokenMeter')
+    if (typeof meter?.measure !== 'function') return null
+    // The meter prices the retained surface and header with the real tokenizer;
+    // chars/3 skews 2-3x on CJK and ~1.3x on ASCII (911 tester closeout). A
+    // measurement failure must never break a worker over an advisory estimate.
+    try {
+      const frozen = await resolveChildRoute(agent, { journal, signal }).catch(() => null)
+      const config = frozen || agent.session.requestHeader?.()?.config
+        || { provider: agent.options?.provider, model: agent.options?.model }
+      if (!['provider', 'model'].every(key => typeof config?.[key] === 'string' && config[key].trim())) return null
+      const measured = meter.measure(agent.session, canonicalHeader({ config, system, tools }))?.totalTokens
+      if (!Number.isSafeInteger(measured) || measured < 0) return null
+      const pendingTokens = (pending || []).reduce((total, message) =>
+        total + (meter.estimateMessage?.(message) ?? estimateRequestTokens({ messages: [message] }).input), 0)
+      return measured + pendingTokens
+    } catch { return null }
+  }
   const prepareStep = async (agent, { messages = [], signal } = {}) => {
     const state = await ensure(agent, signal, messages)
     if (!limited(state)) return state
@@ -66,9 +85,14 @@ export function installBudget(ctx, configGetter, { journal = new AuditJournal({ 
       const pendingContext = context && !alreadyRetained && !alreadyPending ? [{ role: 'user', content: [{ type: 'text', text: context }] }] : []
       const history = [...visible, ...incoming, ...pendingContext]
       const system = renderPrompt(assembly), tools = assembly.tools || []
-      const input = estimateRequestTokens({ messages: history, system, tools }).input
-      const finalInput = estimateRequestTokens({ messages: history,
-        system: state.closeout ? system : `${system}\n\n${CLOSEOUT_INSTRUCTION}`, tools: [] }).input
+      const pending = [...incoming, ...pendingContext]
+      // Same basis as agent/request below: prefer the native meter, keep the
+      // chars/3 serialization as a floor and as the no-meter fallback.
+      const metered = await meteredInput(agent, { system, tools, pending, signal })
+      const input = Math.max(metered ?? 0, estimateRequestTokens({ messages: history, system, tools }).input)
+      const finalSystem = state.closeout ? system : `${system}\n\n${CLOSEOUT_INSTRUCTION}`
+      const meteredFinal = await meteredInput(agent, { system: finalSystem, tools: [], pending, signal })
+      const finalInput = Math.max(meteredFinal ?? 0, estimateRequestTokens({ messages: history, system: finalSystem, tools: [] }).input)
       await runtime.prepareCloseout(state, { inputEstimate: input, finalInputEstimate: finalInput }, signal)
       applyCloseout(state, assembly)
       return state

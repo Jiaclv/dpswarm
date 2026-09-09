@@ -52,7 +52,8 @@ function fixture() {
       await h.onIssue?.()
       if ([...allocations.values()].some(a => a.source === args.workerSessionId && !a.revoked)) throw coded('REWORK_SOURCE_SUPERSEDED')
       const id = `alloc-${allocations.size}`; allocations.set(id, { source: args.workerSessionId, bound: false, revoked: false })
-      return { allocation_id: id, prompt: `ALLOCATION:${id}\n${args.task}`, role: 'implementer', profile: { mode: 'unlimited' }, source_worker_session_id: args.workerSessionId }
+      const profile = cfg.reworkBudgetMode === 'fixed' ? { mode: 'fixed', tokenLimit: cfg.reworkTokenLimit, callLimit: cfg.reworkCallLimit } : { mode: 'unlimited' }
+      return { allocation_id: id, prompt: `ALLOCATION:${id}\n${args.task}`, role: 'implementer', profile, source_worker_session_id: args.workerSessionId }
     },
     async revokeRework(_parent, id) { if (h.revokeError) throw coded('REWORK_REVOKE_FAILED'); const a = allocations.get(id); if (a && !a.bound) a.revoked = true },
   }
@@ -327,4 +328,26 @@ test('task changes during final internal model preflight prevent child start and
   assert.equal([...h.allocations.values()][0].revoked, true)
   assert.equal(h.controller.sessions.get('root').implementers.get(source.item_id).superseded, false)
   assert.equal((await h.requirement.beforeRun(h.parent)).phase, 'required')
+})
+
+test('fixed rework mode announces the configured allowance in the linked prompt and matches the issued grant', async () => {
+  const h = fixture()
+  h.cfg.reworkBudgetMode = 'fixed'; h.cfg.reworkTokenLimit = 300000; h.cfg.reworkCallLimit = 10
+  const initial = await h.run(), old = initial.deliveries.find(d => d.role === 'implementer')
+  const reworked = await h.rework(old.item_id)
+  assert.deepEqual(reworked.worker_budget_policy, { mode: 'fixed', tokenLimit: 300000, callLimit: 10 })
+  assert.match(h.children[2].request.prompt[0].text, /fixed allowance of 300000 cumulative tokens and 10 model calls/)
+  assert.doesNotMatch(h.children[2].request.prompt[0].text, /without a token or call cap/)
+  assert.equal(h.items[old.item_id].acceptance, 'terminated')
+})
+
+test('a grant profile differing from the announced rework allowance is rejected before child start', async () => {
+  const h = fixture()
+  h.cfg.reworkBudgetMode = 'fixed'; h.cfg.reworkTokenLimit = 300000; h.cfg.reworkCallLimit = 10
+  const initial = await h.run(), old = initial.deliveries.find(d => d.role === 'implementer')
+  h.cfg.reworkTokenLimit = 99999 // settings drift between prompt build and issuance
+  const originalIssue = h.budget.issueRework.bind(h.budget)
+  h.budget.issueRework = async (parent, args) => ({ ...await originalIssue(parent, args), profile: { mode: 'unlimited' } })
+  await assert.rejects(h.rework(old.item_id), /WORKER_REWORK_ALLOCATION_INVALID/)
+  assert.equal(h.items[old.item_id].acceptance, 'submitted', 'source item is not terminated when the grant mismatches')
 })

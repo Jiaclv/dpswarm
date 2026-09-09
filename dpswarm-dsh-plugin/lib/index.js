@@ -32,6 +32,7 @@ export const defaults = Object.freeze({ sidecarUrl: 'http://127.0.0.1:8791', aut
   testProvider: '', testModel: 'glm-5.3-flash', testEffort: '',
   reviewerMode: 'lead', reviewerProvider: '', reviewerModel: '', reviewerEffort: '',
   workerBudgetMode: 'unlimited', workerTokenLimit: 600000, workerCallLimit: 28, workerBudgetSessionOverrides: [],
+  reworkBudgetMode: 'unlimited', reworkTokenLimit: 600000, reworkCallLimit: 28,
   workerTimeoutSeconds: 600, cmEnabledSessions: [], cmProvider: 'deepseek', cmModel: 'deepseek-v4-flash', cmEffort: 'off' })
 
 function configSchema(base) {
@@ -47,6 +48,9 @@ function configSchema(base) {
     workerBudgetMode: z.union(['unlimited', 'manual', 'auto']).default(base.workerBudgetMode),
     workerTokenLimit: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(base.workerTokenLimit),
     workerCallLimit: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(base.workerCallLimit),
+    reworkBudgetMode: z.union(['unlimited', 'fixed']).default(base.reworkBudgetMode),
+    reworkTokenLimit: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(base.reworkTokenLimit),
+    reworkCallLimit: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(base.reworkCallLimit),
     workerBudgetSessionOverrides: z.array(z.object({
       sessionId: z.string().required(), mode: z.union(['unlimited', 'manual', 'auto']).required(),
       tokenLimit: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER),
@@ -117,12 +121,15 @@ export function apply(ctx, config) {
     runtime.tools.register(defineTool({ name: 'dpswarm_prepare_worker', description: 'Auto mode only: record the current Lead decision for one native child worker. First read the task and choose its independent limits yourself; pass the returned prompt unchanged to a native subagent. This does not start a child, call a model, or change user settings.',
       parameters: { task: { type: 'string', required: true }, tokenLimit: { type: 'integer', required: true }, callLimit: { type: 'integer', required: true }, reason: { type: 'string', required: true }, label: { type: 'string' } }, output,
       execute: (args, exec) => budget.plan(exec.agent, args) }))
-    runtime.tools.register(defineTool({ name: 'dpswarm_rework', description: 'Return concrete necessary corrections to the current task fixed implementer, using its original model with no cumulative token or model-call cap for rework, as the user authorized. Initial worker limits remain unchanged and all actual usage stays recorded. Only the latest eligible implementer item can be reworked; failure or a missing delivery package is not acceptance.',
-      parameters: { item_id: { type: 'string', required: true }, feedback: { type: 'string', required: true, description: 'Specific unmet original requirements, evidence and necessary fixes; preserve no-tests constraints. Rework has no token/call cap; omit any budget parameters.' } }, output,
+    runtime.tools.register(defineTool({ name: 'dpswarm_rework', description: 'Return concrete necessary corrections to the current task fixed implementer, using its original model. The rework allowance comes from the rework budget settings (unlimited by default) and never touches initial worker limits; all actual usage stays recorded. Only the latest eligible implementer item can be reworked; failure or a missing delivery package is not acceptance.',
+      parameters: { item_id: { type: 'string', required: true }, feedback: { type: 'string', required: true, description: 'Specific unmet original requirements, evidence and necessary fixes; preserve no-tests constraints. Rework limits come from the rework settings; omit any budget parameters.' } }, output,
       execute: async (args, exec) => toolJSON(await dispatcher.rework(args, exec)) }))
-    runtime.tools.register(defineTool({ name: 'dpswarm_review', description: 'Lead accepts or terminates an existing delivery after inspecting actual files and verification evidence. Still available after the collaboration switch is closed. Use dpswarm_rework for required implementer corrections before accepting; it preserves the route and has no cumulative token/call cap; actual usage is still recorded.',
+    runtime.tools.register(defineTool({ name: 'dpswarm_review', description: 'Lead accepts or terminates an existing delivery after inspecting actual files and verification evidence. Still available after the collaboration switch is closed. Use dpswarm_rework for required implementer corrections before accepting; it preserves the route and uses the rework budget settings; actual usage is still recorded.',
       parameters: { item_id: { type: 'string', required: true }, verdict: { type: 'string', required: true, description: 'accept | terminate' }, reason: { type: 'string', description: 'What was verified, repaired, or why Lead took over' } }, output,
       execute: async (args, exec) => toolJSON(await dispatcher.review(args, exec)) }))
+    runtime.tools.register(defineTool({ name: 'dpswarm_report', description: 'Read the unabridged worker report for a delivered item from the audit ledger, paged by character range. Run/rework views show only a bounded excerpt; this is the in-session read path for the complete text. Read-only and never changes state.',
+      parameters: { item_id: { type: 'string', required: true }, offset: { type: 'integer', description: 'Character offset, default 0' }, limit: { type: 'integer', description: 'Characters to return, default 4000, max 40000' } }, output,
+      execute: async (args, exec) => toolJSON(await controller.report(args, exec)) }))
     ctx.effect(warm, 'dpswarm: enabled-session startup')
     ctx.effect(() => () => controller.shutdown(), 'dpswarm: cancel on disposal')
   })

@@ -593,6 +593,50 @@ window.__ModuleLoader__.load({
         error ? h('p', { className: 'dps-error', role: 'alert' }, error) : null)
     }
 
+    const REWORK_MODES = [
+      ['unlimited', '不做限制', '返工不设累计 token／调用上限（默认）'],
+      ['fixed', '固定限额', '每次返工各自独立使用'],
+    ]
+    const reworkMode = value => ['unlimited', 'fixed'].includes(value) ? value : 'unlimited'
+
+    function ReworkBudgetSettings() {
+      const snapshot = useSettings(), cfg = snapshot.value || {}, id = useId()
+      const saved = { mode: reworkMode(cfg.reworkBudgetMode), totalTokens: String(cfg.reworkTokenLimit ?? 600000), maxCalls: String(cfg.reworkCallLimit ?? 28) }
+      const savedKey = JSON.stringify(saved)
+      const [draft, setDraft] = useState(saved), [pending, setPending] = useState(false), [message, setMessage] = useState(''), [error, setError] = useState(''), [validated, setValidated] = useState(false)
+      useEffect(() => { setDraft(JSON.parse(savedKey)); setValidated(false) }, [savedKey])
+      const fixed = draft.mode === 'fixed'
+      const dirty = draft.mode !== saved.mode || (fixed && (draft.totalTokens !== saved.totalTokens || draft.maxCalls !== saved.maxCalls))
+      const disabled = pending || snapshot.status !== 'ready' || !snapshot.writable || snapshot.mode !== 'host'
+      const errors = { totalTokens: positiveBudget(draft.totalTokens) ? '' : '请输入大于 0 的安全整数。', maxCalls: positiveBudget(draft.maxCalls) ? '' : '请输入大于 0 的安全整数。' }
+      const edit = (field, value) => { setDraft(previous => ({ ...previous, [field]: value })); setMessage(''); setError(''); setValidated(false) }
+      const save = async event => {
+        event.preventDefault(); setError(''); setMessage(''); setValidated(true)
+        if (fixed && (errors.totalTokens || errors.maxCalls)) { setError('请填写有效的返工 token 限额和调用次数。'); return }
+        setPending(true)
+        try {
+          // Unlimited deliberately preserves and ignores stored fixed values.
+          await writeSettings({ reworkBudgetMode: draft.mode, ...(fixed ? { reworkTokenLimit: Number(draft.totalTokens), reworkCallLimit: Number(draft.maxCalls) } : {}) })
+          setMessage('已保存 · 用于下一次返工')
+        } catch (e) { setError(String(e.message || e)) } finally { setPending(false) }
+      }
+      return h('form', { className: 'dps-roleCard', onSubmit: save, noValidate: true, 'aria-label': '返工限额配置' },
+        h('div', { className: 'dps-roleHeading' }, h('span', { className: 'dps-roleNumber', 'aria-hidden': true }, 'B'), h('div', null, h('h3', null, '返工限额'), h('p', null, '返工交回原模型实现者继续修复；每次返工独立计量，旧用量不清零。')),
+          h('span', { className: 'dps-routeState' }, dirty ? '待保存' : '当前配置')),
+        h('fieldset', { className: 'dps-budgetModes', 'aria-label': '返工限额模式', disabled }, ...REWORK_MODES.map(([mode, title, description]) => h('label', { className: 'dps-budgetMode', key: mode },
+          h('input', { type: 'radio', name: id + '-rework-mode', value: mode, checked: draft.mode === mode, onChange: () => edit('mode', mode), 'aria-label': title }),
+          h('span', null, h('b', null, title), h('small', null, description))))),
+        fixed ? h('div', { className: 'dps-budgetFields' }, ...[['totalTokens', '每次返工的 token 限额', '该次返工的输入、缓存和输出合计'], ['maxCalls', '每次返工的调用次数', '每次返工各自拥有，不共享']].map(([field, label, hint]) => h('label', { key: field }, label,
+          h('input', { type: 'text', inputMode: 'numeric', autoComplete: 'off', spellCheck: false, value: draft[field], disabled, 'aria-label': label, 'aria-invalid': validated && !!errors[field], 'aria-describedby': id + '-' + field + '-hint', onChange: e => edit(field, e.target.value) }),
+          h('span', { id: id + '-' + field + '-hint', className: validated && errors[field] ? 'dps-error' : 'dps-hint' }, validated && errors[field] ? errors[field] : hint))))
+          : h('div', { className: 'dps-budgetInfo', role: 'note' }, '返工不设累计 token 或调用次数上限，满足原任务要求后停止。固定限额填过的值不参与限制。'),
+        h('p', { className: 'dps-hint' }, '首次实现遵循上方子 agent 限额；此处只影响返工。首次实现和各次返工的实际消耗分别保留。用户停止和已设置的角色超时仍有效。'),
+        h('div', { className: 'dps-roleFooter' }, h('span', { className: message ? 'dps-saved' : 'dps-hint', role: message ? 'status' : undefined }, message || (dirty ? '更改保存后生效' : '此处显示配置，不代表运行中的剩余额度')),
+          h('div', { className: 'dps-actions' }, dirty ? h('button', { type: 'button', className: 'dps-btn dps-btnSecondary', disabled, onClick: () => { setDraft(JSON.parse(savedKey)); setError(''); setMessage(''); setValidated(false) } }, '撤销更改') : null,
+            h('button', { type: 'submit', className: 'dps-btn dps-btnPrimary', disabled: disabled || !dirty, 'aria-label': '保存返工限额' }, pending ? '保存中…' : '保存'))),
+        error ? h('p', { className: 'dps-error', role: 'alert' }, error) : null)
+    }
+
     function BudgetSummary({ sessionId }) {
       const cfg = useSettings().value || {}
       const override = Array.isArray(cfg.workerBudgetSessionOverrides) ? cfg.workerBudgetSessionOverrides.find(row => row?.sessionId === sessionId) : null
@@ -640,7 +684,7 @@ window.__ModuleLoader__.load({
         h('div', { role: 'tabpanel', id: 'dps-panel-rules', 'aria-labelledby': 'dps-tab-rules', hidden: tab !== 'rules', className: 'dps-tabPanel' },
           h(BudgetSettings),
           h('div', { className: 'dps-settingsCard' }, h('h3', null, '预算内及时收尾'), h('p', { className: 'dps-hint' }, '额度是上限，不必用满。剩余额度接近下一次完整请求的成本时，子 agent 优先返回已完成内容、文件位置和未完成事项；收尾期间不继续调用工具。已保存文件不等于已通过验收，最终仍由 Lead 核验。')),
-          h('div', { className: 'dps-settingsCard' }, h('h3', null, '返工交回实现者'), h('p', { className: 'dps-hint' }, '首次执行遵循上方额度。需要返工时，Lead 提供具体修改意见，实现者继续修复；返工不设累计 token 或调用次数上限，满足原任务要求后停止。首次实现和各次返工的实际消耗分别保留。用户停止和已设置的角色超时仍有效。')),
+          h(ReworkBudgetSettings),
           h('div', { className: 'dps-settingsCard' }, h('h3', null, '按任务开启'), h('p', { className: 'dps-hint' }, '在输入框旁的罗盘菜单中分别开启团队和 CM。两项默认关闭；只开 CM 不启动团队服务。')),
           h('div', { className: 'dps-settingsCard' }, h('h3', null, '固定顺序与审查'), h('p', { className: 'dps-hint' }, '实现者 → 测试者 → Reviewer → Lead 最终验收。Reviewer 默认由 Lead 承担，不增加模型调用；指定独立模型后才额外执行审查。其输出是待核对意见，不自动接受交付。'),
             h('div', { className: 'dps-route' }, h(SettingsField, { field: 'workerTimeoutSeconds', label: '每个角色超时（秒）', type: 'number' }))),

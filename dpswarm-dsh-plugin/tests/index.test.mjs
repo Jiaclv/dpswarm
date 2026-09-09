@@ -13,7 +13,7 @@ test('real installed DSH tool/schema API accepts the default-off fixed plugin', 
   const ctx={on(){return ()=>{}},provide(name,value){this[name]=value},tools:{register(t){registered.set(t.name,t)}},subagents:{start(){throw new Error('Must not start')}},
     systemPrompt:{section(p){prompts.push(p)}},inject(_deps,fn){fn(ctx)},effect(fn){effects.push(fn)}}
   apply(ctx,{})
-  assert.deepEqual([...registered.keys()].sort(),['dpswarm_models','dpswarm_prepare_worker','dpswarm_review','dpswarm_rework','dpswarm_run','dpswarm_status'])
+  assert.deepEqual([...registered.keys()].sort(),['dpswarm_models','dpswarm_prepare_worker','dpswarm_report','dpswarm_review','dpswarm_rework','dpswarm_run','dpswarm_status'])
   assert.equal(registered.has('dpswarm_delegate'),false)
   for(const effect of effects) effect()
   const parent={id:'p',session:{id:'p',header:{}},options:{provider:'gpt',model:'sol'}}
@@ -51,13 +51,22 @@ test('worker limits have independent modes and old settings stay unrestricted', 
   assert.equal(old.workerTokenLimit, 600000)
   assert.equal(old.workerCallLimit, 28)
   assert.deepEqual(old.workerBudgetSessionOverrides, [])
+  assert.equal(old.reworkBudgetMode, 'unlimited')
+  assert.equal(old.reworkTokenLimit, 600000)
+  assert.equal(old.reworkCallLimit, 28)
   const custom=Config({workerBudgetMode:'manual',workerTokenLimit:123456,workerCallLimit:17,
+    reworkBudgetMode:'fixed',reworkTokenLimit:234567,reworkCallLimit:9,
     workerBudgetSessionOverrides:[{sessionId:'experiment-A',mode:'auto'},{sessionId:'experiment-B',mode:'manual',tokenLimit:246912,callLimit:34}]})
   assert.equal(custom.workerBudgetSessionOverrides[1].tokenLimit,246912)
   assert.equal(custom.workerBudgetSessionOverrides[0].mode,'auto')
+  assert.equal(custom.reworkBudgetMode,'fixed')
+  assert.equal(custom.reworkTokenLimit,234567)
   assert.throws(()=>Config({workerBudgetMode:'team-total'}))
   assert.throws(()=>Config({workerTokenLimit:0}))
   assert.throws(()=>Config({workerCallLimit:-1}))
+  assert.throws(()=>Config({reworkBudgetMode:'auto'}))
+  assert.throws(()=>Config({reworkTokenLimit:0}))
+  assert.throws(()=>Config({reworkCallLimit:-1}))
 })
 
 test('models tool reports effective Lead selection instead of startup options', async () => {
