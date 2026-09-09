@@ -69,6 +69,22 @@ test('911 closeout re-evaluated: with meter-accurate estimates the same budget d
   // this: 110,000 remaining vs 70,000 inputs must trigger final-only).
 })
 
+test('17:32 tester: the squeeze killed the report call before closeout (0.7.9 flips: closeout fires while the report still fits)', async () => {
+  const h = fixture({ workerTokenLimit: 60000, workerCallLimit: 8 }), r = h.runtime(), state = await r.ensure(h.agent(h.a), signal())
+  // Real ledger: two settled calls, 24,148 committed of 60,000 (35,852 remain).
+  await r.settle(await r.admit(state, call()), { inputTokens: 2565, outputTokens: 223, cacheReadTokens: 9216 }, 'tool-calls')
+  await r.settle(await r.admit(state, call()), { inputTokens: 304, outputTokens: 64, cacheReadTokens: 11776 }, 'tool-calls')
+  // Next step: input ≈ 14,028 each way. Input-side rule says still affordable
+  // (35,852 >= 32,152), but the squeeze gives the step (35,852-14,028-14,028-2,048)/2
+  // = 2,864 output tokens — below the 4,096 report floor. The real call truncated
+  // at 5,710 output (max-tokens) and the worker died undelivered.
+  await r.prepareCloseout(state, { inputEstimate: 14028, finalInputEstimate: 14028 }, signal())
+  assert.equal(state.closeout.mode, 'final_only')
+  assert.equal(state.closeout.trigger, 'output_below_report_floor')
+  // The final delivery call skips the squeeze: full remaining room after input.
+  assert.equal(r.outputLimit(state, 14028, 32768), 21824)
+})
+
 test('911 estimator: chars/3 understates Chinese-heavy input by at least 2x (invariant: documents why; estimateRequestTokens itself is unchanged)', () => {
   const chars = 30000, chinese = '良'.repeat(chars)
   const estimate = estimateRequestTokens({ system: '', messages: [{ role: 'user', content: [{ type: 'text', text: chinese }] }], tools: [] }).input

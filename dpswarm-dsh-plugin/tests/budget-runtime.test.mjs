@@ -242,7 +242,9 @@ test('normal output bound preserves a predicted subsequent input and final repor
 })
 
 test('CM cannot consume the last planned request, and denied CM is not a worker failure or admitted call', async () => {
-  const h = fixture({ workerTokenLimit: 20000, workerCallLimit: 4 }), r = h.runtime(), a = await r.ensure(h.agent(h.a), signal())
+  // 20,500 sits above the 4,096 closeout report floor (no final-only here) but
+  // still tight enough that a 14,000-output CM request must be deferred.
+  const h = fixture({ workerTokenLimit: 20500, workerCallLimit: 4 }), r = h.runtime(), a = await r.ensure(h.agent(h.a), signal())
   await r.prepareCloseout(a, { inputEstimate: 5000, finalInputEstimate: 5000 }, signal())
   assert.equal(a.closeout, undefined)
   await assert.rejects(r.admit(a, { ...request, purpose: 'compaction', maxTokens: 14000 }), { code: 'WORKER_CLOSEOUT_CM_DEFERRED' })

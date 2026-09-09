@@ -57,7 +57,7 @@ test('host request hook lowers only a limited worker output bound', async () => 
 
 test('host Auto pre-step accepts one durable Lead allocation before worker dispatch', async () => {
   const h = fixture({ workerBudgetMode: 'auto' })
-  const plan = await h.service.plan(h.agents.get('lead'), { task: 'Build one SVG.', tokenLimit: 9000, callLimit: 2, reason: 'bounded SVG child' })
+  const plan = await h.service.plan(h.agents.get('lead'), { task: 'Build one SVG.', tokenLimit: 50000, callLimit: 2, reason: 'bounded SVG child; above the 4,096 closeout report floor' })
   const message = assignment(plan.prompt)
   await h.ctx.get('systemPrompt').assemble({ agent: h.agents.get('child') })
   await h.ctx.waterfall('agent/pre-step', { agent: h.agents.get('child'), messages: [message] }, async () => ({ kind: 'enter' }))
