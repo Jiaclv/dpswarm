@@ -25,6 +25,10 @@ export function installBudget(ctx, configGetter, { journal = new AuditJournal({ 
     return runtime.ensure(agent, signal, incoming)
   }
   const dispose = [], assemblies = new WeakMap()
+  // A DP role route is durable and immutable; cache the resolution per session
+  // object so cold-restored children do not re-read the whole audit ledger on
+  // every pre-step estimate. Non-DP children deterministically resolve to null.
+  const routeCache = new WeakMap()
   const limited = state => state && state.profile.mode !== 'unlimited'
   const applyCloseout = (state, assembly) => {
     if (!state?.closeout || !assembly) return
@@ -51,7 +55,10 @@ export function installBudget(ctx, configGetter, { journal = new AuditJournal({ 
     // chars/3 skews 2-3x on CJK and ~1.3x on ASCII (911 tester closeout). A
     // measurement failure must never break a worker over an advisory estimate.
     try {
-      const frozen = await resolveChildRoute(agent, { journal, signal }).catch(() => null)
+      if (!routeCache.has(agent.session)) {
+        routeCache.set(agent.session, await resolveChildRoute(agent, { journal, signal }).catch(() => null))
+      }
+      const frozen = routeCache.get(agent.session)
       const config = frozen || agent.session.requestHeader?.()?.config
         || { provider: agent.options?.provider, model: agent.options?.model }
       if (!['provider', 'model'].every(key => typeof config?.[key] === 'string' && config[key].trim())) return null
