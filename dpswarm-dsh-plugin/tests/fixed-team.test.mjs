@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { mkdtempSync, mkdirSync, existsSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, existsSync, writeFileSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { setImmediate as nextTurn } from 'node:timers/promises'
@@ -123,6 +123,32 @@ test('failed cleanup holds workspace and blocks a second enabled session', async
   h.cfg.enabledSessions.push('second')
   const second={agent:{...h.parent,id:'second',session:{...h.parent.session,id:'second'}},signal:new AbortController().signal}
   await assert.rejects(h.controller.run({task:'another'},second),/WORKSPACE_BUSY/)
+})
+
+test('a dead-owner lease is taken over cross-session; a live owner blocks with owner details, and status surfaces both (0.9.7)', async t => {
+  const h = fixture(t)
+  const leaseDir = join(h.cfg.workspace, 'workspace-leases'); mkdirSync(leaseDir, { recursive: true })
+  const leasePath = h.controller.leasePath(h.cfg.workspace, h.parent.session.header.cwd)
+  writeFileSync(leasePath, JSON.stringify({ version: 1, run_id: 'old-run', session_id: 'dead-session', cwd: h.parent.session.header.cwd, pid: 2 ** 30 }))
+  const before = await h.controller.status(h.parent)
+  assert.equal(before.workspace_lease.owned_by_this_session, false)
+  assert.equal(before.workspace_lease.pid_alive, false)
+  assert.match(before.workspace_lease.note, /takes the lease over/)
+  const running = h.controller.run({ task: 'Draw one SVG.' }, h.exec)
+  await nextTurn(); h.finish(0)
+  await nextTurn(); if (h.children.length > 1) h.finish(1)
+  const result = await running
+  assert.equal(result.failed.length, 0)
+  assert.equal(result.lease_takeover.session_id, 'dead-session')
+  assert.equal(JSON.parse(readFileSync(leasePath, 'utf8')).session_id, 'parent')
+  // A live owner still blocks — now with the owner session and pid in the message.
+  h.cfg.enabledSessions.push('second')
+  const secondAgent = { ...h.parent, id: 'second', session: { ...h.parent.session, id: 'second' } }
+  const seen = await h.controller.status(secondAgent)
+  assert.equal(seen.workspace_lease.owned_by_this_session, false)
+  assert.equal(seen.workspace_lease.pid_alive, true)
+  assert.match(seen.workspace_lease.note, /WORKSPACE_BUSY/)
+  await assert.rejects(h.controller.run({ task: 'another' }, { agent: secondAgent, signal: new AbortController().signal }), /WORKSPACE_BUSY[\s\S]*session parent/)
 })
 
 test('different sessions have independent activation and control scope', async t => {

@@ -219,7 +219,25 @@ export class FixedTeamController {
     const cfg = this.config(), on = enabled(cfg, parent.session.id)
     const existing = this.sessions.get(parent.session.id)
     const teamMode = teamModeFor(cfg, parent.session.id)
-    const base = { enabled: on, mode: 'fixed-team-v1', session_id: parent.session.id,
+    // Surface a workspace lease block (including one owned by another session)
+    // so the Lead can brief the user instead of discovering it at dispatch.
+    let workspaceLease = null
+    const cwd = parent.session.header?.cwd
+    if (typeof cwd === 'string' && cwd) {
+      try {
+        const leasePath = this.leasePath(cfg.workspace, cwd)
+        if (existsSync(leasePath)) {
+          const lease = JSON.parse(readFileSync(leasePath, 'utf8'))
+          workspaceLease = { session_id: lease.session_id || null, pid: lease.pid ?? null,
+            pid_alive: Number.isSafeInteger(lease.pid) ? processAlive(lease.pid) : null,
+            owned_by_this_session: lease.session_id === parent.session.id,
+            note: lease.session_id === parent.session.id ? 'This session holds the workspace lease.'
+              : Number.isSafeInteger(lease.pid) && !processAlive(lease.pid) ? 'The owning host process is dead; the next dispatch takes the lease over automatically.'
+                : 'Another live session holds the workspace lease; dispatch will be refused with WORKSPACE_BUSY.' }
+        }
+      } catch { /* lease info is advisory only */ }
+    }
+    const base = { enabled: on, mode: 'fixed-team-v1', session_id: parent.session.id, workspace_lease: workspaceLease,
       team_mode: { mode: teamMode,
         source: (cfg.teamModeOverrides || []).some(row => row?.sessionId === parent.session.id) ? 'user popover override' : 'default',
         instruction: teamModeGuidance(teamMode) },
@@ -248,19 +266,36 @@ export class FixedTeamController {
     return [...records, ...state.diagnostics.filter(d => d.diagnostic.audit_error && (!itemId || d.item_id === itemId))]
   }
 
+  /** Shared lease path for a workspace directory (status surfaces it; acquire owns it). */
+  leasePath(workspace, cwd) {
+    const actual = realpathSync(cwd)
+    const identity = process.platform === 'win32' ? actual.toLowerCase() : actual
+    return join(workspace, 'workspace-leases', `${hash(identity)}.json`)
+  }
+
   acquire(state, parent) {
     const cwd = parent.session.header.cwd
     if (typeof cwd !== 'string' || !cwd) throw failure('WORKSPACE_REQUIRED', 'The host session must supply a project directory')
     const actual = realpathSync(cwd)
-    const identity = process.platform === 'win32' ? actual.toLowerCase() : actual
     const directory = join(state.cfg.workspace, 'workspace-leases')
     mkdirSync(directory, { recursive: true })
-    const path = join(directory, `${hash(identity)}.json`)
+    const path = this.leasePath(state.cfg.workspace, cwd)
     const lease = { version: 1, run_id: randomUUID(), session_id: parent.session.id, cwd: actual, pid: process.pid }
     let fd
     try { fd = openSync(path, 'wx') } catch (error) {
-      if (error.code === 'EEXIST') throw failure('WORKSPACE_BUSY', 'This project has an unfinished DPSwarm run. Review or terminate its deliveries first; uncertain cleanup is not cleared automatically.')
-      throw error
+      if (error.code !== 'EEXIST') throw error
+      // A lease whose host process is dead protects nothing: take the workspace
+      // over (any session) and keep the takeover on record. A live owner's lease
+      // still blocks, now with enough detail for the Lead to brief the user.
+      let existing = null
+      try { existing = JSON.parse(readFileSync(path, 'utf8')) } catch { /* unreadable lease: stay closed */ }
+      if (existing && Number.isSafeInteger(existing.pid) && !processAlive(existing.pid)) {
+        unlinkSync(path)
+        state.leaseTakeover = { session_id: existing.session_id || null, pid: existing.pid, at: Date.now() }
+        fd = openSync(path, 'wx')
+      } else {
+        throw failure('WORKSPACE_BUSY', `This project has an unfinished DPSwarm run owned by session ${existing?.session_id || 'unknown'} (host pid ${existing?.pid ?? 'unknown'}, process alive). Review or terminate its deliveries in that session, close that session, or restart the host; uncertain cleanup is not cleared automatically. The lease file is ${path} for verified manual recovery.`)
+      }
     }
     try { writeFileSync(fd, JSON.stringify(lease)) } catch (error) { closeSync(fd); unlinkSync(path); throw error }
     closeSync(fd)
@@ -609,6 +644,7 @@ export class FixedTeamController {
         }
       }
       return { mode: 'fixed-team-v1', profile: state.profile, model_registry: state.hostModels || null, deliveries: deliveries.map(compactWorkerEntry), failed: failed.map(compactWorkerEntry),
+        lease_takeover: state.leaseTakeover || null,
         team_mode: { mode: teamMode, split_form: subtasks ? 'parallel' : staged ? 'staged' : 'serial',
           ...(teamMode !== 'serial' && !subtasks && !staged
             ? { note: `The user set this task to ${teamMode}, but no matching split form was passed, so the sequential team ran. Prefer subtasks (parallel) or the staged board (staged) when the task is divisible.` }

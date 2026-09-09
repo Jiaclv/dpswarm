@@ -1,3 +1,9 @@
+# 0.9.7 工作区 lease 自愈与可见性验证（2026-09-10）
+
+插件回归 **366/366**、控制服务 **580/580** 通过（不含外部模型调用）。起因：02:58 真实死锁——01:56 会话 QUOTA 失败后 lease 泄漏（测试者/Reviewer 交付未结案），新会话同目录派发被 `WORKSPACE_BUSY` 拒绝；status 只看本会话所以"什么也没显示"，TEAM_REQUIRED 又拦了 Lead 的排查命令。三层修复：`acquire()` 对宿主进程已死的 lease 跨会话自动接管（run 返回体记录 `lease_takeover`）；活主 lease 的 `WORKSPACE_BUSY` 报错携带持有方 session/pid/恢复路径；`dpswarm_status` 新增 `workspace_lease` 块（含"死主将自动接管/活主将拒派发"的指引文案）。设计红线保留：活进程 lease 不自动让渡、清理不确定不自动清除。新增表征（fixed-team）：死主 lease 跨会话接管成功且记录 takeover、活主报错含 `session parent`、status 两种指引文案。事故当时的手动恢复：核对失败会话审计（全部 item 终态、清理确认、最后一笔 56 分钟前）后按显式恢复路径删除 lease 文件。未跑真实模型试点。
+
+---
+
 # 0.9.6 谁提的缺陷谁验收（Reviewer 血缘返工复核）验证（2026-09-10）
 
 插件回归 **365/365**、控制服务 **580/580** 通过（不含外部模型调用）。原则核对：谁写谁修此前已成立（返工恒回原实现者血缘）；谁提谁验只覆盖测试者（0.8.1 复验），Reviewer 发现的缺陷在返工后无人回头确认（01:03 实证：真缺陷是 Reviewer 抓的）。改动：rework() 在测试者复验之后接续 Reviewer 血缘复核（可信终态校验、上一论 verdict 与发现作为不可信上下文、VERDICT 收尾、独立返工链额度），新 verdict 经既有 REVIEWER_PENDING 门禁自动门控本轮实现者交付（state.reviewers 录入新血缘即生效）；容量自适应从"实现者+测试者"扩到按真实接续数计算；`compactWorkerEntry` 补出 `verification_of` 字段（此前测试者复验的归属标记被摘要层吞掉）。新增表征：配置 Reviewer 的返工轮交付序列为 [implementer, tester, reviewer]、复核 prompt 携带其上轮报告、容量 4→6、复核未结案时 REVIEWER_PENDING、结案后可验收。Lead 提示词与 rework 返回体 next 同步更新。未跑真实模型试点。
