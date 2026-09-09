@@ -611,7 +611,7 @@ window.__ModuleLoader__.load({
           : h('div', { className: 'dps-budgetInfo', role: 'note' }, draft.mode === 'auto'
             ? '当前 Lead 读完任务后，在正常派发流程中决定各子 agent 的 token 限额、调用次数和理由；不额外调用评估模型。'
             : '不设置子 agent 的 token 或调用次数上限，也不进行预算评估。手动填写过的值不参与限制。'),
-        manual ? h('p', { className: 'dps-hint' }, '初始参考：600,000 token / 28 次；可按任务调整。') : null,
+        manual ? h('p', { className: 'dps-hint' }, '初始参考：1,200,000 token / 50 次。这是异常护栏而非精确计划；触轨后 worker 会安全停车并交回 Lead 裁决是否继续。') : null,
         h('p', { className: 'dps-hint' }, '适用于 DPH 子 agent，包括固定团队外的子任务。各自的 CM 计入各自额度；Lead 主调用和主 CM 不受限制。'),
         h('p', { className: 'dps-hint' }, 'Token 在请求前估算、完成后结算，最后一次请求可能超出估算额度，随后停止继续调用。角色超时仍单独设置。'),
         h('div', { className: 'dps-roleFooter' }, h('span', { className: message ? 'dps-saved' : 'dps-hint', role: message ? 'status' : undefined }, message || (dirty ? '更改保存后生效' : '此处显示配置，不代表运行中的剩余额度')),

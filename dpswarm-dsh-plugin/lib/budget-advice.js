@@ -24,7 +24,7 @@ export function installBudgetAdvice(ctx, config) {
         token_unit: 'sum of input + output + cache read + cache write for every worker request and its CM; reasoning is included in output',
         envelope_reference: envelopes.get(agent.session.id) || null,
         reference_limit: 'Lead and worker prompts/tools/history differ. This proxy is not a minimum, a model tokenizer count, a cost prediction or an automatically selected grant.',
-        planning: 'For Auto, estimate a sequence of full request inputs plus outputs, history growth, permitted checking and a final report. Explain the chosen per-role allowance; do not budget only generated text. In manual/unlimited omit worker_budgets.',
+        planning: 'For Auto, choose per-role anomaly rails, not precise estimates: call counts are the primary scale (steps are predictable; token content is not). A worker that reaches its rail parks and reports saved files plus remaining work; you decide continuation. In manual/unlimited omit worker_budgets.',
       }
     },
     dispose() { if (typeof dispose === 'function') dispose(); envelopes.clear() },

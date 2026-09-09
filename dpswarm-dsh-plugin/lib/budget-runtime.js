@@ -524,14 +524,9 @@ async initialize(session, incoming, signal) {
     const remaining = state.profile.tokenLimit - this.totals(state).committed_tokens
     const input = Math.max(1, inputEstimate), remain = remaining - input
     if (remain < 1) throw budgetError('WORKER_TOKEN_RESERVATION_DENIED', 'WORKER_TOKEN_RESERVATION_DENIED', this.budgetDetails(state, 'request_output_limit', input, 1))
-    let output = Math.min(positive(requested) ? requested : remain, remain)
-    if (state.stepBudget && !state.closeout) {
-      // Current output becomes input on the following request. Reserve that
-      // growth once more, plus a complete forecast input and a short report.
-      const reserve = Math.max(input, state.stepBudget.final_input_estimate)
-      output = Math.min(output, Math.max(1, Math.floor((remaining - input - reserve - CLOSEOUT_OUTPUT_RESERVE) / 2)))
-    }
-    return output
+    // Rail model: the request keeps its full output bound. The closeout park —
+    // not a progressive squeeze — is what protects the final delivery.
+    return Math.min(positive(requested) ? requested : remain, remain)
   }
   serial(state, work) { const next = state.serial.catch(() => undefined).then(work); state.serial = next; return next }
 async admit(state, options) {

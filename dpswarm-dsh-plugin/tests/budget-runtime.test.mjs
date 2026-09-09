@@ -221,7 +221,7 @@ test('closeout follows current full-input cost rather than cumulative percent or
   for (let i = 0; i < 7; i++) await r.settle(await r.admit(a, request), { inputTokens: 60000, outputTokens: 10000 }, 'stop')
   assert.equal(r.describe(a).remaining_tokens, 110000)
   await r.prepareCloseout(a, { inputEstimate: 70000, finalInputEstimate: 69000 }, signal())
-  assert.equal(a.closeout.trigger, 'cannot_afford_exploration_and_delivery')
+  assert.equal(a.closeout.trigger, 'budget_rail')
   assert.equal(a.closeout.calls_at_closeout, 7)
   assert.equal(r.describe(a).remaining_calls, 29)
   await r.prepareCloseout(b, { inputEstimate: 70000, finalInputEstimate: 69000 }, signal())
@@ -231,13 +231,12 @@ test('closeout follows current full-input cost rather than cumulative percent or
   assert.equal(await r.diagnosticsForSession('not-a-native-session'), null)
 })
 
-test('normal output bound preserves a predicted subsequent input and final report inside the grant', async () => {
+test('rail model: the request keeps its full output bound while room remains', async () => {
   const h = fixture({ workerTokenLimit: 100000, workerCallLimit: 4 }), r = h.runtime(), a = await r.ensure(h.agent(h.a), signal())
   await r.prepareCloseout(a, { inputEstimate: 10000, finalInputEstimate: 9000 }, signal())
   assert.equal(a.closeout, undefined)
   const output = r.outputLimit(a, 10000, 90000)
-  assert.equal(output, 38976)
-  assert.ok(10000 + output + 10000 + output + 2048 <= 100000)
+  assert.equal(output, 90000, 'no progressive halving; only the hard remaining bound applies')
   assert.equal(a.profile.tokenLimit, 100000)
 })
 

@@ -117,7 +117,7 @@ test('two-call worker can save a candidate first and sends tool-free delivery on
   const last = await prepared(h, 'child')
   assert.deepEqual(last.assembly.tools, [])
   assert.match(last.system, /DPSWARM_WORKER_FINAL_ONLY/)
-  assert.match(last.system, /file was saved but no report/)
+  assert.match(last.system, /If nothing was provably saved/)
   assert.equal((await h.service.diagnosticsForSession('child')).remaining_calls, 1)
   await h.stream('child', { ...last.config, system: last.system, tools: last.assembly.tools, messages: last.messages })
   assert.equal(h.calls.length, 2)
@@ -149,7 +149,7 @@ test('a tiny first grant preserves truthful incomplete delivery and charges the 
   h.assembly.tools = [{ name: 'write', description: 'large schema'.repeat(1000) }]
   const last = await prepared(h, 'child')
   assert.deepEqual(last.assembly.tools, [])
-  assert.match(last.system, /If nothing was saved, say so explicitly/)
+  assert.match(last.system, /If nothing was provably saved, say so explicitly/)
   assert.ok(last.config.maxTokens > 0 && last.config.maxTokens < 500)
   await h.stream('child', { ...last.config, system: last.system, tools: [], messages: last.messages })
   const d = await h.service.diagnosticsForSession('child')
