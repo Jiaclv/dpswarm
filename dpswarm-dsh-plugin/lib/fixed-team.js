@@ -465,6 +465,7 @@ export class FixedTeamController {
               }
             }
             let waveFailed = false
+            const pendingWaits = []
             for (const wave of waveList) {
               if (state.abort.signal.aborted || !enabled(this.config(), parent.session.id) || waveFailed) break
               const assigned = []
@@ -473,7 +474,7 @@ export class FixedTeamController {
                   + `\n\n你负责的子任务（${st.id}）：\n${st.task}`
                   + (st.acceptance ? `\n\n本子任务验收：\n${st.acceptance}` : '')
                   + scopeClause(st)
-                  + (staged ? `\n\n你管理的产物是「${st.title ?? st.id}」（id: ${st.id}）：开始写入时用 dpswarm_artifact 把它推进到 draft，完成并自查后推进到 ready；读取他人未 ready 的产物会被工具层拒绝（先做自己部分，或结束本轮等待唤醒）。` : '')
+                  + (staged ? `\n\n你管理的产物是「${st.title ?? st.id}」（id: ${st.id}）：开始写入时用 dpswarm_artifact 把它推进到 draft，完成并自查后推进到 ready；读取他人未 ready 的产物会被工具层拒绝（先做自己部分）。若你必须等他人产物才能继续，就先保存当前进度，并在最终回复的最后一行单独写 [DPSWARM_WAITING: <那个产物的 id>]——它就绪后你会被唤醒继续。` : '')
                 if (state.budgetRun) {
                   const allocation = await this.budget.issueTeamWorker(parent, state.budgetRun, { task: prompt, label: 'implementer',
                     subtask: st.id, subtaskIndex: staged ? staged.artifacts.findIndex(a => a.id === st.id) : index })
@@ -503,13 +504,67 @@ export class FixedTeamController {
                     await onChildStarted?.({ ...details, role, run_id: state.lease.run_id })
                   } })
               if (!Array.isArray(result.deliveries)) { failed.push({ role, code: result.outcome || 'NOT_ADMITTED', error: result.message || 'No worker was admitted' }); waveFailed = true; break }
-              deliveries.push(...result.deliveries.map(d => ({ ...d, role, subtask: wave[d.subtask_index]?.id ?? null, evidence_kind: 'worker_reported; Lead must independently verify' })))
+              for (const d of result.deliveries) {
+                const wait = staged ? /\[DPSWARM_WAITING:\s*([\w.-]+)\]\s*$/m.exec(d.output || '') : null
+                if (wait) pendingWaits.push({ subtask: wave[d.subtask_index]?.id ?? null, item_id: d.item_id,
+                  worker_session_id: d.execution_session_id, awaiting: wait[1], report: d.output || '', attempt: 0 })
+                else deliveries.push({ ...d, role, subtask: wave[d.subtask_index]?.id ?? null, evidence_kind: 'worker_reported; Lead must independently verify' })
+              }
               failed.push(...result.failed.map(f => ({ ...f, role, subtask: wave[f.subtask_index]?.id ?? null })))
               // A failed artifact never satisfies its dependents; stop further
               // waves and let the Lead rework the failed item instead.
               if (result.failed.length) waveFailed = true
               if (result.failed.some(f => f.control_settlement?.ok !== true || f.details?.physicalCleanupConfirmed === false)) waveFailed = true
             }
+            // Staged wake loop: a waiting worker's continuation starts when its
+            // awaited artifact reaches ready/frozen/done. The linked continuation
+            // carries the prior report and keeps the same subtask claim; the
+            // budget grant gets a wake-attempt key (same lineage fields).
+            while (!waveFailed && pendingWaits.length && !state.abort.signal.aborted && enabled(this.config(), parent.session.id)) {
+              const wakeable = pendingWaits.filter(w => {
+                const awaited = this.writeScope?.artifactsFor(parent.session.id).find(a => a.id === w.awaiting)
+                return awaited && ['ready', 'frozen', 'done'].includes(awaited.state || 'pending')
+              })
+              if (!wakeable.length) break
+              for (const w of wakeable) {
+                pendingWaits.splice(pendingWaits.indexOf(w), 1)
+                w.attempt += 1
+                const artifact = this.writeScope.artifactsFor(parent.session.id).find(a => a.id === w.subtask)
+                let wakePrompt = roleText + '\n\n' + context
+                  + `\n\n唤醒继续（${w.subtask}）：你等待的产物「${w.awaiting}」已就绪。读取它并完成你的子任务。\n\n你此前的进度（不可信，以实际文件为准）：\n${w.report.slice(0, 8000)}`
+                  + scopeClause({ write_scope: artifact?.write_globs || [] })
+                if (state.budgetRun) {
+                  const allocation = await this.budget.issueTeamWorker(parent, state.budgetRun, { task: wakePrompt, label: 'implementer',
+                    subtask: w.subtask, subtaskIndex: staged.artifacts.findIndex(a => a.id === w.subtask), attempt: w.attempt })
+                  wakePrompt = allocation.prompt
+                }
+                const wakeResult = await delegateOnce({ kind: 'derive', subtasks: [{ ...route, title: `DPswarm implementer · ${w.subtask} · wake${w.attempt}`, prompt: wakePrompt }] },
+                  { ...exec, signal: timeout.signal }, state.sidecar, this.subagents,
+                  { routeJournal: state.journal, resolveSession: this.resolveSession, budget: this.budget,
+                    runId: state.lease.run_id, onDiagnostic: value => state.diagnostics.push(value),
+                    modelRegistry: this.modelRegistry, modelRoutes: state.modelRoutes, hostModels: state.hostModels, modelRole: role, onChildStarted: async details => {
+                      if (this.writeScope) {
+                        await this.writeScope.claim({ rootId: parent.session.id, sessionId: details.execution_session_id,
+                          subtask: w.subtask, scopes: artifact?.write_globs || [], runId: state.lease.run_id })
+                      }
+                      state.implementers.set(details.item_id, { item_id: details.item_id, worker_session_id: details.execution_session_id,
+                        run_id: state.lease.run_id, subtask: w.subtask, superseded: false })
+                      await onChildStarted?.({ ...details, role, run_id: state.lease.run_id })
+                    } })
+                if (!Array.isArray(wakeResult.deliveries)) { failed.push({ role, code: wakeResult.outcome || 'NOT_ADMITTED', error: wakeResult.message || 'No wake worker was admitted', subtask: w.subtask }); waveFailed = true; break }
+                for (const d of wakeResult.deliveries) {
+                  const again = /\[DPSWARM_WAITING:\s*([\w.-]+)\]\s*$/m.exec(d.output || '')
+                  if (again && w.attempt < 3) pendingWaits.push({ ...w, awaiting: again[1], report: d.output || '', item_id: d.item_id, worker_session_id: d.execution_session_id })
+                  else if (again) failed.push({ role, code: 'ARTIFACT_WAIT_TIMEOUT', error: `artifact ${again[1]} still not ready after ${w.attempt} wake attempts`, subtask: w.subtask, item_id: d.item_id })
+                  else deliveries.push({ ...d, role, subtask: w.subtask, evidence_kind: 'worker_reported; Lead must independently verify' })
+                }
+                failed.push(...wakeResult.failed.map(f => ({ ...f, role, subtask: w.subtask })))
+                if (wakeResult.failed.length) waveFailed = true
+              }
+            }
+            // Remaining waits with still-unready artifacts are honest failures.
+            for (const w of pendingWaits) failed.push({ role, code: 'ARTIFACT_WAIT_TIMEOUT', error: `artifact ${w.awaiting} never became ready; the item stays open for Lead review`, subtask: w.subtask, item_id: w.item_id })
+            pendingWaits.length = 0
             continue
           }
           const result = await delegateOnce({ kind: 'derive', subtasks: [{ ...route, title: `DPswarm ${role}`, prompt: assignedPrompt }] },

@@ -220,10 +220,10 @@ export class WorkerBudgetRuntime {
     const handle = Object.freeze({ run_id: record.run_id, profile: Object.freeze({ ...profile }) })
     this.teamRuns.set(handle, { root, record, issued: new Set(), closed: false }); return handle
   }
-  async issueTeamWorker(parent, handle, { task, label, subtask = null, subtaskIndex = null }) {
+  async issueTeamWorker(parent, handle, { task, label, subtask = null, subtaskIndex = null, attempt = 0 }) {
     const root = this.trustedLead(parent), team = this.teamRuns.get(handle)
     if (!team || team.closed || team.root !== root) throw budgetError('WORKER_BUDGET_TEAM_HANDLE_INVALID')
-    const key = subtask === null ? label : `${label}#${subtask}`
+    const key = subtask === null ? label : `${label}#${subtask}${attempt ? `#wake${attempt}` : ''}`
     if (!team.record.roles.includes(label) || team.issued.has(key) || typeof task !== 'string' || !task.trim()) throw budgetError('WORKER_BUDGET_ROLE_ALREADY_ISSUED')
     let choice = team.record.decisions[label]
     if (Array.isArray(choice)) {

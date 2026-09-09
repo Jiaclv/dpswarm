@@ -62,12 +62,14 @@ function fixture() {
     const id = `child-${children.length}`, fail = h.failAt === id
     const session = { id, header: { id, parentSession: parent.id, origin: 'subagent', delegationDepth: 1 }, events: [] }
     sessions.set(id, { id, session })
+    if (h.readyOnStart?.[id]) h.writeScope.updateArtifactState('root', h.readyOnStart[id], 'ready', 2)
     const allocationId = request.prompt[0].text.match(/^ALLOCATION:(\S+)/)?.[1]
     if (allocationId) allocations.get(allocationId).bound = true
     const reason = fail ? { kind: 'error', error: { code: 'UNKNOWN', message: 'WORKER_TOKEN_RESERVATION_DENIED' } } : { kind: 'completed' }
     session.events.push({ seq: 0, type: 'turn/end', data: { reason }, time: Date.now() })
+    const marker = h.markerFor?.[id]
     const child = { id, request, provider, session, localAgent: { session },
-      result: Promise.resolve({ output: [{ type: 'text', text: fail ? 'Partial candidate.' : `done:${id}` }],
+      result: Promise.resolve({ output: [{ type: 'text', text: fail ? 'Partial candidate.' : marker ? `partial progress saved\n\n[DPSWARM_WAITING: ${marker}]` : `done:${id}` }],
         stopReason: fail ? 'error' : 'completed' }),
       async dispose() {} }
     children.push(child)
@@ -288,4 +290,42 @@ test('dpswarm_artifact advances the caller-owned artifact and rejects unclaimed 
   const testerSession = h.sessions.get('child-2').session
   await assert.rejects(h.controller.artifactState({ to: 'draft' }, { agent: { session: testerSession } }), { code: 'ARTIFACT_NOT_CLAIMED' })
   await assert.rejects(h.controller.artifactState({ to: '' }, { agent: { session: wA } }), { code: 'ARTIFACT_STATE_REQUIRED' })
+})
+
+test('staged suspend/wake: a worker waiting on a not-ready artifact is continued after it turns ready', async () => {
+  const h = fixture()
+  h.markerFor = { 'child-1': 'bike' }      // bird's first pass ends waiting on bike
+  h.readyOnStart = { 'child-1': 'bike' }   // bike's artifact flips ready while bird runs
+  const result = await h.dispatcher.run({ task: 'Build.', acceptance: 'Done.', staged: {
+    phases: [{ id: 'build', task: 'Build both parts.' }],
+    artifacts: [
+      { id: 'bike', title: '自行车', task: 'Build the bicycle.', write_globs: ['src/bike/**'], phase: 'build' },
+      { id: 'bird', title: '鹈鹕', task: 'Build the pelican.', write_globs: ['src/bird/**'], phase: 'build', deps: ['bike'] },
+    ],
+  } }, h.exec)
+  assert.equal(result.failed.length, 0)
+  // children: bike, bird(first pass waits), bird wake continuation, tester
+  assert.equal(h.children.length, 4)
+  assert.match(h.children[2].request.prompt[0].text, /唤醒继续（bird）/)
+  assert.match(h.children[2].request.prompt[0].text, /此前的进度/)
+  assert.deepEqual(result.deliveries.map(d => [d.role, d.subtask ?? null]),
+    [['implementer', 'bike'], ['implementer', 'bird'], ['tester', null]])
+  // The waiting first pass never landed in deliveries as a completed item.
+  assert.equal(result.deliveries.filter(d => /DPSWARM_WAITING/.test(d.output || '')).length, 0)
+})
+
+test('a wait whose artifact never turns ready fails honestly with ARTIFACT_WAIT_TIMEOUT', async () => {
+  const h = fixture()
+  h.markerFor = { 'child-1': 'bike' }   // bird waits on bike; nothing marks bike ready
+  const result = await h.dispatcher.run({ task: 'Build.', acceptance: 'Done.', staged: {
+    phases: [{ id: 'build', task: 'Build both parts.' }],
+    artifacts: [
+      { id: 'bike', title: '自行车', task: 'Build the bicycle.', write_globs: ['src/bike/**'], phase: 'build' },
+      { id: 'bird', title: '鹈鹕', task: 'Build the pelican.', write_globs: ['src/bird/**'], phase: 'build', deps: ['bike'] },
+    ],
+  } }, h.exec)
+  assert.equal(h.children.length, 3, 'bike, bird-wait, tester — no wake continuation')
+  const timeout = result.failed.find(f => f.code === 'ARTIFACT_WAIT_TIMEOUT')
+  assert.ok(timeout)
+  assert.equal(timeout.subtask, 'bird')
 })
