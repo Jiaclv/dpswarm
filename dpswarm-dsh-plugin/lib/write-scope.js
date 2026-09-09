@@ -4,6 +4,8 @@ const failure = (code, message) => Object.assign(new Error(`${code}: ${message}`
 
 /** Tools whose file target is enforced against a worker's claimed write scope. */
 const GATED_TOOLS = new Set(['write', 'edit'])
+/** Content-leaking read tools gated by artifact read-side state (glob/list stay free: they reveal only paths). */
+const READ_GATED_TOOLS = new Set(['read', 'grep'])
 
 const SEP = process.platform === 'win32' ? /\\/g : null
 const norm = value => {
@@ -82,6 +84,7 @@ export class WriteScopeRegistry {
     this.journal = journal || null
     this.bySession = new Map()
     this.byRoot = new Map()
+    this.artifacts = new Map()
   }
   async claim({ rootId, sessionId, subtask, scopes, runId }) {
     if (!Array.isArray(scopes) || !scopes.length || scopes.some(s => typeof s !== 'string' || !s.trim())) {
@@ -112,9 +115,24 @@ export class WriteScopeRegistry {
   }
   forSession(sessionId) { return this.bySession.get(sessionId) || null }
   claimsFor(rootId) { return [...(this.byRoot.get(rootId)?.values() || [])] }
+  /** In-process artifact mirror (the control plane stays the durable authority). */
+  registerArtifact(rootId, artifact) {
+    if (!this.artifacts.has(rootId)) this.artifacts.set(rootId, new Map())
+    this.artifacts.get(rootId).set(artifact.id, { ...artifact })
+  }
+  updateArtifactState(rootId, artifactId, state, version) {
+    const artifact = this.artifacts.get(rootId)?.get(artifactId)
+    if (artifact) { artifact.state = state; if (Number.isSafeInteger(version)) artifact.version = version }
+  }
+  artifactsFor(rootId) { return [...(this.artifacts.get(rootId)?.values() || [])] }
+  /** The staged artifact owning this path, if any. */
+  artifactAt(rootId, relPath) {
+    return this.artifactsFor(rootId).find(a => Array.isArray(a.write_globs) && scopeAllows(a.write_globs, relPath)) || null
+  }
   clear(rootId) {
     for (const sessionId of this.byRoot.get(rootId)?.keys() || []) this.bySession.delete(sessionId)
     this.byRoot.delete(rootId)
+    this.artifacts.delete(rootId)
   }
 }
 
@@ -127,7 +145,20 @@ export function installWriteScope(ctx, registry) {
   return ctx.on('tools/pre-execute', async (exec, next) => {
     const session = exec?.agent?.session
     const claim = session && registry.forSession(session.id)
-    if (!claim || !GATED_TOOLS.has(exec.name)) return next()
+    if (!claim) return next()
+    if (READ_GATED_TOOLS.has(exec.name)) {
+      const cwd = session.header?.cwd
+      const target = targetOf(exec)
+      if (typeof cwd !== 'string' || !cwd || target === null) return next()
+      const rel = scopeRelativePath(cwd, target)
+      if (rel === null) return next()
+      const artifact = registry.artifactAt(claim.root_session_id, rel)
+      if (artifact && artifact.id !== claim.subtask && !['ready', 'frozen', 'done'].includes(artifact.state || 'pending')) {
+        throw failure('ARTIFACT_NOT_READY', `artifact ${artifact.id} is "${artifact.state || 'pending'}"; work your own scope first or end the turn and wait for wakeup`)
+      }
+      return next()
+    }
+    if (!GATED_TOOLS.has(exec.name)) return next()
     const cwd = session.header?.cwd
     if (typeof cwd !== 'string' || !cwd) {
       throw failure('WORKER_SCOPE_ENVELOPE_UNAVAILABLE', 'Cannot verify the write target without the session workspace')

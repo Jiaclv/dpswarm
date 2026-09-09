@@ -26,6 +26,8 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 from .events import Event
 from .types import (
     AcceptanceState,
+    Artifact,
+    ArtifactState,
     BlockState,
     DelegationKind,
     HumanDirective,
@@ -97,6 +99,7 @@ class Projection:
     - seal_phase                 team_id → 封存相位，缺省 OPEN（§9.6）
     - terminated_item_ids / terminated_node_ids   id 永不复用墓碑（§9.2 决策 18）
     - packages / peer_channels / messages / human_directives   记录类账本
+    - artifacts                  产物状态板：id → Artifact（fixed-team-v3）
 
     扩展字段（超出任务书最小集，供控制面/不变量层使用）：
     - root_id                    root_started 落下的 root 标识
@@ -132,6 +135,7 @@ class Projection:
         self.human_directives: List[HumanDirective] = []
         self.successor_regs: Set[Tuple[str, int]] = set()
         self.route_resolutions: List[Dict[str, Any]] = []
+        self.artifacts: Dict[str, Artifact] = {}
 
     # ------------------------------------------------------------------
     # 派生量（§7：占槽 / 点数全部由实体状态推导）
@@ -554,6 +558,24 @@ def apply_event(proj: Projection, event: Event) -> None:
     # -- 路由对账（§2）------------------------------------------------------
     elif kind == "route_resolved":
         proj.route_resolutions.append(dict(payload))
+
+    # -- 产物状态板（fixed-team-v3：分阶段多 worker 协调的具名交付物）--------
+    elif kind == "artifact_registered":
+        # 登记即 pending / version=1（invariants 已拒非 pending 与非 1）
+        proj.artifacts[payload["id"]] = Artifact(
+            id=payload["id"],
+            title=payload["title"],
+            write_globs=list(payload.get("write_globs") or []),
+            owner_item=payload.get("owner_item"),
+            state=ArtifactState(payload.get("state", ArtifactState.PENDING.value)),
+            version=int(payload.get("version", 1)),
+            phase=payload.get("phase", ""),
+            deps=list(payload.get("deps") or []),
+        )
+    elif kind == "artifact_state_changed":
+        artifact = proj.artifacts[payload["artifact_id"]]
+        artifact.state = ArtifactState(payload["to"])
+        artifact.version += 1  # 每次状态变更 +1，由投影推进
 
     # -- 记录类事件：最小记录或忽略 ----------------------------------------
     elif kind == "package_stored":

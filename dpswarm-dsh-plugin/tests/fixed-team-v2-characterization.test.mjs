@@ -111,3 +111,20 @@ test('P0 pin: delegateOnce already runs multiple subtasks concurrently with per-
   assert.deepEqual(result.deliveries.map(d => d.output), ['done-0', 'done-1'])
   assert.deepEqual(result.deliveries.map(d => d.item_id), ['wi-0', 'wi-1'])
 })
+
+test('v3 staged validation: mutual exclusion, cycles, later-phase deps and overlapping globs refuse before dispatch', async () => {
+  const h = fixture()
+  const base = { task: 'Build.', acceptance: 'Done.' }
+  const good = { phases: [{ id: 'p1', task: 'Phase one.' }], artifacts: [{ id: 'a', title: 'A', task: 'Do A.', write_globs: ['a/**'], phase: 'p1' }] }
+  await assert.rejects(h.controller.run({ ...base, subtasks: [{ id: 'x', task: 'X', write_scope: ['x/**'] }], staged: good }, h.exec), /STAGED_INVALID/)
+  await assert.rejects(h.controller.run({ ...base, staged: { phases: [{ id: 'p1', task: 'P' }], artifacts: [
+      { id: 'a', title: 'A', task: 'A', write_globs: ['a/**'], phase: 'p1', deps: ['b'] },
+      { id: 'b', title: 'B', task: 'B', write_globs: ['b/**'], phase: 'p1', deps: ['a'] }] } }, h.exec), /ARTIFACT_CYCLE/)
+  await assert.rejects(h.controller.run({ ...base, staged: { phases: [{ id: 'p1', task: 'P' }, { id: 'p2', task: 'Q' }], artifacts: [
+      { id: 'a', title: 'A', task: 'A', write_globs: ['a/**'], phase: 'p1', deps: ['b'] },
+      { id: 'b', title: 'B', task: 'B', write_globs: ['b/**'], phase: 'p2' }] } }, h.exec), /later phase/)
+  await assert.rejects(h.controller.run({ ...base, staged: { phases: [{ id: 'p1', task: 'P' }], artifacts: [
+      { id: 'a', title: 'A', task: 'A', write_globs: ['a/**'], phase: 'p1' },
+      { id: 'b', title: 'B', task: 'B', write_globs: ['a/b/**'], phase: 'p1' }] } }, h.exec), /WORKER_SCOPE_OVERLAP/)
+  assert.equal(h.children.length, 0, 'invalid staged specs never dispatch a child')
+})

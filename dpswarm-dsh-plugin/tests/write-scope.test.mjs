@@ -102,3 +102,25 @@ test('v3-P0: claim records carry state/version so the artifact entity can extend
   assert.equal(registry.forSession('w-old').subtask, 'legacy')
   assert.equal(registry.forSession('w-old').state, undefined)
 })
+
+test('v3-P1 read gate: another worker\'s not-ready artifact is denied; ready/own/unclaimed/outside stay free', async () => {
+  const h = hookFixture()
+  const hook = h.handlers.find(r => r.name === 'tools/pre-execute').fn
+  await h.registry.claim({ rootId: 'root', sessionId: 'w1', subtask: 'bicycle', scopes: ['src/bike/**'] })
+  await h.registry.claim({ rootId: 'root', sessionId: 'w2', subtask: 'pelican', scopes: ['src/bird/**'] })
+  h.registry.registerArtifact('root', { id: 'bicycle', title: '自行车', write_globs: ['src/bike/**'], state: 'draft', version: 1 })
+  const w2 = h.worker('w2')
+  let passed = 0
+  const next = async () => { passed++ }
+  await assert.rejects(hook(h.exec(w2, 'read', { file_path: join(h.cwd, 'src', 'bike', 'frame.js') }), next), { code: 'ARTIFACT_NOT_READY' })
+  h.registry.updateArtifactState('root', 'bicycle', 'ready', 2)
+  await hook(h.exec(w2, 'read', { file_path: join(h.cwd, 'src', 'bike', 'frame.js') }), next)
+  assert.equal(passed, 1, 'ready artifact reads through')
+  h.registry.registerArtifact('root', { id: 'pelican', title: '鹈鹕', write_globs: ['src/bird/**'], state: 'pending', version: 1 })
+  await hook(h.exec(w2, 'read', { file_path: join(h.cwd, 'src', 'bird', 'beak.js') }), next)
+  assert.equal(passed, 2, 'own artifact reads through regardless of state')
+  await hook(h.exec(w2, 'read', { file_path: join(h.cwd, 'README.md') }), next)
+  assert.equal(passed, 3, 'paths outside any artifact stay free')
+  await hook(h.exec(h.worker('w-free'), 'read', { file_path: join(h.cwd, 'src', 'bike', 'wheel.js') }), next)
+  assert.equal(passed, 4, 'unclaimed sessions are never read-gated')
+})

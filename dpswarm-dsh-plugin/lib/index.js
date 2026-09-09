@@ -134,6 +134,9 @@ export function apply(ctx, config) {
     runtime.tools.register(defineTool({ name: 'dpswarm_report', description: 'Read the unabridged worker report for a delivered item from the audit ledger, paged by character range. Run/rework views show only a bounded excerpt; this is the in-session read path for the complete text. Read-only and never changes state.',
       parameters: { item_id: { type: 'string', required: true }, offset: { type: 'integer', description: 'Character offset, default 0' }, limit: { type: 'integer', description: 'Characters to return, default 4000, max 40000' } }, output,
       execute: async (args, exec) => toolJSON(await controller.report(args, exec)) }))
+    runtime.tools.register(defineTool({ name: 'dpswarm_artifact', description: 'Staged-mode workers only: advance the artifact your claim owns (to: claimed | draft | ready | adjusting | frozen | done; optional note). The control plane validates transitions; the read gate mirrors accepted states. All other dpswarm_* tools stay Lead-only.',
+      parameters: { to: { type: 'string', required: true }, note: { type: 'string' } }, output,
+      execute: async (args, exec) => toolJSON(await controller.artifactState(args, exec)) }))
     ctx.effect(warm, 'dpswarm: enabled-session startup')
     ctx.effect(() => () => controller.shutdown(), 'dpswarm: cancel on disposal')
   })

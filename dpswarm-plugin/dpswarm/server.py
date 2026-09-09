@@ -20,6 +20,10 @@
                                reject 只打回挂起，预算由重跑消费）
   POST /api/peer              分裂对 peer 通道投递（§9.5：queued+delivered，
                                消息账本即 evidence）
+  POST /api/artifact/register 产物登记（fixed-team-v3 产物状态板：body 为
+                               artifact 字段，登记即 pending/v1）
+  POST /api/artifact/state    产物状态变更（body {artifact_id, to, note?}；
+                               合法转换表内，version 由投影 +1）
 
 用法：python -m dpswarm.server [--port 8791] [--workspace .dpswarm-panel]
 页面：http://127.0.0.1:8791/  （dph Web UI 入口见 apps/web/public/dpswarm.html）
@@ -46,6 +50,7 @@ from .events import DelegationRecord
 from .orchestrator import Orchestrator
 from .providers import MockProvider, OpenAICompatProvider
 from .types import (
+    Artifact,
     HumanDirective,
     Level,
     ModelCatalog,
@@ -83,6 +88,13 @@ def default_catalog() -> ModelCatalog:
     cat.register(ModelFacts("mock", "c-fast", Level.C, aa_source="demo",
                             aa_dimensional={"coding": 6.5, "reasoning": 6.3, "overall": 6.4}))
     return cat
+
+
+def _artifact_view(a: Artifact) -> Dict[str, Any]:
+    """产物状态板透出口径（fixed-team-v3）：status 与写接口响应共用。"""
+    return {"id": a.id, "title": a.title, "state": a.state.value,
+            "version": a.version, "phase": a.phase, "owner_item": a.owner_item,
+            "write_globs": list(a.write_globs), "deps": list(a.deps)}
 
 
 class PanelState:
@@ -266,6 +278,7 @@ class PanelState:
             "spec_revisions": sorted(p.spec_revisions.keys()),
             "aa_snapshot": self.aa.meta() if self.aa else None,
             "host_catalog": self.host_catalog_status(),
+            "artifacts": [_artifact_view(a) for a in p.artifacts.values()],
             "catalog": [
                 {"provider": f.provider, "model": f.model, "level": f.level.value,
                  "aa": f.aa_dimensional, "src": f.aa_source, "ctx": f.context_window,
@@ -956,6 +969,33 @@ class PanelState:
         except ControlPlaneError as e:
             return False, {"ok": False, "error": e.code, "message": str(e)}
 
+    def artifact_register(self, body: Dict[str, Any]) -> Tuple[bool, Dict[str, Any]]:
+        """产物登记（fixed-team-v3）：body 为 artifact 字段。state/version 声明
+        非默认值时透传给 invariants 结构化拒绝（不静默纠正）。"""
+        if not isinstance(body, dict):
+            return False, {"ok": False, "error": "BAD_REQUEST", "message": "body must be an object"}
+        try:
+            artifact = self.cp.register_artifact(
+                artifact_id=body.get("id"), title=body.get("title"),
+                write_globs=body.get("write_globs"), phase=body.get("phase"),
+                owner_item=body.get("owner_item"), deps=body.get("deps"),
+                state=body.get("state"), version=body.get("version"))
+            return True, {"ok": True, "artifact": _artifact_view(artifact)}
+        except ControlPlaneError as e:
+            return False, {"ok": False, "error": e.code, "message": str(e)}
+
+    def artifact_state(self, body: Dict[str, Any]) -> Tuple[bool, Dict[str, Any]]:
+        """产物状态变更（fixed-team-v3）：{artifact_id, to, note?}；转换合法性与
+        version 推进由控制面保证。"""
+        if not isinstance(body, dict):
+            return False, {"ok": False, "error": "BAD_REQUEST", "message": "body must be an object"}
+        try:
+            artifact = self.cp.set_artifact_state(
+                body.get("artifact_id"), body.get("to"), note=body.get("note"))
+            return True, {"ok": True, "artifact": _artifact_view(artifact)}
+        except ControlPlaneError as e:
+            return False, {"ok": False, "error": e.code, "message": str(e)}
+
 
 class _BodyTooLarge(Exception):
     pass
@@ -1150,6 +1190,12 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(resp, 200 if ok else 400)
             elif self.path == "/api/peer":
                 ok, resp = st.peer(body)
+                self._json(resp, 200 if ok else 400)
+            elif self.path == "/api/artifact/register":
+                ok, resp = st.artifact_register(body)
+                self._json(resp, 200 if ok else 400)
+            elif self.path == "/api/artifact/state":
+                ok, resp = st.artifact_state(body)
                 self._json(resp, 200 if ok else 400)
             else:
                 self._json({"error": "not found"}, 404)

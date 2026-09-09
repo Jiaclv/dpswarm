@@ -28,6 +28,7 @@ from .events import DelegationRecord, Event, EventStore
 from .invariants import InvariantViolation
 from .types import (
     AcceptanceState,
+    Artifact,
     BlockState,
     DelegationKind,
     HumanDirective,
@@ -1277,6 +1278,47 @@ class ControlPlane:
         return self._record("delegation_economics_recorded", {
             "item_id": item_id, "lead_tokens": lead_tokens,
             "estimated_savings": estimated_savings})
+
+    # ------------------------------------------------------------------
+    # 产物状态板（fixed-team-v3：分阶段多 worker 协调的具名交付物）
+    # ------------------------------------------------------------------
+
+    def register_artifact(
+        self,
+        artifact_id: str,
+        title: str,
+        write_globs: List[str],
+        phase: str,
+        owner_item: Optional[str] = None,
+        deps: Optional[List[str]] = None,
+        state: Optional[str] = None,
+        version: Optional[int] = None,
+    ) -> Artifact:
+        """登记产物：id 唯一、write_globs 非空、deps 指向已存在产物且无环、
+        owner_item 给出必须存在；state/version 仅透传（非 pending/1 由
+        invariants 结构化拒绝，不静默纠正）。"""
+        payload: Dict[str, Any] = {
+            "id": artifact_id, "title": title,
+            "write_globs": list(write_globs) if isinstance(write_globs, list) else write_globs,
+            "phase": phase, "owner_item": owner_item,
+            "deps": list(deps) if isinstance(deps, list) else deps,
+        }
+        if state is not None:
+            payload["state"] = state
+        if version is not None:
+            payload["version"] = version
+        self._transact(("artifact_registered", payload))
+        return self.proj.artifacts[artifact_id]
+
+    def set_artifact_state(self, artifact_id: str, to: str,
+                           note: Optional[str] = None) -> Artifact:
+        """产物状态变更：转换必须落在合法表内（其余 ARTIFACT_TRANSITION 拒绝）；
+        version 由投影推进（每次状态变更 +1）。"""
+        payload: Dict[str, Any] = {"artifact_id": artifact_id, "to": to}
+        if note is not None:
+            payload["note"] = note
+        self._transact(("artifact_state_changed", payload))
+        return self.proj.artifacts[artifact_id]
 
     # ------------------------------------------------------------------
     # 查询

@@ -13,7 +13,7 @@ test('real installed DSH tool/schema API accepts the default-off fixed plugin', 
   const ctx={on(){return ()=>{}},provide(name,value){this[name]=value},tools:{register(t){registered.set(t.name,t)}},subagents:{start(){throw new Error('Must not start')}},
     systemPrompt:{section(p){prompts.push(p)}},inject(_deps,fn){fn(ctx)},effect(fn){effects.push(fn)}}
   apply(ctx,{})
-  assert.deepEqual([...registered.keys()].sort(),['dpswarm_models','dpswarm_prepare_worker','dpswarm_report','dpswarm_review','dpswarm_rework','dpswarm_run','dpswarm_status'])
+  assert.deepEqual([...registered.keys()].sort(),['dpswarm_artifact','dpswarm_models','dpswarm_prepare_worker','dpswarm_report','dpswarm_review','dpswarm_rework','dpswarm_run','dpswarm_status'])
   assert.equal(registered.has('dpswarm_delegate'),false)
   for(const effect of effects) effect()
   const parent={id:'p',session:{id:'p',header:{}},options:{provider:'gpt',model:'sol'}}

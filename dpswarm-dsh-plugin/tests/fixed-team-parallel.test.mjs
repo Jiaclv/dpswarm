@@ -248,3 +248,44 @@ test('without a configured reviewer the gate stays off (Lead verifies as before)
   await h.dispatcher.review({ item_id: implA.item_id, verdict: 'accept' }, h.exec)
   assert.equal(h.items[implA.item_id].acceptance, 'accepted')
 })
+
+test('staged mode registers the artifact board and dispatches dependency waves', async () => {
+  const h = fixture()
+  const result = await h.dispatcher.run({ task: 'Build the scene.', acceptance: 'Scene exists.', staged: {
+    phases: [{ id: 'contracts', task: 'Write the layout contract.' }, { id: 'build', task: 'Build the parts per the contract.' }],
+    artifacts: [
+      { id: 'layout', title: '布局契约', task: 'Define sizes and anchors under src/layout/**.', write_globs: ['src/layout/**'], phase: 'contracts' },
+      { id: 'bike', title: '自行车', task: 'Build the bicycle per the contract.', write_globs: ['src/bike/**'], phase: 'build', deps: ['layout'] },
+      { id: 'bird', title: '鹈鹕', task: 'Build the pelican per the contract.', write_globs: ['src/bird/**'], phase: 'build', deps: ['layout'] },
+    ],
+  } }, h.exec)
+  assert.equal(result.failed.length, 0)
+  assert.deepEqual(result.deliveries.map(d => [d.role, d.subtask ?? null]),
+    [['implementer', 'layout'], ['implementer', 'bike'], ['implementer', 'bird'], ['tester', null]])
+  assert.deepEqual(h.children.map(c => c.id), ['child-0', 'child-1', 'child-2', 'child-3'])
+  assert.match(h.children[0].request.prompt[0].text, /布局契约/)
+  assert.match(h.children[1].request.prompt[0].text, /dpswarm_artifact/)
+  const artifacts = h.writeScope.artifactsFor('root')
+  assert.deepEqual(artifacts.map(a => [a.id, a.state]).sort(), [['bike', 'claimed'], ['bird', 'claimed'], ['layout', 'claimed']])
+  assert.deepEqual(h.writeScope.claimsFor('root').map(c => c.subtask).sort(), ['bike', 'bird', 'layout'])
+})
+
+test('dpswarm_artifact advances the caller-owned artifact and rejects unclaimed callers', async () => {
+  const h = fixture()
+  await h.dispatcher.run({ task: 'Build.', acceptance: 'Done.', staged: {
+    phases: [{ id: 'only', task: 'Do both parts.' }],
+    artifacts: [
+      { id: 'a', title: 'A', task: 'Do A.', write_globs: ['a/**'], phase: 'only' },
+      { id: 'b', title: 'B', task: 'Do B.', write_globs: ['b/**'], phase: 'only' },
+    ],
+  } }, h.exec)
+  const wA = h.sessions.get('child-0').session
+  const res = await h.controller.artifactState({ to: 'draft', note: 'started' }, { agent: { session: wA } })
+  assert.equal(res.ok, true)
+  const mirror = h.writeScope.artifactsFor('root').find(a => a.id === 'a')
+  assert.equal(mirror.state, 'draft')
+  assert.equal(mirror.version, 2)
+  const testerSession = h.sessions.get('child-2').session
+  await assert.rejects(h.controller.artifactState({ to: 'draft' }, { agent: { session: testerSession } }), { code: 'ARTIFACT_NOT_CLAIMED' })
+  await assert.rejects(h.controller.artifactState({ to: '' }, { agent: { session: wA } }), { code: 'ARTIFACT_STATE_REQUIRED' })
+})

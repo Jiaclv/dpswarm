@@ -39,6 +39,82 @@ function validateSubtasks(value) {
 
 const scopeClause = st => `\n\n写范围（工具层强制）：只能写入或修改匹配 ${st.write_scope.join('、')} 的文件；读取不限。其他实现者正在并行处理其余子任务——他们的范围不属于你，越界写会被拒绝并记录。`
 
+/** Staged mode (fixed-team-v3): Lead-authored artifact board + phases. */
+function validateStaged(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)
+    || Object.keys(value).some(k => !['artifacts', 'phases'].includes(k))) {
+    throw failure('STAGED_INVALID', 'staged must be an object with artifacts and phases')
+  }
+  const { artifacts, phases } = value
+  if (!Array.isArray(phases) || !phases.length || phases.length > 4) throw failure('STAGED_INVALID', 'phases: 1–4 entries')
+  if (!Array.isArray(artifacts) || !artifacts.length || artifacts.length > 8) throw failure('STAGED_INVALID', 'artifacts: 1–8 entries')
+  const phaseIds = new Set()
+  for (const [i, ph] of phases.entries()) {
+    if (!ph || typeof ph !== 'object' || typeof ph.id !== 'string' || !ph.id.trim() || phaseIds.has(ph.id)
+      || typeof ph.task !== 'string' || !ph.task.trim()
+      || Object.keys(ph).some(k => !['id', 'task'].includes(k))) throw failure('STAGED_INVALID', `phases[${i}] needs a unique id and a task`)
+    phaseIds.add(ph.id)
+  }
+  const phaseOrder = new Map([...phaseIds].map((id, i) => [id, i]))
+  const ids = new Set()
+  for (const [i, a] of artifacts.entries()) {
+    if (!a || typeof a !== 'object' || Array.isArray(a)
+      || typeof a.id !== 'string' || !a.id.trim() || ids.has(a.id)
+      || typeof a.title !== 'string' || !a.title.trim()
+      || typeof a.task !== 'string' || !a.task.trim()
+      || !Array.isArray(a.write_globs) || !a.write_globs.length || a.write_globs.some(g => typeof g !== 'string' || !g.trim())
+      || typeof a.phase !== 'string' || !phaseIds.has(a.phase)
+      || (a.deps !== undefined && (!Array.isArray(a.deps) || a.deps.some(d => typeof d !== 'string')))
+      || Object.keys(a).some(k => !['id', 'title', 'task', 'write_globs', 'phase', 'deps'].includes(k))) {
+      throw failure('STAGED_INVALID', `artifacts[${i}] needs unique id, title, task, write_globs, a valid phase and optional deps`)
+    }
+    ids.add(a.id)
+  }
+  const artifactPhase = new Map(artifacts.map(a => [a.id, a.phase]))
+  for (const a of artifacts) for (const d of a.deps || []) {
+    if (!ids.has(d)) throw failure('STAGED_INVALID', `artifact ${a.id} depends on unknown artifact ${d}`)
+    if (phaseOrder.get(artifactPhase.get(d)) > phaseOrder.get(a.phase)) throw failure('STAGED_INVALID', `artifact ${a.id} depends on ${d} from a later phase`)
+  }
+  // Design-time deadlock removal: the artifact graph must be acyclic.
+  const remaining = new Map(artifacts.map(a => [a.id, new Set(a.deps || [])]))
+  const done = new Set()
+  while (true) {
+    const ready = [...remaining.keys()].filter(id => [...remaining.get(id)].every(d => done.has(d)))
+    if (!ready.length) break
+    for (const id of ready) { remaining.delete(id); done.add(id) }
+  }
+  if (remaining.size) throw failure('ARTIFACT_CYCLE', `artifact deps form a cycle: ${[...remaining.keys()].join(', ')}`)
+  for (let i = 0; i < artifacts.length; i++) for (let j = i + 1; j < artifacts.length; j++) {
+    if (scopesOverlap(artifacts[i].write_globs, artifacts[j].write_globs)) {
+      throw failure('WORKER_SCOPE_OVERLAP', `write_globs of "${artifacts[i].id}" overlap "${artifacts[j].id}"`)
+    }
+  }
+  return {
+    phases: phases.map(ph => ({ id: ph.id.trim(), task: ph.task })),
+    artifacts: artifacts.map(a => ({ id: a.id.trim(), title: a.title.trim(), task: a.task,
+      write_globs: a.write_globs.map(g => g.trim()), phase: a.phase, deps: [...(a.deps || [])] })),
+  }
+}
+
+/** Wave plan: phases in order; intra-phase dependency waves (deps from earlier phases are settled). */
+function planWaves(staged) {
+  const phaseIndex = new Map(staged.phases.map((p, i) => [p.id, i]))
+  const artifactPhase = new Map(staged.artifacts.map(a => [a.id, phaseIndex.get(a.phase)]))
+  const waves = [], done = new Set()
+  for (const phase of staged.phases) {
+    const mine = staged.artifacts.filter(a => a.phase === phase.id)
+    const pending = new Set(mine.map(a => a.id))
+    while (pending.size) {
+      const ready = mine.filter(a => pending.has(a.id)
+        && (a.deps || []).every(d => done.has(d) || artifactPhase.get(d) < phaseIndex.get(phase.id)))
+      if (!ready.length) break
+      waves.push(ready.map(a => ({ id: a.id, title: a.title, task: a.task, write_scope: a.write_globs })))
+      for (const a of ready) { pending.delete(a.id); done.add(a.id) }
+    }
+  }
+  return waves
+}
+
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex')
 const failure = (code, message) => Object.assign(new Error(`${code}: ${message}`), { code })
 const enabled = (cfg, id) => Array.isArray(cfg.enabledSessions) && cfg.enabledSessions.includes(id)
@@ -260,10 +336,14 @@ export class FixedTeamController {
     if (this.closed) throw failure('PLUGIN_DISPOSED', 'Plugin is stopping')
     if (!enabled(this.config(), parent.session.id)) throw failure('DPSWARM_DISABLED', 'Enable DPSwarm for this task in the input toolbar first')
     if (!args || typeof args.task !== 'string' || !args.task.trim() || args.task.length > 100000) throw failure('TASK_REQUIRED', 'A nonempty bounded task description is required')
-    const allowed = new Set(['task', 'acceptance', 'worker_budgets', 'subtasks'])
+    const allowed = new Set(['task', 'acceptance', 'worker_budgets', 'subtasks', 'staged'])
     if (Object.keys(args).some(key => !allowed.has(key))) throw failure('FIXED_MODE_ONLY', 'Models, roles and topology come from user settings')
     if (args.acceptance != null && (typeof args.acceptance !== 'string' || args.acceptance.length > 40000)) throw failure('INVALID_ACCEPTANCE', 'Acceptance requirements must be text')
     const subtasks = args.subtasks === undefined ? null : validateSubtasks(args.subtasks)
+    const staged = args.staged === undefined ? null : validateStaged(args.staged)
+    if (subtasks && staged) throw failure('STAGED_INVALID', 'staged and subtasks are mutually exclusive; staged carries its own artifact split')
+    const waves = staged ? planWaves(staged) : null
+    const parallelCount = subtasks ? subtasks.length : staged ? staged.artifacts.length : 0
     let state = this.session(parent)
     if (state.busy || state.lease) throw failure('RUN_PENDING', 'Finish or review the current fixed-team run first')
     // Configuration edits apply to a new run; active execution and review keep their connection snapshot.
@@ -280,11 +360,11 @@ export class FixedTeamController {
         || Object.keys(proposedBudgets).some(role => !roles.includes(role))) throw failure('WORKER_BUDGET_DECISION_REQUIRED', 'Read the task and provide your own worker_budgets for every enabled role before dispatch.')
       for (const role of roles) {
         const plan = proposedBudgets[role]
-        const plans = role === 'implementer' && subtasks ? plan : [plan]
-        if (role === 'implementer' && subtasks && (!Array.isArray(plan) || plan.length !== subtasks.length)) {
-          throw failure('WORKER_BUDGET_DECISION_REQUIRED', 'Parallel implementers need one index-aligned worker_budgets.implementer entry per subtask.')
+        const plans = role === 'implementer' && parallelCount ? plan : [plan]
+        if (role === 'implementer' && parallelCount && (!Array.isArray(plan) || plan.length !== parallelCount)) {
+          throw failure('WORKER_BUDGET_DECISION_REQUIRED', 'Parallel implementers need one index-aligned worker_budgets.implementer entry per subtask or staged artifact.')
         }
-        if (!(role === 'implementer' && subtasks) && Array.isArray(plan)) {
+        if (!(role === 'implementer' && parallelCount) && Array.isArray(plan)) {
           throw failure('WORKER_BUDGET_DECISION_REQUIRED', `worker_budgets.${role} must be a single decision object outside a parallel implementer phase.`)
         }
         for (const entry of plans) {
@@ -330,6 +410,7 @@ export class FixedTeamController {
         run_id: state.lease.run_id, task_binding: taskBinding?.binding ? clone(taskBinding.binding) : null,
         task: args.task, acceptance: args.acceptance || '', profile: clone(state.profile),
         ...(subtasks ? { subtasks: clone(subtasks) } : {}),
+        ...(staged ? { staged: clone(staged) } : {}),
         configuration_fingerprint: configurationFingerprint(state.cfg), lead_route: clone(leadOptions) }
       state.implementers = new Map()
       state.testers = new Map()
@@ -338,7 +419,7 @@ export class FixedTeamController {
       if (state.fixedTask.task_binding) await state.journal.append(parent.session.id, 'dpswarm/fixed-team-binding', state.fixedTask)
       // The fixed topology must fit the §7 team-worker cap before dispatch;
       // rework headroom is raised on demand in rework().
-      await this.ensureTeamCapacity(state, parent, (subtasks ? subtasks.length : 1) + roles.length - 1)
+      await this.ensureTeamCapacity(state, parent, (parallelCount ? (staged ? Math.max(...waves.map(w => w.length)) : parallelCount) : 1) + roles.length - 1)
       const context = `Explicit task constraints apply to every role and take precedence over default role guidance. If the task says no tests (including 不需要任何测试), do not run tests or add tests. Use only permitted read-only inspection and report unverified behavior honestly.\n\nTask:\n${args.task}\n\nAcceptance requirements:\n${args.acceptance || 'Derive requirements from the task; identify uncertainty explicitly.'}`
       for (const role of roles) {
         if (state.abort.signal.aborted || !enabled(this.config(), parent.session.id)) break
@@ -356,7 +437,7 @@ export class FixedTeamController {
             break
           }
         }
-        const parallelImplementers = role === 'implementer' && subtasks
+        const parallelImplementers = role === 'implementer' && (subtasks || staged)
         if (state.budgetRun && !parallelImplementers) {
           const allocation = await this.budget.issueTeamWorker(parent, state.budgetRun, { task: assignedPrompt, label: role })
           assignedPrompt = allocation.prompt
@@ -369,38 +450,66 @@ export class FixedTeamController {
           if (parallelImplementers) {
             // Parallel implementer phase: one derive dispatch fans out N children
             // with per-subtask allocations and enforced write-scope claims.
-            const assigned = []
-            for (const [index, st] of subtasks.entries()) {
-              let prompt = roleText + '\n\n' + context
-                + `\n\n你负责的子任务（${st.id}）：\n${st.task}`
-                + (st.acceptance ? `\n\n本子任务验收：\n${st.acceptance}` : '')
-                + scopeClause(st)
-              if (state.budgetRun) {
-                const allocation = await this.budget.issueTeamWorker(parent, state.budgetRun, { task: prompt, label: 'implementer', subtask: st.id, subtaskIndex: index })
-                prompt = allocation.prompt
+            // Staged mode registers the artifact board first, then dispatches
+            // dependency waves (each wave is one parallel derive fan-out).
+            const waveList = staged ? waves : [subtasks]
+            if (staged) {
+              for (const artifact of staged.artifacts) {
+                try {
+                  await state.sidecar.call('POST', '/api/artifact/register', { id: artifact.id, title: artifact.title,
+                    write_globs: artifact.write_globs, owner_item: null, phase: artifact.phase, deps: artifact.deps })
+                } catch (error) {
+                  throw failure('ARTIFACT_REGISTER_FAILED', `artifact ${artifact.id}: ${error.message || error}`)
+                }
+                this.writeScope?.registerArtifact(parent.session.id, { ...artifact, state: 'pending', version: 1 })
               }
-              assigned.push({ ...route, title: `DPswarm implementer · ${st.id}`, prompt })
             }
-            const result = await delegateOnce({ kind: 'derive', subtasks: assigned },
-              { ...exec, signal: timeout.signal }, state.sidecar, this.subagents,
-              { routeJournal: state.journal, resolveSession: this.resolveSession, budget: this.budget,
-                runId: state.lease.run_id, onDiagnostic: value => state.diagnostics.push(value),
-                modelRegistry: this.modelRegistry, modelRoutes: state.modelRoutes, hostModels: state.hostModels, modelRole: role, onChildStarted: async details => {
-                  const st = subtasks[details.subtask_index]
-                  if (st && this.writeScope) {
-                    // A rework continuation re-claims the same subtask region; the
-                    // source worker is provably terminal before rework starts.
-                    await this.writeScope.claim({ rootId: parent.session.id, sessionId: details.execution_session_id,
-                      subtask: st.id, scopes: st.write_scope, runId: state.lease.run_id })
-                  }
-                  state.implementers.set(details.item_id, { item_id: details.item_id, worker_session_id: details.execution_session_id,
-                    run_id: state.lease.run_id, subtask: st?.id ?? null, superseded: false })
-                  await onChildStarted?.({ ...details, role, run_id: state.lease.run_id })
-                } })
-            if (!Array.isArray(result.deliveries)) { failed.push({ role, code: result.outcome || 'NOT_ADMITTED', error: result.message || 'No worker was admitted' }); break }
-            deliveries.push(...result.deliveries.map(d => ({ ...d, role, subtask: subtasks[d.subtask_index]?.id ?? null, evidence_kind: 'worker_reported; Lead must independently verify' })))
-            failed.push(...result.failed.map(f => ({ ...f, role, subtask: subtasks[f.subtask_index]?.id ?? null })))
-            if (result.failed.some(f => f.control_settlement?.ok !== true || f.details?.physicalCleanupConfirmed === false)) break
+            let waveFailed = false
+            for (const wave of waveList) {
+              if (state.abort.signal.aborted || !enabled(this.config(), parent.session.id) || waveFailed) break
+              const assigned = []
+              for (const [index, st] of wave.entries()) {
+                let prompt = roleText + '\n\n' + context
+                  + `\n\n你负责的子任务（${st.id}）：\n${st.task}`
+                  + (st.acceptance ? `\n\n本子任务验收：\n${st.acceptance}` : '')
+                  + scopeClause(st)
+                  + (staged ? `\n\n你管理的产物是「${st.title ?? st.id}」（id: ${st.id}）：开始写入时用 dpswarm_artifact 把它推进到 draft，完成并自查后推进到 ready；读取他人未 ready 的产物会被工具层拒绝（先做自己部分，或结束本轮等待唤醒）。` : '')
+                if (state.budgetRun) {
+                  const allocation = await this.budget.issueTeamWorker(parent, state.budgetRun, { task: prompt, label: 'implementer',
+                    subtask: st.id, subtaskIndex: staged ? staged.artifacts.findIndex(a => a.id === st.id) : index })
+                  prompt = allocation.prompt
+                }
+                assigned.push({ ...route, title: `DPswarm implementer · ${st.id}`, prompt })
+              }
+              const result = await delegateOnce({ kind: 'derive', subtasks: assigned },
+                { ...exec, signal: timeout.signal }, state.sidecar, this.subagents,
+                { routeJournal: state.journal, resolveSession: this.resolveSession, budget: this.budget,
+                  runId: state.lease.run_id, onDiagnostic: value => state.diagnostics.push(value),
+                  modelRegistry: this.modelRegistry, modelRoutes: state.modelRoutes, hostModels: state.hostModels, modelRole: role, onChildStarted: async details => {
+                    const st = wave[details.subtask_index]
+                    if (st && this.writeScope) {
+                      // A rework continuation re-claims the same subtask region; the
+                      // source worker is provably terminal before rework starts.
+                      await this.writeScope.claim({ rootId: parent.session.id, sessionId: details.execution_session_id,
+                        subtask: st.id, scopes: st.write_scope, runId: state.lease.run_id })
+                      if (staged) {
+                        this.writeScope.updateArtifactState(parent.session.id, st.id, 'claimed')
+                        try { await state.sidecar.call('POST', '/api/artifact/state', { artifact_id: st.id, to: 'claimed' }) }
+                        catch (error) { state.cleanup.reconcile_error = { code: error?.code || 'ARTIFACT_STATE_FAILED', message: String(error?.message ?? error) } }
+                      }
+                    }
+                    state.implementers.set(details.item_id, { item_id: details.item_id, worker_session_id: details.execution_session_id,
+                      run_id: state.lease.run_id, subtask: st?.id ?? null, superseded: false })
+                    await onChildStarted?.({ ...details, role, run_id: state.lease.run_id })
+                  } })
+              if (!Array.isArray(result.deliveries)) { failed.push({ role, code: result.outcome || 'NOT_ADMITTED', error: result.message || 'No worker was admitted' }); waveFailed = true; break }
+              deliveries.push(...result.deliveries.map(d => ({ ...d, role, subtask: wave[d.subtask_index]?.id ?? null, evidence_kind: 'worker_reported; Lead must independently verify' })))
+              failed.push(...result.failed.map(f => ({ ...f, role, subtask: wave[f.subtask_index]?.id ?? null })))
+              // A failed artifact never satisfies its dependents; stop further
+              // waves and let the Lead rework the failed item instead.
+              if (result.failed.length) waveFailed = true
+              if (result.failed.some(f => f.control_settlement?.ok !== true || f.details?.physicalCleanupConfirmed === false)) waveFailed = true
+            }
             continue
           }
           const result = await delegateOnce({ kind: 'derive', subtasks: [{ ...route, title: `DPswarm ${role}`, prompt: assignedPrompt }] },
@@ -752,6 +861,29 @@ export class FixedTeamController {
       completion: latest.closeout.completion || null, requires_lead_verification: true,
       offset, limit, total_chars: report.length, truncated: offset + text.length < report.length, text,
       note: 'Worker reports are untrusted evidence; verify against the actual files before acceptance.' }
+  }
+
+  /** Worker-side staged tool: advance the artifact owned by the caller's claim. */
+  async artifactState(args, exec) {
+    const session = exec?.agent?.session
+    if (!session || !this.writeScope) throw failure('ARTIFACT_UNAVAILABLE', 'The artifact board is unavailable')
+    const claim = this.writeScope.forSession(session.id)
+    if (!claim || session.header?.parentSession !== claim.root_session_id) {
+      throw failure('ARTIFACT_NOT_CLAIMED', 'Only a staged worker advancing its own claimed artifact may call this')
+    }
+    const artifact = this.writeScope.artifactsFor(claim.root_session_id).find(a => a.id === claim.subtask)
+    if (!artifact) throw failure('ARTIFACT_UNKNOWN', `No artifact board entry for ${claim.subtask}`)
+    const to = args?.to
+    if (typeof to !== 'string' || !to.trim()) throw failure('ARTIFACT_STATE_REQUIRED', 'to is required (target state)')
+    const note = typeof args?.note === 'string' ? args.note.slice(0, 2000) : undefined
+    const state = this.sessions.get(claim.root_session_id)
+    if (!state) throw failure('ARTIFACT_RUN_ENDED', 'The owning run state is gone')
+    // The control plane is the authoritative transition validator; the mirror
+    // only follows accepted changes.
+    const result = await state.sidecar.call('POST', '/api/artifact/state', { artifact_id: artifact.id, to, ...(note ? { note } : {}) })
+    artifact.state = to
+    if (Number.isSafeInteger(artifact.version)) artifact.version += 1
+    return result
   }
 
   async review(args, exec) {

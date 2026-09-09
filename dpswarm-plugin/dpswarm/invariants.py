@@ -9,6 +9,7 @@
 - §9.6  封存三段式线性相位与准入截止
 - §2    路由对账：人工指定不得被静默替换
 - §9.5  peer 通道：同 item 一主一协助、delivered 去重、closed 后拒新消息
+- fixed-team-v3  产物状态板：登记拓扑无环 + 状态机合法转换表
 
 check_event 流程：深拷贝投影 → pre 检查（事件语义合法性）→ apply_event →
 post 全图重验（依赖存在 / 无重复边 / 无环 / 基础一致性；准入类事件另验
@@ -24,6 +25,7 @@ from .events import EVENT_KINDS, Event
 from .state import ROOT_TEAM_ID, Projection, apply_event, route_from_dict, spec_from_dict
 from .types import (
     AcceptanceState,
+    ArtifactState,
     BlockState,
     DelegationKind,
     Lease,
@@ -87,6 +89,19 @@ LEGAL_LIFECYCLE_TRANSITIONS: Set[Tuple[Optional[LifecycleState], LifecycleState]
     (LifecycleState.ACTIVE, LifecycleState.PROVISIONING),
 }
 
+#: 产物状态板合法转换（fixed-team-v3）。登记即 pending（None 起点不走本表）；
+#: done 为终态。非法转换一律 ARTIFACT_TRANSITION 拒绝。
+LEGAL_ARTIFACT_TRANSITIONS: Set[Tuple[ArtifactState, ArtifactState]] = {
+    (ArtifactState.PENDING, ArtifactState.CLAIMED),
+    (ArtifactState.CLAIMED, ArtifactState.DRAFT),
+    (ArtifactState.DRAFT, ArtifactState.READY),
+    (ArtifactState.READY, ArtifactState.ADJUSTING),
+    (ArtifactState.READY, ArtifactState.FROZEN),
+    (ArtifactState.READY, ArtifactState.DONE),
+    (ArtifactState.ADJUSTING, ArtifactState.READY),
+    (ArtifactState.FROZEN, ArtifactState.DONE),
+}
+
 #: 触发"新准入"容量校验的事件（§2.1：容量回退不强杀在途，只停新准入）。
 _ADMISSION_KINDS = {"work_item_created", "lease_acquired", "node_provisioning", "lease_reweight"}
 
@@ -130,6 +145,13 @@ def _get_lease(p: Projection, lease_id: str) -> Lease:
     if lease is None:
         raise _v("LEASE_UNKNOWN", f"lease 不存在: {lease_id}")
     return lease
+
+
+def _get_artifact(p: Projection, artifact_id: str):
+    artifact = p.artifacts.get(artifact_id)
+    if artifact is None:
+        raise _v("ARTIFACT_UNKNOWN", f"artifact 不存在: {artifact_id}")
+    return artifact
 
 
 def _acceptance_transition(item: WorkItem, new: Optional[AcceptanceState]) -> None:
@@ -230,6 +252,45 @@ def _verify_consistency(p: Projection) -> None:
             nid = channel.get(key)
             if nid is not None and nid not in p.nodes:
                 raise _v("NODE_UNKNOWN", f"peer 通道引用的节点不存在: {nid}")
+    _verify_artifacts(p)
+
+
+def _verify_artifacts(p: Projection) -> None:
+    """产物状态板全图重验（fixed-team-v3）：owner_item 存在、deps 存在/
+    无重复/无环（登记时校验的口径，逐事件全量重跑）。"""
+    if not p.artifacts:
+        return
+    deps_of: Dict[str, Set[str]] = {}
+    for artifact in p.artifacts.values():
+        if artifact.owner_item is not None and artifact.owner_item not in p.work_items:
+            raise _v("ITEM_UNKNOWN",
+                     f"artifact {artifact.id} 的 owner_item 不存在: {artifact.owner_item}")
+        seen: Set[str] = set()
+        for dep in artifact.deps:
+            if dep not in p.artifacts:
+                raise _v("DEP_MISSING", f"artifact {artifact.id} 依赖的 artifact 不存在: {dep}")
+            if dep in seen:
+                raise _v("DUPLICATE_EDGE", f"artifact {artifact.id} 对 {dep} 存在重复依赖")
+            seen.add(dep)
+        deps_of[artifact.id] = seen
+    # 环检测（Kahn，与 work item 依赖图同一口径）
+    dependents: Dict[str, Set[str]] = {aid: set() for aid in p.artifacts}
+    for aid, deps in deps_of.items():
+        for dep in deps:
+            dependents[dep].add(aid)
+    indegree = {aid: len(deps) for aid, deps in deps_of.items()}
+    queue = [aid for aid, d in indegree.items() if d == 0]
+    processed = 0
+    while queue:
+        current = queue.pop()
+        processed += 1
+        for nxt in dependents[current]:
+            indegree[nxt] -= 1
+            if indegree[nxt] == 0:
+                queue.append(nxt)
+    if processed != len(p.artifacts):
+        stuck = sorted(aid for aid, d in indegree.items() if d > 0)
+        raise _v("CYCLE", f"artifact 依赖图存在环，涉及: {stuck}")
 
 
 def _verify_admission(p: Projection) -> None:
@@ -987,6 +1048,63 @@ def _pre_human_directive(p: Projection, payload: Dict[str, Any]) -> None:
                  f"human_directive kind 必须属于 {_HUMAN_DIRECTIVE_KINDS}（§9.2）")
 
 
+def _pre_artifact_registered(p: Projection, payload: Dict[str, Any]) -> None:
+    """产物登记（fixed-team-v3）：字段齐全、id 唯一、deps 指向已存在产物
+    且加入后无环（自环即 CYCLE）、owner_item 可空但给出必须存在。"""
+    artifact_id = _req(payload, "id")
+    if not isinstance(artifact_id, str) or not artifact_id.strip():
+        raise _v("BAD_PAYLOAD", f"id 必须为非空字符串: {artifact_id!r}")
+    if artifact_id in p.artifacts:
+        raise _v("ARTIFACT_EXISTS", f"artifact 已存在: {artifact_id}（id 永不复用）")
+    for name in ("title", "phase"):
+        value = payload.get(name)
+        if not isinstance(value, str) or not value.strip():
+            raise _v("BAD_PAYLOAD", f"{name} 必须为非空字符串: {value!r}")
+    globs = payload.get("write_globs")
+    if (not isinstance(globs, list) or not globs
+            or any(not isinstance(g, str) or not g.strip() for g in globs)):
+        raise _v("BAD_PAYLOAD", f"write_globs 必须为非空字符串数组: {globs!r}")
+    state = payload.get("state", ArtifactState.PENDING.value)
+    if state != ArtifactState.PENDING.value:
+        raise _v("BAD_PAYLOAD", f"登记时 state 必须为 pending: {state!r}")
+    version = payload.get("version", 1)
+    if not isinstance(version, int) or isinstance(version, bool) or version != 1:
+        raise _v("BAD_PAYLOAD", f"登记时 version 必须为 1: {version!r}")
+    owner_item = payload.get("owner_item")
+    if owner_item is not None and owner_item not in p.work_items:
+        raise _v("ITEM_UNKNOWN", f"owner_item 指向的 work item 不存在: {owner_item}")
+    deps = payload.get("deps") or []
+    if not isinstance(deps, list):
+        raise _v("BAD_PAYLOAD", f"deps 必须为 artifact id 数组: {deps!r}")
+    seen: Set[str] = set()
+    for dep in deps:
+        if dep == artifact_id:
+            raise _v("CYCLE", f"artifact 依赖图存在环，涉及: {artifact_id}")
+        if dep not in p.artifacts:
+            raise _v("DEP_MISSING", f"artifact {artifact_id} 依赖的 artifact 不存在: {dep}")
+        if dep in seen:
+            raise _v("DUPLICATE_EDGE", f"artifact {artifact_id} 对 {dep} 存在重复依赖")
+        seen.add(dep)
+
+
+def _pre_artifact_state_changed(p: Projection, payload: Dict[str, Any]) -> None:
+    """产物状态变更（fixed-team-v3）：转换必须落在合法表内；version+1 由
+    投影推进（artifact_state_changed apply），payload 不携带版本。"""
+    artifact = _get_artifact(p, _req(payload, "artifact_id"))
+    target = payload.get("to")
+    try:
+        new_state = ArtifactState(target)
+    except ValueError:
+        raise _v("BAD_PAYLOAD", f"to 非法: {target!r}")
+    if (artifact.state, new_state) not in LEGAL_ARTIFACT_TRANSITIONS:
+        raise _v("ARTIFACT_TRANSITION",
+                 f"artifact {artifact.id}: {artifact.state.value} -> "
+                 f"{new_state.value} 非法（产物状态板）")
+    note = payload.get("note")
+    if note is not None and not isinstance(note, str):
+        raise _v("BAD_PAYLOAD", f"note 必须为字符串: {note!r}")
+
+
 _PRE_CHECKS: Dict[str, Callable[[Projection, Dict[str, Any]], None]] = {
     "root_started": _pre_root_started,
     "spec_published": _pre_spec_published,
@@ -1028,6 +1146,8 @@ _PRE_CHECKS: Dict[str, Callable[[Projection, Dict[str, Any]], None]] = {
     "peer_channel_closed": _pre_peer_channel_closed,
     "route_resolved": _pre_route_resolved,
     "human_directive": _pre_human_directive,
+    "artifact_registered": _pre_artifact_registered,
+    "artifact_state_changed": _pre_artifact_state_changed,
     # observation_* / token_usage_* / stop_reason_* / memory_* /
     # watchdog_suggested / delegation_economics_recorded：纯记录，无 pre 检查
 }

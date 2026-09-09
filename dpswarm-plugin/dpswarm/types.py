@@ -121,6 +121,18 @@ class WorkItemOutcome(str, Enum):
     MANUAL_STOPPED = "manual-stopped"
 
 
+class ArtifactState(str, Enum):
+    """产物状态板（fixed-team-v3）：具名交付物的状态机。"""
+
+    PENDING = "pending"        # 已登记，未认领
+    CLAIMED = "claimed"        # 已被某 worker 认领
+    DRAFT = "draft"            # 初稿产出中
+    READY = "ready"            # 可评审/可定稿
+    ADJUSTING = "adjusting"    # 按反馈调整
+    FROZEN = "frozen"          # 内容冻结（待最终归档）
+    DONE = "done"              # 交付完成（终态）
+
+
 # ---------------------------------------------------------------------------
 # 路由与分级（§2 / §3 / §8）
 # ---------------------------------------------------------------------------
@@ -349,6 +361,26 @@ class Team:
     parent_team: Optional[str]
     local_point_cap: Optional[int] = None  # 子 Team 本地上限（必须 < 父有效上限）
     sealed: bool = False
+
+
+@dataclass
+class Artifact:
+    """产物（artifact）：带状态与版本的具名交付物（fixed-team-v3 产物状态板）。
+
+    字段名是事件 payload、投影、不变量三方契约：
+    - id 唯一（登记后不可复用）；deps 为上游 artifact id（登记时拓扑无环）
+    - owner_item 指向归属 work item（可空）
+    - version 由投影推进：每次 artifact_state_changed +1
+    """
+
+    id: str
+    title: str
+    write_globs: List[str] = field(default_factory=list)  # 产物允许写入的路径模式（非空）
+    owner_item: Optional[str] = None
+    state: ArtifactState = ArtifactState.PENDING
+    version: int = 1
+    phase: str = ""                       # 所属阶段（fixed-team-v3 阶段名）
+    deps: List[str] = field(default_factory=list)        # 上游 artifact id
 
 
 @dataclass

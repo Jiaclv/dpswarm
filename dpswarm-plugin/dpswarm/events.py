@@ -17,6 +17,7 @@
   human            §9.2   人工指令三类
   watchdog         §9.2   只投建议事件，由唯一写者消费
   economics        §6     委派经济性（Lead 消耗 vs 委派节省）
+  artifact         fixed-team-v3  产物状态板（具名交付物状态与版本）
 """
 from __future__ import annotations
 
@@ -117,6 +118,9 @@ EVENT_KINDS = {
     "watchdog_suggested",
     # 委派经济性（§6）
     "delegation_economics_recorded",
+    # 产物状态板（fixed-team-v3：分阶段多 worker 协调的具名交付物）
+    "artifact_registered",
+    "artifact_state_changed",
 }
 
 
