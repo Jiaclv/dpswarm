@@ -49,7 +49,7 @@ function fixture() {
   } }
   const controller = new FixedTeamController({ config: () => cfg, budget: null, subagents, sidecarFactory, resolveSession: () => null })
   const exec = { agent: parent, signal: new AbortController().signal }
-  return { controller, exec, parent, items, children, journal, sidecarFactory }
+  return { controller, exec, parent, items, children, journal, sidecarFactory, cfg }
 }
 
 test('P0 pin: without subtasks the team is one implementer then one tester, strictly in order (must stay green in v2)', async () => {
@@ -127,4 +127,28 @@ test('v3 staged validation: mutual exclusion, cycles, later-phase deps and overl
       { id: 'a', title: 'A', task: 'A', write_globs: ['a/**'], phase: 'p1' },
       { id: 'b', title: 'B', task: 'B', write_globs: ['a/b/**'], phase: 'p1' }] } }, h.exec), /WORKER_SCOPE_OVERLAP/)
   assert.equal(h.children.length, 0, 'invalid staged specs never dispatch a child')
+})
+
+test('user-picked team mode gates what the Lead may dispatch (serial default)', async () => {
+  const h = fixture()
+  h.cfg.teamModeOverrides = [{ sessionId: 'root', mode: 'serial' }]
+  await assert.rejects(h.controller.run({ task: 'Build.', acceptance: 'Done.',
+    subtasks: [{ id: 'a', task: 'A', write_scope: ['a/**'] }] }, h.exec), /USER_TEAM_MODE_SERIAL/)
+  await assert.rejects(h.controller.run({ task: 'Build.', acceptance: 'Done.', staged: {
+    phases: [{ id: 'p1', task: 'P' }], artifacts: [{ id: 'a', title: 'A', task: 'A', write_globs: ['a/**'], phase: 'p1' }] } }, h.exec), /USER_TEAM_MODE_SERIAL/)
+  await h.controller.run({ task: 'Build.', acceptance: 'Done.' }, h.exec)
+  assert.equal(h.children.length, 2, 'serial runs fine')
+
+  const h2 = fixture()
+  h2.cfg.teamModeOverrides = [{ sessionId: 'root', mode: 'parallel' }]
+  await assert.rejects(h2.controller.run({ task: 'Build.', acceptance: 'Done.', staged: {
+    phases: [{ id: 'p1', task: 'P' }], artifacts: [{ id: 'a', title: 'A', task: 'A', write_globs: ['a/**'], phase: 'p1' }] } }, h2.exec), /USER_TEAM_MODE_PARALLEL/)
+  await h2.controller.run({ task: 'Build.', acceptance: 'Done.', subtasks: [{ id: 'a', task: 'A', write_scope: ['a/**'] }] }, h2.exec)
+  assert.equal(h2.children.length, 2, 'subtasks allowed in parallel mode')
+
+  const h3 = fixture()
+  h3.cfg.teamModeOverrides = [{ sessionId: 'root', mode: 'staged' }]
+  await assert.rejects(h3.controller.run({ task: 'Build.', acceptance: 'Done.',
+    subtasks: [{ id: 'a', task: 'A', write_scope: ['a/**'] }] }, h3.exec), /USER_TEAM_MODE_STAGED/)
+  assert.equal(h3.children.length, 0, 'subtasks rejected in staged mode')
 })

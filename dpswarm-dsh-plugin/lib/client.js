@@ -269,6 +269,13 @@ window.__ModuleLoader__.load({
 .dps-tokenShare{display:flex;flex-direction:column;gap:6px}
 .dps-tokenBar{display:flex;height:6px;border-radius:4px;overflow:hidden;background:var(--dsw-alias-bg-module-platform)}
 .dps-tokenBar i{display:block;height:100%;min-width:2px}
+/* 协作模式选择（弹层）：串行 / 并行 / 分阶段，按会话保存 */
+.dps-modeRow{display:flex;gap:6px}
+.dps-modeChip{flex:1;appearance:none;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-3);color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;line-height:1.5;padding:6px 0;cursor:pointer;text-align:center}
+.dps-modeChip:hover:not(:disabled){border-color:var(--dsw-alias-label-dimmed);color:var(--dsw-alias-label-primary)}
+.dps-modeChip:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}
+.dps-modeChipOn{border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-brand-primary);background:color-mix(in srgb,var(--dsw-alias-brand-primary) 8%,var(--dsw-alias-bg-layer-3));font-weight:600}
+.dps-modeChip:disabled{opacity:.5;cursor:default}
 `
     function ensureStyles() {
       try {
@@ -415,6 +422,34 @@ window.__ModuleLoader__.load({
           h('div', null, h('b', null, '开启 DPSwarm'), h('small', null, caption)),
           h('input', { type: 'checkbox', role: 'switch', checked: on,
             disabled: pending || !ready || (!on && missing.length > 0), onChange: change, 'aria-label': '开启 DPSwarm（固定团队 + CM）' })),
+        error ? h('p', { className: 'dps-error', role: 'alert' }, error) : null)
+    }
+
+    /** 协作模式三档选择：serial（默认，禁止拆分）/ parallel（Lead 可拆 ≤3 子任务）/ staged（产物板+挂起唤醒）。 */
+    const TEAM_MODES = [
+      ['serial', '串行', '实现者→测试者→审查（默认）'],
+      ['parallel', '并行', 'Lead 可拆分 ≤3 个互不重叠子任务并行'],
+      ['staged', '分阶段', '产物状态板 + 相位 + 挂起唤醒'],
+    ]
+    const teamModeOf = (cfg, sessionId) => ((cfg.teamModeOverrides || []).filter(r => r?.sessionId === sessionId).at(-1)?.mode) || 'serial'
+    function TeamModePicker({ sessionId }) {
+      const snapshot = useSettings(), cfg = snapshot.value || {}
+      const [pending, setPending] = useState(false), [error, setError] = useState('')
+      const current = teamModeOf(cfg, sessionId)
+      const ready = snapshot.status === 'ready' && snapshot.writable === true && snapshot.mode === 'host' && typeof sessionId === 'string' && !!sessionId
+      const pick = async mode => {
+        if (mode === current || pending) return
+        setPending(true); setError('')
+        try {
+          const latest = settingsScope.getSnapshot()
+          if (latest.status !== 'ready' || !latest.writable || latest.mode !== 'host') throw new Error('Host settings are unavailable')
+          await writeSettings(value => ({ teamModeOverrides: [...(value.teamModeOverrides || []).filter(r => r?.sessionId !== sessionId), { sessionId, mode }] }))
+        } catch (e) { setError(String(e.message || e)) } finally { setPending(false) }
+      }
+      return h('div', null,
+        h('div', { className: 'dps-modeRow', role: 'radiogroup', 'aria-label': '协作模式' },
+          TEAM_MODES.map(([mode, title, hint]) => h('button', { key: mode, type: 'button', role: 'radio', 'aria-checked': current === mode,
+            className: current === mode ? 'dps-modeChip dps-modeChipOn' : 'dps-modeChip', disabled: !ready || pending, onClick: () => pick(mode), title: hint }, title))),
         error ? h('p', { className: 'dps-error', role: 'alert' }, error) : null)
     }
 
@@ -831,6 +866,7 @@ window.__ModuleLoader__.load({
           h('span', { className: 'dps-popName' }, L.name),
           statusBadge(status.phase)),
         h(DpswarmSwitch, { sessionId }),
+        h(TeamModePicker, { sessionId }),
         h(KeyParams, null),
         h(TokenShareBar, { status: st }),
         status.connected
@@ -851,7 +887,6 @@ window.__ModuleLoader__.load({
         ['CM', cfg.cmModel || 'deepseek-v4-flash'],
         ['限额', { unlimited: '不做限制', manual: '手动', auto: 'Lead 分配' }[cfg.workerBudgetMode] || '不做限制'],
         ['返工', reworkMode(cfg.reworkBudgetMode) === 'fixed' ? '固定 ' + budgetNumber(cfg.reworkTokenLimit) + ' / ' + budgetNumber(cfg.reworkCallLimit) + ' 次' : '不限'],
-        ['并行', '≤3（Lead 按任务拆分）'],
         ['超时', String(cfg.workerTimeoutSeconds ?? 600) + 's'],
       ]
       return h('dl', { className: 'dps-summary dps-keyParams', 'aria-label': '关键参数' },

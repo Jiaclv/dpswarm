@@ -18,7 +18,8 @@ function fixture() {
   const workspace = mkdtempSync(join(tmpdir(), 'dpswarm-parallel-')), cwd = join(workspace, 'project'); mkdirSync(cwd)
   const cfg = { workspace, sidecarUrl: 'http://127.0.0.1:8791', autoStart: false, enabledSessions: ['root'],
     subagentProvider: 'spawn', implMode: 'lead', testProvider: 'fixture', testModel: 'tester',
-    workerTimeoutSeconds: 600, workerBudgetMode: 'manual', workerTokenLimit: 600000, workerCallLimit: 28 }
+    workerTimeoutSeconds: 600, workerBudgetMode: 'manual', workerTokenLimit: 600000, workerCallLimit: 28,
+    teamModeOverrides: [{ sessionId: 'root', mode: 'parallel' }] }
   const parent = { id: 'root', options: {}, session: { id: 'root', header: { id: 'root', cwd, origin: 'root', delegationDepth: 0 },
     events: [{ type: 'user/message', seq: 0, data: { id: 'user-task-1', role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: 'Create the two parts.' }] } }],
     requestHeader() { return { config: this.route } }, route: { provider: 'fixture', model: 'lead', reasoningEffort: 'max' } } }
@@ -253,6 +254,7 @@ test('without a configured reviewer the gate stays off (Lead verifies as before)
 
 test('staged mode registers the artifact board and dispatches dependency waves', async () => {
   const h = fixture()
+  h.cfg.teamModeOverrides[0].mode = 'staged'
   const result = await h.dispatcher.run({ task: 'Build the scene.', acceptance: 'Scene exists.', staged: {
     phases: [{ id: 'contracts', task: 'Write the layout contract.' }, { id: 'build', task: 'Build the parts per the contract.' }],
     artifacts: [
@@ -274,6 +276,7 @@ test('staged mode registers the artifact board and dispatches dependency waves',
 
 test('dpswarm_artifact advances the caller-owned artifact and rejects unclaimed callers', async () => {
   const h = fixture()
+  h.cfg.teamModeOverrides[0].mode = 'staged'
   await h.dispatcher.run({ task: 'Build.', acceptance: 'Done.', staged: {
     phases: [{ id: 'only', task: 'Do both parts.' }],
     artifacts: [
@@ -296,6 +299,7 @@ test('staged suspend/wake: a worker waiting on a not-ready artifact is continued
   const h = fixture()
   h.markerFor = { 'child-1': 'bike' }      // bird's first pass ends waiting on bike
   h.readyOnStart = { 'child-1': 'bike' }   // bike's artifact flips ready while bird runs
+  h.cfg.teamModeOverrides[0].mode = 'staged'
   const result = await h.dispatcher.run({ task: 'Build.', acceptance: 'Done.', staged: {
     phases: [{ id: 'build', task: 'Build both parts.' }],
     artifacts: [
@@ -317,6 +321,7 @@ test('staged suspend/wake: a worker waiting on a not-ready artifact is continued
 test('a wait whose artifact never turns ready fails honestly with ARTIFACT_WAIT_TIMEOUT', async () => {
   const h = fixture()
   h.markerFor = { 'child-1': 'bike' }   // bird waits on bike; nothing marks bike ready
+  h.cfg.teamModeOverrides[0].mode = 'staged'
   const result = await h.dispatcher.run({ task: 'Build.', acceptance: 'Done.', staged: {
     phases: [{ id: 'build', task: 'Build both parts.' }],
     artifacts: [
@@ -332,6 +337,7 @@ test('a wait whose artifact never turns ready fails honestly with ARTIFACT_WAIT_
 
 test('staged phase handoff: a wave opening a new phase carries the prior deliveries digest', async () => {
   const h = fixture()
+  h.cfg.teamModeOverrides[0].mode = 'staged'
   const result = await h.dispatcher.run({ task: 'Build.', acceptance: 'Done.', staged: {
     phases: [{ id: 'contracts', task: 'Write the contract.' }, { id: 'build', task: 'Build per the contract.' }],
     artifacts: [

@@ -1,3 +1,9 @@
+# 0.9.1 用户侧协作模式选择（串行/并行/分阶段门禁）验证（2026-09-09）
+
+插件回归 **360/360**、控制服务 **580/580** 通过（不含外部模型调用）。新增：设置项 `teamModeOverrides`（按会话，重复条目取最后）+ `teamModeFor()` + `run()` 用户模式门禁（serial 拒 `subtasks`/`staged` → `USER_TEAM_MODE_SERIAL`；parallel 拒 `staged` → `USER_TEAM_MODE_PARALLEL`；staged 拒 `subtasks` → `USER_TEAM_MODE_STAGED`；缺省 serial）；罗盘弹层三档选择器（`teamModeOf` 与后端同语义，写设置经既有原子 mutate 通道）。表征测试新增「用户模式门禁」用例（默认拒拆分/越形态拒绝/放行匹配形态）；`fixed-team-parallel` fixture 默认 parallel、staged 用例逐个翻模式。SSR 冒烟（宿主 React 18.3.1 + react-dom/server 渲染三个 slot，`.tmp/ssr-smoke/smoke.mjs`）通过：弹层含三枚模式 chip 且按 `teamModeOverrides` 正确选中。`client-browser.mjs` 未跑（本机无 Playwright，选择器交互未经真实浏览器检查）。
+
+---
+
 # 0.9.0 分阶段协调（产物状态板 / 读锁 / 挂起唤醒 / 相位交接）验证（2026-09-09）
 
 插件回归 **359/359**、控制服务 **580/580** 通过（不含外部模型调用）。实现 fixed-team-v3：`dpswarm_run` 的 `staged` 参数（产物板 + 相位，缺省=串行不变、与 subtasks 互斥）；控制面新增 artifact 实体（`tests/test_artifact_board_20260909.py` 44 项：注册校验/转换表全正反/回放一致/HTTP 认证与双会话隔离）；JS 侧状态读锁（`ARTIFACT_NOT_READY`）、`dpswarm_artifact` worker 工具（归属校验）、Kahn 波次派发、`[DPSWARM_WAITING]` 挂起标记 + 产物就绪驱动的链接延续唤醒（超时记 `ARTIFACT_WAIT_TIMEOUT`）、相位交接摘要注入。串行与 0.8.0 并行的既有表征钉死全部保持绿。真实 resume 探针与 CM 精选摘要分发列入后续轮次；浏览器面板新卡片未经实机检查（本机无 Playwright）。

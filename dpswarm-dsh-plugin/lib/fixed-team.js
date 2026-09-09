@@ -8,7 +8,7 @@ import { runtimePaths } from './paths.js'
 import { delegateOnce, requireRootCaller } from './delegation.js'
 import { workerBudgetProfile, reworkBudgetProfile } from './budget-runtime.js'
 import { effectiveLeadRoute } from './lead-route.js'
-import { workerRolePrompt } from './role-guidance.js'
+import { workerRolePrompt, teamModeFor } from './role-guidance.js'
 import { scopesOverlap } from './write-scope.js'
 
 /** Parallel implementer split: 1–3 disjoint write scopes, Lead-authored. */
@@ -349,6 +349,11 @@ export class FixedTeamController {
     // Configuration edits apply to a new run; active execution and review keep their connection snapshot.
     this.sessions.delete(parent.session.id)
     state = this.session(parent)
+    // The user picks the team mode per task (popover). The Lead may not exceed it.
+    const teamMode = teamModeFor(state.cfg, parent.session.id)
+    if (teamMode === 'serial' && (subtasks || staged)) throw failure('USER_TEAM_MODE_SERIAL', 'This task is set to serial by the user; the Lead must not split it. Switch the mode in the compass menu first.')
+    if (teamMode === 'parallel' && staged) throw failure('USER_TEAM_MODE_PARALLEL', 'This task is set to parallel by the user; staged needs the user to switch the mode first.')
+    if (teamMode === 'staged' && subtasks) throw failure('USER_TEAM_MODE_STAGED', 'This task is set to staged by the user; subtasks need the user to switch to parallel.')
     const leadOptions = effectiveLeadRoute(parent)
     state.profile = fixedProfile(state.cfg, undefined, leadOptions)
     const workerPolicy = workerBudgetProfile(state.cfg, parent.session.id)

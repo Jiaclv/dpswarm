@@ -1,6 +1,12 @@
 // Role discipline is prompt guidance. User resource limits remain runtime policy.
 import { isWorkerSession, workerBudgetProfile, reworkBudgetProfile } from './budget-runtime.js'
 
+export function teamModeFor(config, sessionId) {
+  const matches = (config.teamModeOverrides || []).filter(row => row?.sessionId === sessionId)
+  const mode = matches.at(-1)?.mode ?? 'serial'
+  return ['serial', 'parallel', 'staged'].includes(mode) ? mode : 'serial'
+}
+
 export const WORKER_GUIDANCE = [
   '## DPSwarm worker: execute your assigned subtask',
   'You are a child worker, not the Lead. Follow the specific role and original user constraints in your assignment. Do not call dpswarm_status, dpswarm_models, dpswarm_run, dpswarm_prepare_worker, dpswarm_rework or dpswarm_review, and do not delegate to another agent. Those orchestration tools belong to the Lead.',

@@ -34,6 +34,7 @@ export const defaults = Object.freeze({ sidecarUrl: 'http://127.0.0.1:8791', aut
   reviewerMode: 'lead', reviewerProvider: '', reviewerModel: '', reviewerEffort: '',
   workerBudgetMode: 'unlimited', workerTokenLimit: 1200000, workerCallLimit: 50, workerBudgetSessionOverrides: [],
   reworkBudgetMode: 'unlimited', reworkTokenLimit: 600000, reworkCallLimit: 28,
+  teamModeOverrides: [],
   workerTimeoutSeconds: 600, cmEnabledSessions: [], cmProvider: 'deepseek', cmModel: 'deepseek-v4-flash', cmEffort: 'off' })
 
 function configSchema(base) {
@@ -52,6 +53,9 @@ function configSchema(base) {
     reworkBudgetMode: z.union(['unlimited', 'fixed']).default(base.reworkBudgetMode),
     reworkTokenLimit: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(base.reworkTokenLimit),
     reworkCallLimit: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER).default(base.reworkCallLimit),
+    teamModeOverrides: z.array(z.object({
+      sessionId: z.string().required(), mode: z.union(['serial', 'parallel', 'staged']).required(),
+    })).default(base.teamModeOverrides),
     workerBudgetSessionOverrides: z.array(z.object({
       sessionId: z.string().required(), mode: z.union(['unlimited', 'manual', 'auto']).required(),
       tokenLimit: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER),
