@@ -14,7 +14,7 @@ import { MemoryAuditJournal } from './helpers/memory-audit.mjs'
 import { resolveHostRoot, hostModuleUrl } from '../lib/host-modules.js'
 
 const host = resolveHostRoot()
-const [{ Context }, { Session }] = await Promise.all(['cordis', 'dsh-session'].map(p => import(hostModuleUrl(host, `${p}/lib/index.js`))))
+const [{ Context }, { Session, SESSION_FORMAT_VERSION }] = await Promise.all(['cordis', 'dsh-session'].map(p => import(hostModuleUrl(host, `${p}/lib/index.js`))))
 
 function makeSession(id, parent = null, events = []) {
   return { id, header: { id, ...(parent ? { parentSession: parent, origin: 'subagent', delegationDepth: 1, seedLength: 0 } : {}) }, events }
@@ -96,8 +96,8 @@ test('911 estimator: chars/3 understates Chinese-heavy input by at least 2x (inv
 
 function hostFixture(config = {}) {
   const ctx = new Context()
-  const root = Session.create('lead', undefined, { version: 0, id: 'lead', createdAt: 1 })
-  const child = Session.create('child', undefined, { version: 0, id: 'child', createdAt: 2, parentSession: root.id, origin: 'subagent', delegationDepth: 1 })
+  const root = Session.create('lead', undefined, { version: SESSION_FORMAT_VERSION, id: 'lead', createdAt: 1, isSeeded: false })
+  const child = Session.create('child', undefined, { version: SESSION_FORMAT_VERSION, id: 'child', createdAt: 2, parentSession: root.id, origin: 'subagent', delegationDepth: 1, isSeeded: false })
   const sessions = new Map([root, child].map(s => [s.id, s]))
   const agents = new Map([...sessions.values()].map(s => [s.id, { session: s, options: { provider: 'worker-provider', model: 'model' } }]))
   const assembly = { sections: [], contexts: [], variables: {}, tools: [] }

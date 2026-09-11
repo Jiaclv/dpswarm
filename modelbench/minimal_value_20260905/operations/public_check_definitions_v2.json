@@ -1,0 +1,50 @@
+{
+  "pytest-dev__pytest-10051": {
+    "public_caplog_lifecycle": "python -m pytest testing/logging/test_fixture.py -q -k \"clear or log_access or record_tuples or captures_for_all_stages\""
+  },
+  "mwaskom__seaborn-3187": {
+    "public_numeric_legend_formatting": "python -m pytest tests/_core/test_scales.py tests/test_relational.py -q -k \"label_formatter or legend_data\""
+  },
+  "sympy__sympy-13852": {
+    "public_polylog_expansion": "python bin/test --no-colors sympy/functions/special/tests/test_zeta_functions.py -k polylog"
+  },
+  "matplotlib__matplotlib-23412": {
+    "public_patch_linestyle": "python -m pytest lib/matplotlib/tests/test_patches.py -q -k linestyle"
+  },
+  "pydata__xarray-6992": {
+    "public_dataset_index_coordinates": "python -m pytest xarray/tests/test_dataset.py -q -k \"set_index or reset_index or data_vars_properties\""
+  },
+  "django__django-12050": {
+    "public_query_lookup_construction": "python tests/runtests.py queries.test_query --settings=test_sqlite --parallel=1"
+  },
+  "psf__requests-1142": {
+    "public_request_preparation_offline": "python -m unittest test_requests.RequestsTestCase.test_basic_building test_requests.RequestsTestCase.test_path_is_not_double_encoded test_requests.RequestsTestCase.test_params_are_added_before_fragment"
+  },
+  "sphinx-doc__sphinx-8548": {
+    "public_autodoc_inherited_attributes": "python -m pytest tests/test_ext_autodoc.py -q -k \"inherited or attributes\""
+  },
+  "pylint-dev__pylint-6386": {
+    "public_verbose_option": "python -m pytest tests/test_self.py -q -k verbose"
+  },
+  "astropy__astropy-8872": {
+    "public_quantity_dtype": "python -m pytest astropy/units/tests/test_quantity.py -q -k preserve_dtype"
+  },
+  "scikit-learn__scikit-learn-14496": {
+    "public_optics_sample_boundaries": "python -m pytest sklearn/cluster/tests/test_optics.py -q -k \"minimum_number_of_sample_check or min_samples_edge_case\""
+  },
+  "pytest-dev__pytest-7982": {
+    "public_symlink_collection": "python -m pytest testing/test_collection.py -q -k symlink"
+  },
+  "sympy__sympy-22456": {
+    "public_codegen_string": "python bin/test --no-colors sympy/codegen/tests/test_ast.py -k String"
+  },
+  "matplotlib__matplotlib-20826": {
+    "public_shared_axes_ticklabels": "python -m pytest lib/matplotlib/tests/test_subplots.py -q -k \"shared_and_moved or hide_ticklabels\""
+  },
+  "pydata__xarray-7233": {
+    "public_coarsen_coordinates": "python -m pytest xarray/tests/test_coarsen.py::test_coarsen_construct xarray/tests/test_coarsen.py::test_coarsen_coords -q"
+  },
+  "django__django-10880": {
+    "public_distinct_count_case_aggregation": "python tests/runtests.py aggregation.tests.AggregateTestCase.test_count aggregation.test_filter_argument.FilteredAggregateTests.test_case_aggregate --settings=test_sqlite --parallel=1"
+  }
+}

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="2" time="6.176" timestamp="2026-09-06T01:06:28.724778+10:00" hostname="Xiaomi-NoteBook"><testcase classname="modelbench.minimal_value_20260905.operations.tests.test_sampling_recovery" name="test_real_short_lived_docker_container_disappears_between_reads[inspect]" time="2.675"><failure message="sampling_recovery_resources.SamplingError: Resource sample inspect: docker_command_failed">tmp_path = WindowsPath('K:/秋招/项目/DPswarm/modelbench/minimal_value_20260905/validation/sampling-live-v1/test_real_short_lived_docker_c0')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001330D797D40&gt;
+phase = 'inspect'
+
+    @pytest.mark.skipif(os.environ.get('DPSWARM_SAMPLING_DOCKER_PROBE') != '1', reason='Explicit local Docker probe opt-in required')
+    @pytest.mark.parametrize('phase', ['inspect', 'stats'])
+    def test_real_short_lived_docker_container_disappears_between_reads(tmp_path, monkeypatch, phase):
+        from modelbench.minimal_value_20260905.cli import stage_lease
+        raw_run = subprocess.run
+        def real(args, **kwargs):
+            return raw_run(['docker', *args], capture_output=True, text=True, encoding='utf-8', timeout=15, **kwargs)
+        lock = OPS.parent/'validation/active-stage.lock'
+        cid, removed, expected_label = None, False, uuid4().hex
+        with stage_lease(lock, tmp_path) as lease:
+            image = real(['image', 'inspect', 'redis:7-alpine', '--format', '{{.Id}}'])
+            assert image.returncode == 0, 'Probe uses an already-present image only'
+            try:
+                created = real(['run', '-d', '--rm', '--network', 'none', '--read-only', '--memory', '64m',
+                    '--memory-swap', '64m', '--cpus', '.1', '--label', 'dpswarm.sampling.probe='+expected_label,
+                    '--entrypoint', '/bin/sh', image.stdout.strip(), '-c', 'sleep 30'])
+                assert created.returncode == 0, 'Local probe container creation failed'
+                cid = created.stdout.strip()
+                def raced(argv, **kwargs):
+                    nonlocal removed
+                    if len(argv)&gt;1 and argv[1] == phase and not removed:
+                        label = real(['inspect', '--format', '{{index .Config.Labels "dpswarm.sampling.probe"}}', cid])
+                        assert label.returncode == 0 and label.stdout.strip() == expected_label
+                        assert real(['rm', '-f', cid]).returncode == 0
+                        removed = True
+                    return raw_run(argv, **kwargs)
+                monkeypatch.setattr(r.subprocess, 'run', raced)
+&gt;               value = r.sample_resources([])
+                        ^^^^^^^^^^^^^^^^^^^^^^
+
+modelbench\minimal_value_20260905\operations\tests\test_sampling_recovery.py:210: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+modelbench\minimal_value_20260905\operations\parallel_resources.py:375: in sample_resources
+    records = indexed(parse_json(command(['inspect', *ids], 'inspect'), 'inspect'), expected, 'inspect')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+args = ['inspect', 'f3feaa62d3fc'], stage = 'inspect'
+
+    def command(args, stage):
+        remaining = sampling_deadline - time.monotonic()
+        if remaining &lt;= 0:
+            raise SamplingError(stage, 'sampling_deadline_elapsed')
+        try:
+            if docker is not None:
+                return docker(args)
+            result = subprocess.run(['docker', *args], capture_output=True, text=True,
+                                    encoding='utf-8', errors='replace', timeout=max(.001, remaining))
+            if result.returncode:
+&gt;               raise _docker_sample_failure(stage, args, result.returncode, result.stderr)
+E               sampling_recovery_resources.SamplingError: Resource sample inspect: docker_command_failed
+
+modelbench\minimal_value_20260905\operations\parallel_resources.py:316: SamplingError</failure></testcase><testcase classname="modelbench.minimal_value_20260905.operations.tests.test_sampling_recovery" name="test_real_short_lived_docker_container_disappears_between_reads[stats]" time="3.133" /></testsuite></testsuites>

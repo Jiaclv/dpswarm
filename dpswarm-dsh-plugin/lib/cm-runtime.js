@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
+import { sessionEvents } from './host-session-compat.js'
 
 export const CM_MODEL = 'deepseek-v4-flash'
 export const CM_POLICY = Object.freeze({ version: 'dpswarm-cm-window-v2', model: CM_MODEL,
@@ -10,7 +11,8 @@ const enabled = (cfg, id) => Array.isArray(cfg.cmEnabledSessions) && cfg.cmEnabl
 const isChild = session => session.header?.origin === 'subagent' || (session.header?.delegationDepth || 0) > 0
 const rootId = session => isChild(session) ? session.header?.parentSession || session.id : session.id
 const currentTurn = session => {
-  for (let i = (session.events?.length || 0) - 1; i >= 0; i--) if (session.events[i].type === 'turn/start') return session.events[i].seq
+  const events = sessionEvents(session)
+  for (let i = events.length - 1; i >= 0; i--) if (events[i].type === 'turn/start') return events[i].seq
   return -1
 }
 const eventName = suffix => `dpswarm/cm-${suffix}`

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+	<testcase name="delegate never submits while child result is pending; submits real output after disposal" time="0.023379" classname="test" file="K:\秋招\项目\DPswarm\dpswarm-dsh-plugin\tests\delegate-lifecycle.test.mjs"/>
+	<testcase name="model refusal is a failure without submit" time="0.002306" classname="test" file="K:\秋招\项目\DPswarm\dpswarm-dsh-plugin\tests\delegate-lifecycle.test.mjs"/>
+	<testcase name="rejected result and cancelled pending child never submit" time="0.001775" classname="test" file="K:\秋招\项目\DPswarm\dpswarm-dsh-plugin\tests\delegate-lifecycle.test.mjs"/>
+	<testcase name="cancelled pending child is disposed without submit" time="0.001611" classname="test" file="K:\秋招\项目\DPswarm\dpswarm-dsh-plugin\tests\delegate-lifecycle.test.mjs"/>
+	<testcase name="split waits for assistant before peer delivery and primary execution" time="0.001922" classname="test" file="K:\秋招\项目\DPswarm\dpswarm-dsh-plugin\tests\delegate-lifecycle.test.mjs"/>
+	<testcase name="failed split assistant cannot start primary or emit peer/submit" time="0.001558" classname="test" file="K:\秋招\项目\DPswarm\dpswarm-dsh-plugin\tests\delegate-lifecycle.test.mjs"/>
+	<testcase name="published identity is the submit fence and failures explicitly settle resources" time="0.001899" classname="test" file="K:\秋招\项目\DPswarm\dpswarm-dsh-plugin\tests\delegate-lifecycle.test.mjs"/>
+	<testcase name="saved settings source applies to the next call and stays fixed during a running child" time="0.003263" classname="test" file="K:\秋招\项目\DPswarm\dpswarm-dsh-plugin\tests\delegate-lifecycle.test.mjs"/>
+	<testcase name="nested caller is rejected before admission and starting a child" time="0.000875" classname="test" file="K:\秋招\项目\DPswarm\dpswarm-dsh-plugin\tests\delegate-lifecycle.test.mjs"/>
+	<testcase name="disposal failure preserves initial failure and reports failed physical cleanup" time="0.001629" classname="test" file="K:\秋招\项目\DPswarm\dpswarm-dsh-plugin\tests\delegate-lifecycle.test.mjs"/>
+	<testcase name="sidecar launch honors port, exact executable and hidden Windows process options" time="0.000892" classname="test" file="K:\秋招\项目\DPswarm\dpswarm-dsh-plugin\tests\sidecar-config.test.mjs"/>
+	<testcase name="sidecar connection normalizes an origin and rejects unsupported remote or credential-bearing URLs" time="0.000395" classname="test" file="K:\秋招\项目\DPswarm\dpswarm-dsh-plugin\tests\sidecar-config.test.mjs"/>
+	<testcase name="real loopback sidecar: root ownership, published identity, accept, failure settlement and restart" time="0.818905" classname="test" file="K:\秋招\项目\DPswarm\dpswarm-dsh-plugin\tests\sidecar-integration.test.mjs"/>
+	<testcase name="a published handle is not a completed result; wait for result and dispose" time="0.004273" classname="test" file="K:\秋招\项目\DPswarm\dpswarm-dsh-plugin\tests\subagent-run.test.mjs"/>
+	<testcase name="wait for quiescent disposal before returning evidence" time="0.001248" classname="test" file="K:\秋招\项目\DPswarm\dpswarm-dsh-plugin\tests\subagent-run.test.mjs"/>
+	<testcase name="non-completed terminal reason error is not a delivery" time="0.000529" classname="test" file="K:\秋招\项目\DPswarm\dpswarm-dsh-plugin\tests\subagent-run.test.mjs"/>
+	<testcase name="non-completed terminal reason aborted is not a delivery" time="0.000102" classname="test" file="K:\秋招\项目\DPswarm\dpswarm-dsh-plugin\tests\subagent-run.test.mjs"/>
+	<testcase name="non-completed terminal reason refusal is not a delivery" time="0.000134" classname="test" file="K:\秋招\项目\DPswarm\dpswarm-dsh-plugin\tests\subagent-run.test.mjs"/>
+	<testcase name="non-completed terminal reason max-tokens is not a delivery" time="0.000117" classname="test" file="K:\秋招\项目\DPswarm\dpswarm-dsh-plugin\tests\subagent-run.test.mjs"/>
+	<testcase name="non-completed terminal reason unknown-future-stop is not a delivery" time="0.000071" classname="test" file="K:\秋招\项目\DPswarm\dpswarm-dsh-plugin\tests\subagent-run.test.mjs"/>
+	<testcase name="infrastructure rejection disposes the published handle and rejects" time="0.000169" classname="test" file="K:\秋招\项目\DPswarm\dpswarm-dsh-plugin\tests\subagent-run.test.mjs"/>
+	<testcase name="disposal failure cannot return an otherwise successful result" time="0.000219" classname="test" file="K:\秋招\项目\DPswarm\dpswarm-dsh-plugin\tests\subagent-run.test.mjs"/>
+	<testcase name="cancellation disposes a pending child and never fabricates completed" time="0.001162" classname="test" file="K:\秋招\项目\DPswarm\dpswarm-dsh-plugin\tests\subagent-run.test.mjs"/>
+	<testcase name="an already cancelled request never starts a child" time="0.000179" classname="test" file="K:\秋招\项目\DPswarm\dpswarm-dsh-plugin\tests\subagent-run.test.mjs"/>
+	<testcase name="missing terminal fields or empty output are rejected: undefined" time="0.000131" classname="test" file="K:\秋招\项目\DPswarm\dpswarm-dsh-plugin\tests\subagent-run.test.mjs"/>
+	<testcase name="missing terminal fields or empty output are rejected: {}" time="0.000061" classname="test" file="K:\秋招\项目\DPswarm\dpswarm-dsh-plugin\tests\subagent-run.test.mjs"/>
+	<testcase name="missing terminal fields or empty output are rejected: {&amp;quot;output&amp;quot;:[],&amp;quot;stopReason&amp;quot;:&amp;quot;completed&amp;quot;}" time="0.000081" classname="test" file="K:\秋招\项目\DPswarm\dpswarm-dsh-plugin\tests\subagent-run.test.mjs"/>
+	<testcase name="missing terminal fields or empty output are rejected: {&amp;quot;output&amp;quot;:[{&amp;quot;type&amp;quot;:&amp;quot;text&amp;quot;,&amp;quot;text&amp;quot;:&amp;quot;not terminal&amp;quot;}]}" time="0.000043" classname="test" file="K:\秋招\项目\DPswarm\dpswarm-dsh-plugin\tests\subagent-run.test.mjs"/>
+	<testcase name="publication callback receives exact trusted child handle before settling" time="0.000100" classname="test" file="K:\秋招\项目\DPswarm\dpswarm-dsh-plugin\tests\subagent-run.test.mjs"/>
+	<testcase name="publication binding failure still disposes child and rejects delivery" time="0.000101" classname="test" file="K:\秋招\项目\DPswarm\dpswarm-dsh-plugin\tests\subagent-run.test.mjs"/>
+	<!-- tests 30 -->
+	<!-- suites 0 -->
+	<!-- pass 30 -->
+	<!-- fail 0 -->
+	<!-- cancelled 0 -->
+	<!-- skipped 0 -->
+	<!-- todo 0 -->
+	<!-- duration_ms 984.5457 -->
+</testsuites>

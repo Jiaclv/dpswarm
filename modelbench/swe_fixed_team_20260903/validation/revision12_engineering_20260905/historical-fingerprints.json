@@ -1,0 +1,27 @@
+{
+  "source_sha256": {
+    "modelbench\\swe_fixed_team_20260903\\reporting.py": "ef2fd571754cb90e89afe9a97c92257b66eae17b918d48c4291d461d4a5b30fa",
+    "modelbench\\swe_fixed_team_20260903\\validation\\audit_results.py": "3c05946c61bf2c145eef73b22fba44d783945db6221019b102242ffcee60576d",
+    "modelbench\\swe_fixed_team_20260903\\tests\\test_reporting_20260905.py": "c71cd870c3127d08eb7cb3d816448cd26ef23cd80da9375569130c019b7d449f"
+  },
+  "audit_output_sha256": {
+    "audit.pilot_v10.json": "d2aec4ba805cf9caa29dc3b514af3878efdf8b603020f4490b01a918883d89f6",
+    "audit.pilot_v11.json": "558df4b78081f33f82481c754e2b0edda06b20fd40963049e2ac7dd6afc5630b",
+    "audit.pilot_v12.json": "15ec62670d53778493273d72eae98f7e33382b6ac2ee0f8d499fcf11c86b9707",
+    "audit.pilot_v13.json": "38bb911c66f27d2a520391314cce0018610fb3ab71e038467cab9df235b67b90",
+    "audit.pilot_v14.json": "00f5ac5f3de4395decf85a39e1c5ea347e7754410436f9de8ea92943da52a2f6",
+    "audit.pilot_v15.json": "807fa1f23f93102147251217e08aaec9ca13b2ffae8f2f6ca64017f3a19194df",
+    "audit.pilot_v15b.json": "2db916fe2e6aeeb1b5f3ffe608f9d3e96f4261dfb1e93639a49089952937d485",
+    "audit.pilot_v16.json": "785fe32b1fb0b904d4654850602fe87c0542b1d200ef831321de20ea14bc5bf1",
+    "audit.pilot_v2.json": "ab9057054a8a79e351d1a06e06715599a65ec6f9690451495fdb424f946f9623",
+    "audit.pilot_v3.json": "5b04222a9f438c115ec001916be0825186aaf9a5abcc01e21f0f2d51f02a759a",
+    "audit.pilot_v4.json": "120c968fb4adca4aa7057e5f3db0d8f43f0ccf32e603125b77cffb545ac7b10e",
+    "audit.pilot_v5.json": "fbbff43781ebd4d430cea3bda480237c1c0cc3ee21402ce2f965d2a5f1269d37",
+    "audit.pilot_v6.json": "90bdc7b095da190e564593ae1e6dcf3460d09295c2d4dd3b519238c841ee65f6",
+    "audit.pilot_v7.json": "4455f886e09faaeccd2946744a4cf51924e74e5d1753a43a5815b4d45b1cd4b1",
+    "audit.pilot_v8.json": "adacb4f9adbd48f10478720c0d763afa479f1fa4ea2f543752a11b8e51ee5e6a",
+    "audit.pilot_v9.json": "8fa64b5425cb9854d093a59693989432f0645ac72216b6a3af93f08ee9d94d80",
+    "compatibility-summary.json": "b9c3dc0008635d7279968621570a3936f74b8e9f0bd475e80ba4eff7ef13dfba"
+  },
+  "note": "Current auditor imports pure reporting helpers; both source fingerprints are recorded. No frozen experiment artifact was modified."
+}

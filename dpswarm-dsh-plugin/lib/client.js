@@ -28,11 +28,10 @@ window.__ModuleLoader__.load({
     const { useEffect, useState, useRef, useCallback, useId } = React
     const h = React.createElement
 
-    let settingsScope, settingsApi, settingsMirror, llmApi
-    // 宿主 Remote 命名空间的惰性解析器（apply 时装配；每次调用都重读，
-    // 跟上 typed Remote 晚于插件 apply 挂载的节奏——一次性固化会把模型
-    // 选择器永久锁死在"宿主未提供模型目录"）。
-    let remoteSessionRef = () => undefined, legacyRef = () => undefined
+    let settingsScope, settingsApi, settingsMirror
+    // Resolve the active host service when the user loads the catalog. Remote
+    // namespaces can mount after this entry and can be replaced on reconnect.
+    let modelCatalogApi = () => undefined
     let writeTail = Promise.resolve()
     // Use the public atomic mutation API. SettingsScope.set() can resolve after
     // recovering a rejected write, so resolution alone is not proof of a save.
@@ -489,29 +488,13 @@ window.__ModuleLoader__.load({
         const abort = new AbortController(); request.current = abort
         setState(old => ({ ...old, status: 'loading', error: '' }))
         let timer
-        // 诊断探针：失败时把现场打进错误信息（宿主代次/挂载状态不可离线
-        // 复现，靠这份现场定位）。
-        const probe = () => {
-          try {
-            const rs = remoteSessionRef()
-            const names = rs ? Object.keys(rs).filter(k => typeof rs[k] === 'function').slice(0, 20).join(',') : ''
-            return `llmApi=${!!llmApi?.models};remote.session=${rs ? 'found' : 'absent'};modelCatalog=${typeof rs?.modelCatalog};methods=[${names}]`
-          } catch (err) { return 'probe-error:' + String(err && err.message || err) }
-        }
         try {
-          // 0.1.5 的 typed Remote 命名空间挂载晚于插件 apply：启动时读到的
-          // llmApi 可能是空壳（remote.session 尚未挂载），一次性固化就会把
-          // 选择器永久锁死在"宿主未提供模型目录"。此处每次加载都惰性重读
-          // （注释于启动段的 remount 语义同样适用于此），命名空间后挂载的
-          // 宿主在打开选择器时即可读到目录。
-          const liveLlm = llmApi ?? (typeof remoteSessionRef()?.modelCatalog === 'function'
-            ? { models: async () => ({ result: await remoteSessionRef().modelCatalog() }) }
-            : legacyRef()?.llm)
-          if (!liveLlm?.models) throw new Error('当前宿主未提供模型目录，请更新 DPH 或使用手动配置。[' + probe() + ']')
+          const liveLlm = modelCatalogApi()
+          if (!liveLlm) throw new Error('当前 DPH 的模型目录暂不可用，请刷新列表或使用手动配置。')
           const result = await Promise.race([liveLlm.models({}, abort.signal), new Promise((_, reject) => {
             timer = setTimeout(() => { abort.abort(); reject(new Error('读取模型列表超时，请重试。')) }, 12000)
           })])
-          if (!result?.result?.ok) throw new Error((result?.result?.error?.message || '无法读取 DPH 模型列表') + ' [' + probe() + ']')
+          if (!result?.result?.ok) throw new Error(result?.result?.error?.message || '无法读取 DPH 模型列表')
           if (generation.current !== ticket) return
           const value = result.result.value
           if (!Array.isArray(value?.groups) || !Array.isArray(value?.failures)) throw new Error('宿主返回的模型列表格式不兼容。')
@@ -565,8 +548,8 @@ window.__ModuleLoader__.load({
               h('span', { className: 'dps-modelGlyph', 'aria-hidden': true }, row.lead ? 'L' : row.providerName.slice(0, 1).toUpperCase()),
               h('span', { className: 'dps-modelIdentity' }, h('b', null, row.name || row.id), h('small', null, row.lead ? inheritHint : row.providerName + ' · ' + row.id)),
               h('span', { className: 'dps-modelCheck', 'aria-hidden': true }, selected ? '✓' : ''))
-          }) : h('div', { className: 'dps-empty' }, h('b', null, catalog.status === 'loading' ? '正在加载…' : query ? '没有找到匹配模型' : '还没有可选模型'),
-            h('p', null, query ? '试试模型 ID 或 Provider 名称。' : '先到 DPH“设置 → 模型”完成配置，再刷新列表。'))),
+          }) : h('div', { className: 'dps-empty' }, h('b', null, catalog.status === 'loading' ? '正在加载…' : query ? '没有找到匹配模型' : catalog.status === 'error' ? '暂时无法读取模型' : '还没有可选模型'),
+            h('p', null, query ? '试试模型 ID 或 Provider 名称。' : catalog.status === 'error' ? '请刷新列表重试，或关闭此窗口后使用“手动配置”。' : '先到 DPH“设置 → 模型”完成配置，再刷新列表。'))),
         h('p', { className: 'dps-pickerFooter' }, '↑ ↓ 移动  ·  Enter 选择  ·  Esc 返回'))
     }
 
@@ -1003,57 +986,39 @@ window.__ModuleLoader__.load({
     function apply(ctx) {
       settingsScope = ctx.settingsScope.bind({ namespace: 'dpswarm' })
       settingsMirror = ctx.settingsScope.describe()
-      // DSH 0.1.5 replaces connection.api with typed Remote methods. Preserve
-      // the old response envelope here so save acknowledgement/conflict checks
-      // and the model picker use the same code on both host generations.
-      // Each Remote namespace is its own cordis service (`remote.settings`,
-      // `remote.session`): `ctx.remote.settings` is only readable with that
-      // exact name injected, which no host generation guarantees, so read the
-      // services directly — absent means "this host has no typed Remote", and
-      // re-reading per call follows a namespace that remounts.
-      const remoteSettings = () => {
+      // ctx.get() is the public Cordis lookup without an inject requirement.
+      // It returns only active providers. Never retain a namespace or legacy
+      // API from apply(): either can arrive later or remount on reconnect.
+      modelCatalogApi = () => {
+        const remote = ctx.get('remote.session')
+        if (typeof remote?.modelCatalog === 'function') {
+          // Typed Remote has no cancellation parameter. The picker enforces
+          // its timeout and ignores stale responses itself.
+          return { models: async () => ({ result: await remote.modelCatalog() }) }
+        }
+        const legacy = ctx.connection.api?.llm
+        return typeof legacy?.models === 'function' ? legacy : undefined
+      }
+      const settingsTransport = method => {
+        if (!ctx.connection.isLoopback) throw new Error('宿主设置当前不可写，请连接本机宿主后重试。')
         const remote = ctx.get('remote.settings')
-        return typeof remote?.mutate === 'function' && typeof remote.describe === 'function' ? remote : undefined
+        if (typeof remote?.[method] === 'function') return { remote }
+        const legacy = ctx.connection.api?.settings
+        if (typeof legacy?.[method] === 'function') return { legacy }
+        throw new Error('宿主设置服务暂不可用，请稍后重试。')
       }
-      const remoteSession = () => ctx.get('remote.session')
-      const legacy = ctx.connection.api
-      remoteSessionRef = () => {
-        const direct = remoteSession()
-        if (typeof direct?.modelCatalog === 'function') return direct
-        // 宿主自带 UI 走 ctx.remote.session 嵌套属性；插件 ctx.get 的点号键
-        // 在部分宿主代次不可读。仅在直读失败时尝试该路径，保持启动期读序列不变。
-        try {
-          const viaRoot = ctx.remote?.session
-          return typeof viaRoot?.modelCatalog === 'function' ? viaRoot : undefined
-        } catch { return undefined }
+      settingsApi = {
+        mutate: async request => {
+          const { remote, legacy } = settingsTransport('mutate')
+          return remote
+            ? { result: await remote.mutate(request.ns, request.ops, request.expectedRevision) }
+            : legacy.mutate(request)
+        },
+        describe: async () => {
+          const { remote, legacy } = settingsTransport('describe')
+          return remote ? { result: await remote.describe() } : legacy.describe({})
+        },
       }
-      legacyRef = () => legacy
-      // 根因修复：0.1.5 里 remote.session 是 cordis 服务，未注入即不可读——
-      // 插件顶层 inject 不能加它（legacy 宿主无此服务会导致模块永不加载），
-      // 故条件注入：服务挂载时武装目录解析器；缺席则维持手动配置兜底。
-      if (typeof ctx.inject === 'function') {
-        try {
-          ctx.inject(['remote', 'remote.session'], (scoped) => {
-            const armed = scoped.remote?.session ?? scoped.get?.('remote.session')
-            if (typeof armed?.modelCatalog === 'function') {
-              remoteSessionRef = () => armed
-            }
-          })
-        } catch { /* 旧宿主无此语义：忽略，走 legacy 路径 */ }
-      }
-      settingsApi = ctx.connection.isLoopback
-        ? remoteSettings()
-          ? {
-            mutate: async ({ ns, ops, expectedRevision }) => ({ result: await remoteSettings().mutate(ns, ops, expectedRevision) }),
-            describe: async () => ({ result: await remoteSettings().describe() }),
-          }
-          : legacy?.settings
-        : null
-      llmApi = typeof remoteSession()?.modelCatalog === 'function'
-        // modelCatalog has no cancellation parameter; the picker still ignores
-        // stale responses and enforces its own timeout.
-        ? { models: async () => ({ result: await remoteSession().modelCatalog() }) }
-        : legacy?.llm
       if (new URLSearchParams(location.search).get('dpswarm-settings') === '1') {
         const clean = new URL(location.href); clean.searchParams.delete('dpswarm-settings')
         history.replaceState(history.state, '', clean.href)

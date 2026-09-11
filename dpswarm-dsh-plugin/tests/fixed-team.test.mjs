@@ -12,7 +12,7 @@ import { installBudget } from '../lib/budget.js'
 import { WorkerBudgetRuntime } from '../lib/budget-runtime.js'
 import { resolveHostRoot, hostModuleUrl } from '../lib/host-modules.js'
 const host = resolveHostRoot()
-const [{ Context }, { Session }] = await Promise.all(['cordis', 'dsh-session'].map(p => import(hostModuleUrl(host, `${p}/lib/index.js`))))
+const [{ Context }, { Session, SESSION_FORMAT_VERSION }] = await Promise.all(['cordis', 'dsh-session'].map(p => import(hostModuleUrl(host, `${p}/lib/index.js`))))
 
 function fixture(t) {
   const directory = mkdtempSync(join(tmpdir(), 'dpswarm-fixed-')), cwd = join(directory, 'project')
@@ -310,7 +310,7 @@ test('old explicitly configured implementer routes are preserved when upgrading'
 // policy integration tests; the provider itself is deterministic and local.
 function budgetFixture(t, mode) {
   const h = fixture(t), ctx = new Context(), native = new Map(), agents = new Map(), providerCalls = []
-  h.parent.session = Session.create('parent', undefined, { version: 0, id: 'parent', createdAt: 1, cwd: h.parent.session.header.cwd })
+  h.parent.session = Session.create('parent', undefined, { version: SESSION_FORMAT_VERSION, id: 'parent', createdAt: 1, isSeeded: false, cwd: h.parent.session.header.cwd })
   h.parent.session.append('request/header', { header: { config: { provider: 'gpt', model: 'sol' } } })
   native.set('parent', h.parent.session); agents.set('parent', h.parent)
   Object.assign(h.cfg, { workerBudgetMode: mode, workerTokenLimit: 10000, workerCallLimit: 4,
@@ -332,7 +332,7 @@ function budgetFixture(t, mode) {
   h.controller.resolveSession = id => native.get(id)
   const start = h.controller.subagents.start
   const launch = async (id, prompt) => {
-    const session = Session.create(id, undefined, { version: 0, id, createdAt: 2, parentSession: 'parent', origin: 'subagent', delegationDepth: 1 })
+    const session = Session.create(id, undefined, { version: SESSION_FORMAT_VERSION, id, createdAt: 2, parentSession: 'parent', origin: 'subagent', delegationDepth: 1, isSeeded: false })
     const agent = { id, session, options: { provider: 'fixture', model: 'worker' } }
     native.set(id, session); agents.set(id, agent)
     const messages = [{ role: 'user', source: { kind: 'user' }, content: prompt }]

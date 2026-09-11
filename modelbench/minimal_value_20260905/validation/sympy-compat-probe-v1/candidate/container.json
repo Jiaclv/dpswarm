@@ -1,0 +1,10 @@
+{
+  "id": "2e5bc426b063c48f354c0f4232a3873ecf85ce80bd80167deb3abcb8eda17bc9",
+  "owner": "a925d8e895fb42e293436fe326175e26",
+  "image_id": "sha256:88a5fc577b1ba9346dd74198c357fb917b58324e40bf7c8e19135e321a4cd31b",
+  "instance_id": "sympy__sympy-13852",
+  "base_commit": "c935e1d106743efd5bf0705fbeedbd18fadff4dc",
+  "cpus": 2,
+  "memory": "1g",
+  "network": "none"
+}

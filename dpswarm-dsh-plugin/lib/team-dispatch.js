@@ -2,6 +2,28 @@ import { requireRootCaller } from './delegation.js'
 
 const failure = (code, message) => Object.assign(new Error(`${code}: ${message}`), { code })
 const text = value => typeof value === 'string' && value.length > 0
+const zeroCallAdmissionFailure = (result, sessions) => {
+  const failed = result?.failed
+  if (result?.stopped || !Array.isArray(result?.deliveries) || result.deliveries.length !== 0
+    || !Array.isArray(failed) || failed.length !== sessions.size || sessions.size === 0) return false
+  const observed = new Set()
+  return failed.every(item => {
+    const diagnostic = item?.diagnostic || item?.details?.worker_diagnostic, budget = diagnostic?.budget
+    const sessionId = item?.execution_session_id || item?.details?.sessionId
+    if (!sessions.has(sessionId) || observed.has(sessionId)) return false
+    observed.add(sessionId)
+    return item?.control_settlement?.ok === true && item?.details?.physicalCleanupConfirmed === true
+      && diagnostic?.native_terminal && typeof diagnostic.native_terminal === 'object'
+      && diagnostic?.cleanup?.physical_cleanup_confirmed === true && diagnostic?.failure?.code === 'WORKER_TOKEN_RESERVATION_DENIED'
+      && diagnostic?.evidence?.native_terminal_available === true && !diagnostic?.evidence?.budget_error && !diagnostic?.evidence?.error
+      && !diagnostic?.audit_error && !budget?.audit_warning
+      && Number.isSafeInteger(budget?.calls) && budget.calls === 0
+      && Number.isSafeInteger(budget?.unknown_usage_calls) && budget.unknown_usage_calls === 0
+      && Number.isSafeInteger(budget?.active_calls) && budget.active_calls === 0
+      && Number.isSafeInteger(budget?.committed_tokens) && budget.committed_tokens === 0
+      && Number.isSafeInteger(budget?.observed_tokens_lower_bound) && budget.observed_tokens_lower_bound === 0
+  })
+}
 
 /** Owns one dispatch lifecycle; only the owner of a published child may settle it. */
 export class TeamDispatcher {
@@ -25,12 +47,14 @@ export class TeamDispatcher {
     try {
       const binding = await this.requirement.beforeDispatch(exec.agent)
       let published = false, runId
+      const publishedSessions = new Set()
       const result = await this.controller.run(args, exec, {
         taskBinding: binding,
         onChildStarted: async details => {
           await this.requirement.markStarted(binding, details)
           published = true
           runId = details.run_id
+          publishedSessions.add(details.execution_session_id)
         },
       })
       // A native handle is not proof of a model request. On thrown errors or
@@ -40,13 +64,24 @@ export class TeamDispatcher {
         // role has no physical worker or control-plane item to settle.
         item?.admission_stage === 'model_preflight'
         || (item?.control_settlement?.ok === true && item?.details?.physicalCleanupConfirmed !== false))
+      let retryAllowed = false
       if (published && safelySettled) {
-        await this.requirement.finishRun(binding, {
-          outcome: result.failed.length || result.stopped ? 'failed_takeover' : 'completed',
-          run_id: runId,
-        })
+        if (zeroCallAdmissionFailure(result, publishedSessions)) {
+          await this.requirement.finishAdmissionFailure(binding, {
+            run_id: runId,
+            execution_session_ids: [...publishedSessions],
+            no_delivery: true,
+          })
+          retryAllowed = true
+        } else {
+          await this.requirement.finishRun(binding, {
+            outcome: result.failed.length || result.stopped ? 'failed_takeover' : 'completed',
+            run_id: runId,
+          })
+        }
       }
-      return result
+      return retryAllowed ? { ...result, retry_allowed: true,
+        next: 'All published child sessions made zero model calls and were cleaned up. Correct the budget, then call dpswarm_run again for this same user task.' } : result
     } finally {
       this.running.delete(rootId)
     }
@@ -104,8 +139,7 @@ export class TeamDispatcher {
           open_worker_slots_used: 0,
         })
       }
-      return result
-    } finally {
+      return result    } finally {
       this.running.delete(rootId)
     }
   }

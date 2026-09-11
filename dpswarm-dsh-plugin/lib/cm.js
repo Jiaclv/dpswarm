@@ -1,6 +1,7 @@
 import { resolveHostRoot, hostModuleUrl } from './host-modules.js'
 import { cmError, cmHash, completeUsage, CM_POLICY } from './cm-runtime.js'
 import { resolveChildRoute } from './lead-route.js'
+import { sessionEvents, retainedSystemText, measureSystemRequest } from './host-session-compat.js'
 const host = resolveHostRoot()
 const [{ BasicCompactionEngine }, { toolPairingBalancedBefore, toolPairingBalancedAfter },
   { BlockAssembler, createUserMessage }, { renderPrompt, renderContextSnapshot }, { canonicalHeader }] = await Promise.all([
@@ -39,7 +40,7 @@ export function selectCMRange(session, keepRecent) {
 function pendingRuntimeContext(session, assembly) {
   const owned = event => event.type === 'user/message' && event.data?.source?.kind === 'plugin'
     && event.data.source.plugin === '@deepseek-ai/dsh-system-prompt'
-  const prior = session.events.filter(owned), surface = new Set(session.surface.nodes)
+  const prior = sessionEvents(session).filter(owned), surface = new Set(session.surface.nodes)
   const retained = [...prior].reverse().find(event => surface.has(event.seq))
   const current = renderContextSnapshot(assembly)
   if (!prior.length && !current) return []
@@ -112,13 +113,18 @@ export class DPSwarmCM extends BasicCompactionEngine {
     // Do not import stale system/tool content or unobserved effort defaults from
     // the previous request. A changed canonical envelope falls back to the
     // native meter's heuristic instead of reusing an incompatible usage anchor.
-    const header = canonicalHeader({ config: { ...route }, system: renderPrompt(assembly), tools: assembly.tools || [] })
-    const estimated = this.ctx.tokenMeter.measure(agent.session, header)
+    // The native surface already prices unchanged system text. Before the
+    // prepared route is known, changed text is conservatively priced as an
+    // append; normalization may later replace old nodes and cost less.
+    const systemText = renderPrompt(assembly)
+    const header = canonicalHeader({ config: { ...route }, system: systemText, tools: assembly.tools || [] })
+    const estimated = measureSystemRequest(this.ctx.tokenMeter, agent.session, header, systemText, canonicalHeader)
     let before = estimated
     evidence.request_pressure_basis = 'current_assembly_header'
     const prior = agent.session.requestHeader?.()
+    const priorSystem = prior?.system ?? retainedSystemText(agent.session)
     const sameContent = prior?.config?.provider === route.provider && prior.config.model === route.model
-      && (prior.system || '') === (header.system || '') && cmHash(prior.tools || []) === cmHash(header.tools || [])
+      && (priorSystem || '') === systemText && cmHash(prior.tools || []) === cmHash(header.tools || [])
       && (!childRoute || prior.config.reasoningEffort === childRoute.reasoningEffort)
     if (sameContent) {
       // Provider input observed for the same route and content envelope supplies

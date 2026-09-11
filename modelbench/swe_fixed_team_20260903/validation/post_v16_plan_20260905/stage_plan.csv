@@ -1,0 +1,17 @@
+﻿stage_id,name,unit,planned_units,candidate_generation_runs,selector_processes,prerequisites_json,protocol,scenario,usd_design_quota,suggested_dispatch_window_hours,execution_authorized,status
+P0,工程离线验收,offline,0,0,0,[],R-clean,all,,0,False,proposed
+P1,通道可用性,run,6,6,0,"[""P0""]",R-clean,all,,4,False,proposed
+P2,F1 F2 F5 全因素,run,72,72,0,"[""P1""]",R-clean,all,,28,False,proposed
+P3-core,核心角色2x2加Solo,run,90,90,0,"[""P1""]",R-clean,core_or_sequential,,35,False,proposed
+P3-full,角色及家族一体版,run,198,198,0,"[""P1""]",R-clean,integrated_only,,76,False,proposed
+P4,后补家族含同期TT/GG,run,144,144,0,"[""P3-core""]",R-clean,sequential_only,,55,False,proposed
+P5,装配全ON/OFF,run,36,36,0,"[""P1""]",R-clean,optional,,15,False,proposed
+P5-components,装配2x2x2分解,run,72,72,0,"[""P5""]",R-clean,optional,,28,False,proposed
+P6,token和工作调用2x2,run,48,48,0,"[""P1""]",R-clean,optional,,19,False,proposed
+R-cost,美元准入与适配器验收,offline,0,0,0,"[""P0""]",R-cost,usd_required,,0,False,proposed
+P7-check,新美元适配器真实可用性,episode,6,8,2,"[""R-cost"", ""P1""]",R-cost,usd_required,24,4,False,proposed
+P7,同USD策略开发比较,episode,108,144,36,"[""P7-check""]",R-cost,optional,324,42,False,proposed
+P8,新任务确认,episode,180,240,60,"[""P7""]",R-cost,optional,720,69,False,proposed
+P9,Lead互换开发比较,run,72,72,0,"[""P1""]",R-clean+lead-contract,optional,,28,False,proposed
+P10-dev,条件启用开发比较,episode,54,54,0,"[""P8""]",R-cost+dynamic-host,optional,216,22,False,proposed
+P10-confirm,条件启用新留出确认,episode,180,180,0,"[""P10-dev""]",R-cost+dynamic-host,optional,720,69,False,proposed

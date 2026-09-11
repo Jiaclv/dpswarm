@@ -1,0 +1,10 @@
+{
+  "ServerVersion": "29.5.3",
+  "OSType": "linux",
+  "OperatingSystem": "Docker Desktop",
+  "NCPU": 24,
+  "MemTotal": 16336482304,
+  "glm_key_present": true,
+  "deepseek_key_present": true,
+  "codex_version": "codex-cli 0.149.0"
+}

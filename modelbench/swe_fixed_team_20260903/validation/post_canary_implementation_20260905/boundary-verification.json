@@ -1,0 +1,30 @@
+{
+  "protected_runtime_contracts_ast_equal": [
+    "BASE_TOOLS",
+    "FIXED_ASSIGNMENTS",
+    "LEAD_TOOLS",
+    "LIMITS",
+    "WORKER_TOOLS",
+    "_agent_edit_detected",
+    "_call",
+    "_closing_call",
+    "_maybe_compress_context",
+    "bootstrap_team",
+    "prompt"
+  ],
+  "mechanism_document_sha256": "c62567c4903e2693a18fc7760d5f21f0a3743fbab680ddfb2b7cd6efd974f87e",
+  "runtime_changes_from_completed_canary": [
+    "modelbench/swe_fixed_team_20260903/cli.py",
+    "modelbench/swe_fixed_team_20260903/reporting.py",
+    "modelbench/swe_fixed_team_20260903/runner.py",
+    "modelbench/swe_fixed_team_20260903/tests/test_explicit_gate_revision12.py",
+    "modelbench/swe_fixed_team_20260903/tests/test_f4_evidence_revision12.py",
+    "modelbench/swe_fixed_team_20260903/tests/test_gate_scope_20260905.py",
+    "modelbench/swe_fixed_team_20260903/tests/test_output_evidence_revision12.py",
+    "modelbench/swe_fixed_team_20260903/tests/test_runner_rev11.py",
+    "modelbench/swe_verified_20260903/environment.py",
+    "modelbench/swe_verified_20260903/tests/test_environment_output_20260905.py"
+  ],
+  "real_model_calls_in_this_repair": 0,
+  "official_grading_runs_in_this_repair": 0
+}

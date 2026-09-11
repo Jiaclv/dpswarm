@@ -1,0 +1,438 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="16" skipped="0" tests="17" time="1.042" timestamp="2026-09-05T11:07:05.208211+10:00" hostname="Xiaomi-NoteBook"><testcase classname="modelbench.swe_fixed_team_20260903.tests.test_gate_scope_20260905" name="test_declared_gate_scope_rejected_before_batch_creation[instance]" time="0.037"><failure message="Failed: DID NOT RAISE &lt;class 'ValueError'&gt;">gate_workspace = {'artifact': WindowsPath('K:/秋招/项目/DPswarm/test-artifacts/post-canary-implementation-20260905/gate-red/test_declared_g...validation_artifacts': {'fixture.junit.xml': 'a29f57ed25cbd0e82f9ec62ad896a150fd893ac476f93220a6a689469ba7b420'}}, ...}
+mismatch = 'instance'
+
+    @pytest.mark.parametrize('mismatch', ['instance','arm','repetitions','lead','worker_order','cm',
+                                       'limits','inputs','admission','malformed_repetitions','duplicate_scope'])
+    def test_declared_gate_scope_rejected_before_batch_creation(gate_workspace, mismatch):
+        gate = scoped_gate(gate_workspace)
+        if mismatch in ('instance','arm','repetitions'):
+            key = 'instance_id' if mismatch == 'instance' else mismatch
+            gate['allowed_schedule'][0][key] = 2 if key == 'repetitions' else 'not-approved'
+        elif mismatch == 'lead':
+            gate['requested_roles']['lead'] = 'gpt-5.6-luna'
+        elif mismatch == 'worker_order':
+            gate['requested_roles'].update(production='glm-5.3', tests='gpt-5.6-terra')
+        elif mismatch == 'cm':
+            gate['requested_roles']['cm'] = 'glm-5.3'
+        elif mismatch == 'limits':
+            gate['effective_limits']['token_limit'] = 12345
+        elif mismatch == 'inputs':
+            gate['input_artifacts']['verified.parquet'] = 'changed-before-freeze'
+        elif mismatch == 'admission':
+            gate['live_run_admission'] = False
+        elif mismatch == 'malformed_repetitions':
+            gate['allowed_schedule'][0]['repetitions'] = True
+        else:
+            gate['allowed_schedule'].append(dict(gate['allowed_schedule'][0]))
+        save_gate(gate_workspace, gate)
+&gt;       with pytest.raises(ValueError,match='[Gg]ate'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE &lt;class 'ValueError'&gt;
+
+modelbench\swe_fixed_team_20260903\tests\test_gate_scope_20260905.py:48: Failed</failure></testcase><testcase classname="modelbench.swe_fixed_team_20260903.tests.test_gate_scope_20260905" name="test_declared_gate_scope_rejected_before_batch_creation[arm]" time="0.033"><failure message="Failed: DID NOT RAISE &lt;class 'ValueError'&gt;">gate_workspace = {'artifact': WindowsPath('K:/秋招/项目/DPswarm/test-artifacts/post-canary-implementation-20260905/gate-red/test_declared_g...validation_artifacts': {'fixture.junit.xml': 'a29f57ed25cbd0e82f9ec62ad896a150fd893ac476f93220a6a689469ba7b420'}}, ...}
+mismatch = 'arm'
+
+    @pytest.mark.parametrize('mismatch', ['instance','arm','repetitions','lead','worker_order','cm',
+                                       'limits','inputs','admission','malformed_repetitions','duplicate_scope'])
+    def test_declared_gate_scope_rejected_before_batch_creation(gate_workspace, mismatch):
+        gate = scoped_gate(gate_workspace)
+        if mismatch in ('instance','arm','repetitions'):
+            key = 'instance_id' if mismatch == 'instance' else mismatch
+            gate['allowed_schedule'][0][key] = 2 if key == 'repetitions' else 'not-approved'
+        elif mismatch == 'lead':
+            gate['requested_roles']['lead'] = 'gpt-5.6-luna'
+        elif mismatch == 'worker_order':
+            gate['requested_roles'].update(production='glm-5.3', tests='gpt-5.6-terra')
+        elif mismatch == 'cm':
+            gate['requested_roles']['cm'] = 'glm-5.3'
+        elif mismatch == 'limits':
+            gate['effective_limits']['token_limit'] = 12345
+        elif mismatch == 'inputs':
+            gate['input_artifacts']['verified.parquet'] = 'changed-before-freeze'
+        elif mismatch == 'admission':
+            gate['live_run_admission'] = False
+        elif mismatch == 'malformed_repetitions':
+            gate['allowed_schedule'][0]['repetitions'] = True
+        else:
+            gate['allowed_schedule'].append(dict(gate['allowed_schedule'][0]))
+        save_gate(gate_workspace, gate)
+&gt;       with pytest.raises(ValueError,match='[Gg]ate'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE &lt;class 'ValueError'&gt;
+
+modelbench\swe_fixed_team_20260903\tests\test_gate_scope_20260905.py:48: Failed</failure></testcase><testcase classname="modelbench.swe_fixed_team_20260903.tests.test_gate_scope_20260905" name="test_declared_gate_scope_rejected_before_batch_creation[repetitions]" time="0.032"><failure message="Failed: DID NOT RAISE &lt;class 'ValueError'&gt;">gate_workspace = {'artifact': WindowsPath('K:/秋招/项目/DPswarm/test-artifacts/post-canary-implementation-20260905/gate-red/test_declared_g...validation_artifacts': {'fixture.junit.xml': 'a29f57ed25cbd0e82f9ec62ad896a150fd893ac476f93220a6a689469ba7b420'}}, ...}
+mismatch = 'repetitions'
+
+    @pytest.mark.parametrize('mismatch', ['instance','arm','repetitions','lead','worker_order','cm',
+                                       'limits','inputs','admission','malformed_repetitions','duplicate_scope'])
+    def test_declared_gate_scope_rejected_before_batch_creation(gate_workspace, mismatch):
+        gate = scoped_gate(gate_workspace)
+        if mismatch in ('instance','arm','repetitions'):
+            key = 'instance_id' if mismatch == 'instance' else mismatch
+            gate['allowed_schedule'][0][key] = 2 if key == 'repetitions' else 'not-approved'
+        elif mismatch == 'lead':
+            gate['requested_roles']['lead'] = 'gpt-5.6-luna'
+        elif mismatch == 'worker_order':
+            gate['requested_roles'].update(production='glm-5.3', tests='gpt-5.6-terra')
+        elif mismatch == 'cm':
+            gate['requested_roles']['cm'] = 'glm-5.3'
+        elif mismatch == 'limits':
+            gate['effective_limits']['token_limit'] = 12345
+        elif mismatch == 'inputs':
+            gate['input_artifacts']['verified.parquet'] = 'changed-before-freeze'
+        elif mismatch == 'admission':
+            gate['live_run_admission'] = False
+        elif mismatch == 'malformed_repetitions':
+            gate['allowed_schedule'][0]['repetitions'] = True
+        else:
+            gate['allowed_schedule'].append(dict(gate['allowed_schedule'][0]))
+        save_gate(gate_workspace, gate)
+&gt;       with pytest.raises(ValueError,match='[Gg]ate'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE &lt;class 'ValueError'&gt;
+
+modelbench\swe_fixed_team_20260903\tests\test_gate_scope_20260905.py:48: Failed</failure></testcase><testcase classname="modelbench.swe_fixed_team_20260903.tests.test_gate_scope_20260905" name="test_declared_gate_scope_rejected_before_batch_creation[lead]" time="0.034"><failure message="Failed: DID NOT RAISE &lt;class 'ValueError'&gt;">gate_workspace = {'artifact': WindowsPath('K:/秋招/项目/DPswarm/test-artifacts/post-canary-implementation-20260905/gate-red/test_declared_g...validation_artifacts': {'fixture.junit.xml': 'a29f57ed25cbd0e82f9ec62ad896a150fd893ac476f93220a6a689469ba7b420'}}, ...}
+mismatch = 'lead'
+
+    @pytest.mark.parametrize('mismatch', ['instance','arm','repetitions','lead','worker_order','cm',
+                                       'limits','inputs','admission','malformed_repetitions','duplicate_scope'])
+    def test_declared_gate_scope_rejected_before_batch_creation(gate_workspace, mismatch):
+        gate = scoped_gate(gate_workspace)
+        if mismatch in ('instance','arm','repetitions'):
+            key = 'instance_id' if mismatch == 'instance' else mismatch
+            gate['allowed_schedule'][0][key] = 2 if key == 'repetitions' else 'not-approved'
+        elif mismatch == 'lead':
+            gate['requested_roles']['lead'] = 'gpt-5.6-luna'
+        elif mismatch == 'worker_order':
+            gate['requested_roles'].update(production='glm-5.3', tests='gpt-5.6-terra')
+        elif mismatch == 'cm':
+            gate['requested_roles']['cm'] = 'glm-5.3'
+        elif mismatch == 'limits':
+            gate['effective_limits']['token_limit'] = 12345
+        elif mismatch == 'inputs':
+            gate['input_artifacts']['verified.parquet'] = 'changed-before-freeze'
+        elif mismatch == 'admission':
+            gate['live_run_admission'] = False
+        elif mismatch == 'malformed_repetitions':
+            gate['allowed_schedule'][0]['repetitions'] = True
+        else:
+            gate['allowed_schedule'].append(dict(gate['allowed_schedule'][0]))
+        save_gate(gate_workspace, gate)
+&gt;       with pytest.raises(ValueError,match='[Gg]ate'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE &lt;class 'ValueError'&gt;
+
+modelbench\swe_fixed_team_20260903\tests\test_gate_scope_20260905.py:48: Failed</failure></testcase><testcase classname="modelbench.swe_fixed_team_20260903.tests.test_gate_scope_20260905" name="test_declared_gate_scope_rejected_before_batch_creation[worker_order]" time="0.032"><failure message="Failed: DID NOT RAISE &lt;class 'ValueError'&gt;">gate_workspace = {'artifact': WindowsPath('K:/秋招/项目/DPswarm/test-artifacts/post-canary-implementation-20260905/gate-red/test_declared_g...validation_artifacts': {'fixture.junit.xml': 'a29f57ed25cbd0e82f9ec62ad896a150fd893ac476f93220a6a689469ba7b420'}}, ...}
+mismatch = 'worker_order'
+
+    @pytest.mark.parametrize('mismatch', ['instance','arm','repetitions','lead','worker_order','cm',
+                                       'limits','inputs','admission','malformed_repetitions','duplicate_scope'])
+    def test_declared_gate_scope_rejected_before_batch_creation(gate_workspace, mismatch):
+        gate = scoped_gate(gate_workspace)
+        if mismatch in ('instance','arm','repetitions'):
+            key = 'instance_id' if mismatch == 'instance' else mismatch
+            gate['allowed_schedule'][0][key] = 2 if key == 'repetitions' else 'not-approved'
+        elif mismatch == 'lead':
+            gate['requested_roles']['lead'] = 'gpt-5.6-luna'
+        elif mismatch == 'worker_order':
+            gate['requested_roles'].update(production='glm-5.3', tests='gpt-5.6-terra')
+        elif mismatch == 'cm':
+            gate['requested_roles']['cm'] = 'glm-5.3'
+        elif mismatch == 'limits':
+            gate['effective_limits']['token_limit'] = 12345
+        elif mismatch == 'inputs':
+            gate['input_artifacts']['verified.parquet'] = 'changed-before-freeze'
+        elif mismatch == 'admission':
+            gate['live_run_admission'] = False
+        elif mismatch == 'malformed_repetitions':
+            gate['allowed_schedule'][0]['repetitions'] = True
+        else:
+            gate['allowed_schedule'].append(dict(gate['allowed_schedule'][0]))
+        save_gate(gate_workspace, gate)
+&gt;       with pytest.raises(ValueError,match='[Gg]ate'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE &lt;class 'ValueError'&gt;
+
+modelbench\swe_fixed_team_20260903\tests\test_gate_scope_20260905.py:48: Failed</failure></testcase><testcase classname="modelbench.swe_fixed_team_20260903.tests.test_gate_scope_20260905" name="test_declared_gate_scope_rejected_before_batch_creation[cm]" time="0.033"><failure message="Failed: DID NOT RAISE &lt;class 'ValueError'&gt;">gate_workspace = {'artifact': WindowsPath('K:/秋招/项目/DPswarm/test-artifacts/post-canary-implementation-20260905/gate-red/test_declared_g...validation_artifacts': {'fixture.junit.xml': 'a29f57ed25cbd0e82f9ec62ad896a150fd893ac476f93220a6a689469ba7b420'}}, ...}
+mismatch = 'cm'
+
+    @pytest.mark.parametrize('mismatch', ['instance','arm','repetitions','lead','worker_order','cm',
+                                       'limits','inputs','admission','malformed_repetitions','duplicate_scope'])
+    def test_declared_gate_scope_rejected_before_batch_creation(gate_workspace, mismatch):
+        gate = scoped_gate(gate_workspace)
+        if mismatch in ('instance','arm','repetitions'):
+            key = 'instance_id' if mismatch == 'instance' else mismatch
+            gate['allowed_schedule'][0][key] = 2 if key == 'repetitions' else 'not-approved'
+        elif mismatch == 'lead':
+            gate['requested_roles']['lead'] = 'gpt-5.6-luna'
+        elif mismatch == 'worker_order':
+            gate['requested_roles'].update(production='glm-5.3', tests='gpt-5.6-terra')
+        elif mismatch == 'cm':
+            gate['requested_roles']['cm'] = 'glm-5.3'
+        elif mismatch == 'limits':
+            gate['effective_limits']['token_limit'] = 12345
+        elif mismatch == 'inputs':
+            gate['input_artifacts']['verified.parquet'] = 'changed-before-freeze'
+        elif mismatch == 'admission':
+            gate['live_run_admission'] = False
+        elif mismatch == 'malformed_repetitions':
+            gate['allowed_schedule'][0]['repetitions'] = True
+        else:
+            gate['allowed_schedule'].append(dict(gate['allowed_schedule'][0]))
+        save_gate(gate_workspace, gate)
+&gt;       with pytest.raises(ValueError,match='[Gg]ate'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE &lt;class 'ValueError'&gt;
+
+modelbench\swe_fixed_team_20260903\tests\test_gate_scope_20260905.py:48: Failed</failure></testcase><testcase classname="modelbench.swe_fixed_team_20260903.tests.test_gate_scope_20260905" name="test_declared_gate_scope_rejected_before_batch_creation[limits]" time="0.032"><failure message="Failed: DID NOT RAISE &lt;class 'ValueError'&gt;">gate_workspace = {'artifact': WindowsPath('K:/秋招/项目/DPswarm/test-artifacts/post-canary-implementation-20260905/gate-red/test_declared_g...validation_artifacts': {'fixture.junit.xml': 'a29f57ed25cbd0e82f9ec62ad896a150fd893ac476f93220a6a689469ba7b420'}}, ...}
+mismatch = 'limits'
+
+    @pytest.mark.parametrize('mismatch', ['instance','arm','repetitions','lead','worker_order','cm',
+                                       'limits','inputs','admission','malformed_repetitions','duplicate_scope'])
+    def test_declared_gate_scope_rejected_before_batch_creation(gate_workspace, mismatch):
+        gate = scoped_gate(gate_workspace)
+        if mismatch in ('instance','arm','repetitions'):
+            key = 'instance_id' if mismatch == 'instance' else mismatch
+            gate['allowed_schedule'][0][key] = 2 if key == 'repetitions' else 'not-approved'
+        elif mismatch == 'lead':
+            gate['requested_roles']['lead'] = 'gpt-5.6-luna'
+        elif mismatch == 'worker_order':
+            gate['requested_roles'].update(production='glm-5.3', tests='gpt-5.6-terra')
+        elif mismatch == 'cm':
+            gate['requested_roles']['cm'] = 'glm-5.3'
+        elif mismatch == 'limits':
+            gate['effective_limits']['token_limit'] = 12345
+        elif mismatch == 'inputs':
+            gate['input_artifacts']['verified.parquet'] = 'changed-before-freeze'
+        elif mismatch == 'admission':
+            gate['live_run_admission'] = False
+        elif mismatch == 'malformed_repetitions':
+            gate['allowed_schedule'][0]['repetitions'] = True
+        else:
+            gate['allowed_schedule'].append(dict(gate['allowed_schedule'][0]))
+        save_gate(gate_workspace, gate)
+&gt;       with pytest.raises(ValueError,match='[Gg]ate'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE &lt;class 'ValueError'&gt;
+
+modelbench\swe_fixed_team_20260903\tests\test_gate_scope_20260905.py:48: Failed</failure></testcase><testcase classname="modelbench.swe_fixed_team_20260903.tests.test_gate_scope_20260905" name="test_declared_gate_scope_rejected_before_batch_creation[inputs]" time="0.033"><failure message="Failed: DID NOT RAISE &lt;class 'ValueError'&gt;">gate_workspace = {'artifact': WindowsPath('K:/秋招/项目/DPswarm/test-artifacts/post-canary-implementation-20260905/gate-red/test_declared_g...validation_artifacts': {'fixture.junit.xml': 'a29f57ed25cbd0e82f9ec62ad896a150fd893ac476f93220a6a689469ba7b420'}}, ...}
+mismatch = 'inputs'
+
+    @pytest.mark.parametrize('mismatch', ['instance','arm','repetitions','lead','worker_order','cm',
+                                       'limits','inputs','admission','malformed_repetitions','duplicate_scope'])
+    def test_declared_gate_scope_rejected_before_batch_creation(gate_workspace, mismatch):
+        gate = scoped_gate(gate_workspace)
+        if mismatch in ('instance','arm','repetitions'):
+            key = 'instance_id' if mismatch == 'instance' else mismatch
+            gate['allowed_schedule'][0][key] = 2 if key == 'repetitions' else 'not-approved'
+        elif mismatch == 'lead':
+            gate['requested_roles']['lead'] = 'gpt-5.6-luna'
+        elif mismatch == 'worker_order':
+            gate['requested_roles'].update(production='glm-5.3', tests='gpt-5.6-terra')
+        elif mismatch == 'cm':
+            gate['requested_roles']['cm'] = 'glm-5.3'
+        elif mismatch == 'limits':
+            gate['effective_limits']['token_limit'] = 12345
+        elif mismatch == 'inputs':
+            gate['input_artifacts']['verified.parquet'] = 'changed-before-freeze'
+        elif mismatch == 'admission':
+            gate['live_run_admission'] = False
+        elif mismatch == 'malformed_repetitions':
+            gate['allowed_schedule'][0]['repetitions'] = True
+        else:
+            gate['allowed_schedule'].append(dict(gate['allowed_schedule'][0]))
+        save_gate(gate_workspace, gate)
+&gt;       with pytest.raises(ValueError,match='[Gg]ate'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE &lt;class 'ValueError'&gt;
+
+modelbench\swe_fixed_team_20260903\tests\test_gate_scope_20260905.py:48: Failed</failure></testcase><testcase classname="modelbench.swe_fixed_team_20260903.tests.test_gate_scope_20260905" name="test_declared_gate_scope_rejected_before_batch_creation[admission]" time="0.035"><failure message="Failed: DID NOT RAISE &lt;class 'ValueError'&gt;">gate_workspace = {'artifact': WindowsPath('K:/秋招/项目/DPswarm/test-artifacts/post-canary-implementation-20260905/gate-red/test_declared_g...validation_artifacts': {'fixture.junit.xml': 'a29f57ed25cbd0e82f9ec62ad896a150fd893ac476f93220a6a689469ba7b420'}}, ...}
+mismatch = 'admission'
+
+    @pytest.mark.parametrize('mismatch', ['instance','arm','repetitions','lead','worker_order','cm',
+                                       'limits','inputs','admission','malformed_repetitions','duplicate_scope'])
+    def test_declared_gate_scope_rejected_before_batch_creation(gate_workspace, mismatch):
+        gate = scoped_gate(gate_workspace)
+        if mismatch in ('instance','arm','repetitions'):
+            key = 'instance_id' if mismatch == 'instance' else mismatch
+            gate['allowed_schedule'][0][key] = 2 if key == 'repetitions' else 'not-approved'
+        elif mismatch == 'lead':
+            gate['requested_roles']['lead'] = 'gpt-5.6-luna'
+        elif mismatch == 'worker_order':
+            gate['requested_roles'].update(production='glm-5.3', tests='gpt-5.6-terra')
+        elif mismatch == 'cm':
+            gate['requested_roles']['cm'] = 'glm-5.3'
+        elif mismatch == 'limits':
+            gate['effective_limits']['token_limit'] = 12345
+        elif mismatch == 'inputs':
+            gate['input_artifacts']['verified.parquet'] = 'changed-before-freeze'
+        elif mismatch == 'admission':
+            gate['live_run_admission'] = False
+        elif mismatch == 'malformed_repetitions':
+            gate['allowed_schedule'][0]['repetitions'] = True
+        else:
+            gate['allowed_schedule'].append(dict(gate['allowed_schedule'][0]))
+        save_gate(gate_workspace, gate)
+&gt;       with pytest.raises(ValueError,match='[Gg]ate'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE &lt;class 'ValueError'&gt;
+
+modelbench\swe_fixed_team_20260903\tests\test_gate_scope_20260905.py:48: Failed</failure></testcase><testcase classname="modelbench.swe_fixed_team_20260903.tests.test_gate_scope_20260905" name="test_declared_gate_scope_rejected_before_batch_creation[malformed_repetitions]" time="0.035"><failure message="Failed: DID NOT RAISE &lt;class 'ValueError'&gt;">gate_workspace = {'artifact': WindowsPath('K:/秋招/项目/DPswarm/test-artifacts/post-canary-implementation-20260905/gate-red/test_declared_g...validation_artifacts': {'fixture.junit.xml': 'a29f57ed25cbd0e82f9ec62ad896a150fd893ac476f93220a6a689469ba7b420'}}, ...}
+mismatch = 'malformed_repetitions'
+
+    @pytest.mark.parametrize('mismatch', ['instance','arm','repetitions','lead','worker_order','cm',
+                                       'limits','inputs','admission','malformed_repetitions','duplicate_scope'])
+    def test_declared_gate_scope_rejected_before_batch_creation(gate_workspace, mismatch):
+        gate = scoped_gate(gate_workspace)
+        if mismatch in ('instance','arm','repetitions'):
+            key = 'instance_id' if mismatch == 'instance' else mismatch
+            gate['allowed_schedule'][0][key] = 2 if key == 'repetitions' else 'not-approved'
+        elif mismatch == 'lead':
+            gate['requested_roles']['lead'] = 'gpt-5.6-luna'
+        elif mismatch == 'worker_order':
+            gate['requested_roles'].update(production='glm-5.3', tests='gpt-5.6-terra')
+        elif mismatch == 'cm':
+            gate['requested_roles']['cm'] = 'glm-5.3'
+        elif mismatch == 'limits':
+            gate['effective_limits']['token_limit'] = 12345
+        elif mismatch == 'inputs':
+            gate['input_artifacts']['verified.parquet'] = 'changed-before-freeze'
+        elif mismatch == 'admission':
+            gate['live_run_admission'] = False
+        elif mismatch == 'malformed_repetitions':
+            gate['allowed_schedule'][0]['repetitions'] = True
+        else:
+            gate['allowed_schedule'].append(dict(gate['allowed_schedule'][0]))
+        save_gate(gate_workspace, gate)
+&gt;       with pytest.raises(ValueError,match='[Gg]ate'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE &lt;class 'ValueError'&gt;
+
+modelbench\swe_fixed_team_20260903\tests\test_gate_scope_20260905.py:48: Failed</failure></testcase><testcase classname="modelbench.swe_fixed_team_20260903.tests.test_gate_scope_20260905" name="test_declared_gate_scope_rejected_before_batch_creation[duplicate_scope]" time="0.034"><failure message="Failed: DID NOT RAISE &lt;class 'ValueError'&gt;">gate_workspace = {'artifact': WindowsPath('K:/秋招/项目/DPswarm/test-artifacts/post-canary-implementation-20260905/gate-red/test_declared_g...validation_artifacts': {'fixture.junit.xml': 'a29f57ed25cbd0e82f9ec62ad896a150fd893ac476f93220a6a689469ba7b420'}}, ...}
+mismatch = 'duplicate_scope'
+
+    @pytest.mark.parametrize('mismatch', ['instance','arm','repetitions','lead','worker_order','cm',
+                                       'limits','inputs','admission','malformed_repetitions','duplicate_scope'])
+    def test_declared_gate_scope_rejected_before_batch_creation(gate_workspace, mismatch):
+        gate = scoped_gate(gate_workspace)
+        if mismatch in ('instance','arm','repetitions'):
+            key = 'instance_id' if mismatch == 'instance' else mismatch
+            gate['allowed_schedule'][0][key] = 2 if key == 'repetitions' else 'not-approved'
+        elif mismatch == 'lead':
+            gate['requested_roles']['lead'] = 'gpt-5.6-luna'
+        elif mismatch == 'worker_order':
+            gate['requested_roles'].update(production='glm-5.3', tests='gpt-5.6-terra')
+        elif mismatch == 'cm':
+            gate['requested_roles']['cm'] = 'glm-5.3'
+        elif mismatch == 'limits':
+            gate['effective_limits']['token_limit'] = 12345
+        elif mismatch == 'inputs':
+            gate['input_artifacts']['verified.parquet'] = 'changed-before-freeze'
+        elif mismatch == 'admission':
+            gate['live_run_admission'] = False
+        elif mismatch == 'malformed_repetitions':
+            gate['allowed_schedule'][0]['repetitions'] = True
+        else:
+            gate['allowed_schedule'].append(dict(gate['allowed_schedule'][0]))
+        save_gate(gate_workspace, gate)
+&gt;       with pytest.raises(ValueError,match='[Gg]ate'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE &lt;class 'ValueError'&gt;
+
+modelbench\swe_fixed_team_20260903\tests\test_gate_scope_20260905.py:48: Failed</failure></testcase><testcase classname="modelbench.swe_fixed_team_20260903.tests.test_gate_scope_20260905" name="test_matching_scope_prepares_once_and_verify_preserves_binding" time="0.035" /><testcase classname="modelbench.swe_fixed_team_20260903.tests.test_gate_scope_20260905" name="test_verify_rechecks_gate_scope_before_any_runtime_resources[extra_run]" time="0.035"><failure message="Failed: DID NOT RAISE &lt;class 'ValueError'&gt;">gate_workspace = {'artifact': WindowsPath('K:/秋招/项目/DPswarm/test-artifacts/post-canary-implementation-20260905/gate-red/test_verify_rec...validation_artifacts': {'fixture.junit.xml': 'a29f57ed25cbd0e82f9ec62ad896a150fd893ac476f93220a6a689469ba7b420'}}, ...}
+change = 'extra_run'
+
+    @pytest.mark.parametrize('change',['extra_run','worker_swap','budget','instance'])
+    def test_verify_rechecks_gate_scope_before_any_runtime_resources(gate_workspace,change):
+        save_gate(gate_workspace, scoped_gate(gate_workspace))
+        manifest = prepare_one(gate_workspace,validation_gate_path=gate_workspace['live'])
+        entry = manifest['schedule'][0]
+        if change == 'extra_run':
+            manifest['schedule'].append({**entry,'run_id':entry['run_id']+'.extra'})
+        elif change == 'worker_swap':
+            entry['worker_models'].reverse()
+        elif change == 'budget':
+            entry['effective_limits']['token_limit'] += 1
+        else:
+            entry['instance']['instance_id'] = 'not-approved'
+        (gate_workspace['batch']/'manifest.json').write_text(json.dumps(manifest),encoding='utf-8')
+&gt;       with pytest.raises(ValueError,match='[Gg]ate'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE &lt;class 'ValueError'&gt;
+
+modelbench\swe_fixed_team_20260903\tests\test_gate_scope_20260905.py:73: Failed</failure></testcase><testcase classname="modelbench.swe_fixed_team_20260903.tests.test_gate_scope_20260905" name="test_verify_rechecks_gate_scope_before_any_runtime_resources[worker_swap]" time="0.037"><failure message="Failed: DID NOT RAISE &lt;class 'ValueError'&gt;">gate_workspace = {'artifact': WindowsPath('K:/秋招/项目/DPswarm/test-artifacts/post-canary-implementation-20260905/gate-red/test_verify_rec...validation_artifacts': {'fixture.junit.xml': 'a29f57ed25cbd0e82f9ec62ad896a150fd893ac476f93220a6a689469ba7b420'}}, ...}
+change = 'worker_swap'
+
+    @pytest.mark.parametrize('change',['extra_run','worker_swap','budget','instance'])
+    def test_verify_rechecks_gate_scope_before_any_runtime_resources(gate_workspace,change):
+        save_gate(gate_workspace, scoped_gate(gate_workspace))
+        manifest = prepare_one(gate_workspace,validation_gate_path=gate_workspace['live'])
+        entry = manifest['schedule'][0]
+        if change == 'extra_run':
+            manifest['schedule'].append({**entry,'run_id':entry['run_id']+'.extra'})
+        elif change == 'worker_swap':
+            entry['worker_models'].reverse()
+        elif change == 'budget':
+            entry['effective_limits']['token_limit'] += 1
+        else:
+            entry['instance']['instance_id'] = 'not-approved'
+        (gate_workspace['batch']/'manifest.json').write_text(json.dumps(manifest),encoding='utf-8')
+&gt;       with pytest.raises(ValueError,match='[Gg]ate'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE &lt;class 'ValueError'&gt;
+
+modelbench\swe_fixed_team_20260903\tests\test_gate_scope_20260905.py:73: Failed</failure></testcase><testcase classname="modelbench.swe_fixed_team_20260903.tests.test_gate_scope_20260905" name="test_verify_rechecks_gate_scope_before_any_runtime_resources[budget]" time="0.035"><failure message="Failed: DID NOT RAISE &lt;class 'ValueError'&gt;">gate_workspace = {'artifact': WindowsPath('K:/秋招/项目/DPswarm/test-artifacts/post-canary-implementation-20260905/gate-red/test_verify_rec...validation_artifacts': {'fixture.junit.xml': 'a29f57ed25cbd0e82f9ec62ad896a150fd893ac476f93220a6a689469ba7b420'}}, ...}
+change = 'budget'
+
+    @pytest.mark.parametrize('change',['extra_run','worker_swap','budget','instance'])
+    def test_verify_rechecks_gate_scope_before_any_runtime_resources(gate_workspace,change):
+        save_gate(gate_workspace, scoped_gate(gate_workspace))
+        manifest = prepare_one(gate_workspace,validation_gate_path=gate_workspace['live'])
+        entry = manifest['schedule'][0]
+        if change == 'extra_run':
+            manifest['schedule'].append({**entry,'run_id':entry['run_id']+'.extra'})
+        elif change == 'worker_swap':
+            entry['worker_models'].reverse()
+        elif change == 'budget':
+            entry['effective_limits']['token_limit'] += 1
+        else:
+            entry['instance']['instance_id'] = 'not-approved'
+        (gate_workspace['batch']/'manifest.json').write_text(json.dumps(manifest),encoding='utf-8')
+&gt;       with pytest.raises(ValueError,match='[Gg]ate'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE &lt;class 'ValueError'&gt;
+
+modelbench\swe_fixed_team_20260903\tests\test_gate_scope_20260905.py:73: Failed</failure></testcase><testcase classname="modelbench.swe_fixed_team_20260903.tests.test_gate_scope_20260905" name="test_verify_rechecks_gate_scope_before_any_runtime_resources[instance]" time="0.036"><failure message="Failed: DID NOT RAISE &lt;class 'ValueError'&gt;">gate_workspace = {'artifact': WindowsPath('K:/秋招/项目/DPswarm/test-artifacts/post-canary-implementation-20260905/gate-red/test_verify_rec...validation_artifacts': {'fixture.junit.xml': 'a29f57ed25cbd0e82f9ec62ad896a150fd893ac476f93220a6a689469ba7b420'}}, ...}
+change = 'instance'
+
+    @pytest.mark.parametrize('change',['extra_run','worker_swap','budget','instance'])
+    def test_verify_rechecks_gate_scope_before_any_runtime_resources(gate_workspace,change):
+        save_gate(gate_workspace, scoped_gate(gate_workspace))
+        manifest = prepare_one(gate_workspace,validation_gate_path=gate_workspace['live'])
+        entry = manifest['schedule'][0]
+        if change == 'extra_run':
+            manifest['schedule'].append({**entry,'run_id':entry['run_id']+'.extra'})
+        elif change == 'worker_swap':
+            entry['worker_models'].reverse()
+        elif change == 'budget':
+            entry['effective_limits']['token_limit'] += 1
+        else:
+            entry['instance']['instance_id'] = 'not-approved'
+        (gate_workspace['batch']/'manifest.json').write_text(json.dumps(manifest),encoding='utf-8')
+&gt;       with pytest.raises(ValueError,match='[Gg]ate'):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE &lt;class 'ValueError'&gt;
+
+modelbench\swe_fixed_team_20260903\tests\test_gate_scope_20260905.py:73: Failed</failure></testcase><testcase classname="modelbench.swe_fixed_team_20260903.tests.test_gate_scope_20260905" name="test_changed_validation_artifact_rejected_before_batch_creation" time="0.032"><failure message="AssertionError: assert not True&#10; +  where True = exists()&#10; +    where exists = WindowsPath('K:/秋招/项目/DPswarm/test-artifacts/post-canary-implementation-20260905/gate-red/test_changed_validation_artifa0/one-run').exists">gate_workspace = {'artifact': WindowsPath('K:/秋招/项目/DPswarm/test-artifacts/post-canary-implementation-20260905/gate-red/test_changed_va...validation_artifacts': {'fixture.junit.xml': 'a29f57ed25cbd0e82f9ec62ad896a150fd893ac476f93220a6a689469ba7b420'}}, ...}
+
+    def test_changed_validation_artifact_rejected_before_batch_creation(gate_workspace):
+        save_gate(gate_workspace,scoped_gate(gate_workspace))
+        gate_workspace['artifact'].write_text('changed')
+        with pytest.raises((ValueError,AssertionError)):
+            prepare_one(gate_workspace,validation_gate_path=gate_workspace['live'])
+&gt;       assert not gate_workspace['batch'].exists()
+E       AssertionError: assert not True
+E        +  where True = exists()
+E        +    where exists = WindowsPath('K:/秋招/项目/DPswarm/test-artifacts/post-canary-implementation-20260905/gate-red/test_changed_validation_artifa0/one-run').exists
+
+modelbench\swe_fixed_team_20260903\tests\test_gate_scope_20260905.py:82: AssertionError</failure></testcase></testsuite></testsuites>

@@ -1,6 +1,6 @@
 # 0.11.0 有界持久 mailbox（Lead↔worker 直系通道）验证（2026-09-11）
 
-**测试环境披露（重要）**：本轮回归在本机遇到宿主版本漂移——全局安装的 `@deepseek-ai/dsh` 已升级到 `0.1.5-rc.1`（dsh-session `0.1.5-rc.2`），其 Session 头要求 `version 3` 并更改了 settings `installSection` API，而插件测试夹具（与仓库内 `deepseek-harness-master` 源码，`SESSION_FORMAT_VERSION = 0`）仍按 v0 构建。改动前基线实为 **303 通过 / 83 失败**（仓库根 `node --test dpswarm-dsh-plugin/tests/*.test.mjs`，386 项），失败全部集中在 cm / lead-route / budget-host / mechanism-911 的宿主 API 族（40× "session header version must be 3, got 0"、41× settings/registry API 变更、1× python 非 ASCII 路径、1× installSection），与本轮改动无关；0.10.0 记录的 381/381 生成于宿主升级之前。改动后同环境 **318 通过 / 83 失败**：原 303 全绿保持、新增 15 项 mailbox 测试全绿、失败集逐名 diff 与改动前完全一致（零回归）。要回到全绿需把宿主固定回与夹具匹配的版本或按 v3 头重写夹具（独立工程，未在本轮范围内）。
+**测试环境披露（重要）**：本轮回归在本机遇到宿主版本漂移——全局安装的 `@deepseek-ai/dsh` 已升级到 `0.1.5-rc.1`（dsh-session `0.1.5-rc.2`），其 Session 头要求 `version 3` 并更改了 settings `installSection` API，而插件测试夹具（与仓库内 `deepseek-harness-master` 源码，`SESSION_FORMAT_VERSION = 0`）仍按 v0 构建。改动前基线实为 **303 通过 / 83 失败**（仓库根 `node --test dpswarm-dsh-plugin/tests/*.test.mjs`，386 项），失败全部集中在 cm / lead-route / budget-host / mechanism-911 的宿主 API 族（40× "session header version must be 3, got 0"、41× settings/registry API 变更、1× python 非 ASCII 路径、1× installSection），与本轮改动无关；0.10.0 记录的 381/381 生成于宿主升级之前。改动后同环境 **318 通过 / 83 失败**：原 303 全绿保持、新增 15 项 mailbox 测试全绿、失败集逐名 diff 与改动前完全一致（零回归）。**同日补注**：83 项宿主夹具债已在后续独立轮次修复（夹具 v3 头/新 API 对齐 + `lib/host-session-compat.js` 等价读取层，机制语义零改动），全量 **401/401 绿**；详见 `reports/2026-09-11/宿主夹具修复-plan.md` 的结果一节。
 
 语义来源：宿主 `packages/experimental/agent-team/src/mailbox.ts` 的有界模式（`maxPendingMessagesPerMember` 默认 64 超限 `TEAM_MAILBOX_FULL`、`maxMessageBytes` 64KiB 成帧检查）与宿主 agent 收件箱双投递语义（`core/agent/src/runtime-types.ts`：`inject` 只注入不唤醒、`followup` 排队并唤醒；`packages/subagent` 的 `startContinuable`/`followup` 持久子会话通道）。v1 只做 Lead↔worker 直系通道（平级 worker 互发不在稳定 API 内）。改动：
 
@@ -341,3 +341,7 @@ Python 首次全量检查因系统 pytest 临时目录 WinError 5 出现 337 个
 ## 0.7.5：按模型窗口压力触发 CM
 
 [诊断与验证报告](../reports/2026-09-08/cm-window-pressure/README.md)记录原生会话在约4.6%–5.5%窗口占用时被旧12K策略提前压缩的问题。修复后按各角色模型窗口80%触发，保留兼容的usage校准、最小选区保护、角色路由及未知容量跳过。完整Node回归248/248、5类隔离原生场景通过（6个agent）；没有外部模型调用，未部署到正在运行的日常宿主。
+
+## 2026-09-11：预算输入、收尾请求与零调用重试兼容修复
+
+完整源码回归 **457/457**、基于实际安装 0.9.7 的候选包与更新后的安装路径回归各 **185/185** 通过；无跳过，无外部模型调用。预算按原生请求生命周期计入待提交消息与系统包装，收尾校验兼容实际 system-role messages，完整零调用预算准入失败可用新 attempt 重试；保留硬预算、清理及真实执行失败的接管约束。六文件最小补丁已更新到本机安装，运行中的 DPH 仍需重启载入；未将本地模拟回归宣称为真实供应商端到端验收。详见 [修复记录](../reports/2026-09-11/team-budget-closeout-fix.md)。

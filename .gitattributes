@@ -7,3 +7,6 @@ reports/**/B1_CONTROLLER_DIFF.txt whitespace=-blank-at-eol
 # Pelican model outputs are immutable evidence; preserve original whitespace and CRLF.
 reports/2026-09-08/pelican/** whitespace=cr-at-eol
 reports/2026-09-08/pelican/artifacts/** -whitespace
+
+# Preserve original test evidence bytes, including whitespace in captured tracebacks.
+modelbench/**/validation/**/*.xml -text -whitespace

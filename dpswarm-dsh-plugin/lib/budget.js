@@ -2,13 +2,15 @@ import { WorkerBudgetRuntime, budgetError, estimateRequestTokens, isWorkerSessio
 import { CLOSEOUT_INSTRUCTION } from './worker-closeout.js'
 import { AuditJournal } from './audit.js'
 import { resolveChildRoute } from './lead-route.js'
+import { sessionEvents, measureSystemRequest, pendingSystemText, headerPricesSystem } from './host-session-compat.js'
 import { resolveHostRoot, hostModuleUrl } from './host-modules.js'
 
 const host = resolveHostRoot()
-const [{ assembleContextFor }, { renderPrompt, renderContextSnapshot }, { canonicalHeader }] = await Promise.all([
+const [{ assembleContextFor }, { renderPrompt, renderContextSnapshot }, { canonicalHeader }, { createSystemMessage }] = await Promise.all([
   import(hostModuleUrl(host, 'dsh-agent/lib/index.js')),
   import(hostModuleUrl(host, 'dsh-system-prompt/lib/index.js')),
   import(hostModuleUrl(host, 'dsh-session/lib/index.js')),
+  import(hostModuleUrl(host, 'dsh-llm/lib/index.js')),
 ])
 
 export function installBudget(ctx, configGetter, { journal = new AuditJournal({ config: configGetter }) } = {}) {
@@ -24,7 +26,7 @@ export function installBudget(ctx, configGetter, { journal = new AuditJournal({ 
     agents.set(agent.session.id, agent)
     return runtime.ensure(agent, signal, incoming)
   }
-  const dispose = [], assemblies = new WeakMap()
+  const dispose = [], assemblies = new WeakMap(), pendingSteps = new WeakMap()
   // A DP role route is durable and immutable; cache the resolution per session
   // object so cold-restored children do not re-read the whole audit ledger on
   // every pre-step estimate. Non-DP children deterministically resolve to null.
@@ -45,6 +47,42 @@ export function installBudget(ctx, configGetter, { journal = new AuditJournal({ 
     }
     return assembly
   }, { prepend: true, global: true }))
+  // Accepted messages are committed after agent/request on the native loop.
+  // Keep the decision (not a copied array) so later in-place edits are visible.
+  // Retried attempts have already committed this batch, including messages a
+  // compactor subsequently removed from the surface; do not add those again.
+  const pendingMessages = (session, { signal, turn, step }) => {
+    const saved = pendingSteps.get(session)
+    if (!saved || saved.signal !== signal || (turn !== undefined && saved.turn !== turn)
+      || (step !== undefined && saved.step !== step)) return []
+    const committed = sessionEvents(session).filter(event => event.type === 'user/message').map(event => event.data)
+    const visible = session.deriveMessages?.() || []
+    const ids = new Set([...committed, ...visible].map(message => message.id).filter(Boolean))
+    const identities = new Set([...committed, ...visible])
+    return (saved.decision.messages || []).filter(message => message.id ? !ids.has(message.id) : !identities.has(message))
+  }
+  const pendingTokens = (meter, messages) => messages.reduce((total, message) =>
+    total + (meter?.estimateMessage?.(message) ?? estimateRequestTokens({ messages: [message] }).input), 0)
+  const serializedInput = (messages, system, tools) => {
+    if (headerPricesSystem(canonicalHeader)) return estimateRequestTokens({ messages, system, tools }).input
+    // New hosts serialize identified system messages, not a separate system
+    // string. Price the actual wrapper too. Before prepareCall its projection
+    // mode is unknown: cover both normalization and in-history append, leaving
+    // all retained history in place. This changes no live surface or request.
+    const systemIndices = messages.flatMap((message, index) => message.role === 'system' ? [index] : [])
+    const text = message => (message.content || []).filter(block => block.type === 'text').map(block => block.text).join('\n')
+    const projected = () => createSystemMessage(system, '@deepseek-ai/dsh-system-prompt')
+    if (!systemIndices.length) return estimateRequestTokens({ messages: [...messages, projected()], tools }).input
+    const lastText = systemIndices.map(index => text(messages[index])).findLast(value => value !== '') || ''
+    const appended = system && lastText !== system ? [...messages, projected()] : messages
+    const normalized = [...messages]
+    for (const [position, index] of systemIndices.entries()) {
+      const wanted = position === 0 ? system : ''
+      if (text(messages[index]) !== wanted) normalized[index] = createSystemMessage(wanted, '@deepseek-ai/dsh-system-prompt')
+    }
+    return Math.max(estimateRequestTokens({ messages: appended, tools }).input,
+      estimateRequestTokens({ messages: normalized, tools }).input)
+  }
   const meteredInput = async (agent, { system, tools, pending, signal }) => {
     const meter = get('tokenMeter')
     if (typeof meter?.measure !== 'function') return null
@@ -59,11 +97,10 @@ export function installBudget(ctx, configGetter, { journal = new AuditJournal({ 
       const config = frozen || agent.session.requestHeader?.()?.config
         || { provider: agent.options?.provider, model: agent.options?.model }
       if (!['provider', 'model'].every(key => typeof config?.[key] === 'string' && config[key].trim())) return null
-      const measured = meter.measure(agent.session, canonicalHeader({ config, system, tools }))?.totalTokens
+      const envelope = { config, ...(system ? { system } : {}), ...(Array.isArray(tools) && tools.length ? { tools } : {}) }
+      const measured = measureSystemRequest(meter, agent.session, envelope, system, canonicalHeader)?.totalTokens
       if (!Number.isSafeInteger(measured) || measured < 0) return null
-      const pendingTokens = (pending || []).reduce((total, message) =>
-        total + (meter.estimateMessage?.(message) ?? estimateRequestTokens({ messages: [message] }).input), 0)
-      return measured + pendingTokens
+      return measured + pendingTokens(meter, pending || [])
     } catch { return null }
   }
   const prepareStep = async (agent, { messages = [], signal } = {}) => {
@@ -80,7 +117,7 @@ export function installBudget(ctx, configGetter, { journal = new AuditJournal({ 
       // Runtime-context projection happens just before pre-step. Price its
       // pending snapshot as well as claimed inbox messages (not in surface yet).
       const context = renderContextSnapshot(assembly)
-      const retained = (agent.session.events || []).filter(e => e.type === 'user/message'
+      const retained = sessionEvents(agent.session).filter(e => e.type === 'user/message'
         && e.data?.source?.kind === 'plugin' && e.data.source.plugin === '@deepseek-ai/dsh-system-prompt'
         && agent.session.surface?.nodes?.includes(e.seq)).at(-1)?.data
       const alreadyRetained = retained?.content?.length === 1 && retained.content[0]?.text === context
@@ -93,10 +130,10 @@ export function installBudget(ctx, configGetter, { journal = new AuditJournal({ 
       // Same basis as agent/request below: prefer the native meter, keep the
       // chars/3 serialization as a floor and as the no-meter fallback.
       const metered = await meteredInput(agent, { system, tools, pending, signal })
-      const input = Math.max(metered ?? 0, estimateRequestTokens({ messages: history, system, tools }).input)
+      const input = Math.max(metered ?? 0, estimateRequestTokens({ messages: history, system: pendingSystemText(history, system), tools }).input)
       const finalSystem = state.closeout ? system : `${system}\n\n${CLOSEOUT_INSTRUCTION}`
       const meteredFinal = await meteredInput(agent, { system: finalSystem, tools: [], pending, signal })
-      const finalInput = Math.max(meteredFinal ?? 0, estimateRequestTokens({ messages: history, system: finalSystem, tools: [] }).input)
+      const finalInput = Math.max(meteredFinal ?? 0, estimateRequestTokens({ messages: history, system: pendingSystemText(history, finalSystem), tools: [] }).input)
       await runtime.prepareCloseout(state, { inputEstimate: input, finalInputEstimate: finalInput }, signal)
       applyCloseout(state, assembly)
       return state
@@ -105,14 +142,28 @@ export function installBudget(ctx, configGetter, { journal = new AuditJournal({ 
       throw error
     }
   }
-  dispose.push(ctx.on('agent/pre-step', async ({ agent, signal, messages }, next) => {
+  const preStepHook = async ({ agent, signal, messages, turn, step }, next) => {
+    pendingSteps.delete(agent.session)
     await prepareStep(agent, { signal, messages: messages || [] })
     const decision = await next()
     // Other pre-step hooks can add messages or compact. Refresh the estimate
     // before the request, preserving the same array object passed to the loop.
-    if (decision.kind === 'enter' && Array.isArray(decision.messages)) await prepareStep(agent, { signal, messages: decision.messages })
+    if (decision.kind === 'enter' && Array.isArray(decision.messages)) {
+      await prepareStep(agent, { signal, messages: decision.messages })
+      pendingSteps.set(agent.session, { signal, turn, step, decision })
+    }
     return decision
-  }, { prepend: true, global: true }))
+  }
+  let disposePreStep = ctx.on('agent/pre-step', preStepHook, { prepend: true, global: true })
+  // Cordis publishes this event before taking its listener snapshot. Rebind
+  // only our wrapper so it also surrounds later prepend hooks (e.g. native
+  // model-switch notices). Dispose first: there is exactly one live wrapper.
+  dispose.push(ctx.on('internal/dispatch', (mode, name) => {
+    if (mode !== 'waterfall' || name !== 'agent/pre-step') return
+    disposePreStep()
+    disposePreStep = ctx.on('agent/pre-step', preStepHook, { prepend: true, global: true })
+  }, { global: true }))
+  dispose.push(() => disposePreStep())
   const toolGuard = exec => runtime.states.get(exec.agent?.session?.id)?.closeout?.mode === 'final_only'
     ? 'WORKER_CLOSEOUT_FINAL_ONLY: budget rail reached and tool calls are disabled. Write the final report now as plain text: what is complete, saved file paths, what remains.' : undefined
   if (get('tools')?.guard) dispose.push(get('tools').guard(toolGuard))
@@ -124,7 +175,7 @@ export function installBudget(ctx, configGetter, { journal = new AuditJournal({ 
     if (reason) throw budgetError('WORKER_CLOSEOUT_FINAL_ONLY', reason)
     return next()
   }, { prepend: true, global: true }))
-  dispose.push(ctx.on('agent/request', async ({ agent, signal }, next) => {
+  dispose.push(ctx.on('agent/request', async ({ agent, signal, turn, step }, next) => {
     const original = await next(), state = await ensure(agent, signal)
     if (!limited(state)) return original
     let estimated = null, requested = null
@@ -136,12 +187,17 @@ export function installBudget(ctx, configGetter, { journal = new AuditJournal({ 
         ? captured.assembly : await promptService.assemble(assembleContextFor(agent, signal))
       signal?.throwIfAborted()
       applyCloseout(state, assembly)
-      const system = renderPrompt(assembly) || '', messages = session.deriveMessages?.() || []
+      const system = renderPrompt(assembly) || ''
+      const pending = pendingMessages(session, { signal, turn, step })
+      const messages = [...(session.deriveMessages?.() || []), ...pending]
       const native = await get('llm').resolveCallConfig(original, signal)
       // A previous header can contain tools removed for final-only. Measure the
-      // current envelope instead of charging that stale schema again.
-      const measured = get('tokenMeter')?.measure?.(session, canonicalHeader({ config: native, system, tools: assembly.tools || [] }))?.totalTokens
-      estimated = Math.max(measured || 0, estimateRequestTokens({ messages, system, tools: assembly.tools }).input)
+      // current envelope instead of charging that stale schema again. System
+      // projection uses the same conservative pending-input bound as pre-step.
+      const envelope = { config: native, system, ...(assembly.tools?.length ? { tools: assembly.tools } : {}) }
+      const meter = get('tokenMeter')
+      const measured = measureSystemRequest(meter, session, envelope, system, canonicalHeader)?.totalTokens
+      estimated = Math.max((measured || 0) + pendingTokens(meter, pending), serializedInput(messages, system, assembly.tools))
       requested = native.maxTokens
       const maxTokens = runtime.outputLimit(state, estimated, requested)
       return { ...original, maxTokens }

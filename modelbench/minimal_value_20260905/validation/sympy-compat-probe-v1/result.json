@@ -1,0 +1,30 @@
+{
+  "command": "python - <<'PY'\nimport re, sys, warnings\nfrom sympy.utilities import runtests as runner\nmessage = \"Using or importing the ABCs from 'collections' instead of from 'collections.abc' is deprecated since Python 3.3, and in 3.10 it will stop working\"\noriginal_test = runner.SymPyTests.test\ndef test_with_py39_filter(self, *args, **kwargs):\n    with warnings.catch_warnings():\n        warnings.filterwarnings('ignore', '^' + re.escape(message) + '$', DeprecationWarning, r'^sympy\\.core\\.function$')\n        return original_test(self, *args, **kwargs)\nrunner.SymPyTests.test = test_with_py39_filter\nsys.exit(0 if runner.test('sympy/functions/special/tests/test_zeta_functions.py', kw='polylog', colors=False, subprocess=False) else 1)\nPY",
+  "result": {
+    "stdout": "============================= test process starts ==============================\nexecutable:         /opt/miniconda3/envs/testbed/bin/python  (3.9.20-final-0) [CPython]\narchitecture:       64-bit\ncache:              yes\nground types:       python \nnumpy:              None\nrandom seed:        38225509\nhash randomization: off\n\nsympy/functions/special/tests/test_zeta_functions.py[1] .                   [OK]\n\n================== tests finished: 1 passed, in 0.04 seconds ===================\n",
+    "stderr": "/testbed/sympy/core/basic.py:3: DeprecationWarning: Using or importing the ABCs from 'collections' instead of from 'collections.abc' is deprecated since Python 3.3, and in 3.10 it will stop working\n  from collections import Mapping, defaultdict\n/testbed/sympy/core/containers.py:271: DeprecationWarning: Using or importing the ABCs from 'collections' instead of from 'collections.abc' is deprecated since Python 3.3, and in 3.10 it will stop working\n  class OrderedSet(collections.MutableSet):\n/testbed/sympy/solvers/diophantine.py:3188: SyntaxWarning: \"is\" with a literal. Did you mean \"==\"?\n  if feasible is 1:  # it's prime and k == 2\n/testbed/sympy/plotting/plot.py:28: DeprecationWarning: Using or importing the ABCs from 'collections' instead of from 'collections.abc' is deprecated since Python 3.3, and in 3.10 it will stop working\n  from collections import Callable\n",
+    "exit_code": 0,
+    "timed_out": false,
+    "duration_seconds": 1.125,
+    "stdout_truncated": false,
+    "stdout_captured_chars": 490,
+    "stdout_returned_chars": 490,
+    "stderr_truncated": false,
+    "stderr_captured_chars": 875,
+    "stderr_returned_chars": 875
+  },
+  "observed_execution": {
+    "framework": "sympy-native",
+    "executed": 1,
+    "passed": 1,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "expected_failures": 0,
+    "unexpected_passes": 0,
+    "summary_complete": true,
+    "parser_version": "sympy_native_public_checks_v2",
+    "duration_seconds": 0.04
+  },
+  "model_calls": 0
+}

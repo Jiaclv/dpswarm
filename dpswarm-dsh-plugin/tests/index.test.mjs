@@ -40,8 +40,11 @@ test('settings service is the authority and cannot be replaced by model argument
   delete process.env.DPSWARM_SKIP_SETTINGS
   const value={enabledSessions:[],sidecarUrl:'http://127.0.0.1:8791',subagentProvider:'spawn'}
   const tools=new Map()
+  // 对齐 dsh-settings ≥0.1.5：模块级 installSettingsSection 已删，宿主走
+  // SettingsProvider.installSection(owner, ns, schema, entry, hooks)。
   const ctx={on(){return ()=>{}},provide(name,value){this[name]=value},tools:{register(t){tools.set(t.name,t)}},subagents:{start(){throw new Error('no model')}},
-    settings:{register(){return {get:()=>value,watch(){return ()=>{}}}}},
+    settings:{ installSection(owner, ns, schema, entry, hooks) { hooks.setSource(() => value); hooks.onChange() },
+      register(){return {get:()=>value,watch(){return ()=>{}}}}},
     systemPrompt:{section(){}},inject(_deps,fn){fn(ctx)},effect(){}}
   apply(ctx,{autoStart:false})
   const parent={id:'p',session:{id:'p',header:{}},options:{provider:'gpt',model:'sol'}}

@@ -1,0 +1,19 @@
+{
+  "status": "PASS",
+  "design_only": true,
+  "cells": 490,
+  "stages": 16,
+  "scenario_units": {
+    "minimum": 168,
+    "integrated": 276,
+    "sequential": 312
+  },
+  "no_models_called": true,
+  "checks": [
+    "stage repeat counts",
+    "USD quotas",
+    "mutually exclusive scenario totals",
+    "unique cell ids",
+    "FlowMap structural validation"
+  ]
+}

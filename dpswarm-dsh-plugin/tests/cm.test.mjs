@@ -7,7 +7,7 @@ import { DPSwarmCM, selectCMRange } from '../lib/cm.js'
 import { prepareChildRoute } from '../lib/lead-route.js'
 import { MemoryAuditJournal } from './helpers/memory-audit.mjs'
 const host = resolveHostRoot()
-const [{ Context }, { Session, KNOWN_SESSION_EVENT_TYPES }, { TokenMeter }, { createUserMessage }, { toolPairingBalancedAfter }] = await Promise.all(
+const [{ Context }, { Session, KNOWN_SESSION_EVENT_TYPES, SESSION_FORMAT_VERSION }, { TokenMeter }, { createUserMessage }, { toolPairingBalancedAfter }] = await Promise.all(
   ['cordis', 'dsh-session', 'dsh-token-meter', 'dsh-llm', 'dsh-compaction'].map(p => import(hostModuleUrl(host, p + '/lib/index.js'))))
 const usage = { inputTokens: 18000, outputTokens: 24, cacheReadTokens: 3000 }
 function* chunks({ text = 'Goal: preserve fixed invariants. Evidence: original tests are unresolved.', finish = 'stop', tokens = usage, block } = {}) {
@@ -24,10 +24,11 @@ function fixture({ on = true, response, id = 'root', parent, depth, count = 10, 
   journal.read = async id => { reads++; return originalRead(id) }
   const runtime = new CMRuntime(() => cfg, () => null, journal)
   ctx.provide('dpswarmCM', runtime)
+  ctx.provide('sessionProjections', { register() {} })
   ctx.provide('sessions', { async flush() {} })
-  ctx.provide('llm', { async resolveModelInfo(provider, model) { metadata.push({ provider, model }); return { provider, id: model, ...(windows.has(provider + '/' + model) && windows.get(provider + '/' + model) !== undefined ? { context: { contextWindow: windows.get(provider + '/' + model) } } : {}) } }, async *stream(options) { requests.push(options); yield* (response ? response(options) : chunks()) } })
+  ctx.provide('llm', { imageRequestPricing: () => null, async resolveModelInfo(provider, model) { metadata.push({ provider, model }); return { provider, id: model, ...(windows.has(provider + '/' + model) && windows.get(provider + '/' + model) !== undefined ? { context: { contextWindow: windows.get(provider + '/' + model) } } : {}) } }, async *stream(options) { requests.push(options); yield* (response ? response(options) : chunks()) } })
   const meter = new TokenMeter(ctx), engine = new DPSwarmCM(ctx)
-  const session = Session.create(id, undefined, { version: 0, id, createdAt: Date.now(),
+  const session = Session.create(id, undefined, { version: SESSION_FORMAT_VERSION, id, createdAt: Date.now(), isSeeded: false,
     ...(origin ? { origin } : {}), ...(parent ? { parentSession: parent } : {}), ...(depth === undefined ? {} : { delegationDepth: depth }) })
   session.append('turn/start', { turn: 1 })
   for (let i = 0; i < count; i++) session.append('user/message', createUserMessage({
@@ -41,9 +42,9 @@ function fixture({ on = true, response, id = 'root', parent, depth, count = 10, 
 
 test('CM off or short context makes no API call, journal write, or surface change', async () => {
   for (const options of [{ on: false }, { size: 10 }]) {
-    const h = fixture(options), events = h.session.events.length, surface = h.session.deriveMessages()
+    const h = fixture(options), events = h.session.snapshotEvents().length, surface = h.session.deriveMessages()
     assert.equal(await h.run(), null); assert.equal(h.requests.length, 0)
-    assert.equal(h.session.events.length, events); assert.deepEqual(h.session.deriveMessages(), surface)
+    assert.equal(h.session.snapshotEvents().length, events); assert.deepEqual(h.session.deriveMessages(), surface)
     assert.equal((await h.journal.read('root')).events.length, 0)
     if (options.on === false) assert.equal(h.journalReads(), 1) // Only this assertion read; the disabled runtime made none.
   }
@@ -51,7 +52,7 @@ test('CM off or short context makes no API call, journal write, or surface chang
 
 test('native replacement changes subsequent request history and survives durable replay; original events and recent tail retained', async () => {
   const h = fixture(), original = h.session.deriveMessages(), before = h.meter.measure(h.session).surfaceTokens
-  const oldEvents = [...h.session.events], result = await h.run()
+  const oldEvents = [...h.session.snapshotEvents()], result = await h.run()
   assert.ok(result); assert.equal(h.requests[0].model, CM_MODEL)
   assert.equal(h.requests[0].reasoningEffort, 'off'); assert.deepEqual(h.requests[0].tools, [])
   assert.equal(h.requests[0].purpose, 'compaction'); assert.equal(h.requests[0].sessionId, 'root')
@@ -60,13 +61,13 @@ test('native replacement changes subsequent request history and survives durable
   assert.equal(nextMessages.length, 5); assert.deepEqual(nextMessages.slice(-4), original.slice(-4))
   assert.match(nextMessages[0].content.map(b => b.text || '').join(' '), /preserve fixed invariants/)
   assert.ok(h.meter.measure(h.session).surfaceTokens < before)
-  assert.deepEqual(h.session.events.slice(0, oldEvents.length), oldEvents)
+  assert.deepEqual(h.session.snapshotEvents().slice(0, oldEvents.length), oldEvents)
   h.session.append('turn/end', { turn: 1, reason: 'completed' })
-  const restored = Session.fromRestore('root', JSON.parse(JSON.stringify(h.session.events)), h.session.header)
+  const restored = Session.fromRestore('root', JSON.parse(JSON.stringify(h.session.snapshotEvents())), h.session.header)
   assert.deepEqual(restored.deriveMessages(), nextMessages)
   const status = await new CMRuntime(() => h.cfg, () => null, h.journal).status({ session: restored })
-  assert.ok(h.session.events.every(e => KNOWN_SESSION_EVENT_TYPES.has(e.type)))
-  assert.equal(h.session.events.some(e => e.type.startsWith('dpswarm/')), false)
+  assert.ok(h.session.snapshotEvents().every(e => KNOWN_SESSION_EVENT_TYPES.has(e.type)))
+  assert.equal(h.session.snapshotEvents().some(e => e.type.startsWith('dpswarm/')), false)
   assert.equal(status.adopted, 1); assert.equal(status.unknown_usage_calls, 0)
   assert.deepEqual(status.recent[0].usage, usage); assert.equal('cacheWriteTokens' in status.recent[0].usage, false)
   assert.equal(status.recent[0].compaction_id, result.compactionId)
@@ -86,7 +87,7 @@ for (const [name, response, reason] of [
   const end = (await h.journal.read('root')).events.at(-1)
   assert.equal(end.type, 'dpswarm/cm-end'); assert.equal(end.data.outcome, 'failed')
   assert.equal(end.data.error_code, reason); assert.equal(end.data.llm_stream_calls, 1)
-  assert.equal(h.session.events.filter(e => e.type === 'compaction/summary').length, 0)
+  assert.equal(h.session.snapshotEvents().filter(e => e.type === 'compaction/summary').length, 0)
   if (response.tokens === null) assert.equal(end.data.usage, null)
 })
 
@@ -113,7 +114,7 @@ test('CM works without a team, includes direct children, excludes unrelated task
       assert.equal(start.data.root_session_id, 'root')
       assert.equal(start.data.owner_session_id, options.id)
       assert.equal(start.data.agent_session_id, options.id)
-      assert.equal(h.session.events.some(e => e.type.startsWith('dpswarm/')), false)
+      assert.equal(h.session.snapshotEvents().some(e => e.type.startsWith('dpswarm/')), false)
     }
   }
 })
@@ -151,7 +152,7 @@ test('per-agent per-turn cap is durable across reload; a new turn has its own ca
   for (let i = 0; i < 12; i++) await assert.rejects(h.run(), /CM_INCOMPLETE/)
   assert.equal(await h.run(), null); assert.equal(h.requests.length, 12)
   h.session.append('turn/end', { turn: 1, reason: 'completed' })
-  const restored = Session.fromRestore('root', JSON.parse(JSON.stringify(h.session.events)), h.session.header)
+  const restored = Session.fromRestore('root', JSON.parse(JSON.stringify(h.session.snapshotEvents())), h.session.header)
   const newRuntime = new CMRuntime(() => h.cfg, () => null, h.journal), profile = cmProfile(h.cfg)
   assert.equal(await newRuntime.begin({ session: restored }, profile, {}, new AbortController().signal), null)
   restored.append('turn/start', { turn: 2 })
@@ -207,9 +208,9 @@ test('CM team snapshot survives host restart and review releases the persisted f
   const h = fixture()
   await h.runtime.beginRun(h.agent); h.cfg.cmProvider = 'provider-next-run'
   h.session.append('turn/end', { turn: 1, reason: 'completed' })
-  const restored = Session.fromRestore('root', JSON.parse(JSON.stringify(h.session.events)), h.session.header)
+  const restored = Session.fromRestore('root', JSON.parse(JSON.stringify(h.session.snapshotEvents())), h.session.header)
   const resumed = new CMRuntime(() => h.cfg, id => id === 'root' ? restored : null, h.journal)
-  const child = Session.create('child', undefined, { version: 0, id: 'child', createdAt: Date.now(), parentSession: 'root', delegationDepth: 1 })
+  const child = Session.create('child', undefined, { version: SESSION_FORMAT_VERSION, id: 'child', createdAt: Date.now(), parentSession: 'root', delegationDepth: 1, isSeeded: false })
   assert.equal((await resumed.profile(child)).provider, 'deepseek')
   h.cfg.cmEnabledSessions = []; await resumed.settingsChanged()
   h.cfg.cmEnabledSessions = ['root']
@@ -231,7 +232,8 @@ test('a user-created fork is an independent task, not an implicitly enabled suba
 test('forked history never re-attributes inherited CM charges to the new child', async () => {
   const h = fixture(); await h.run()
   h.session.append('turn/end', { turn: 1, reason: 'completed' })
-  const child = Session.create('child', h.session.events, { version: 0, id: 'child', createdAt: Date.now(), parentSession: 'root', delegationDepth: 1 })
+  const childSeed = h.session.snapshotEvents()
+  const child = Session.create('child', childSeed, { version: SESSION_FORMAT_VERSION, id: 'child', createdAt: Date.now(), parentSession: 'root', delegationDepth: 1, isSeeded: true }, childSeed.length)
   assert.equal((await h.runtime.status({ session: child })).recent.filter(r => r.session_id === 'child').length, 0)
   assert.equal((await new CMRuntime(() => h.cfg, () => null, h.journal).status({ session: child })).attempts, 0)
 })
@@ -240,7 +242,8 @@ test('forked history never re-attributes inherited CM charges to the new child',
 test('an independent user fork does not inherit an unfinished parent team freeze', async () => {
   const h = fixture(); await h.runtime.beginRun(h.agent)
   h.session.append('turn/end', { turn: 1, reason: 'completed' })
-  const fork = Session.create('fork', h.session.events, { version: 0, id: 'fork', createdAt: Date.now(), parentSession: 'root' })
+  const forkSeed = h.session.snapshotEvents()
+  const fork = Session.create('fork', forkSeed, { version: SESSION_FORMAT_VERSION, id: 'fork', createdAt: Date.now(), parentSession: 'root', isSeeded: true }, forkSeed.length)
   h.cfg.cmEnabledSessions = ['fork']; h.cfg.cmProvider = 'fork-provider'
   const runtime = new CMRuntime(() => h.cfg, () => null, h.journal)
   assert.equal((await runtime.profile(fork)).provider, 'fork-provider'); assert.equal(runtime.frozen.has('fork'), false)
@@ -270,7 +273,7 @@ test('CM route changes stay frozen across restart, then become effective after t
   const initial = await h.runtime.beginRun(h.agent)
   Object.assign(h.cfg, { cmProvider: 'next-provider', cmModel: 'next-model', cmEffort: 'max' })
   await h.runtime.settingsChanged()
-  const session = Session.fromRestore('root', JSON.parse(JSON.stringify(h.session.events)), h.session.header)
+  const session = Session.fromRestore('root', JSON.parse(JSON.stringify(h.session.snapshotEvents())), h.session.header)
   const resumed = new CMRuntime(() => h.cfg, () => null, h.journal)
   assert.equal((await resumed.status({ session })).model, 'old-model')
   assert.equal((await resumed.profile(session)).id, initial.profile.id)
@@ -307,7 +310,7 @@ test('two runtime instances atomically contend for the last durable per-agent tu
   const records = (await h.journal.read('root')).events.filter(e => e.type === 'dpswarm/cm-start')
   assert.equal(records.length, 12)
   assert.equal(await h.runtime.begin(h.agent, profile, {}, signal), null)
-  const sibling = Session.create('sibling', undefined, { version: 0, id: 'sibling', createdAt: Date.now(), parentSession: 'root', delegationDepth: 1 })
+  const sibling = Session.create('sibling', undefined, { version: SESSION_FORMAT_VERSION, id: 'sibling', createdAt: Date.now(), parentSession: 'root', delegationDepth: 1, isSeeded: false })
   sibling.append('turn/start', { turn: 1 })
   const siblingTicket = await runtimes[0].begin({ session: sibling }, profile, {}, signal)
   assert.ok(siblingTicket)
@@ -386,13 +389,13 @@ test('current system and tool schemas contribute to pressure before a request he
 test('pending claimed messages count in this step without being appended or counted twice', async () => {
   const h = fixture({ contextWindow: 100000 }), message = createUserMessage({ source: { kind: 'user' }, content: [{ type: 'text', text: 'p'.repeat(120000) }] })
   await h.capture()
-  const visible = h.session.deriveMessages()[0], originalEvents = h.session.events.length
+  const visible = h.session.deriveMessages()[0], originalEvents = h.session.snapshotEvents().length
   let continued = false
   await h.ctx.waterfall('agent/pre-step', { agent: h.agent, messages: [visible, message], signal: new AbortController().signal }, async () => { continued = true; return { kind: 'enter', messages: [visible, message] } })
   assert.equal(continued, true); assert.equal(h.requests.length, 1)
   const record = (await h.runtime.status(h.agent)).recent[0]
   assert.equal(record.pending_tokens_estimate, h.meter.estimateMessage(message))
-  assert.equal(h.session.events.slice(originalEvents).filter(event => event.type === 'user/message' && event.data?.id === message.id).length, 0)
+  assert.equal(h.session.snapshotEvents().slice(originalEvents).filter(event => event.type === 'user/message' && event.data?.id === message.id).length, 0)
 })
 
 test('new runtime context contributes once; already-retained snapshot is not duplicated', async () => {
@@ -464,6 +467,7 @@ test('same route and content preserve a real usage-pressure bound; changed route
     h.session.append('request/header', { header: prior, reason: 'initial' })
     h.session.append('assistant/message', { turn: 1, step: 1,
       message: { role: 'assistant', content: [{ type: 'text', text: 'observed result' }] },
+      stream: [{ type: 'chunk', chunk: { type: 'text-delta', index: 0, text: 'observed result' } }],
       usage: { inputTokens: 90000, cacheReadTokens: 10000, outputTokens: 5 },
     }, { surfaceOp: 'append' })
     h.session.append('step/end', { turn: 1, step: 1 })

@@ -1,5 +1,7 @@
 // Reads trusted native session events only. Never opens candidate paths, parses
 // shell commands, or treats model prose as evidence of a completed file write.
+import { sessionEvents, forkBoundary } from './host-session-compat.js'
+
 const copy = value => value == null ? null : JSON.parse(JSON.stringify(value))
 const text = value => typeof value === 'string' && value.length > 0
 const budgetCodes = new Map([
@@ -59,11 +61,13 @@ function sessionEvidence(session, sessionId, rootId) {
       || header?.parentSession !== rootId || header?.origin !== 'subagent' || header?.delegationDepth !== 1) {
     return { events: [], available: false, issue: 'NATIVE_SESSION_IDENTITY_MISMATCH' }
   }
-  const seed = header.seedLength ?? 0
-  if (!Array.isArray(session.events) || !Number.isSafeInteger(seed) || seed < 0 || seed > session.events.length) {
+  const events = sessionEvents(session)
+  const seed = forkBoundary(session)
+  if ((!Array.isArray(session?.events) && typeof session?.snapshotEvents !== 'function')
+    || !Number.isSafeInteger(seed) || seed < 0 || seed > events.length) {
     return { events: [], available: false, issue: 'NATIVE_SESSION_EVENTS_INVALID' }
   }
-  return { events: session.events.slice(seed), available: true, issue: null }
+  return { events: events.slice(seed), available: true, issue: null }
 }
 
 function candidatesFrom(events) {

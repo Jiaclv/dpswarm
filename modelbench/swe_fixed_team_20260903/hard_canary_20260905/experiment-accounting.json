@@ -1,0 +1,123 @@
+{
+  "run_id": "pydata__xarray-7229__hetero_gpt-5.6-terra__glm-5.3",
+  "official_completed": true,
+  "official_resolved": false,
+  "team_execution_valid": true,
+  "started_at": "2026-09-05T00:43:18.288713+00:00",
+  "completed_at": "2026-09-05T00:50:13.197285+00:00",
+  "run_wall_seconds": 414.90700000000015,
+  "candidate_wall_seconds": 378.29699999999957,
+  "grading_and_finalization_seconds": 36.61,
+  "all_call_records": 31,
+  "work_calls": 27,
+  "cm_calls": 4,
+  "known_total_tokens": 535701,
+  "budget": {
+    "call_count": 31,
+    "completed_call_count": 31,
+    "pending_call_count": 0,
+    "unknown_call_count": 0,
+    "known_subtotal": 535701,
+    "total_tokens": 535701,
+    "reserved_tokens": 0,
+    "committed_tokens": 535701,
+    "cm_call_allowance": 12,
+    "cm_call_count": 4,
+    "remaining_cm_calls": 8,
+    "remaining_calls": 1,
+    "remaining_tokens": 64299,
+    "over_token_limit": false,
+    "deadline_at": 1788570798.2887132,
+    "deadline_exceeded": false,
+    "frozen": false
+  },
+  "roles": [
+    {
+      "actor": "lead",
+      "model_requested": "gpt-5.6-sol",
+      "calls": 10,
+      "sum_call_wall_seconds": 89.923,
+      "unknown_fields": {
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 10,
+        "total_tokens": 0
+      },
+      "input_tokens": 216544,
+      "cached_input_tokens": 55168,
+      "output_tokens": 3149,
+      "reasoning_tokens": null,
+      "total_tokens": 219693
+    },
+    {
+      "actor": "worker-1",
+      "model_requested": "gpt-5.6-terra",
+      "calls": 8,
+      "sum_call_wall_seconds": 279.393,
+      "unknown_fields": {
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 8,
+        "total_tokens": 0
+      },
+      "input_tokens": 175865,
+      "cached_input_tokens": 51968,
+      "output_tokens": 20510,
+      "reasoning_tokens": null,
+      "total_tokens": 196375
+    },
+    {
+      "actor": "worker-2",
+      "model_requested": "glm-5.3",
+      "calls": 9,
+      "sum_call_wall_seconds": 134.451,
+      "unknown_fields": {
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "total_tokens": 0
+      },
+      "input_tokens": 72230,
+      "cached_input_tokens": 43136,
+      "output_tokens": 7601,
+      "reasoning_tokens": 5701,
+      "total_tokens": 79831
+    },
+    {
+      "actor": "cm",
+      "model_requested": "deepseek-v4-flash",
+      "calls": 4,
+      "sum_call_wall_seconds": 49.593,
+      "unknown_fields": {
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 4,
+        "total_tokens": 0
+      },
+      "input_tokens": 30855,
+      "cached_input_tokens": 1920,
+      "output_tokens": 8947,
+      "reasoning_tokens": null,
+      "total_tokens": 39802
+    }
+  ],
+  "sum_call_wall_seconds_is_parallel_sum": true,
+  "request_echo_unknown": {
+    "model_reported": 18,
+    "effort_reported": 31,
+    "service_tier_reported": 31
+  },
+  "cost_usd": null,
+  "price_basis": null,
+  "audit_status": "PASS",
+  "provenance": {
+    "manifest.json": "e4b79fa5f825336081830ee39515f71411cdab6bc3730e4ad108548954d036e1",
+    "audit.json": "d0fab6ab86e992f6a6b8faa43efc9cab8cbb026171b07c2c0af13df9bc727377",
+    "results\\pydata__xarray-7229__hetero_gpt-5.6-terra__glm-5.3\\result.json": "783df71b796e02c9c40fc03a8a5356a37b9d47bf168af6b0a431bfdeed7cf298",
+    "results\\pydata__xarray-7229__hetero_gpt-5.6-terra__glm-5.3\\calls.jsonl": "f7ca8d320ea0e233b126e3398c85b871b1976429ad4933f679558b7776588b69"
+  }
+}

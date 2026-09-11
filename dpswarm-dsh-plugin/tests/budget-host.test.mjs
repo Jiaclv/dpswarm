@@ -6,14 +6,14 @@ import { installBudget } from '../lib/budget.js'
 import { MemoryAuditJournal } from './helpers/memory-audit.mjs'
 import { resolveHostRoot, hostModuleUrl } from '../lib/host-modules.js'
 const host = resolveHostRoot()
-const [{ Context }, { Session }] = await Promise.all(['cordis', 'dsh-session'].map(p => import(hostModuleUrl(host, `${p}/lib/index.js`))))
+const [{ Context }, { Session, SESSION_FORMAT_VERSION }] = await Promise.all(['cordis', 'dsh-session'].map(p => import(hostModuleUrl(host, `${p}/lib/index.js`))))
 
 const assignment = text => ({ role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text }] })
 
 function fixture(config = {}, provider) {
-  const ctx = new Context(), root = Session.create('lead', undefined, { version: 0, id: 'lead', createdAt: 1 })
-  const child = Session.create('child', undefined, { version: 0, id: 'child', createdAt: 2, parentSession: root.id, origin: 'subagent', delegationDepth: 1 })
-  const sibling = Session.create('sibling', undefined, { version: 0, id: 'sibling', createdAt: 3, parentSession: root.id, origin: 'subagent', delegationDepth: 1 })
+  const ctx = new Context(), root = Session.create('lead', undefined, { version: SESSION_FORMAT_VERSION, id: 'lead', createdAt: 1, isSeeded: false })
+  const child = Session.create('child', undefined, { version: SESSION_FORMAT_VERSION, id: 'child', createdAt: 2, parentSession: root.id, origin: 'subagent', delegationDepth: 1, isSeeded: false })
+  const sibling = Session.create('sibling', undefined, { version: SESSION_FORMAT_VERSION, id: 'sibling', createdAt: 3, parentSession: root.id, origin: 'subagent', delegationDepth: 1, isSeeded: false })
   const sessions = new Map([root, child, sibling].map(s => [s.id, s]))
   const agents = new Map([...sessions.values()].map(s => [s.id, { session: s, options: { provider: s.id === 'lead' ? 'lead-provider' : 'worker-provider', model: 'model', reasoningEffort: 'max' } }]))
   const calls = [], flushes = []

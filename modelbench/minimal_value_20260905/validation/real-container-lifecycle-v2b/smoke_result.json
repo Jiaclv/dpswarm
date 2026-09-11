@@ -1,0 +1,58 @@
+{
+  "passed": true,
+  "completed_arms": 2,
+  "real_provider_calls": 0,
+  "arms": [
+    {
+      "arm": "D",
+      "passed": true,
+      "real_provider_calls": 0,
+      "official_grading": false,
+      "fixture_cm_enabled": false,
+      "worker_count": 1,
+      "cleanup": {
+        "confirmed": true,
+        "owned": {
+          "dpswarm-swe-4aad8a832cbc4064": "4aad8a832cbc4064b73e9a428269787d",
+          "df52254d3d97160b8a74ba19abb458106d2c7a1c36c9aa3e09457b2d0bc3ec59": "4aad8a832cbc4064b73e9a428269787d",
+          "dpswarm-swe-ac8aedfe5e2e4cac": "ac8aedfe5e2e4cacbcfd04e8626d6b4d",
+          "72d5b81170f283da763d37165d269e07b9bb7caca27b33fae2a9deb44cd33f4e": "ac8aedfe5e2e4cacbcfd04e8626d6b4d"
+        },
+        "removed": [],
+        "errors": []
+      },
+      "execution_health": {
+        "status": "ok",
+        "errors": []
+      },
+      "result_path": "K:\\秋招\\项目\\DPswarm\\modelbench\\minimal_value_20260905\\validation\\real-container-lifecycle-v2b\\results\\lifecycle-D\\result.json"
+    },
+    {
+      "arm": "T",
+      "passed": true,
+      "real_provider_calls": 0,
+      "official_grading": false,
+      "fixture_cm_enabled": false,
+      "worker_count": 2,
+      "cleanup": {
+        "confirmed": true,
+        "owned": {
+          "dpswarm-swe-88f5cfb84dc34b0f": "88f5cfb84dc34b0fad74493f99b4d779",
+          "37dbeda04786db942a9466c8fe7ec15da3430321773652463114a5b740c3b240": "88f5cfb84dc34b0fad74493f99b4d779",
+          "dpswarm-swe-62a9bce5f98246ae": "62a9bce5f98246ae9705199ee1983f9b",
+          "bbdfed80fd41e1a983ade9d9ab808da41a24015f94f7dab60899c114c4afe848": "62a9bce5f98246ae9705199ee1983f9b",
+          "dpswarm-swe-1e5d7a5933d242ac": "1e5d7a5933d242ac89a04f3e81d75f02",
+          "005cba65d3e32fbb6fcb49038484c93a4d7b4ffbeb7955a9df7760e1486a7365": "1e5d7a5933d242ac89a04f3e81d75f02"
+        },
+        "removed": [],
+        "errors": []
+      },
+      "execution_health": {
+        "status": "ok",
+        "errors": []
+      },
+      "result_path": "K:\\秋招\\项目\\DPswarm\\modelbench\\minimal_value_20260905\\validation\\real-container-lifecycle-v2b\\results\\lifecycle-T\\result.json"
+    }
+  ],
+  "recorded_at": "2026-09-05T03:35:05.545218+00:00"
+}

@@ -1,0 +1,29 @@
+{
+  "closed_at": "2026-09-05T00:57:15.894431+00:00",
+  "scheduled_runs": 1,
+  "completed_runs": 1,
+  "official_completed": true,
+  "official_resolved": false,
+  "team_execution_valid": true,
+  "audit_status": "PASS",
+  "audit_errors": 0,
+  "audit_warnings": 0,
+  "model_calls": 31,
+  "known_total_tokens": 535701,
+  "peak_committed_plus_reserved_tokens": 553046,
+  "pending_calls": 0,
+  "unknown_total_usage_calls": 0,
+  "reserved_tokens": 0,
+  "model_retries": 0,
+  "calls_after_patch_freeze": 0,
+  "owned_containers_remaining": 0,
+  "additional_experiment_runs": 0,
+  "posthoc_diagnosis_only": true,
+  "artifacts": {
+    "manifest.json": "e4b79fa5f825336081830ee39515f71411cdab6bc3730e4ad108548954d036e1",
+    "audit.json": "d0fab6ab86e992f6a6b8faa43efc9cab8cbb026171b07c2c0af13df9bc727377",
+    "experiment-accounting.json": "2bd80fedccda7827c57c9f85f227d010dc3305e522b8c9cd150279224c1391a3",
+    "call-accounting.csv": "24f194ef01d9525ddb1f824003a2f40402db5f9612f4c4458cd7b8f9861299ef",
+    "实验记录.md": "3b28c649ad2ed283dc15db82110943714626e743cf7af4b4e4e5085f5bd36745"
+  }
+}

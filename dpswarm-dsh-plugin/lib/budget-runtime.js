@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { closeoutForecast, CLOSEOUT_MARKER, CLOSEOUT_OUTPUT_RESERVE } from './worker-closeout.js'
+import { closeoutForecast, requestSystemText, CLOSEOUT_MARKER, CLOSEOUT_OUTPUT_RESERVE } from './worker-closeout.js'
+import { sessionEvents, forkBoundary } from './host-session-compat.js'
 
 export const budgetError = (code, message = code, details = null) => Object.assign(new Error(message), { code, ...(details ? { budget_details: details } : {}) })
 export const isWorkerSession = session => session?.header?.origin === 'subagent' || (session?.header?.delegationDepth || 0) > 0
@@ -17,7 +18,7 @@ const reworkMarker = id => `[DPSWARM_REWORK_WORKER_BUDGET_V1:${id}]`
 const fixedMarker = id => `[DPSWARM_FIXED_WORKER_BUDGET_V1:${id}]`
 const eventName = suffix => `dpswarm/worker-budget-${suffix}`
 const decisionRequired = message => budgetError('WORKER_BUDGET_DECISION_REQUIRED', message || 'Auto requires the current Lead to decide this worker allocation before delegation.')
-const nativeProgress = session => (session.events || []).slice(session.header?.seedLength || 0)
+const nativeProgress = session => sessionEvents(session).slice(forkBoundary(session))
   .some(event => ['assistant/message', 'tool/result', 'step/end', 'turn/end'].includes(event.type))
 const callsFrom = (events, workerId) => {
   const calls = new Map()
@@ -95,7 +96,7 @@ function fixedSource(events, workerId, seen = new Set()) {
 }
 
 function assignment(session, incoming) {
-  const own = (session.events || []).slice(session.header?.seedLength || 0)
+  const own = sessionEvents(session).slice(forkBoundary(session))
   const message = own.find(e => e.type === 'user/message')?.data || incoming.find(m => m?.role === 'user' && m?.source?.kind === 'user')
   if (!message || message.role !== 'user' || message.source?.kind !== 'user' || !Array.isArray(message.content)
     || message.content.length !== 1 || message.content[0]?.type !== 'text' || typeof message.content[0].text !== 'string') throw decisionRequired()
@@ -249,7 +250,7 @@ export class WorkerBudgetRuntime {
     const source = this.resolveSession(workerId) || this.states.get(workerId)?.session
     if (!source || !isWorkerSession(source) || source.header?.parentSession !== root.id
       || this.root(source) !== root) throw budgetError('REWORK_SOURCE_UNAVAILABLE')
-    const own = (source.events || []).slice(source.header?.seedLength || 0)
+    const own = sessionEvents(source).slice(forkBoundary(source))
     const terminal = own.filter(e => e.type === 'turn/end').at(-1)
     if (!terminal || !['completed', 'error', 'cancelled', 'aborted', 'interrupted', 'max-tokens'].includes(terminal.data?.reason?.kind)) throw budgetError('REWORK_SOURCE_NOT_TERMINAL')
     const at = own.indexOf(terminal)
@@ -569,7 +570,7 @@ async admit(state, options) {
               // run). Execution is denied at the tool gate; allow one tool-attempt
               // step plus the final report call.
               if (totals.calls >= closeout.calls_at_closeout + 2) denied('WORKER_CLOSEOUT_ALREADY_SENT')
-              if (typeof options.system !== 'string' || !options.system.includes(CLOSEOUT_MARKER)) denied('WORKER_CLOSEOUT_INSTRUCTION_MISSING')
+              if (!requestSystemText(options).includes(CLOSEOUT_MARKER)) denied('WORKER_CLOSEOUT_INSTRUCTION_MISSING')
             }
 
             if (options.purpose === 'compaction' && state.stepBudget

@@ -99,3 +99,10 @@ modelbench/mechanism_ablation_20260906/recovery_tools/
 
 # 本地废弃文件堆放处（不入库、不推送）
 /waste/
+
+# Local generated test workspaces and archived analysis copies; public snapshots live under reports/.
+modelbench/**/validation/tmp-*/
+modelbench/**/validation/pytest_*/
+modelbench/**/validation/consolidated_*/
+modelbench/**/validation/hard_canary_*/environment/
+modelbench/**/validation/**/*current

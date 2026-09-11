@@ -1,0 +1,9 @@
+{
+  "strategy": "owner-scoped-chmod-v1",
+  "owner_uids": [
+    0
+  ],
+  "candidate_user": "1000:1000",
+  "follow_symlinks": false,
+  "added_capabilities": []
+}

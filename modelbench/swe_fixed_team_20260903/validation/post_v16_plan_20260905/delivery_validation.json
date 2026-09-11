@@ -1,0 +1,10 @@
+{
+  "status": "PASS",
+  "local_links_checked": 16,
+  "broken_links": [],
+  "plan_hash_matches_contract": true,
+  "S2_budget_and_calls_consistent": true,
+  "primary_endpoint_frozen": true,
+  "runner_matches_v16_snapshot": true,
+  "scope": "planning artifact checks only; no runtime tests or model runs"
+}

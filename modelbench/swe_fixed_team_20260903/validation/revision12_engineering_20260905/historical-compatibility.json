@@ -1,0 +1,2079 @@
+{
+  "batches": 16,
+  "metrics_identical": true,
+  "protected_files_unchanged": true,
+  "calls": 3167,
+  "known_total_tokens": 53762479,
+  "audited_runs": 108,
+  "graded_runs": 108,
+  "official_resolved_runs": 66,
+  "error_count": 0,
+  "warning_count": 38,
+  "results": [
+    {
+      "batch": "pilot_v2",
+      "prior_audit": "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\validation\\rev11reaudit.pilot_v2.json",
+      "new_audit": "K:\\秋招\\项目\\DPswarm\\test-artifacts\\engineering-20260905\\reporting\\history\\final\\audit.pilot_v2.json",
+      "prior_status": "PASS",
+      "status": "PASS",
+      "prior_error_count": 0,
+      "error_count": 0,
+      "prior_warning_count": 0,
+      "warning_count": 0,
+      "prior_metrics": {
+        "audited_runs": 8,
+        "calls": 162,
+        "known_total_tokens": 3462637,
+        "unknown_total_usage_calls": 1,
+        "graded_runs": 8,
+        "official_resolved_runs": 7,
+        "grading_by_run": {
+          "matplotlib__matplotlib-25122__solo": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "matplotlib__matplotlib-25122__fixed_glm-5.3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "matplotlib__matplotlib-25122__fixed_glm-5.3-flash": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "matplotlib__matplotlib-25122__fixed_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "matplotlib__matplotlib-25122__fixed_gpt-5.6-terra": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "matplotlib__matplotlib-25122__fixed_gpt-5.6-luna": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_gpt-5.6-luna": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_gpt-5.6-terra": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          }
+        }
+      },
+      "metrics": {
+        "audited_runs": 8,
+        "calls": 162,
+        "known_total_tokens": 3462637,
+        "unknown_total_usage_calls": 1,
+        "graded_runs": 8,
+        "official_resolved_runs": 7,
+        "grading_by_run": {
+          "matplotlib__matplotlib-25122__solo": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "matplotlib__matplotlib-25122__fixed_glm-5.3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "matplotlib__matplotlib-25122__fixed_glm-5.3-flash": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "matplotlib__matplotlib-25122__fixed_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "matplotlib__matplotlib-25122__fixed_gpt-5.6-terra": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "matplotlib__matplotlib-25122__fixed_gpt-5.6-luna": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_gpt-5.6-luna": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_gpt-5.6-terra": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          }
+        }
+      },
+      "metrics_identical": true,
+      "new_findings": [],
+      "protected_files_unchanged": true,
+      "protected_fingerprints": {
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v2\\manifest.json": "8202c8ab635abb4e6255e08ec097c260e19786d6345d378867bb231920779399",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\validation\\rev11reaudit.pilot_v2.json": "9ed525c89bd2fdfc8f483b5ee3d215313d6e58d882fbafed21a918a4314673cb",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v2\\results\\matplotlib__matplotlib-25122__fixed_glm-5.3\\result.json": "70094f6ac69691bf43d35577e5cb0623119fa594104cae5ca768746ff0c31161",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v2\\results\\matplotlib__matplotlib-25122__fixed_glm-5.3-flash\\result.json": "0c5e1b4e73df6bbc634b033e5aff7bdc44d4116807656050982025253134fcb7",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v2\\results\\matplotlib__matplotlib-25122__fixed_gpt-5.6-luna\\result.json": "3116a48209f7106c38d494adc6b433cd65ca383f13f5acc8e182972ac5dd78ca",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v2\\results\\matplotlib__matplotlib-25122__fixed_gpt-5.6-sol\\result.json": "102e5ada0065798e4953199acc649adf70bef217bbc838b501a3a805acaa30f6",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v2\\results\\matplotlib__matplotlib-25122__fixed_gpt-5.6-terra\\result.json": "27275cb4c80ea4eb1ccb3fac59f76f50ac291ccd77ee19bb8b54266911e272bc",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v2\\results\\matplotlib__matplotlib-25122__solo\\result.json": "d5499a47dfa0c3191b74db538e0bf4d32a34394c927c28e965d2e96366a8eb18",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v2\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-luna\\result.json": "883d804dccd1f907da8964b6516434b2b54b573ff2ff0093b5e6980c8fb63ad9",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v2\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-terra\\result.json": "49a91ee09c03255e3d546586f431ca538cde4500f1ff0ccc9443fc0a46e98f78"
+      }
+    },
+    {
+      "batch": "pilot_v3",
+      "prior_audit": "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\validation\\rev11reaudit.pilot_v3.json",
+      "new_audit": "K:\\秋招\\项目\\DPswarm\\test-artifacts\\engineering-20260905\\reporting\\history\\final\\audit.pilot_v3.json",
+      "prior_status": "PASS",
+      "status": "PASS",
+      "prior_error_count": 0,
+      "error_count": 0,
+      "prior_warning_count": 0,
+      "warning_count": 0,
+      "prior_metrics": {
+        "audited_runs": 6,
+        "calls": 140,
+        "known_total_tokens": 3052933,
+        "unknown_total_usage_calls": 1,
+        "graded_runs": 6,
+        "official_resolved_runs": 3,
+        "grading_by_run": {
+          "sphinx-doc__sphinx-8035__fixed_gpt-5.6-luna": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_gpt-5.6-terra": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_glm-5.3-flash": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_glm-5.3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__solo": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          }
+        }
+      },
+      "metrics": {
+        "audited_runs": 6,
+        "calls": 140,
+        "known_total_tokens": 3052933,
+        "unknown_total_usage_calls": 1,
+        "graded_runs": 6,
+        "official_resolved_runs": 3,
+        "grading_by_run": {
+          "sphinx-doc__sphinx-8035__fixed_gpt-5.6-luna": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_gpt-5.6-terra": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_glm-5.3-flash": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_glm-5.3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__solo": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          }
+        }
+      },
+      "metrics_identical": true,
+      "new_findings": [],
+      "protected_files_unchanged": true,
+      "protected_fingerprints": {
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v3\\manifest.json": "9ffcb3022ee7787847dedbc1e513dba6778b7588365dadbee86ac5cb49c33124",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\validation\\rev11reaudit.pilot_v3.json": "adf614a77fc5e66894925df629160c6543cc5d27d3b755b3ebced969556b5204",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v3\\results\\sphinx-doc__sphinx-8035__fixed_glm-5.3\\result.json": "5027ad54fdd0fe7bc6d24bf2c698c1dd0b21446dd249ecd325199b38b1ce952d",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v3\\results\\sphinx-doc__sphinx-8035__fixed_glm-5.3-flash\\result.json": "ca7dd300ce75cec95b4e6d5c8973371fe691390790675ae6f41e150765fbfb24",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v3\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-luna\\result.json": "490605190f9be23e3a76bc19acb61dd306cd083a5a7b7bb5b233a313aeedf3db",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v3\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-sol\\result.json": "b871503ae9c39d4f07dc3149740e9434d2e3d62664febec5af9916d3468df5b5",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v3\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-terra\\result.json": "bffb637e459f933acdd022eea184859a28d4c5a7cd40fcf6e2bb19186d929569",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v3\\results\\sphinx-doc__sphinx-8035__solo\\result.json": "d798705c12b309bcf2f4274e547c9793b8730921fffbfc1441e9ef7a7766d2bd"
+      }
+    },
+    {
+      "batch": "pilot_v4",
+      "prior_audit": "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\validation\\rev11reaudit.pilot_v4.json",
+      "new_audit": "K:\\秋招\\项目\\DPswarm\\test-artifacts\\engineering-20260905\\reporting\\history\\final\\audit.pilot_v4.json",
+      "prior_status": "PASS",
+      "status": "PASS",
+      "prior_error_count": 0,
+      "error_count": 0,
+      "prior_warning_count": 0,
+      "warning_count": 0,
+      "prior_metrics": {
+        "audited_runs": 2,
+        "calls": 41,
+        "known_total_tokens": 909436,
+        "unknown_total_usage_calls": 4,
+        "graded_runs": 2,
+        "official_resolved_runs": 0,
+        "grading_by_run": {
+          "sphinx-doc__sphinx-8035__solo": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          }
+        }
+      },
+      "metrics": {
+        "audited_runs": 2,
+        "calls": 41,
+        "known_total_tokens": 909436,
+        "unknown_total_usage_calls": 4,
+        "graded_runs": 2,
+        "official_resolved_runs": 0,
+        "grading_by_run": {
+          "sphinx-doc__sphinx-8035__solo": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          }
+        }
+      },
+      "metrics_identical": true,
+      "new_findings": [],
+      "protected_files_unchanged": true,
+      "protected_fingerprints": {
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v4\\manifest.json": "36aaeafb8f77379a3f8134544475a52bfeddd5e77514800c1abb0452914c56b9",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\validation\\rev11reaudit.pilot_v4.json": "2578f249a3dd6c1c2a76865523d803967ab0a0291bb32efa2b1299e43779aeb7",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v4\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-sol\\result.json": "75da7430e35f2e40cbfbfdab5ba103a2f4b1cb7184cf2d9141ba5d298d325716",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v4\\results\\sphinx-doc__sphinx-8035__solo\\result.json": "bd7c4450a6867200435131cc11557d9a743bbe27d3a4c270cd8d36b67f703a6d"
+      }
+    },
+    {
+      "batch": "pilot_v5",
+      "prior_audit": "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\validation\\rev11reaudit.pilot_v5.json",
+      "new_audit": "K:\\秋招\\项目\\DPswarm\\test-artifacts\\engineering-20260905\\reporting\\history\\final\\audit.pilot_v5.json",
+      "prior_status": "PASS",
+      "status": "PASS",
+      "prior_error_count": 0,
+      "error_count": 0,
+      "prior_warning_count": 0,
+      "warning_count": 0,
+      "prior_metrics": {
+        "audited_runs": 2,
+        "calls": 56,
+        "known_total_tokens": 995805,
+        "unknown_total_usage_calls": 1,
+        "graded_runs": 2,
+        "official_resolved_runs": 2,
+        "grading_by_run": {
+          "sphinx-doc__sphinx-8035__fixed_glm-5.3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_glm-5.3-flash": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          }
+        }
+      },
+      "metrics": {
+        "audited_runs": 2,
+        "calls": 56,
+        "known_total_tokens": 995805,
+        "unknown_total_usage_calls": 1,
+        "graded_runs": 2,
+        "official_resolved_runs": 2,
+        "grading_by_run": {
+          "sphinx-doc__sphinx-8035__fixed_glm-5.3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_glm-5.3-flash": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          }
+        }
+      },
+      "metrics_identical": true,
+      "new_findings": [],
+      "protected_files_unchanged": true,
+      "protected_fingerprints": {
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v5\\manifest.json": "cbe83dc563888160527892dfc6fd21125cc76e2e996f053cd89854c2289a42d7",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\validation\\rev11reaudit.pilot_v5.json": "30bb69de9a3573a7562c35e18051655eb6b42847ed10abab21807c62795bcddf",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v5\\results\\sphinx-doc__sphinx-8035__fixed_glm-5.3\\result.json": "7ebf545b16a29798033fabd63e864597c81d2302ed2b5766dd853f7b9e84219d",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v5\\results\\sphinx-doc__sphinx-8035__fixed_glm-5.3-flash\\result.json": "8f90e4bb9be9dae5bc65b7ebdc67884ac4196c3d212ef181a86125c41082f736"
+      }
+    },
+    {
+      "batch": "pilot_v6",
+      "prior_audit": "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\validation\\rev11reaudit.pilot_v6.json",
+      "new_audit": "K:\\秋招\\项目\\DPswarm\\test-artifacts\\engineering-20260905\\reporting\\history\\final\\audit.pilot_v6.json",
+      "prior_status": "PASS",
+      "status": "PASS",
+      "prior_error_count": 0,
+      "error_count": 0,
+      "prior_warning_count": 0,
+      "warning_count": 0,
+      "prior_metrics": {
+        "audited_runs": 3,
+        "calls": 84,
+        "known_total_tokens": 1333037,
+        "unknown_total_usage_calls": 0,
+        "graded_runs": 3,
+        "official_resolved_runs": 2,
+        "grading_by_run": {
+          "sphinx-doc__sphinx-8035__solo": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_glm-5.3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_gpt-5.6-luna": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          }
+        }
+      },
+      "metrics": {
+        "audited_runs": 3,
+        "calls": 84,
+        "known_total_tokens": 1333037,
+        "unknown_total_usage_calls": 0,
+        "graded_runs": 3,
+        "official_resolved_runs": 2,
+        "grading_by_run": {
+          "sphinx-doc__sphinx-8035__solo": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_glm-5.3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_gpt-5.6-luna": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          }
+        }
+      },
+      "metrics_identical": true,
+      "new_findings": [],
+      "protected_files_unchanged": true,
+      "protected_fingerprints": {
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v6\\manifest.json": "6df928dd8226e1342579b56423734ac0be48eab555674735815849bc188a52f2",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\validation\\rev11reaudit.pilot_v6.json": "cd3fcc50b689c76b8cff8a015e9e0e7d4c7a2eab8dc52bbba7c1adcb9ff5fada",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v6\\results\\sphinx-doc__sphinx-8035__fixed_glm-5.3\\result.json": "1f6f0d07ce1ccc80c57f9bec275b95766840305f57d9318fc9b781db33f5e7c3",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v6\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-luna\\result.json": "7afcc80b39a39b35c85d22fe67a337eb8da3fb656f0518d058f32c1c28089e97",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v6\\results\\sphinx-doc__sphinx-8035__solo\\result.json": "5891b6e4e37c2a3a664d9b9b022765cf46ee2f7107e2c2b87af2baa5886ae58f"
+      }
+    },
+    {
+      "batch": "pilot_v7",
+      "prior_audit": "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\validation\\rev11reaudit.pilot_v7.json",
+      "new_audit": "K:\\秋招\\项目\\DPswarm\\test-artifacts\\engineering-20260905\\reporting\\history\\final\\audit.pilot_v7.json",
+      "prior_status": "PASS",
+      "status": "PASS",
+      "prior_error_count": 0,
+      "error_count": 0,
+      "prior_warning_count": 0,
+      "warning_count": 0,
+      "prior_metrics": {
+        "audited_runs": 1,
+        "calls": 28,
+        "known_total_tokens": 344581,
+        "unknown_total_usage_calls": 0,
+        "graded_runs": 1,
+        "official_resolved_runs": 1,
+        "grading_by_run": {
+          "sphinx-doc__sphinx-8035__fixed_glm-5.3-flash": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          }
+        }
+      },
+      "metrics": {
+        "audited_runs": 1,
+        "calls": 28,
+        "known_total_tokens": 344581,
+        "unknown_total_usage_calls": 0,
+        "graded_runs": 1,
+        "official_resolved_runs": 1,
+        "grading_by_run": {
+          "sphinx-doc__sphinx-8035__fixed_glm-5.3-flash": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          }
+        }
+      },
+      "metrics_identical": true,
+      "new_findings": [],
+      "protected_files_unchanged": true,
+      "protected_fingerprints": {
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v7\\manifest.json": "effb5ecb4abb5d31250e1570c1d70b97343e50072dd31675136f5a15f47e3c92",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\validation\\rev11reaudit.pilot_v7.json": "c557cdf96e6b9b130bf4cd135f041569e82e8b64dc827e79bdef0b820fbb4aad",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v7\\results\\sphinx-doc__sphinx-8035__fixed_glm-5.3-flash\\result.json": "ad9f6d33ea8fd97775a9316232ce32415f10ea162e46e27b61f884117ffd52ec"
+      }
+    },
+    {
+      "batch": "pilot_v8",
+      "prior_audit": "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\validation\\rev11reaudit.pilot_v8.json",
+      "new_audit": "K:\\秋招\\项目\\DPswarm\\test-artifacts\\engineering-20260905\\reporting\\history\\final\\audit.pilot_v8.json",
+      "prior_status": "PASS",
+      "status": "PASS_WITH_WARNINGS",
+      "prior_error_count": 0,
+      "error_count": 0,
+      "prior_warning_count": 0,
+      "warning_count": 10,
+      "prior_metrics": {
+        "audited_runs": 16,
+        "calls": 429,
+        "known_total_tokens": 6385984,
+        "unknown_total_usage_calls": 2,
+        "graded_runs": 16,
+        "official_resolved_runs": 12,
+        "grading_by_run": {
+          "sphinx-doc__sphinx-8035__solo_glm-5.3": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__solo_glm-5.3-flash": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-terra": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-luna": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_glm-5.3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_glm-5.3-flash": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_gpt-5.6-terra": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_gpt-5.6-luna": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__gpt-5.6-luna": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__hetero_glm-5.3__gpt-5.6-luna": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3-flash": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__hetero_gpt-5.6-sol__glm-5.3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__hetero_glm-5.3__gpt-5.6-sol": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          }
+        }
+      },
+      "metrics": {
+        "audited_runs": 16,
+        "calls": 429,
+        "known_total_tokens": 6385984,
+        "unknown_total_usage_calls": 2,
+        "graded_runs": 16,
+        "official_resolved_runs": 12,
+        "grading_by_run": {
+          "sphinx-doc__sphinx-8035__solo_glm-5.3": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__solo_glm-5.3-flash": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-terra": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-luna": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_glm-5.3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_glm-5.3-flash": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_gpt-5.6-terra": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_gpt-5.6-luna": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__gpt-5.6-luna": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__hetero_glm-5.3__gpt-5.6-luna": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3-flash": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__hetero_gpt-5.6-sol__glm-5.3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__hetero_glm-5.3__gpt-5.6-sol": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          }
+        }
+      },
+      "metrics_identical": true,
+      "new_findings": [
+        {
+          "code": "legacy_hardcoded_lead_model_label",
+          "severity": "warning",
+          "count": 4
+        },
+        {
+          "code": "legacy_worker_pool_missing_models",
+          "severity": "warning",
+          "count": 6
+        }
+      ],
+      "protected_files_unchanged": true,
+      "protected_fingerprints": {
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v8\\manifest.json": "7c160f8d66e29df3fecf6cd06c9f6399a6f51384308e870b898a9a1ee2531c9f",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\validation\\rev11reaudit.pilot_v8.json": "732f40e932dc788b69afc8e10bf511350094a4f82d149f0d5f4807feefd0c124",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__fixed_glm-5.3\\result.json": "6c8787b2d33e3d2c617ffa6149d679cef4845b6d9e2c41c3166b5e3bccae2f75",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__fixed_glm-5.3-flash\\result.json": "f8936f71579196e36f1bf9cfbe7ac7298a913c84d77680ded5cfe13fc6d8e1c2",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-luna\\result.json": "f21f9b3b39983cac4ecca5227f7267fc0a4514039f4d58be4f5e6d4172676605",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-sol\\result.json": "41729b66426a472698e24e1bb4d68ec8cf66b6cd3d1628a701ccf68ad76adc28",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-terra\\result.json": "e13fbb49ba7e9880df4d3d3db3966adce7993c8bbb445b27447be44180b7e439",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__hetero_glm-5.3__gpt-5.6-luna\\result.json": "edc8c9d27e6fda460374707c54d534339211f72d2286acf6e93c0d2254d05135",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__hetero_glm-5.3__gpt-5.6-sol\\result.json": "0cd7abed36c55ab8e9f445d37b14204502a7f15e9038215b26fe3e2b711dc2a2",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__hetero_gpt-5.6-sol__glm-5.3\\result.json": "0502d7961a4ae43640049059bfa937b8f46cd07b2ac7fc524cfc9aa9248ca475",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3\\result.json": "977fde7b6af56410ba54c8b6cfc550f9346aa7a471dd23367544095e10be6b71",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3-flash\\result.json": "7c295f3f7a69421aff21e94d1ce8d700d53d96c195e2be34bb24e69fd84991dc",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__gpt-5.6-luna\\result.json": "242f252571cc46cef6a7d1c21ad410c0467057e7f78c456af69bab73c3ae9e81",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__solo_glm-5.3\\result.json": "478d77d2305e835a2df7cd38953b558df8d9826210396df1cc52a6d03422bfc9",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__solo_glm-5.3-flash\\result.json": "15f539bfe21f4b9d3bee52e7a5dd670e1c211085126092c7b8245eff1d24b1da",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__solo_gpt-5.6-luna\\result.json": "4f87f928bedbec8aba7ce4941b9e7c4dc8a4bf46301163b4da527d2a74447ce2",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__solo_gpt-5.6-sol\\result.json": "751ed478475e713ce5c933ed21f85d025359fdbca701656226a229253bf03de6",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v8\\results\\sphinx-doc__sphinx-8035__solo_gpt-5.6-terra\\result.json": "19e8c1c5c3343d68b0adf1b22c90545fc89687ff78aa208cd752bce7a3979c9b"
+      }
+    },
+    {
+      "batch": "pilot_v9",
+      "prior_audit": "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\validation\\rev11reaudit.pilot_v9.json",
+      "new_audit": "K:\\秋招\\项目\\DPswarm\\test-artifacts\\engineering-20260905\\reporting\\history\\final\\audit.pilot_v9.json",
+      "prior_status": "PASS",
+      "status": "PASS_WITH_WARNINGS",
+      "prior_error_count": 0,
+      "error_count": 0,
+      "prior_warning_count": 0,
+      "warning_count": 2,
+      "prior_metrics": {
+        "audited_runs": 3,
+        "calls": 84,
+        "known_total_tokens": 989252,
+        "unknown_total_usage_calls": 0,
+        "graded_runs": 3,
+        "official_resolved_runs": 1,
+        "grading_by_run": {
+          "sphinx-doc__sphinx-8035__solo_deepseek-v4-flash": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_deepseek-v4-flash": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__deepseek-v4-flash": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          }
+        }
+      },
+      "metrics": {
+        "audited_runs": 3,
+        "calls": 84,
+        "known_total_tokens": 989252,
+        "unknown_total_usage_calls": 0,
+        "graded_runs": 3,
+        "official_resolved_runs": 1,
+        "grading_by_run": {
+          "sphinx-doc__sphinx-8035__solo_deepseek-v4-flash": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_deepseek-v4-flash": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__deepseek-v4-flash": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          }
+        }
+      },
+      "metrics_identical": true,
+      "new_findings": [
+        {
+          "code": "legacy_hardcoded_lead_model_label",
+          "severity": "warning",
+          "count": 1
+        },
+        {
+          "code": "legacy_worker_pool_missing_models",
+          "severity": "warning",
+          "count": 1
+        }
+      ],
+      "protected_files_unchanged": true,
+      "protected_fingerprints": {
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v9\\manifest.json": "5fa66a2feef230545f8eef3bca3bc170c2bd4cd1fbec789843509afbdf9bc559",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\validation\\rev11reaudit.pilot_v9.json": "9c9e8b4ad670e6f80c48ef7f40fe0cb8c32e3ac28e732c5558f6c31a78f21475",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v9\\results\\sphinx-doc__sphinx-8035__fixed_deepseek-v4-flash\\result.json": "8bcc51153efebd388a9b4cf3d624fe8c7ec1233bd0b29f77fe3ddbc12a7be0a3",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v9\\results\\sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__deepseek-v4-flash\\result.json": "012e3c66f153c17abb9feee21626173a517fcce54f91e7711acd06b0edf0fc8a",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v9\\results\\sphinx-doc__sphinx-8035__solo_deepseek-v4-flash\\result.json": "9afedd76efbf2c739c602e13bd44b2ef9b51cc566bbccbbac0041212d3d7e3c3"
+      }
+    },
+    {
+      "batch": "pilot_v10",
+      "prior_audit": "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\validation\\rev11reaudit.pilot_v10.json",
+      "new_audit": "K:\\秋招\\项目\\DPswarm\\test-artifacts\\engineering-20260905\\reporting\\history\\final\\audit.pilot_v10.json",
+      "prior_status": "PASS",
+      "status": "PASS_WITH_WARNINGS",
+      "prior_error_count": 0,
+      "error_count": 0,
+      "prior_warning_count": 0,
+      "warning_count": 6,
+      "prior_metrics": {
+        "audited_runs": 9,
+        "calls": 312,
+        "known_total_tokens": 4950784,
+        "unknown_total_usage_calls": 0,
+        "graded_runs": 9,
+        "official_resolved_runs": 6,
+        "grading_by_run": {
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.rep2": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3.rep2": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.rep3": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3.rep3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.rep2": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.rep3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          }
+        }
+      },
+      "metrics": {
+        "audited_runs": 9,
+        "calls": 312,
+        "known_total_tokens": 4950784,
+        "unknown_total_usage_calls": 0,
+        "graded_runs": 9,
+        "official_resolved_runs": 6,
+        "grading_by_run": {
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.rep2": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3.rep2": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.rep3": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3.rep3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.rep2": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.rep3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          }
+        }
+      },
+      "metrics_identical": true,
+      "new_findings": [
+        {
+          "code": "legacy_worker_pool_missing_models",
+          "severity": "warning",
+          "count": 6
+        }
+      ],
+      "protected_files_unchanged": true,
+      "protected_fingerprints": {
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v10\\manifest.json": "55f443fe562214b4658eead85e80ae85757b7bc38507e5deb88211b03fe19031",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\validation\\rev11reaudit.pilot_v10.json": "6d24379939326c810b59409d57b734c30d8d593cbcce2fdc5724dc0fde917f80",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v10\\results\\sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3\\result.json": "f24f88e08051c8b10b5e44d248bbdec9f58e06b6377dff76ed11cc27cef791ba",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v10\\results\\sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3.rep2\\result.json": "10179c902c1ecc18f1346365467765acbdf3a55a57c1fa627ba61565ed4d4a6f",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v10\\results\\sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3.rep3\\result.json": "1301b94d538a3c42883a242e416affb5f479102f757b158863e46a39090e9514",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v10\\results\\sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3\\result.json": "586c70f5abb8d0deb496b93403e4fa93ea72cb27d1ea85f8d2ab054d0198488e",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v10\\results\\sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.rep2\\result.json": "49f3721c2b8ff1f13e93ae5a115a94047ed35a24dc88f72231585607e78f1579",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v10\\results\\sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.rep3\\result.json": "a8933335c17e58af501158ca061abfde324f56cc13112427fccafbe45207accb",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v10\\results\\sphinx-doc__sphinx-8035__solo_gpt-5.6-sol\\result.json": "da8d84c4c2effabc8be33212e871542edf7e3116bec9a67a9c45c5699e4e532e",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v10\\results\\sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.rep2\\result.json": "1b970bc58c94d613be51475825c363160948cf4e2806100c2de53f7ff7584a7a",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v10\\results\\sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.rep3\\result.json": "a5cbdf74efbc81128a7da1f45d3c7361e6ff1acc70454e2f2b271ace3da3349b"
+      }
+    },
+    {
+      "batch": "pilot_v11",
+      "prior_audit": "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\validation\\rev11reaudit.pilot_v11.json",
+      "new_audit": "K:\\秋招\\项目\\DPswarm\\test-artifacts\\engineering-20260905\\reporting\\history\\final\\audit.pilot_v11.json",
+      "prior_status": "PASS",
+      "status": "PASS_WITH_WARNINGS",
+      "prior_error_count": 0,
+      "error_count": 0,
+      "prior_warning_count": 0,
+      "warning_count": 2,
+      "prior_metrics": {
+        "audited_runs": 7,
+        "calls": 343,
+        "known_total_tokens": 5122373,
+        "unknown_total_usage_calls": 0,
+        "graded_runs": 7,
+        "official_resolved_runs": 4,
+        "grading_by_run": {
+          "sphinx-doc__sphinx-8035__fixed_glm-5.3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_glm-5.3.rep2": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3.rep2": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_deepseek-v4-flash": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_gpt-5.6-sol.rep2": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          }
+        }
+      },
+      "metrics": {
+        "audited_runs": 7,
+        "calls": 343,
+        "known_total_tokens": 5122373,
+        "unknown_total_usage_calls": 0,
+        "graded_runs": 7,
+        "official_resolved_runs": 4,
+        "grading_by_run": {
+          "sphinx-doc__sphinx-8035__fixed_glm-5.3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_glm-5.3.rep2": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3.rep2": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_deepseek-v4-flash": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__fixed_gpt-5.6-sol.rep2": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          }
+        }
+      },
+      "metrics_identical": true,
+      "new_findings": [
+        {
+          "code": "legacy_worker_pool_missing_models",
+          "severity": "warning",
+          "count": 2
+        }
+      ],
+      "protected_files_unchanged": true,
+      "protected_fingerprints": {
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v11\\manifest.json": "b2e61dad68bab7f7d5b7d56d273f1e023da6b463ff0d6bd2fdecb5cd7fbf6418",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\validation\\rev11reaudit.pilot_v11.json": "b13a3d891226cac3e17aae1d196ef4522fdeeede6b35be56a7eaa32b3961cd90",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v11\\results\\sphinx-doc__sphinx-8035__fixed_deepseek-v4-flash\\result.json": "508ab0560faa5be6e83936dee223a875bb7a6e1fae49a3b872f17c1b374970a5",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v11\\results\\sphinx-doc__sphinx-8035__fixed_glm-5.3\\result.json": "ba640dfdce6de1bdc43b1715deef8ebe80dc37049d603cfd47fa342db71b4901",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v11\\results\\sphinx-doc__sphinx-8035__fixed_glm-5.3.rep2\\result.json": "dfec02a2501401586a66e2c8613dd15958fa791ca8380232ecbe911d9a2b1856",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v11\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-sol\\result.json": "370cda861a901bdc06098e081d002b7120fdc5556afdb414f5db9e1915d13c33",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v11\\results\\sphinx-doc__sphinx-8035__fixed_gpt-5.6-sol.rep2\\result.json": "23e570835e1e54517854c084cd24d3a9d6b16faf5d594a39eaa39c47013a9ebb",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v11\\results\\sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3\\result.json": "ff340b1a43ea366554b5c16accd927fc7e308987893b45d3e4c3edc8083713bf",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v11\\results\\sphinx-doc__sphinx-8035__hetero_gpt-5.6-terra__glm-5.3.rep2\\result.json": "60e97634033f1f358f9b49a5955e9ebcc484e9c7e03ad13d1801f829445ee7d6"
+      }
+    },
+    {
+      "batch": "pilot_v12",
+      "prior_audit": "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\validation\\rev11reaudit.pilot_v12.json",
+      "new_audit": "K:\\秋招\\项目\\DPswarm\\test-artifacts\\engineering-20260905\\reporting\\history\\final\\audit.pilot_v12.json",
+      "prior_status": "PASS",
+      "status": "PASS_WITH_WARNINGS",
+      "prior_error_count": 0,
+      "error_count": 0,
+      "prior_warning_count": 0,
+      "warning_count": 6,
+      "prior_metrics": {
+        "audited_runs": 9,
+        "calls": 223,
+        "known_total_tokens": 3423027,
+        "unknown_total_usage_calls": 0,
+        "graded_runs": 9,
+        "official_resolved_runs": 9,
+        "grading_by_run": {
+          "astropy__astropy-14995__solo_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "astropy__astropy-14995__hetero_gpt-5.6-terra__glm-5.3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "astropy__astropy-14995__solo_gpt-5.6-sol.rep2": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "astropy__astropy-14995__hetero_gpt-5.6-terra__glm-5.3.rep2": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "astropy__astropy-14995__solo_gpt-5.6-sol.rep3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "astropy__astropy-14995__heterooff_gpt-5.6-terra__glm-5.3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "astropy__astropy-14995__hetero_gpt-5.6-terra__glm-5.3.rep3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "astropy__astropy-14995__heterooff_gpt-5.6-terra__glm-5.3.rep2": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "astropy__astropy-14995__heterooff_gpt-5.6-terra__glm-5.3.rep3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          }
+        }
+      },
+      "metrics": {
+        "audited_runs": 9,
+        "calls": 223,
+        "known_total_tokens": 3423027,
+        "unknown_total_usage_calls": 0,
+        "graded_runs": 9,
+        "official_resolved_runs": 9,
+        "grading_by_run": {
+          "astropy__astropy-14995__solo_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "astropy__astropy-14995__hetero_gpt-5.6-terra__glm-5.3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "astropy__astropy-14995__solo_gpt-5.6-sol.rep2": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "astropy__astropy-14995__hetero_gpt-5.6-terra__glm-5.3.rep2": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "astropy__astropy-14995__solo_gpt-5.6-sol.rep3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "astropy__astropy-14995__heterooff_gpt-5.6-terra__glm-5.3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "astropy__astropy-14995__hetero_gpt-5.6-terra__glm-5.3.rep3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "astropy__astropy-14995__heterooff_gpt-5.6-terra__glm-5.3.rep2": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "astropy__astropy-14995__heterooff_gpt-5.6-terra__glm-5.3.rep3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          }
+        }
+      },
+      "metrics_identical": true,
+      "new_findings": [
+        {
+          "code": "legacy_worker_pool_missing_models",
+          "severity": "warning",
+          "count": 6
+        }
+      ],
+      "protected_files_unchanged": true,
+      "protected_fingerprints": {
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v12\\manifest.json": "92734ea8430b1e23d88a399870071e743e65fbbe25fe87e61619ef44a0e5f133",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\validation\\rev11reaudit.pilot_v12.json": "be7896525d9ebf14d6baa01817d74d267c2a4d4293c6c2b05b6f189ac6b4b892",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v12\\results\\astropy__astropy-14995__hetero_gpt-5.6-terra__glm-5.3\\result.json": "a27b3cbed4d78d3a40203bd170d4d745324b05a04d9dffe8463f0cb77d96ca02",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v12\\results\\astropy__astropy-14995__hetero_gpt-5.6-terra__glm-5.3.rep2\\result.json": "d8d3bd512a204adc4761f2ef8ec7cd18089be34388de812a7bb132621e2adca9",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v12\\results\\astropy__astropy-14995__hetero_gpt-5.6-terra__glm-5.3.rep3\\result.json": "89f52d6488abbb1611901601da5f0d4349c7f6c2bb250d65239dfc3f02d70f3a",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v12\\results\\astropy__astropy-14995__heterooff_gpt-5.6-terra__glm-5.3\\result.json": "1c90d322d62ff53581d188a545dcc4a94ffccffc194909fb721425554fa00803",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v12\\results\\astropy__astropy-14995__heterooff_gpt-5.6-terra__glm-5.3.rep2\\result.json": "6908bcff90c2fc19da50b4a9dbc33630620722496edb7c8ea6c76768db8892b2",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v12\\results\\astropy__astropy-14995__heterooff_gpt-5.6-terra__glm-5.3.rep3\\result.json": "6dbae1a510e2eb9d2576fc3a72b1918e7bb2e0840de6bb38921502edbf3cb2ea",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v12\\results\\astropy__astropy-14995__solo_gpt-5.6-sol\\result.json": "d4af0cb823783faabd657c150e0cb2374cfda8120e1e31ce960afa5429405755",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v12\\results\\astropy__astropy-14995__solo_gpt-5.6-sol.rep2\\result.json": "b0f38360572288c8fcc9baa8ac7baca30b8a06c7d2fe5a3a4ae523d10e0c9580",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v12\\results\\astropy__astropy-14995__solo_gpt-5.6-sol.rep3\\result.json": "a7bc94ca2a2859fa3f65260d925ea8735d54cdd42a759117c94275845bf42ebb"
+      }
+    },
+    {
+      "batch": "pilot_v13",
+      "prior_audit": "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\validation\\rev11reaudit.pilot_v13.json",
+      "new_audit": "K:\\秋招\\项目\\DPswarm\\test-artifacts\\engineering-20260905\\reporting\\history\\final\\audit.pilot_v13.json",
+      "prior_status": "PASS",
+      "status": "PASS_WITH_WARNINGS",
+      "prior_error_count": 0,
+      "error_count": 0,
+      "prior_warning_count": 0,
+      "warning_count": 2,
+      "prior_metrics": {
+        "audited_runs": 6,
+        "calls": 188,
+        "known_total_tokens": 3335159,
+        "unknown_total_usage_calls": 0,
+        "graded_runs": 6,
+        "official_resolved_runs": 4,
+        "grading_by_run": {
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.cm6": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.cm24": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.cm6.rep2": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.cm24.rep2": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.cm6": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.cm24": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          }
+        }
+      },
+      "metrics": {
+        "audited_runs": 6,
+        "calls": 188,
+        "known_total_tokens": 3335159,
+        "unknown_total_usage_calls": 0,
+        "graded_runs": 6,
+        "official_resolved_runs": 4,
+        "grading_by_run": {
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.cm6": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.cm24": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.cm6.rep2": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.cm24.rep2": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.cm6": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.cm24": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          }
+        }
+      },
+      "metrics_identical": true,
+      "new_findings": [
+        {
+          "code": "legacy_worker_pool_missing_models",
+          "severity": "warning",
+          "count": 2
+        }
+      ],
+      "protected_files_unchanged": true,
+      "protected_fingerprints": {
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v13\\manifest.json": "f7d3ef87589a272eaf955a38f86f76f28d4eecf765844c29450404be9e0243ca",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\validation\\rev11reaudit.pilot_v13.json": "336e4904426bcc1fc4929b5cebdbc4ef5aaa4d4f68884db16fac31a195b25896",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v13\\results\\sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.cm24\\result.json": "c3cc4e55d8f56be636cf2c41fcc508a4e56ad20b0a5128fd10f9ffa8e2879358",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v13\\results\\sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.cm6\\result.json": "7899b78b56eb37d00ff1286492cfda8d2d63ab2a6ea799dabf58014760d26649",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v13\\results\\sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.cm24\\result.json": "d00e9f000b07949926bb0d80c74eba604a1a2fc977f94e792cdcc1afcb4ab490",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v13\\results\\sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.cm24.rep2\\result.json": "52ab0c1f428c4c9b74b5052a7098f53ae8482f57387274600086bd2e4f984c0e",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v13\\results\\sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.cm6\\result.json": "309e8acf884b839b649c694c2e924016c4547ea330eaf97d6e8b0ab60a284a20",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v13\\results\\sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.cm6.rep2\\result.json": "a6070e0ca1f61c4670a4dbfea6d75a364622cd3af9d9db7bc8bc3d4117e8479c"
+      }
+    },
+    {
+      "batch": "pilot_v14",
+      "prior_audit": "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\validation\\rev11reaudit.pilot_v14.json",
+      "new_audit": "K:\\秋招\\项目\\DPswarm\\test-artifacts\\engineering-20260905\\reporting\\history\\final\\audit.pilot_v14.json",
+      "prior_status": "PASS",
+      "status": "PASS",
+      "prior_error_count": 0,
+      "error_count": 0,
+      "prior_warning_count": 0,
+      "warning_count": 0,
+      "prior_metrics": {
+        "audited_runs": 8,
+        "calls": 165,
+        "known_total_tokens": 2915752,
+        "unknown_total_usage_calls": 0,
+        "graded_runs": 8,
+        "official_resolved_runs": 5,
+        "grading_by_run": {
+          "pallets__flask-5014__solo_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "pydata__xarray-7229__solo_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "pytest-dev__pytest-7571__solo_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "mwaskom__seaborn-3069__solo_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "matplotlib__matplotlib-25122__solo_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sympy__sympy-16792__solo_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "scikit-learn__scikit-learn-25232__solo_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "django__django-14140__solo_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          }
+        }
+      },
+      "metrics": {
+        "audited_runs": 8,
+        "calls": 165,
+        "known_total_tokens": 2915752,
+        "unknown_total_usage_calls": 0,
+        "graded_runs": 8,
+        "official_resolved_runs": 5,
+        "grading_by_run": {
+          "pallets__flask-5014__solo_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "pydata__xarray-7229__solo_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "pytest-dev__pytest-7571__solo_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "mwaskom__seaborn-3069__solo_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "matplotlib__matplotlib-25122__solo_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sympy__sympy-16792__solo_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "scikit-learn__scikit-learn-25232__solo_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "django__django-14140__solo_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          }
+        }
+      },
+      "metrics_identical": true,
+      "new_findings": [],
+      "protected_files_unchanged": true,
+      "protected_fingerprints": {
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v14\\manifest.json": "62f7dbe36b61aa58f59b32541ce6c75cab6fbaec84f3d89407131fbc930a2c4d",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\validation\\rev11reaudit.pilot_v14.json": "2913813ac40151ba4090d49ac8de5f3470e3d7ffe63b851326ecb12cf3ffc36d",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v14\\results\\django__django-14140__solo_gpt-5.6-sol\\result.json": "baee9ff89fb40d86b6773bf855ce7cdf78855f72efaf5e379fa082c7d03d512a",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v14\\results\\matplotlib__matplotlib-25122__solo_gpt-5.6-sol\\result.json": "0a41dcdaf3d61c949b7fd5ddb2e63faa68f5d0757d51e14ab0f62917e8c68a9c",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v14\\results\\mwaskom__seaborn-3069__solo_gpt-5.6-sol\\result.json": "6146033ac3d073e74babe8f710ba97cd491d52054fd4c95232e3f0be74520fc1",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v14\\results\\pallets__flask-5014__solo_gpt-5.6-sol\\result.json": "6ba6af23083544737c04f471bdda387f164a72afa0f0999d3382a90d5d49e28e",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v14\\results\\pydata__xarray-7229__solo_gpt-5.6-sol\\result.json": "e583dd914f911ba77273f29fe2d6ec3862a1f232466677a28c111c9cea7bd579",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v14\\results\\pytest-dev__pytest-7571__solo_gpt-5.6-sol\\result.json": "d28f679d186a0827b6e5ec6faa69b928c0ae42ccd3a3213f9a7234e3825c5683",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v14\\results\\scikit-learn__scikit-learn-25232__solo_gpt-5.6-sol\\result.json": "f77659c91ee596ac03191733bbf3d4b72ca624115ee9f20ae0eca5522062ba9d",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v14\\results\\sympy__sympy-16792__solo_gpt-5.6-sol\\result.json": "0b9c6a647467d32d0b3b84c27bc78e0d7f2118dae1b546f1b609ebdef517d3e0"
+      }
+    },
+    {
+      "batch": "pilot_v15",
+      "prior_audit": "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\validation\\audit.pilot_v15.json",
+      "new_audit": "K:\\秋招\\项目\\DPswarm\\test-artifacts\\engineering-20260905\\reporting\\history\\final\\audit.pilot_v15.json",
+      "prior_status": "PASS",
+      "status": "PASS",
+      "prior_error_count": 0,
+      "error_count": 0,
+      "prior_warning_count": 0,
+      "warning_count": 0,
+      "prior_metrics": {
+        "audited_runs": 14,
+        "calls": 421,
+        "known_total_tokens": 7661120,
+        "unknown_total_usage_calls": 0,
+        "graded_runs": 14,
+        "official_resolved_runs": 6,
+        "grading_by_run": {
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.nocurf": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.cm24": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.rep2": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.nocurf.rep2": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.cm24.rep2": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.rep3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "pydata__xarray-7229__solo_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "pydata__xarray-7229__solo_gpt-5.6-sol.rep2": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "mwaskom__seaborn-3069__solo_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "mwaskom__seaborn-3069__solo_gpt-5.6-sol.rep2": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "scikit-learn__scikit-learn-25232__solo_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sympy__sympy-16792__solo_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "astropy__astropy-14995__solo_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          }
+        }
+      },
+      "metrics": {
+        "audited_runs": 14,
+        "calls": 421,
+        "known_total_tokens": 7661120,
+        "unknown_total_usage_calls": 0,
+        "graded_runs": 14,
+        "official_resolved_runs": 6,
+        "grading_by_run": {
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.nocurf": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.cm24": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.rep2": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.nocurf.rep2": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.cm24.rep2": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.rep3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "pydata__xarray-7229__solo_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "pydata__xarray-7229__solo_gpt-5.6-sol.rep2": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "mwaskom__seaborn-3069__solo_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "mwaskom__seaborn-3069__solo_gpt-5.6-sol.rep2": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "scikit-learn__scikit-learn-25232__solo_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sympy__sympy-16792__solo_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "astropy__astropy-14995__solo_gpt-5.6-sol": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          }
+        }
+      },
+      "metrics_identical": true,
+      "new_findings": [],
+      "protected_files_unchanged": true,
+      "protected_fingerprints": {
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v15\\manifest.json": "46a30aa5a5ca1c025c2868ddaf3e796f14f83692bbaff98ddab50020ab30afe2",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\validation\\audit.pilot_v15.json": "c981acdc9438b2cebee25bf73f26170170cf9a6b6e17e1f6485ce0e202fe2c8d",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v15\\results\\astropy__astropy-14995__solo_gpt-5.6-sol\\result.json": "5d3dae04ad2f3a5712075e2683ecf659dae7e7ad9b504fb9dbe9d4e543d1b427",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v15\\results\\mwaskom__seaborn-3069__solo_gpt-5.6-sol\\result.json": "235898a426750e9e7663f8d0a1fb8c8d3fff3ddaddeb8bb5bf2b2acb62d68360",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v15\\results\\mwaskom__seaborn-3069__solo_gpt-5.6-sol.rep2\\result.json": "e7de5cb8cd7b10aaa0ef68e0d85dd31baf1b12eb432851c12336148c1daca029",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v15\\results\\pydata__xarray-7229__solo_gpt-5.6-sol\\result.json": "cea0b7eb9a36e980a6d5bd1b8b7c302d02a795fd1679084609941005ef6cb239",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v15\\results\\pydata__xarray-7229__solo_gpt-5.6-sol.rep2\\result.json": "977e668c2f6502ed8b3e1cb16989a85d59ea2c6377e07ed3461e6eb68ce7b234",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v15\\results\\scikit-learn__scikit-learn-25232__solo_gpt-5.6-sol\\result.json": "f6becb069053dc37048e0c0c5568def0e60151d8b1c17bbc632634b42ed8d016",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v15\\results\\sphinx-doc__sphinx-8035__solo_gpt-5.6-sol\\result.json": "e4b7e21b64dc8d553d4ce457e0e9ea341d908178ba51512ae10b9e1cfd42d3a5",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v15\\results\\sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.cm24\\result.json": "0cf4f8b42e3b3c0f9997bd280d2a0dc92cad1a8233348e6de7c1750074738d59",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v15\\results\\sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.cm24.rep2\\result.json": "0d1bdc9853ac029011d4f0fa2f7131eedf611b2774df04ddfe7b2eb906c3293c",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v15\\results\\sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.nocurf\\result.json": "85a1c5795c4bf32a00da21200db49f7d1f0d0d29a623518ba3036b38b0ac725f",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v15\\results\\sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.nocurf.rep2\\result.json": "45fddebecda9b809d42ba15c2a2789761f8235689c5498e36965fbd7bca111ca",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v15\\results\\sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.rep2\\result.json": "a8661ee2191b83f9792d2bc63d23747a6d7e6ed9e87e995bbef7d60105983ff6",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v15\\results\\sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.rep3\\result.json": "2ef080ee7f98ac97da40ea37f595cf74bf215e0fdb3ac48f1bc79f68d98c0440",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v15\\results\\sympy__sympy-16792__solo_gpt-5.6-sol\\result.json": "880a2920f816c9cd4221ea3fc7109d514a983b3df5f60b1e06caa65e79d62cc2"
+      }
+    },
+    {
+      "batch": "pilot_v15b",
+      "prior_audit": "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\validation\\audit.pilot_v15b.json",
+      "new_audit": "K:\\秋招\\项目\\DPswarm\\test-artifacts\\engineering-20260905\\reporting\\history\\final\\audit.pilot_v15b.json",
+      "prior_status": "PASS",
+      "status": "PASS",
+      "prior_error_count": 0,
+      "error_count": 0,
+      "prior_warning_count": 0,
+      "warning_count": 0,
+      "prior_metrics": {
+        "audited_runs": 4,
+        "calls": 149,
+        "known_total_tokens": 3230217,
+        "unknown_total_usage_calls": 0,
+        "graded_runs": 4,
+        "official_resolved_runs": 2,
+        "grading_by_run": {
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.b900": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.b900.rep2": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "pydata__xarray-7229__solo_gpt-5.6-sol.b900": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "pydata__xarray-7229__solo_gpt-5.6-sol.b900.rep2": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          }
+        }
+      },
+      "metrics": {
+        "audited_runs": 4,
+        "calls": 149,
+        "known_total_tokens": 3230217,
+        "unknown_total_usage_calls": 0,
+        "graded_runs": 4,
+        "official_resolved_runs": 2,
+        "grading_by_run": {
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.b900": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.b900.rep2": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "pydata__xarray-7229__solo_gpt-5.6-sol.b900": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "pydata__xarray-7229__solo_gpt-5.6-sol.b900.rep2": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          }
+        }
+      },
+      "metrics_identical": true,
+      "new_findings": [],
+      "protected_files_unchanged": true,
+      "protected_fingerprints": {
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v15b\\manifest.json": "b74ceb959447f4dbb95cffcb742b3f3181dfdb8998035ca7762a01a8f02829f9",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\validation\\audit.pilot_v15b.json": "233634177afe4570cd47ac41460da1d0b11dd31d02eb656082ccc36d424d7433",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v15b\\results\\pydata__xarray-7229__solo_gpt-5.6-sol.b900\\result.json": "9f802594f6fc7f1308290f18cb6ee6848d5d12fe7c034c1e2e7122bc009b92f0",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v15b\\results\\pydata__xarray-7229__solo_gpt-5.6-sol.b900.rep2\\result.json": "5a7652f19bfe3a2b48923da11fd0a82567f7490cb4f7e8013a179f95f23dcbaa",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v15b\\results\\sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.b900\\result.json": "e585f966fff9c2164658d1da866194ba73925cdc7de9947cf138a984f99bb340",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v15b\\results\\sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.b900.rep2\\result.json": "cab4802047a4a98783bde624366a1e49102f770a45cf8aeed07c709c92d96380"
+      }
+    },
+    {
+      "batch": "pilot_v16",
+      "prior_audit": "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\validation\\audit.pilot_v16.json",
+      "new_audit": "K:\\秋招\\项目\\DPswarm\\test-artifacts\\engineering-20260905\\reporting\\history\\final\\audit.pilot_v16.json",
+      "prior_status": "PASS",
+      "status": "PASS_WITH_WARNINGS",
+      "prior_error_count": 0,
+      "error_count": 0,
+      "prior_warning_count": 0,
+      "warning_count": 10,
+      "prior_metrics": {
+        "audited_runs": 10,
+        "calls": 342,
+        "known_total_tokens": 5650382,
+        "unknown_total_usage_calls": 0,
+        "graded_runs": 10,
+        "official_resolved_runs": 2,
+        "grading_by_run": {
+          "pydata__xarray-7229__heterooff_gpt-5.6-terra__glm-5.3": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "pydata__xarray-7229__hetero_gpt-5.6-terra__glm-5.3": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "pydata__xarray-7229__heterooff_gpt-5.6-terra__glm-5.3.rep2": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "pydata__xarray-7229__hetero_gpt-5.6-terra__glm-5.3.rep2": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "mwaskom__seaborn-3069__heterooff_gpt-5.6-terra__glm-5.3": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "mwaskom__seaborn-3069__hetero_gpt-5.6-terra__glm-5.3": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "mwaskom__seaborn-3069__heterooff_gpt-5.6-terra__glm-5.3.rep2": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "mwaskom__seaborn-3069__hetero_gpt-5.6-terra__glm-5.3.rep2": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.rep2": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          }
+        }
+      },
+      "metrics": {
+        "audited_runs": 10,
+        "calls": 342,
+        "known_total_tokens": 5650382,
+        "unknown_total_usage_calls": 0,
+        "graded_runs": 10,
+        "official_resolved_runs": 2,
+        "grading_by_run": {
+          "pydata__xarray-7229__heterooff_gpt-5.6-terra__glm-5.3": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "pydata__xarray-7229__hetero_gpt-5.6-terra__glm-5.3": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "pydata__xarray-7229__heterooff_gpt-5.6-terra__glm-5.3.rep2": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "pydata__xarray-7229__hetero_gpt-5.6-terra__glm-5.3.rep2": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "mwaskom__seaborn-3069__heterooff_gpt-5.6-terra__glm-5.3": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "mwaskom__seaborn-3069__hetero_gpt-5.6-terra__glm-5.3": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "mwaskom__seaborn-3069__heterooff_gpt-5.6-terra__glm-5.3.rep2": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "mwaskom__seaborn-3069__hetero_gpt-5.6-terra__glm-5.3.rep2": {
+            "completed": true,
+            "resolved": false,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          },
+          "sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.rep2": {
+            "completed": true,
+            "resolved": true,
+            "failure_kind": null,
+            "reports_checked": 1
+          }
+        }
+      },
+      "metrics_identical": true,
+      "new_findings": [
+        {
+          "code": "legacy_worker_pool_missing_models",
+          "severity": "warning",
+          "count": 10
+        }
+      ],
+      "protected_files_unchanged": true,
+      "protected_fingerprints": {
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v16\\manifest.json": "d5de72037801fbfffb82cde2336c67f52cd321d11f2942099dd910597496e1cf",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\validation\\audit.pilot_v16.json": "515bf6d7fd96b3914fd7a5d1f6225f12b571ea89894f4e0b6c1ecaccef347afc",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v16\\results\\mwaskom__seaborn-3069__hetero_gpt-5.6-terra__glm-5.3\\result.json": "78b74ee6bcacb5f71d17a9b2f2da23ae563228cdf8ecf15dd20fd3031bfee032",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v16\\results\\mwaskom__seaborn-3069__hetero_gpt-5.6-terra__glm-5.3.rep2\\result.json": "39b7bb7cecb93e44d4c918f99d3babdcbc28d712a15a3610061af7475ddf6398",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v16\\results\\mwaskom__seaborn-3069__heterooff_gpt-5.6-terra__glm-5.3\\result.json": "fbcfa6d4a10a3af9ccf29ed0712dd86ccc4015fe982574fb17dc47fd9622b79d",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v16\\results\\mwaskom__seaborn-3069__heterooff_gpt-5.6-terra__glm-5.3.rep2\\result.json": "cfad64ae4f054b554421e0acb4edc3b39afa02e2e23aca9046e14004fed6a332",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v16\\results\\pydata__xarray-7229__hetero_gpt-5.6-terra__glm-5.3\\result.json": "18ee83e90bc2e4711f06f554dea4c8b645579dda508b13322d8c55c1b36e8a4a",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v16\\results\\pydata__xarray-7229__hetero_gpt-5.6-terra__glm-5.3.rep2\\result.json": "7db04ab7d46f4cff485b1d14e5107ff745f875d034140e9db6be42188ac7f978",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v16\\results\\pydata__xarray-7229__heterooff_gpt-5.6-terra__glm-5.3\\result.json": "649d2d63012d86d5cd47e3cbde41e92959d52273c04126b139606c8e12eded08",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v16\\results\\pydata__xarray-7229__heterooff_gpt-5.6-terra__glm-5.3.rep2\\result.json": "f183c6dee25ecafd139d7f934358d54d3005ad31d94c65566fc9fd2cb768c8c6",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v16\\results\\sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3\\result.json": "6a2bbf2b62badfddde268410e83d653c8981849bf85602134ab032d52d5f4281",
+        "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v16\\results\\sphinx-doc__sphinx-8035__heterooff_gpt-5.6-terra__glm-5.3.rep2\\result.json": "29b5feddb050f43e22dd6bf9e3c973e960c4938fc3ac174523b47cc13ddf9518"
+      }
+    }
+  ],
+  "scope": "Current Audit(snapshot_only=True), three read-only workers; no report(oldbatch), runtime, model, container, or grader calls."
+}

@@ -1,0 +1,54 @@
+FLOW dpswarm-post-v16 — 按门槛逐阶段建立工程、机制、异构角色和成本收益证据；当前仅计划
+file: K:\秋招\项目\DPswarm\.flowmap\post-v16-plan.json | updated: 2026-09-05T02:35:38+10:00 | nodes: 18 | edges: 26
+CONTROL:
+  root: goal | focus: plan
+  ready: P0
+  blocked: goal<-P2,P3-core,P3-full,P4,P5,P6,P8,P9,P10-confirm; P1<-P0; P2<-P1; P3-core<-P1; P3-full<-P1; P4<-P3-core; P5<-P1; P5-components<-P5; P6<-P1; R-cost<-P0; P7<-P7-check; P8<-P7; P9<-P1; P10-dev<-P8; P10-confirm<-P10-dev; P7-check<-R-cost,P1
+  active branches: -
+  warnings (high): -
+NODES (topo):
+  DONE  plan           artifact   完备后续计划与逐格矩阵@modelbench\swe_fixed_team_20260903\validation\NEXT_EXPERIMENT_PLAN_20260905.md · ! 计划、矩阵及独立审查完成；没有启动后续工程或实验
+  PEND  P0             task       P0 工程离线验收 · 0 offline仅提案，未启动；方案=all；依赖和互斥条件以主计划为准
+  PEND  P1             experiment P1 通道可用性 · 6 run仅提案，未启动；方案=all；依赖和互斥条件以主计划为准
+  PEND  R-cost         task       R-cost 美元准入与适配器验收 · 0 offline仅提案，未启动；方案=usd_required；依赖和互斥条件以主计划为准
+  PEND  P2             experiment P2 F1 F2 F5 全因素 · 72 run仅提案，未启动；方案=all；依赖和互斥条件以主计划为准
+  PEND  P3-core        experiment P3-core 核心角色2x2加Solo · 90 run仅提案，未启动；方案=core_or_sequential；依赖和互斥条件以主计划为准
+  PEND  P3-full        experiment P3-full 角色及家族一体版 · 198 run仅提案，未启动；方案=integrated_only；依赖和互斥条件以主计划为准
+  PEND  P5             experiment P5 装配全ON/OFF · 36 run仅提案，未启动；方案=optional；依赖和互斥条件以主计划为准
+  PEND  P6             experiment P6 token和工作调用2x2 · 48 run仅提案，未启动；方案=optional；依赖和互斥条件以主计划为准
+  PEND  P9             experiment P9 Lead互换开发比较 · 72 run仅提案，未启动；方案=optional；依赖和互斥条件以主计划为准
+  PEND  P7-check       experiment P7-check 新美元适配器真实可用性 · 6 episode仅提案，未启动；依赖和互斥以主计划为准
+  PEND  P4             experiment P4 后补家族含同期TT/GG · 144 run仅提案，未启动；方案=sequential_only；依赖和互斥条件以主计划为准
+  PEND  P5-components  experiment P5-components 装配2x2x2分解 · 72 run仅提案，未启动；方案=optional；依赖和互斥条件以主计划为准
+  PEND  P7             experiment P7 同USD策略开发比较 · 108 episode仅提案，未启动；方案=optional；依赖和互斥条件以主计划为准
+  PEND  P8             experiment P8 新任务确认 · 180 episode仅提案，未启动；方案=optional；依赖和互斥条件以主计划为准
+  PEND  P10-dev        experiment P10-dev 条件启用开发比较 · 54 episode仅提案，未启动；方案=optional；依赖和互斥条件以主计划为准
+  PEND  P10-confirm    experiment P10-confirm 条件启用新留出确认 · 180 episode仅提案，未启动；方案=optional；依赖和互斥条件以主计划为准
+  PEND  goal           goal       可靠且可复核的后续实验证据后续目标尚未执行；本轮只交付计划
+EDGES:
+  plan --> P0  [depends w1]
+  P0 --> P1  [depends w1]
+  P1 --> P2  [depends w1]
+  P1 --> P3-core  [depends w1]
+  P1 --> P3-full  [depends w1]
+  P3-core --> P4  [depends w1]
+  P1 --> P5  [depends w1]
+  P5 --> P5-components  [depends w1]
+  P1 --> P6  [depends w1]
+  P0 --> R-cost  [depends w1]
+  P7 --> P8  [depends w1]
+  P1 --> P9  [depends w1]
+  P8 --> P10-dev  [depends w1]
+  P10-dev --> P10-confirm  [depends w1]
+  P2 --> goal  [data w1]
+  P3-core --> goal  [data w1]
+  P3-full --> goal  [data w1]
+  P4 --> goal  [data w1]
+  P5 --> goal  [data w1]
+  P6 --> goal  [data w1]
+  P8 --> goal  [data w1]
+  P9 --> goal  [data w1]
+  P10-confirm --> goal  [data w1]
+  R-cost --> P7-check  [depends w1]
+  P1 --> P7-check  [depends w1]
+  P7-check --> P7  [depends w1]

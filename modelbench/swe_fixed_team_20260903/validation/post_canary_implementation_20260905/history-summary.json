@@ -1,0 +1,176 @@
+{
+  "batches": [
+    {
+      "batch": "hard_canary_20260905",
+      "status": "PASS",
+      "audited_runs": 1,
+      "calls": 31,
+      "known_total_tokens": 535701,
+      "error_count": 0,
+      "warning_count": 0
+    },
+    {
+      "batch": "pilot_v10",
+      "status": "PASS_WITH_WARNINGS",
+      "audited_runs": 9,
+      "calls": 312,
+      "known_total_tokens": 4950784,
+      "error_count": 0,
+      "warning_count": 6
+    },
+    {
+      "batch": "pilot_v11",
+      "status": "PASS_WITH_WARNINGS",
+      "audited_runs": 7,
+      "calls": 343,
+      "known_total_tokens": 5122373,
+      "error_count": 0,
+      "warning_count": 2
+    },
+    {
+      "batch": "pilot_v12",
+      "status": "PASS_WITH_WARNINGS",
+      "audited_runs": 9,
+      "calls": 223,
+      "known_total_tokens": 3423027,
+      "error_count": 0,
+      "warning_count": 6
+    },
+    {
+      "batch": "pilot_v13",
+      "status": "PASS_WITH_WARNINGS",
+      "audited_runs": 6,
+      "calls": 188,
+      "known_total_tokens": 3335159,
+      "error_count": 0,
+      "warning_count": 2
+    },
+    {
+      "batch": "pilot_v14",
+      "status": "PASS",
+      "audited_runs": 8,
+      "calls": 165,
+      "known_total_tokens": 2915752,
+      "error_count": 0,
+      "warning_count": 0
+    },
+    {
+      "batch": "pilot_v15",
+      "status": "PASS",
+      "audited_runs": 14,
+      "calls": 421,
+      "known_total_tokens": 7661120,
+      "error_count": 0,
+      "warning_count": 0
+    },
+    {
+      "batch": "pilot_v15b",
+      "status": "PASS",
+      "audited_runs": 4,
+      "calls": 149,
+      "known_total_tokens": 3230217,
+      "error_count": 0,
+      "warning_count": 0
+    },
+    {
+      "batch": "pilot_v16",
+      "status": "PASS_WITH_WARNINGS",
+      "audited_runs": 10,
+      "calls": 342,
+      "known_total_tokens": 5650382,
+      "error_count": 0,
+      "warning_count": 10
+    },
+    {
+      "batch": "pilot_v2",
+      "status": "PASS",
+      "audited_runs": 8,
+      "calls": 162,
+      "known_total_tokens": 3462637,
+      "error_count": 0,
+      "warning_count": 0
+    },
+    {
+      "batch": "pilot_v3",
+      "status": "PASS",
+      "audited_runs": 6,
+      "calls": 140,
+      "known_total_tokens": 3052933,
+      "error_count": 0,
+      "warning_count": 0
+    },
+    {
+      "batch": "pilot_v4",
+      "status": "PASS",
+      "audited_runs": 2,
+      "calls": 41,
+      "known_total_tokens": 909436,
+      "error_count": 0,
+      "warning_count": 0
+    },
+    {
+      "batch": "pilot_v5",
+      "status": "PASS",
+      "audited_runs": 2,
+      "calls": 56,
+      "known_total_tokens": 995805,
+      "error_count": 0,
+      "warning_count": 0
+    },
+    {
+      "batch": "pilot_v6",
+      "status": "PASS",
+      "audited_runs": 3,
+      "calls": 84,
+      "known_total_tokens": 1333037,
+      "error_count": 0,
+      "warning_count": 0
+    },
+    {
+      "batch": "pilot_v7",
+      "status": "PASS",
+      "audited_runs": 1,
+      "calls": 28,
+      "known_total_tokens": 344581,
+      "error_count": 0,
+      "warning_count": 0
+    },
+    {
+      "batch": "pilot_v8",
+      "status": "PASS_WITH_WARNINGS",
+      "audited_runs": 16,
+      "calls": 429,
+      "known_total_tokens": 6385984,
+      "error_count": 0,
+      "warning_count": 10
+    },
+    {
+      "batch": "pilot_v9",
+      "status": "PASS_WITH_WARNINGS",
+      "audited_runs": 3,
+      "calls": 84,
+      "known_total_tokens": 989252,
+      "error_count": 0,
+      "warning_count": 2
+    }
+  ],
+  "extra_zero_call_initialization_audits": [
+    {
+      "batch": "pilot_v1",
+      "status": "PASS",
+      "audited_runs": 2,
+      "calls": 0,
+      "known_total_tokens": 0,
+      "error_count": 0,
+      "warning_count": 0
+    }
+  ],
+  "totals": {
+    "audited_runs": 109,
+    "calls": 3198,
+    "known_total_tokens": 54298180,
+    "error_count": 0,
+    "warning_count": 38
+  },
+  "scope_note": "Initial directory glob also audited pilot_v1 (2 zero-call initialization results). Its audits are retained separately; frozen experiment comparison is pilot_v2-v16 plus v15b and the single hard canary."
+}

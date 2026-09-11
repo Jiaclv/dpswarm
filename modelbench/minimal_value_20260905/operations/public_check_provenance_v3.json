@@ -1,0 +1,1043 @@
+{
+  "pytest-dev__pytest-10051": {
+    "schema_version": 1,
+    "instance_id": "pytest-dev__pytest-10051",
+    "repo": "pytest-dev/pytest",
+    "base_commit": "aa55975c7d3f6c9f6d7f68accc41bb7cadf0eb9a",
+    "problem_statement_sha256": "c8f618a73662951809b75d56e2f6743203138a82223c2a963e6de26f2fa3199c",
+    "selection_source": "official/selection.json:d1",
+    "selection_json_sha256": "f1be288462203bc4ba6b4574e0131c57c611a742b2549f644284ca60463f56f1",
+    "public_input_source": "official/selected_public.json",
+    "selected_public_json_sha256": "896964042be03d985b19df43e3889352c66fcaac769b984759c450b3dac56f69",
+    "selected_from": "Public problem statement and repository test source at the task base_commit only.",
+    "retrieved_at_utc": "2026-09-05T03:10:49.680091+00:00",
+    "validation_status": "public_source_verified_environment_not_run",
+    "execution_status": {
+      "models_called": false,
+      "docker_called": false,
+      "tests_executed": false,
+      "official_inputs_changed": false
+    },
+    "checks": {
+      "public_caplog_lifecycle": {
+        "command": "python -m pytest testing/logging/test_fixture.py -q -k \"clear or log_access or record_tuples or captures_for_all_stages\"",
+        "timeout_seconds": 120,
+        "rationale": "The public issue concerns caplog.clear() disconnecting get_records() from live records. Select existing logging fixture clear, record access, and stage capture tests.",
+        "scope_limitation": "Existing public tests may not assert identity or synchronization after clear; passing is supporting regression evidence only.",
+        "runtime_basis": "Static bounded test selection only; the 120-second limit is a required execution timeout, not a measured runtime or pass claim.",
+        "qualification_rule": "Later environment qualification must record collection/execution and skips/errors/timeouts. Zero runnable tests or all-skipped output is not a successful verification. These checks are public evidence only, never the private grader or a correctness label.",
+        "sources": [
+          {
+            "path": "testing/logging/test_fixture.py",
+            "url": "https://raw.githubusercontent.com/pytest-dev/pytest/aa55975c7d3f6c9f6d7f68accc41bb7cadf0eb9a/testing/logging/test_fixture.py",
+            "github_url": "https://github.com/pytest-dev/pytest/blob/aa55975c7d3f6c9f6d7f68accc41bb7cadf0eb9a/testing/logging/test_fixture.py",
+            "sha256": "087e749f99a877705300c1008636459fe53b30722af89bb9ccce36496c9b6201",
+            "bytes": 9676,
+            "http_status": 200,
+            "kind": "public_test_module",
+            "selected_test_definitions": [
+              {
+                "name": "test_log_access",
+                "line": 100
+              },
+              {
+                "name": "test_record_tuples",
+                "line": 129
+              },
+              {
+                "name": "test_clear",
+                "line": 144
+              },
+              {
+                "name": "test_caplog_captures_for_all_stages",
+                "line": 163
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "mwaskom__seaborn-3187": {
+    "schema_version": 1,
+    "instance_id": "mwaskom__seaborn-3187",
+    "repo": "mwaskom/seaborn",
+    "base_commit": "22cdfb0c93f8ec78492d87edb810f10cb7f57a31",
+    "problem_statement_sha256": "72157e71b5c0ed5d58d66a7eeb30ed7b2fb237374183b9ebee200f5d58abd77b",
+    "selection_source": "official/selection.json:d1",
+    "selection_json_sha256": "f1be288462203bc4ba6b4574e0131c57c611a742b2549f644284ca60463f56f1",
+    "public_input_source": "official/selected_public.json",
+    "selected_public_json_sha256": "896964042be03d985b19df43e3889352c66fcaac769b984759c450b3dac56f69",
+    "selected_from": "Public problem statement and repository test source at the task base_commit only.",
+    "retrieved_at_utc": "2026-09-05T03:10:49.680091+00:00",
+    "validation_status": "public_source_verified_environment_not_run",
+    "execution_status": {
+      "models_called": false,
+      "docker_called": false,
+      "tests_executed": false,
+      "official_inputs_changed": false
+    },
+    "checks": {
+      "public_numeric_legend_formatting": {
+        "command": "python -m pytest tests/_core/test_scales.py tests/test_relational.py -q -k \"label_formatter or legend_data\"",
+        "timeout_seconds": 120,
+        "rationale": "The public issue names numeric legend formatting in both objects.Plot and scatterplot. Select continuous scale formatter checks plus existing relational legend-data checks.",
+        "scope_limitation": "Existing fixtures may not use the large numeric offsets in the public reproduction; this is public formatting/legend regression coverage.",
+        "runtime_basis": "Static bounded test selection only; the 120-second limit is a required execution timeout, not a measured runtime or pass claim.",
+        "qualification_rule": "Later environment qualification must record collection/execution and skips/errors/timeouts. Zero runnable tests or all-skipped output is not a successful verification. These checks are public evidence only, never the private grader or a correctness label.",
+        "sources": [
+          {
+            "path": "tests/_core/test_scales.py",
+            "url": "https://raw.githubusercontent.com/mwaskom/seaborn/22cdfb0c93f8ec78492d87edb810f10cb7f57a31/tests/_core/test_scales.py",
+            "github_url": "https://github.com/mwaskom/seaborn/blob/22cdfb0c93f8ec78492d87edb810f10cb7f57a31/tests/_core/test_scales.py",
+            "sha256": "cdd63900930f6574491e4f8a5bd18e1586eae8cc62284d6d04679daf27b98442",
+            "bytes": 21511,
+            "http_status": 200,
+            "kind": "public_test_module",
+            "selected_test_definitions": [
+              {
+                "name": "test_label_formatter",
+                "line": 241
+              },
+              {
+                "name": "test_label_formatter",
+                "line": 646
+              }
+            ]
+          },
+          {
+            "path": "tests/test_relational.py",
+            "url": "https://raw.githubusercontent.com/mwaskom/seaborn/22cdfb0c93f8ec78492d87edb810f10cb7f57a31/tests/test_relational.py",
+            "github_url": "https://github.com/mwaskom/seaborn/blob/22cdfb0c93f8ec78492d87edb810f10cb7f57a31/tests/test_relational.py",
+            "sha256": "1ab738fa5ada56c4fc24bd3458d9bec9b4c06f5d2b0bafdbb459cafd0757125d",
+            "bytes": 59692,
+            "http_status": 200,
+            "kind": "public_test_module",
+            "selected_test_definitions": [
+              {
+                "name": "test_legend_data",
+                "line": 687
+              },
+              {
+                "name": "test_legend_data",
+                "line": 1351
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sympy__sympy-13852": {
+    "schema_version": 1,
+    "instance_id": "sympy__sympy-13852",
+    "repo": "sympy/sympy",
+    "base_commit": "c935e1d106743efd5bf0705fbeedbd18fadff4dc",
+    "problem_statement_sha256": "51eca986eb401e0dc2856252c823632a51285a5a0d70bd046d46c39362d0df02",
+    "selection_source": "official/selection.json:d1",
+    "selection_json_sha256": "f1be288462203bc4ba6b4574e0131c57c611a742b2549f644284ca60463f56f1",
+    "public_input_source": "official/selected_public.json",
+    "selected_public_json_sha256": "896964042be03d985b19df43e3889352c66fcaac769b984759c450b3dac56f69",
+    "selected_from": "Public problem statement and repository test source at the task base_commit only.",
+    "retrieved_at_utc": "2026-09-05T03:10:49.680091+00:00",
+    "validation_status": "public_source_verified_single_native_compatibility_probe_passed_full_qualification_pending",
+    "execution_status": {
+      "models_called": false,
+      "docker_called": true,
+      "tests_executed": true,
+      "official_inputs_changed": false,
+      "full_a2_qualification_passed": false,
+      "scope": "Public compatibility probe only; fresh attempt03 qualification required"
+    },
+    "checks": {
+      "public_polylog_expansion": {
+        "command": "python - <<'PY'\nimport re, sys, warnings\nfrom sympy.utilities import runtests as runner\nmessage = \"Using or importing the ABCs from 'collections' instead of from 'collections.abc' is deprecated since Python 3.3, and in 3.10 it will stop working\"\noriginal_test = runner.SymPyTests.test\ndef test_with_py39_filter(self, *args, **kwargs):\n    with warnings.catch_warnings():\n        warnings.filterwarnings('ignore', '^' + re.escape(message) + '$', DeprecationWarning, r'^sympy\\.core\\.function$')\n        return original_test(self, *args, **kwargs)\nrunner.SymPyTests.test = test_with_py39_filter\nsys.exit(0 if runner.test('sympy/functions/special/tests/test_zeta_functions.py', kw='polylog', colors=False, subprocess=False) else 1)\nPY",
+        "timeout_seconds": 120,
+        "rationale": "The public issue concerns exact polylog expansion and branch handling; select the existing polylog tests in the special zeta-functions test module.",
+        "scope_limitation": "Public base tests need not cover every requested special value or branch form.",
+        "runtime_basis": "Exact base-commit native runtime and original public test retained. The SHA-bound compatibility command ran one original test function successfully in the task image; 120-second timeout retained. A fresh all16 qualification remains required.",
+        "qualification_rule": "Later environment qualification must record collection/execution and skips/errors/timeouts. Zero runnable tests or all-skipped output is not a successful verification. These checks are public evidence only, never the private grader or a correctness label.",
+        "sources": [
+          {
+            "path": "sympy/functions/special/tests/test_zeta_functions.py",
+            "url": "https://raw.githubusercontent.com/sympy/sympy/c935e1d106743efd5bf0705fbeedbd18fadff4dc/sympy/functions/special/tests/test_zeta_functions.py",
+            "github_url": "https://github.com/sympy/sympy/blob/c935e1d106743efd5bf0705fbeedbd18fadff4dc/sympy/functions/special/tests/test_zeta_functions.py",
+            "sha256": "d35aa6df869e31e51dc535c5f832d22d379e69a26ade9084517065ee5a1dcb25",
+            "bytes": 6569,
+            "http_status": 200,
+            "kind": "public_test_module",
+            "selected_test_definitions": [
+              {
+                "name": "test_polylog_expansion",
+                "line": 125
+              }
+            ]
+          },
+          {
+            "path": "bin/test",
+            "url": "https://raw.githubusercontent.com/sympy/sympy/c935e1d106743efd5bf0705fbeedbd18fadff4dc/bin/test",
+            "github_url": "https://github.com/sympy/sympy/blob/c935e1d106743efd5bf0705fbeedbd18fadff4dc/bin/test",
+            "sha256": "973e3cf784388b8e7821e4962da8eeb4b615447cd652af920452b322bd63588c",
+            "bytes": 4766,
+            "http_status": 200,
+            "kind": "public_native_test_runner",
+            "retrieved_at_utc": "2026-09-05T10:26:16.574628+00:00"
+          },
+          {
+            "path": "sympy/utilities/runtests.py",
+            "url": "https://raw.githubusercontent.com/sympy/sympy/c935e1d106743efd5bf0705fbeedbd18fadff4dc/sympy/utilities/runtests.py",
+            "github_url": "https://github.com/sympy/sympy/blob/c935e1d106743efd5bf0705fbeedbd18fadff4dc/sympy/utilities/runtests.py",
+            "sha256": "10adb89275773c973084531fbe619417838d9cc98a44f025a7395b59e60d7955",
+            "bytes": 86182,
+            "http_status": 200,
+            "kind": "public_native_test_runner",
+            "retrieved_at_utc": "2026-09-05T10:26:52.368128+00:00"
+          }
+        ],
+        "runner_revision": {
+          "version": 3,
+          "framework": "sympy-native",
+          "previous_command": "python bin/test --no-colors sympy/functions/special/tests/test_zeta_functions.py -k polylog",
+          "reason": "Narrowly ignore the observed Python 3.9 collections ABC DeprecationWarning after native runner error filters; preserve original test assertions and native execution",
+          "matching_semantics": "Case-sensitive substring in top-level test function name; exactly one matching base-commit function",
+          "selected_functions": [
+            {
+              "name": "test_polylog_expansion",
+              "line": 125
+            }
+          ],
+          "flags": "Native runner.test API uses kw=polylog, colors=False and subprocess=False; no pytest and no test skipping",
+          "test_count_semantics": "Count executed test functions from a complete native tests finished summary; never count static assert statements",
+          "execution_status": "One real original native test function passed in the compatibility probe; fresh all16 qualification required",
+          "parser_module": "sympy_public_checks_v3.py",
+          "parser_version": "sympy_native_public_checks_v3",
+          "stdlib_direct_call_alternative": "Not selected; direct import/call would omit native cache clearing, seed setup, generator expansion, XFAIL/skip handling and exception reporting. These particular selected functions have no arguments/decorators/generator yields, but direct execution would still be a distinct protocol."
+        },
+        "compatibility": {
+          "version": 3,
+          "task": "sympy__sympy-13852",
+          "warning_filter": {
+            "action": "ignore",
+            "message": "Using or importing the ABCs from 'collections' instead of from 'collections.abc' is deprecated since Python 3.3, and in 3.10 it will stop working",
+            "message_regex": "^Using\\ or\\ importing\\ the\\ ABCs\\ from\\ 'collections'\\ instead\\ of\\ from\\ 'collections\\.abc'\\ is\\ deprecated\\ since\\ Python\\ 3\\.3,\\ and\\ in\\ 3\\.10\\ it\\ will\\ stop\\ working$",
+            "category": "DeprecationWarning",
+            "module_regex": "^sympy\\.core\\.function$",
+            "installation_point": "SymPyTests.test entry, after _test installs error filters and before original native runner executes tests",
+            "scope": "warnings.catch_warnings restores filters on return; all other messages, modules and categories retain original runner treatment"
+          },
+          "native_runner_preserved": "Original SymPyTests.test executes test discovery, cache handling, original function assertions, exception reporting and native summary. No source or test assertion is changed.",
+          "subprocess": false,
+          "hash_seed_difference": "The native hash-seed subprocess is disabled to retain the process-local warning filter. The successful probe reports hash randomization: off, unlike attempt02 which used a generated PYTHONHASHSEED; this is an explicit execution-protocol difference, not equivalent hash-seed coverage.",
+          "verified_probe": {
+            "path": "K:\\秋招\\项目\\DPswarm\\modelbench\\minimal_value_20260905\\validation\\sympy-compat-probe-v1\\result.json",
+            "sha256": "5511baf51303ef03bb5b813222e2d1c6c85934412d9c0f07be74caa201cdfa6e",
+            "command_sha256": "99fb0f4ec056c4e4f002de40040a79d97c39683df3508030d3361a329726130f",
+            "exit_code": 0,
+            "executed_test_functions": 1,
+            "passed": 1,
+            "errors": 0,
+            "model_calls": 0,
+            "native_summary_seconds": 0.04,
+            "command_duration_seconds": 1.125,
+            "python": "3.9.20-final-0",
+            "observed_hash_randomization": "off",
+            "cleanup_path": "K:\\秋招\\项目\\DPswarm\\modelbench\\minimal_value_20260905\\validation\\sympy-compat-probe-v1\\final-cleanup.json",
+            "cleanup_sha256": "b74cb86b6c65f2820f1e9c0ae7e975139c2596445d2cdeedb0cce206c351b68d",
+            "scope": "One real public test function passed in the task image; not an A2 qualification pass, official result, or mechanism outcome."
+          },
+          "counting_semantics_source": {
+            "path": "sympy_public_checks.py",
+            "sha256": "4b51bc1b9683cb5ea797c3cb7c0375eb138e36bc8d40effb20e4253703c3aa19",
+            "version": "sympy_native_public_checks_v2",
+            "relationship": "Native summary-counting implementation copied unchanged except reported parser version; no runtime import dependency."
+          }
+        }
+      }
+    },
+    "native_runner_revision_at_utc": "2026-09-05T10:59:08.183939+00:00",
+    "previous_revision": {
+      "path": "operations/public_check_provenance_v2.json",
+      "sha256": "371b870a63b01dc750e6d6c14097c283d9c91e67007380137b8bc974acc8e707"
+    }
+  },
+  "matplotlib__matplotlib-23412": {
+    "schema_version": 1,
+    "instance_id": "matplotlib__matplotlib-23412",
+    "repo": "matplotlib/matplotlib",
+    "base_commit": "f06c2c3abdaf4b90285ce5ca7fedbb8ace715911",
+    "problem_statement_sha256": "f6a488ca9ccd9717eed2b1b06381bfb2f0df1fcb770c10d2798a394581354770",
+    "selection_source": "official/selection.json:d1",
+    "selection_json_sha256": "f1be288462203bc4ba6b4574e0131c57c611a742b2549f644284ca60463f56f1",
+    "public_input_source": "official/selected_public.json",
+    "selected_public_json_sha256": "896964042be03d985b19df43e3889352c66fcaac769b984759c450b3dac56f69",
+    "selected_from": "Public problem statement and repository test source at the task base_commit only.",
+    "retrieved_at_utc": "2026-09-05T03:10:49.680091+00:00",
+    "validation_status": "public_source_verified_environment_not_run",
+    "execution_status": {
+      "models_called": false,
+      "docker_called": false,
+      "tests_executed": false,
+      "official_inputs_changed": false
+    },
+    "checks": {
+      "public_patch_linestyle": {
+        "command": "python -m pytest lib/matplotlib/tests/test_patches.py -q -k linestyle",
+        "timeout_seconds": 120,
+        "rationale": "The public issue concerns dash offsets on Patch artists. Select existing Patch custom/default/none linestyle rendering tests in the public patches test module.",
+        "scope_limitation": "Some selected tests use public image baselines; dependencies and image availability require later environment qualification. Existing tests may not exercise nonzero dash offsets.",
+        "runtime_basis": "Static bounded test selection only; the 120-second limit is a required execution timeout, not a measured runtime or pass claim.",
+        "qualification_rule": "Later environment qualification must record collection/execution and skips/errors/timeouts. Zero runnable tests or all-skipped output is not a successful verification. These checks are public evidence only, never the private grader or a correctness label.",
+        "sources": [
+          {
+            "path": "lib/matplotlib/tests/test_patches.py",
+            "url": "https://raw.githubusercontent.com/matplotlib/matplotlib/f06c2c3abdaf4b90285ce5ca7fedbb8ace715911/lib/matplotlib/tests/test_patches.py",
+            "github_url": "https://github.com/matplotlib/matplotlib/blob/f06c2c3abdaf4b90285ce5ca7fedbb8ace715911/lib/matplotlib/tests/test_patches.py",
+            "sha256": "d35a64fbf790ab20fdfa36124d0aa2515c542fa850008ccd9d37f422d11fa71d",
+            "bytes": 26631,
+            "http_status": 200,
+            "kind": "public_test_module",
+            "selected_test_definitions": [
+              {
+                "name": "test_patch_custom_linestyle",
+                "line": 260
+              },
+              {
+                "name": "test_patch_linestyle_accents",
+                "line": 288
+              },
+              {
+                "name": "test_patch_linestyle_none",
+                "line": 315
+              },
+              {
+                "name": "test_default_linestyle",
+                "line": 796
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "pydata__xarray-6992": {
+    "schema_version": 1,
+    "instance_id": "pydata__xarray-6992",
+    "repo": "pydata/xarray",
+    "base_commit": "45c0a114e2b7b27b83c9618bc05b36afac82183c",
+    "problem_statement_sha256": "2fd625e5f58b6b7b7c292b9ba90307e8583cad9d4ddb395fe9805bb06c74208b",
+    "selection_source": "official/selection.json:d1",
+    "selection_json_sha256": "f1be288462203bc4ba6b4574e0131c57c611a742b2549f644284ca60463f56f1",
+    "public_input_source": "official/selected_public.json",
+    "selected_public_json_sha256": "896964042be03d985b19df43e3889352c66fcaac769b984759c450b3dac56f69",
+    "selected_from": "Public problem statement and repository test source at the task base_commit only.",
+    "retrieved_at_utc": "2026-09-05T03:10:49.680091+00:00",
+    "validation_status": "public_source_verified_environment_not_run",
+    "execution_status": {
+      "models_called": false,
+      "docker_called": false,
+      "tests_executed": false,
+      "official_inputs_changed": false
+    },
+    "checks": {
+      "public_dataset_index_coordinates": {
+        "command": "python -m pytest xarray/tests/test_dataset.py -q -k \"set_index or reset_index or data_vars_properties\"",
+        "timeout_seconds": 120,
+        "rationale": "The public issue concerns inconsistent coordinates after set_index/reset_index(drop=True), affecting data_vars. Select public Dataset indexing and data_vars-property tests.",
+        "scope_limitation": "The exact chained-operation reproduction may be absent from these existing base tests.",
+        "runtime_basis": "Static bounded test selection only; the 120-second limit is a required execution timeout, not a measured runtime or pass claim.",
+        "qualification_rule": "Later environment qualification must record collection/execution and skips/errors/timeouts. Zero runnable tests or all-skipped output is not a successful verification. These checks are public evidence only, never the private grader or a correctness label.",
+        "sources": [
+          {
+            "path": "xarray/tests/test_dataset.py",
+            "url": "https://raw.githubusercontent.com/pydata/xarray/45c0a114e2b7b27b83c9618bc05b36afac82183c/xarray/tests/test_dataset.py",
+            "github_url": "https://github.com/pydata/xarray/blob/45c0a114e2b7b27b83c9618bc05b36afac82183c/xarray/tests/test_dataset.py",
+            "sha256": "565ab0a37e046aa13955b1e3ef2aad54f82a0c617f3c923cf5d949e08bd63bc2",
+            "bytes": 245401,
+            "http_status": 200,
+            "kind": "public_test_module",
+            "selected_test_definitions": [
+              {
+                "name": "test_data_vars_properties",
+                "line": 927
+              },
+              {
+                "name": "test_set_index",
+                "line": 3209
+              },
+              {
+                "name": "test_reset_index",
+                "line": 3240
+              },
+              {
+                "name": "test_reset_index_keep_attrs",
+                "line": 3256
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "django__django-12050": {
+    "schema_version": 1,
+    "instance_id": "django__django-12050",
+    "repo": "django/django",
+    "base_commit": "b93a0e34d9b9b99d41103782b7e7aeabf47517e3",
+    "problem_statement_sha256": "161289bab4cda50aeb7a81ed68bb3a025e2a99db08588000a2f91ee206fbaa19",
+    "selection_source": "official/selection.json:d1",
+    "selection_json_sha256": "f1be288462203bc4ba6b4574e0131c57c611a742b2549f644284ca60463f56f1",
+    "public_input_source": "official/selected_public.json",
+    "selected_public_json_sha256": "896964042be03d985b19df43e3889352c66fcaac769b984759c450b3dac56f69",
+    "selected_from": "Public problem statement and repository test source at the task base_commit only.",
+    "retrieved_at_utc": "2026-09-05T03:10:49.680091+00:00",
+    "validation_status": "public_source_verified_environment_not_run",
+    "execution_status": {
+      "models_called": false,
+      "docker_called": false,
+      "tests_executed": false,
+      "official_inputs_changed": false
+    },
+    "checks": {
+      "public_query_lookup_construction": {
+        "command": "python tests/runtests.py queries.test_query --settings=test_sqlite --parallel=1",
+        "timeout_seconds": 120,
+        "rationale": "The public issue concerns Query.resolve_lookup_value preserving iterable RHS types. The existing SimpleTestCase query-construction module is a bounded public check of lookup and RHS-expression construction.",
+        "scope_limitation": "This conservative public module does not establish that list-versus-tuple RHS type preservation is directly tested.",
+        "runtime_basis": "Static bounded test selection only; the 120-second limit is a required execution timeout, not a measured runtime or pass claim.",
+        "qualification_rule": "Later environment qualification must record collection/execution and skips/errors/timeouts. Zero runnable tests or all-skipped output is not a successful verification. These checks are public evidence only, never the private grader or a correctness label.",
+        "sources": [
+          {
+            "path": "tests/queries/test_query.py",
+            "url": "https://raw.githubusercontent.com/django/django/b93a0e34d9b9b99d41103782b7e7aeabf47517e3/tests/queries/test_query.py",
+            "github_url": "https://github.com/django/django/blob/b93a0e34d9b9b99d41103782b7e7aeabf47517e3/tests/queries/test_query.py",
+            "sha256": "77cf015fda3a3d48fb107e536e068394a9732dd1009346046e999486072668d5",
+            "bytes": 4885,
+            "http_status": 200,
+            "kind": "public_test_module",
+            "selected_test_definitions": [
+              {
+                "name": "test_simple_query",
+                "line": 18
+              },
+              {
+                "name": "test_complex_query",
+                "line": 41
+              },
+              {
+                "name": "test_multiple_fields",
+                "line": 56
+              }
+            ]
+          },
+          {
+            "path": "tests/runtests.py",
+            "url": "https://raw.githubusercontent.com/django/django/b93a0e34d9b9b99d41103782b7e7aeabf47517e3/tests/runtests.py",
+            "github_url": "https://github.com/django/django/blob/b93a0e34d9b9b99d41103782b7e7aeabf47517e3/tests/runtests.py",
+            "sha256": "24635919b9379b671056c86c88cdf049bb7bff8023779582e1689c84e3e711c7",
+            "bytes": 21661,
+            "http_status": 200,
+            "kind": "public_test_runner_or_settings",
+            "selected_test_definitions": []
+          },
+          {
+            "path": "tests/test_sqlite.py",
+            "url": "https://raw.githubusercontent.com/django/django/b93a0e34d9b9b99d41103782b7e7aeabf47517e3/tests/test_sqlite.py",
+            "github_url": "https://github.com/django/django/blob/b93a0e34d9b9b99d41103782b7e7aeabf47517e3/tests/test_sqlite.py",
+            "sha256": "1304896c1d81194a1ddd9c8d119a4b41cb11909c91b4496464856cc3a203ba24",
+            "bytes": 1006,
+            "http_status": 200,
+            "kind": "public_test_runner_or_settings",
+            "selected_test_definitions": []
+          }
+        ]
+      }
+    }
+  },
+  "psf__requests-1142": {
+    "schema_version": 1,
+    "instance_id": "psf__requests-1142",
+    "repo": "psf/requests",
+    "base_commit": "22623bd8c265b78b161542663ee980738441c307",
+    "problem_statement_sha256": "0192533ff2ef0c53a600b3ef02cb9dc20bf0998d56eeaee80ca1a76c46758eec",
+    "selection_source": "official/selection.json:d1",
+    "selection_json_sha256": "f1be288462203bc4ba6b4574e0131c57c611a742b2549f644284ca60463f56f1",
+    "public_input_source": "official/selected_public.json",
+    "selected_public_json_sha256": "896964042be03d985b19df43e3889352c66fcaac769b984759c450b3dac56f69",
+    "selected_from": "Public problem statement and repository test source at the task base_commit only.",
+    "retrieved_at_utc": "2026-09-05T03:10:49.680091+00:00",
+    "validation_status": "public_source_verified_environment_not_run",
+    "execution_status": {
+      "models_called": false,
+      "docker_called": false,
+      "tests_executed": false,
+      "official_inputs_changed": false
+    },
+    "checks": {
+      "public_request_preparation_offline": {
+        "command": "python -m unittest test_requests.RequestsTestCase.test_basic_building test_requests.RequestsTestCase.test_path_is_not_double_encoded test_requests.RequestsTestCase.test_params_are_added_before_fragment",
+        "timeout_seconds": 120,
+        "rationale": "The public issue concerns automatic Content-Length during request preparation. Select three existing Request.prepare() unit tests; static source inspection confirms these methods do not send HTTP requests.",
+        "scope_limitation": "These public tests cover preparation but do not specifically assert Content-Length omission. Network-dependent methods in the same module are deliberately excluded; no runtime success is assumed.",
+        "runtime_basis": "Static bounded test selection only; the 120-second limit is a required execution timeout, not a measured runtime or pass claim.",
+        "qualification_rule": "Later environment qualification must record collection/execution and skips/errors/timeouts. Zero runnable tests or all-skipped output is not a successful verification. These checks are public evidence only, never the private grader or a correctness label.",
+        "sources": [
+          {
+            "path": "test_requests.py",
+            "url": "https://raw.githubusercontent.com/psf/requests/22623bd8c265b78b161542663ee980738441c307/test_requests.py",
+            "github_url": "https://github.com/psf/requests/blob/22623bd8c265b78b161542663ee980738441c307/test_requests.py",
+            "sha256": "e93586269cccaaa4956a7461bc9b96741c3a980f0304997f2736a72a0d7e31ed",
+            "bytes": 8824,
+            "http_status": 200,
+            "kind": "public_test_module",
+            "selected_test_definitions": [
+              {
+                "name": "test_basic_building",
+                "line": 51
+              },
+              {
+                "name": "test_path_is_not_double_encoded",
+                "line": 61
+              },
+              {
+                "name": "test_params_are_added_before_fragment",
+                "line": 66
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sphinx-doc__sphinx-8548": {
+    "schema_version": 1,
+    "instance_id": "sphinx-doc__sphinx-8548",
+    "repo": "sphinx-doc/sphinx",
+    "base_commit": "dd1615c59dc6fff633e27dbb3861f2d27e1fb976",
+    "problem_statement_sha256": "f0c8a912cffb03b9d6346146e11cf044329280bfe2a193fd9e46980b193cffb0",
+    "selection_source": "official/selection.json:d1",
+    "selection_json_sha256": "f1be288462203bc4ba6b4574e0131c57c611a742b2549f644284ca60463f56f1",
+    "public_input_source": "official/selected_public.json",
+    "selected_public_json_sha256": "896964042be03d985b19df43e3889352c66fcaac769b984759c450b3dac56f69",
+    "selected_from": "Public problem statement and repository test source at the task base_commit only.",
+    "retrieved_at_utc": "2026-09-05T03:10:49.680091+00:00",
+    "validation_status": "public_source_verified_environment_not_run",
+    "execution_status": {
+      "models_called": false,
+      "docker_called": false,
+      "tests_executed": false,
+      "official_inputs_changed": false
+    },
+    "checks": {
+      "public_autodoc_inherited_attributes": {
+        "command": "python -m pytest tests/test_ext_autodoc.py -q -k \"inherited or attributes\"",
+        "timeout_seconds": 120,
+        "rationale": "The public issue concerns autodoc inherited attributes and namespace-sensitive lookup. Select existing inherited-member and attribute autodoc checks in the public extension test module.",
+        "scope_limitation": "The public tests may not reproduce the exact same-named attribute cache collision.",
+        "runtime_basis": "Static bounded test selection only; the 120-second limit is a required execution timeout, not a measured runtime or pass claim.",
+        "qualification_rule": "Later environment qualification must record collection/execution and skips/errors/timeouts. Zero runnable tests or all-skipped output is not a successful verification. These checks are public evidence only, never the private grader or a correctness label.",
+        "sources": [
+          {
+            "path": "tests/test_ext_autodoc.py",
+            "url": "https://raw.githubusercontent.com/sphinx-doc/sphinx/dd1615c59dc6fff633e27dbb3861f2d27e1fb976/tests/test_ext_autodoc.py",
+            "github_url": "https://github.com/sphinx-doc/sphinx/blob/dd1615c59dc6fff633e27dbb3861f2d27e1fb976/tests/test_ext_autodoc.py",
+            "sha256": "9b549738a1a3b5c1b0cbe850a0bfff3a119be27fa9e635e4dff3586a2a86c33c",
+            "bytes": 68224,
+            "http_status": 200,
+            "kind": "public_test_module",
+            "selected_test_definitions": [
+              {
+                "name": "test_autodoc_attributes",
+                "line": 530
+              },
+              {
+                "name": "test_autodoc_inherited_members",
+                "line": 617
+              },
+              {
+                "name": "test_autodoc_inherited_members_Base",
+                "line": 629
+              },
+              {
+                "name": "test_autodoc_inherited_members_None",
+                "line": 641
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "pylint-dev__pylint-6386": {
+    "schema_version": 1,
+    "instance_id": "pylint-dev__pylint-6386",
+    "repo": "pylint-dev/pylint",
+    "base_commit": "754b487f4d892e3d4872b6fc7468a71db4e31c13",
+    "problem_statement_sha256": "5a767dafdd95cd6eef40ba263e539f02b0f86d745a804a7bc792d1a8c8b59a41",
+    "selection_source": "official/selection.json:d1",
+    "selection_json_sha256": "f1be288462203bc4ba6b4574e0131c57c611a742b2549f644284ca60463f56f1",
+    "public_input_source": "official/selected_public.json",
+    "selected_public_json_sha256": "896964042be03d985b19df43e3889352c66fcaac769b984759c450b3dac56f69",
+    "selected_from": "Public problem statement and repository test source at the task base_commit only.",
+    "retrieved_at_utc": "2026-09-05T03:10:49.680091+00:00",
+    "validation_status": "public_source_verified_environment_not_run",
+    "execution_status": {
+      "models_called": false,
+      "docker_called": false,
+      "tests_executed": false,
+      "official_inputs_changed": false
+    },
+    "checks": {
+      "public_verbose_option": {
+        "command": "python -m pytest tests/test_self.py -q -k verbose",
+        "timeout_seconds": 120,
+        "rationale": "The public issue concerns -v/--verbose command-line option parsing. Select the existing public verbose-option test rather than broad functional lint fixtures.",
+        "scope_limitation": "At the base commit this public test may cover the long option without asserting the short alias.",
+        "runtime_basis": "Static bounded test selection only; the 120-second limit is a required execution timeout, not a measured runtime or pass claim.",
+        "qualification_rule": "Later environment qualification must record collection/execution and skips/errors/timeouts. Zero runnable tests or all-skipped output is not a successful verification. These checks are public evidence only, never the private grader or a correctness label.",
+        "sources": [
+          {
+            "path": "tests/test_self.py",
+            "url": "https://raw.githubusercontent.com/pylint-dev/pylint/754b487f4d892e3d4872b6fc7468a71db4e31c13/tests/test_self.py",
+            "github_url": "https://github.com/pylint-dev/pylint/blob/754b487f4d892e3d4872b6fc7468a71db4e31c13/tests/test_self.py",
+            "sha256": "a616c7b531d5606a02e641b64c5edfc86c0ee86635c6fd7ddc4a3d4f3b965c9b",
+            "bytes": 52757,
+            "http_status": 200,
+            "kind": "public_test_module",
+            "selected_test_definitions": [
+              {
+                "name": "test_verbose",
+                "line": 1422
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "astropy__astropy-8872": {
+    "schema_version": 1,
+    "instance_id": "astropy__astropy-8872",
+    "repo": "astropy/astropy",
+    "base_commit": "b750a0e6ee76fb6b8a099a4d16ec51977be46bf6",
+    "problem_statement_sha256": "495ed57c2183a49ff489deab1cf1f0a4fafe7e6fad6d6af79a407426de354746",
+    "selection_source": "official/selection.json:d1",
+    "selection_json_sha256": "f1be288462203bc4ba6b4574e0131c57c611a742b2549f644284ca60463f56f1",
+    "public_input_source": "official/selected_public.json",
+    "selected_public_json_sha256": "896964042be03d985b19df43e3889352c66fcaac769b984759c450b3dac56f69",
+    "selected_from": "Public problem statement and repository test source at the task base_commit only.",
+    "retrieved_at_utc": "2026-09-05T03:10:49.680091+00:00",
+    "validation_status": "public_source_verified_environment_not_run",
+    "execution_status": {
+      "models_called": false,
+      "docker_called": false,
+      "tests_executed": false,
+      "official_inputs_changed": false
+    },
+    "checks": {
+      "public_quantity_dtype": {
+        "command": "python -m pytest astropy/units/tests/test_quantity.py -q -k preserve_dtype",
+        "timeout_seconds": 120,
+        "rationale": "The public issue concerns Quantity upcasting numpy.float16. Select the existing public Quantity dtype-preservation test.",
+        "scope_limitation": "The existing base parameter set may omit float16; passing verifies existing dtype behavior only.",
+        "runtime_basis": "Static bounded test selection only; the 120-second limit is a required execution timeout, not a measured runtime or pass claim.",
+        "qualification_rule": "Later environment qualification must record collection/execution and skips/errors/timeouts. Zero runnable tests or all-skipped output is not a successful verification. These checks are public evidence only, never the private grader or a correctness label.",
+        "sources": [
+          {
+            "path": "astropy/units/tests/test_quantity.py",
+            "url": "https://raw.githubusercontent.com/astropy/astropy/b750a0e6ee76fb6b8a099a4d16ec51977be46bf6/astropy/units/tests/test_quantity.py",
+            "github_url": "https://github.com/astropy/astropy/blob/b750a0e6ee76fb6b8a099a4d16ec51977be46bf6/astropy/units/tests/test_quantity.py",
+            "sha256": "1e6aa17460f74d2c339c911a8e894f9c87bb1a0ac3a5ac41469b44359352279a",
+            "bytes": 54189,
+            "http_status": 200,
+            "kind": "public_test_module",
+            "selected_test_definitions": [
+              {
+                "name": "test_preserve_dtype",
+                "line": 127
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "scikit-learn__scikit-learn-14496": {
+    "schema_version": 1,
+    "instance_id": "scikit-learn__scikit-learn-14496",
+    "repo": "scikit-learn/scikit-learn",
+    "base_commit": "d49a6f13af2f22228d430ac64ac2b518937800d0",
+    "problem_statement_sha256": "7860d59abe6e6a85ed92cbc43c7b632982164bc89105df4df399793154bb15df",
+    "selection_source": "official/selection.json:d1",
+    "selection_json_sha256": "f1be288462203bc4ba6b4574e0131c57c611a742b2549f644284ca60463f56f1",
+    "public_input_source": "official/selected_public.json",
+    "selected_public_json_sha256": "896964042be03d985b19df43e3889352c66fcaac769b984759c450b3dac56f69",
+    "selected_from": "Public problem statement and repository test source at the task base_commit only.",
+    "retrieved_at_utc": "2026-09-05T03:10:49.680091+00:00",
+    "validation_status": "public_source_verified_environment_not_run",
+    "execution_status": {
+      "models_called": false,
+      "docker_called": false,
+      "tests_executed": false,
+      "official_inputs_changed": false
+    },
+    "checks": {
+      "public_optics_sample_boundaries": {
+        "command": "python -m pytest sklearn/cluster/tests/test_optics.py -q -k \"minimum_number_of_sample_check or min_samples_edge_case\"",
+        "timeout_seconds": 120,
+        "rationale": "The public issue concerns fractional OPTICS min_samples reaching nearest-neighbor code with a float. Select the two small existing public sample-count boundary tests and exclude the larger parity grid.",
+        "scope_limitation": "Existing base tests use integer sample counts and may not directly reproduce fractional min_samples.",
+        "runtime_basis": "Static bounded test selection only; the 120-second limit is a required execution timeout, not a measured runtime or pass claim.",
+        "qualification_rule": "Later environment qualification must record collection/execution and skips/errors/timeouts. Zero runnable tests or all-skipped output is not a successful verification. These checks are public evidence only, never the private grader or a correctness label.",
+        "sources": [
+          {
+            "path": "sklearn/cluster/tests/test_optics.py",
+            "url": "https://raw.githubusercontent.com/scikit-learn/scikit-learn/d49a6f13af2f22228d430ac64ac2b518937800d0/sklearn/cluster/tests/test_optics.py",
+            "github_url": "https://github.com/scikit-learn/scikit-learn/blob/d49a6f13af2f22228d430ac64ac2b518937800d0/sklearn/cluster/tests/test_optics.py",
+            "sha256": "75c197afd1767d97915c1fe3eac13fcc143b35aa82a48de6b9832250a9a09bdb",
+            "bytes": 17484,
+            "http_status": 200,
+            "kind": "public_test_module",
+            "selected_test_definitions": [
+              {
+                "name": "test_minimum_number_of_sample_check",
+                "line": 170
+              },
+              {
+                "name": "test_min_samples_edge_case",
+                "line": 248
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "pytest-dev__pytest-7982": {
+    "schema_version": 1,
+    "instance_id": "pytest-dev__pytest-7982",
+    "repo": "pytest-dev/pytest",
+    "base_commit": "a7e38c5c61928033a2dc1915cbee8caa8544a4d0",
+    "problem_statement_sha256": "90201d780cf37fdf665a7ea9c601714391d34ccc8bb513bf3e7d5f3e667e49da",
+    "selection_source": "official/selection.json:d1",
+    "selection_json_sha256": "f1be288462203bc4ba6b4574e0131c57c611a742b2549f644284ca60463f56f1",
+    "public_input_source": "official/selected_public.json",
+    "selected_public_json_sha256": "896964042be03d985b19df43e3889352c66fcaac769b984759c450b3dac56f69",
+    "selected_from": "Public problem statement and repository test source at the task base_commit only.",
+    "retrieved_at_utc": "2026-09-05T03:10:49.680091+00:00",
+    "validation_status": "public_source_verified_environment_not_run",
+    "execution_status": {
+      "models_called": false,
+      "docker_called": false,
+      "tests_executed": false,
+      "official_inputs_changed": false
+    },
+    "checks": {
+      "public_symlink_collection": {
+        "command": "python -m pytest testing/test_collection.py -q -k symlink",
+        "timeout_seconds": 120,
+        "rationale": "The public issue concerns collection through symlinked directories. Select all public collection tests whose names identify symlink behavior.",
+        "scope_limitation": "Filesystem support and test skip behavior require later environment qualification; a fully skipped check is not evidence of behavior.",
+        "runtime_basis": "Static bounded test selection only; the 120-second limit is a required execution timeout, not a measured runtime or pass claim.",
+        "qualification_rule": "Later environment qualification must record collection/execution and skips/errors/timeouts. Zero runnable tests or all-skipped output is not a successful verification. These checks are public evidence only, never the private grader or a correctness label.",
+        "sources": [
+          {
+            "path": "testing/test_collection.py",
+            "url": "https://raw.githubusercontent.com/pytest-dev/pytest/a7e38c5c61928033a2dc1915cbee8caa8544a4d0/testing/test_collection.py",
+            "github_url": "https://github.com/pytest-dev/pytest/blob/a7e38c5c61928033a2dc1915cbee8caa8544a4d0/testing/test_collection.py",
+            "sha256": "0b96a57746d6d9d6b32e14a58481fbd156110abdff9778cb57201d8fce1ab787",
+            "bytes": 47960,
+            "http_status": 200,
+            "kind": "public_test_module",
+            "selected_test_definitions": [
+              {
+                "name": "test_collect_symlink_file_arg",
+                "line": 1137
+              },
+              {
+                "name": "test_collect_symlink_out_of_tree",
+                "line": 1152
+              },
+              {
+                "name": "test_collect_sub_with_symlinks",
+                "line": 1236
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "sympy__sympy-22456": {
+    "schema_version": 1,
+    "instance_id": "sympy__sympy-22456",
+    "repo": "sympy/sympy",
+    "base_commit": "a3475b3f9ac662cd425157dd3bdb93ad7111c090",
+    "problem_statement_sha256": "9311c594ded4da8a3e4ab2bbd4baf262680395c18327a5c827272551798f1eb4",
+    "selection_source": "official/selection.json:d1",
+    "selection_json_sha256": "f1be288462203bc4ba6b4574e0131c57c611a742b2549f644284ca60463f56f1",
+    "public_input_source": "official/selected_public.json",
+    "selected_public_json_sha256": "896964042be03d985b19df43e3889352c66fcaac769b984759c450b3dac56f69",
+    "selected_from": "Public problem statement and repository test source at the task base_commit only.",
+    "retrieved_at_utc": "2026-09-05T03:10:49.680091+00:00",
+    "validation_status": "public_source_verified_environment_not_run",
+    "execution_status": {
+      "models_called": false,
+      "docker_called": false,
+      "tests_executed": false,
+      "official_inputs_changed": false
+    },
+    "checks": {
+      "public_codegen_string": {
+        "command": "python bin/test --no-colors sympy/codegen/tests/test_ast.py -k String",
+        "timeout_seconds": 120,
+        "rationale": "The public issue concerns the codegen AST String reconstruction invariant. Select the existing public String and subclass test.",
+        "scope_limitation": "Existing base assertions may not test expr.func(*expr.args) equality.",
+        "runtime_basis": "Exact base-commit bin/test and native runtime source verified statically; 120-second execution timeout retained; no native runtime pass claimed.",
+        "qualification_rule": "Later environment qualification must record collection/execution and skips/errors/timeouts. Zero runnable tests or all-skipped output is not a successful verification. These checks are public evidence only, never the private grader or a correctness label.",
+        "sources": [
+          {
+            "path": "sympy/codegen/tests/test_ast.py",
+            "url": "https://raw.githubusercontent.com/sympy/sympy/a3475b3f9ac662cd425157dd3bdb93ad7111c090/sympy/codegen/tests/test_ast.py",
+            "github_url": "https://github.com/sympy/sympy/blob/a3475b3f9ac662cd425157dd3bdb93ad7111c090/sympy/codegen/tests/test_ast.py",
+            "sha256": "8dc6e1c964d1c0c3f84661d373ecab9f9c355bd69da585e400fc5182a03589e4",
+            "bytes": 21645,
+            "http_status": 200,
+            "kind": "public_test_module",
+            "selected_test_definitions": [
+              {
+                "name": "test_String",
+                "line": 264
+              }
+            ]
+          },
+          {
+            "path": "bin/test",
+            "url": "https://raw.githubusercontent.com/sympy/sympy/a3475b3f9ac662cd425157dd3bdb93ad7111c090/bin/test",
+            "github_url": "https://github.com/sympy/sympy/blob/a3475b3f9ac662cd425157dd3bdb93ad7111c090/bin/test",
+            "sha256": "da4284cc210d8db5109f916248d97a8e82f725547e60c5d9a4d6c43573e3e9d5",
+            "bytes": 3991,
+            "http_status": 200,
+            "kind": "public_native_test_runner",
+            "retrieved_at_utc": "2026-09-05T10:26:16.854562+00:00"
+          },
+          {
+            "path": "sympy/testing/runtests.py",
+            "url": "https://raw.githubusercontent.com/sympy/sympy/a3475b3f9ac662cd425157dd3bdb93ad7111c090/sympy/testing/runtests.py",
+            "github_url": "https://github.com/sympy/sympy/blob/a3475b3f9ac662cd425157dd3bdb93ad7111c090/sympy/testing/runtests.py",
+            "sha256": "52231a0aea841871a93ae75cc345418786905fed5170e523b218fbcb3853e526",
+            "bytes": 88121,
+            "http_status": 200,
+            "kind": "public_native_test_runner",
+            "retrieved_at_utc": "2026-09-05T10:26:53.292873+00:00"
+          }
+        ],
+        "runner_revision": {
+          "version": 2,
+          "framework": "sympy-native",
+          "previous_command": "python -m pytest sympy/codegen/tests/test_ast.py -q -k String",
+          "reason": "Use the base-commit native SymPy runner without adding pytest to the immutable image",
+          "matching_semantics": "Case-sensitive substring in top-level test function name; exactly one matching base-commit function",
+          "selected_functions": [
+            {
+              "name": "test_String",
+              "line": 264
+            }
+          ],
+          "flags": "--no-colors is supported by both exact bin/test versions; -q is deliberately omitted because it is not a native option",
+          "test_count_semantics": "Count executed test functions from a complete native tests finished summary; never count static assert statements",
+          "execution_status": "Native command not yet executed in the task image; fresh qualification required",
+          "parser_module": "sympy_public_checks_v3.py",
+          "parser_version": "sympy_native_public_checks_v3",
+          "stdlib_direct_call_alternative": "Not selected; direct import/call would omit native cache clearing, seed setup, generator expansion, XFAIL/skip handling and exception reporting. These particular selected functions have no arguments/decorators/generator yields, but direct execution would still be a distinct protocol.",
+          "parser_adapter_revision": 3,
+          "parser_change_scope": "Exact command unchanged from runner revision 2; native summary counting semantics unchanged"
+        }
+      }
+    },
+    "native_runner_revision_at_utc": "2026-09-05T10:32:38.906260+00:00"
+  },
+  "matplotlib__matplotlib-20826": {
+    "schema_version": 1,
+    "instance_id": "matplotlib__matplotlib-20826",
+    "repo": "matplotlib/matplotlib",
+    "base_commit": "a0d2e399729d36499a1924e5ca5bc067c8396810",
+    "problem_statement_sha256": "881edf60640e55712a3d98f4ab4da1ef4c7e1976c75cb152ed0507cc5522d216",
+    "selection_source": "official/selection.json:d1",
+    "selection_json_sha256": "f1be288462203bc4ba6b4574e0131c57c611a742b2549f644284ca60463f56f1",
+    "public_input_source": "official/selected_public.json",
+    "selected_public_json_sha256": "896964042be03d985b19df43e3889352c66fcaac769b984759c450b3dac56f69",
+    "selected_from": "Public problem statement and repository test source at the task base_commit only.",
+    "retrieved_at_utc": "2026-09-05T03:10:49.680091+00:00",
+    "validation_status": "public_source_verified_environment_not_run",
+    "execution_status": {
+      "models_called": false,
+      "docker_called": false,
+      "tests_executed": false,
+      "official_inputs_changed": false
+    },
+    "checks": {
+      "public_shared_axes_ticklabels": {
+        "command": "python -m pytest lib/matplotlib/tests/test_subplots.py -q -k \"shared_and_moved or hide_ticklabels\"",
+        "timeout_seconds": 120,
+        "rationale": "The public issue concerns clear() changing hidden/shared-axis tick-label visibility and tick position. Select public shared/moved-axis and hidden tick-label checks without the broad image-baseline suite.",
+        "scope_limitation": "The existing public tests may not call clear() in the reported shared-axis sequence.",
+        "runtime_basis": "Static bounded test selection only; the 120-second limit is a required execution timeout, not a measured runtime or pass claim.",
+        "qualification_rule": "Later environment qualification must record collection/execution and skips/errors/timeouts. Zero runnable tests or all-skipped output is not a successful verification. These checks are public evidence only, never the private grader or a correctness label.",
+        "sources": [
+          {
+            "path": "lib/matplotlib/tests/test_subplots.py",
+            "url": "https://raw.githubusercontent.com/matplotlib/matplotlib/a0d2e399729d36499a1924e5ca5bc067c8396810/lib/matplotlib/tests/test_subplots.py",
+            "github_url": "https://github.com/matplotlib/matplotlib/blob/a0d2e399729d36499a1924e5ca5bc067c8396810/lib/matplotlib/tests/test_subplots.py",
+            "sha256": "183e430d5c41d4065ee89fe05cc604935333c6043b5a6748d66afbf6ea6a7c8c",
+            "bytes": 7740,
+            "http_status": 200,
+            "kind": "public_test_module",
+            "selected_test_definitions": [
+              {
+                "name": "test_shared_and_moved",
+                "line": 125
+              },
+              {
+                "name": "test_subplots_hide_ticklabels",
+                "line": 162
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "pydata__xarray-7233": {
+    "schema_version": 1,
+    "instance_id": "pydata__xarray-7233",
+    "repo": "pydata/xarray",
+    "base_commit": "51d37d1be95547059251076b3fadaa317750aab3",
+    "problem_statement_sha256": "ffb9cebf240efb2d4641ad1dc10e0e38951a8c5f8e9f6bb2a2de8e90acf95b07",
+    "selection_source": "official/selection.json:d1",
+    "selection_json_sha256": "f1be288462203bc4ba6b4574e0131c57c611a742b2549f644284ca60463f56f1",
+    "public_input_source": "official/selected_public.json",
+    "selected_public_json_sha256": "896964042be03d985b19df43e3889352c66fcaac769b984759c450b3dac56f69",
+    "selected_from": "Public problem statement and repository test source at the task base_commit only.",
+    "retrieved_at_utc": "2026-09-05T03:10:49.680091+00:00",
+    "validation_status": "public_source_verified_environment_not_run",
+    "execution_status": {
+      "models_called": false,
+      "docker_called": false,
+      "tests_executed": false,
+      "official_inputs_changed": false
+    },
+    "checks": {
+      "public_coarsen_coordinates": {
+        "command": "python -m pytest xarray/tests/test_coarsen.py::test_coarsen_construct xarray/tests/test_coarsen.py::test_coarsen_coords -q",
+        "timeout_seconds": 120,
+        "rationale": "The public issue concerns coarsen.construct() demoting coordinates to data variables. Select public coarsen construct and coordinate-retention tests, including their existing small-array parameters.",
+        "scope_limitation": "Optional dask parameters may skip when unavailable; the existing tests may omit the exact nondimensional coordinate example.",
+        "runtime_basis": "Static bounded test selection only; the 120-second limit is a required execution timeout, not a measured runtime or pass claim.",
+        "qualification_rule": "Later environment qualification must record collection/execution and skips/errors/timeouts. Zero runnable tests or all-skipped output is not a successful verification. These checks are public evidence only, never the private grader or a correctness label.",
+        "sources": [
+          {
+            "path": "xarray/tests/test_coarsen.py",
+            "url": "https://raw.githubusercontent.com/pydata/xarray/51d37d1be95547059251076b3fadaa317750aab3/xarray/tests/test_coarsen.py",
+            "github_url": "https://github.com/pydata/xarray/blob/51d37d1be95547059251076b3fadaa317750aab3/xarray/tests/test_coarsen.py",
+            "sha256": "eb9b47d46028c7e1eb7b0d00afa8ff27048b1edb1078915701e2abadd38b8115",
+            "bytes": 10672,
+            "http_status": 200,
+            "kind": "public_test_module",
+            "selected_test_definitions": [
+              {
+                "name": "test_coarsen_coords",
+                "line": 42
+              },
+              {
+                "name": "test_coarsen_construct",
+                "line": 254
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "django__django-10880": {
+    "schema_version": 1,
+    "instance_id": "django__django-10880",
+    "repo": "django/django",
+    "base_commit": "838e432e3e5519c5383d12018e6c78f8ec7833c1",
+    "problem_statement_sha256": "d554ba8ef84e2e4dc22c291d413e4cb58070d5d730dae3aca383a4cdb77c20b2",
+    "selection_source": "official/selection.json:d1",
+    "selection_json_sha256": "f1be288462203bc4ba6b4574e0131c57c611a742b2549f644284ca60463f56f1",
+    "public_input_source": "official/selected_public.json",
+    "selected_public_json_sha256": "896964042be03d985b19df43e3889352c66fcaac769b984759c450b3dac56f69",
+    "selected_from": "Public problem statement and repository test source at the task base_commit only.",
+    "retrieved_at_utc": "2026-09-05T03:10:49.680091+00:00",
+    "validation_status": "public_source_verified_environment_not_run",
+    "execution_status": {
+      "models_called": false,
+      "docker_called": false,
+      "tests_executed": false,
+      "official_inputs_changed": false
+    },
+    "checks": {
+      "public_distinct_count_case_aggregation": {
+        "command": "python tests/runtests.py aggregation.tests.AggregateTestCase.test_count aggregation.test_filter_argument.FilteredAggregateTests.test_case_aggregate --settings=test_sqlite --parallel=1",
+        "timeout_seconds": 120,
+        "rationale": "The public issue concerns SQL emitted for Count(distinct=True) around a Case expression. Select the public DISTINCT Count check and the public Case aggregate check, using the project SQLite test settings.",
+        "scope_limitation": "The public base checks cover DISTINCT Count and Case aggregation separately and may not assert their exact combination or every backend SQL rendering.",
+        "runtime_basis": "Static bounded test selection only; the 120-second limit is a required execution timeout, not a measured runtime or pass claim.",
+        "qualification_rule": "Later environment qualification must record collection/execution and skips/errors/timeouts. Zero runnable tests or all-skipped output is not a successful verification. These checks are public evidence only, never the private grader or a correctness label.",
+        "sources": [
+          {
+            "path": "tests/aggregation/tests.py",
+            "url": "https://raw.githubusercontent.com/django/django/838e432e3e5519c5383d12018e6c78f8ec7833c1/tests/aggregation/tests.py",
+            "github_url": "https://github.com/django/django/blob/838e432e3e5519c5383d12018e6c78f8ec7833c1/tests/aggregation/tests.py",
+            "sha256": "b5153ded04be746e721fd552f71229b0feeff5fc27914a596fff3a6fd19582f5",
+            "bytes": 45027,
+            "http_status": 200,
+            "kind": "public_test_module",
+            "selected_test_definitions": [
+              {
+                "name": "test_count",
+                "line": 385
+              }
+            ]
+          },
+          {
+            "path": "tests/aggregation/test_filter_argument.py",
+            "url": "https://raw.githubusercontent.com/django/django/838e432e3e5519c5383d12018e6c78f8ec7833c1/tests/aggregation/test_filter_argument.py",
+            "github_url": "https://github.com/django/django/blob/838e432e3e5519c5383d12018e6c78f8ec7833c1/tests/aggregation/test_filter_argument.py",
+            "sha256": "a1a1be7ef27e32445fdd9b5ff1bf506e11f76604a07e5578a315e91bfd996267",
+            "bytes": 3940,
+            "http_status": 200,
+            "kind": "public_test_module",
+            "selected_test_definitions": [
+              {
+                "name": "test_case_aggregate",
+                "line": 71
+              }
+            ]
+          },
+          {
+            "path": "tests/runtests.py",
+            "url": "https://raw.githubusercontent.com/django/django/838e432e3e5519c5383d12018e6c78f8ec7833c1/tests/runtests.py",
+            "github_url": "https://github.com/django/django/blob/838e432e3e5519c5383d12018e6c78f8ec7833c1/tests/runtests.py",
+            "sha256": "69e4521174527d578f146e17e5ba4f7a4e70b49dd6c96933ca0d83810e1724f8",
+            "bytes": 18873,
+            "http_status": 200,
+            "kind": "public_test_runner_or_settings",
+            "selected_test_definitions": []
+          },
+          {
+            "path": "tests/test_sqlite.py",
+            "url": "https://raw.githubusercontent.com/django/django/838e432e3e5519c5383d12018e6c78f8ec7833c1/tests/test_sqlite.py",
+            "github_url": "https://github.com/django/django/blob/838e432e3e5519c5383d12018e6c78f8ec7833c1/tests/test_sqlite.py",
+            "sha256": "1304896c1d81194a1ddd9c8d119a4b41cb11909c91b4496464856cc3a203ba24",
+            "bytes": 1006,
+            "http_status": 200,
+            "kind": "public_test_runner_or_settings",
+            "selected_test_definitions": []
+          }
+        ]
+      }
+    }
+  }
+}

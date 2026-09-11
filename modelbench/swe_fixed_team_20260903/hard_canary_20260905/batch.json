@@ -1,0 +1,10 @@
+{
+  "invocation_id": "21dd27f0af864d588ddbde139aca1755",
+  "started_at": "2026-09-05T00:43:18.007941+00:00",
+  "completed_at": "2026-09-05T00:50:17.924515+00:00",
+  "wall_seconds": 419.90599999999995,
+  "cumulative_invocation_wall_seconds": 419.90599999999995,
+  "stop": null,
+  "completed_runs": 1,
+  "scheduled_runs": 1
+}

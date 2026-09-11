@@ -1,0 +1,193 @@
+{
+  "schema": "dpswarm-post-v16-design-v1",
+  "status": "proposed_not_executable",
+  "execution_authorized": false,
+  "plan_sha256": "8be60e9b2fc2c84dc2c6f104da6de4975a6f6130ef19a67174526d51651011f8",
+  "source_analysis": "../consolidated_v16_20260905/REPORT_ZH.md",
+  "root_plan": "../NEXT_EXPERIMENT_PLAN_20260905.md",
+  "task_order": [
+    "pydata__xarray-7229",
+    "mwaskom__seaborn-3069",
+    "sphinx-doc__sphinx-8035",
+    "sympy__sympy-16792",
+    "scikit-learn__scikit-learn-25232",
+    "astropy__astropy-14995"
+  ],
+  "role_order": [
+    "production_implementation",
+    "independent_regression_test"
+  ],
+  "fixed_lead": "gpt-5.6-sol",
+  "base_limits_proposal": {
+    "token_limit": 600000,
+    "max_calls": 28,
+    "wall_seconds": 1800,
+    "worker_calls": 8,
+    "lead_reserve_calls": 2,
+    "cm_call_allowance": 12,
+    "cm_enabled": true,
+    "cm_context_budget": 12000,
+    "cm_keep_recent": 4,
+    "cm_model": "deepseek-v4-flash",
+    "cm_thinking": "disabled",
+    "cm_max_tokens": 4096,
+    "cm_edit_curfew": false,
+    "edit_status_banner": false,
+    "closing_call_reserve_exempt": true,
+    "cm_scout_distill": false,
+    "cm_bootstrap_package": false,
+    "cm_team_memory": false
+  },
+  "worker_arms": {
+    "S": [],
+    "TT": [
+      "gpt-5.6-terra",
+      "gpt-5.6-terra"
+    ],
+    "TG": [
+      "gpt-5.6-terra",
+      "glm-5.3"
+    ],
+    "GT": [
+      "glm-5.3",
+      "gpt-5.6-terra"
+    ],
+    "GG": [
+      "glm-5.3",
+      "glm-5.3"
+    ],
+    "TL": [
+      "gpt-5.6-terra",
+      "gpt-5.6-luna"
+    ],
+    "LT": [
+      "gpt-5.6-luna",
+      "gpt-5.6-terra"
+    ],
+    "LL": [
+      "gpt-5.6-luna",
+      "gpt-5.6-luna"
+    ],
+    "GF": [
+      "glm-5.3",
+      "glm-5.3-flash"
+    ],
+    "FG": [
+      "glm-5.3-flash",
+      "glm-5.3"
+    ],
+    "FF": [
+      "glm-5.3-flash",
+      "glm-5.3-flash"
+    ]
+  },
+  "mutual_exclusion": [
+    [
+      "P3-full",
+      "P3-core"
+    ],
+    [
+      "P3-full",
+      "P4"
+    ]
+  ],
+  "scenarios": {
+    "minimum": [
+      "P1",
+      "P2",
+      "P3-core"
+    ],
+    "integrated": [
+      "P1",
+      "P2",
+      "P3-full"
+    ],
+    "sequential": [
+      "P1",
+      "P2",
+      "P3-core",
+      "P4"
+    ]
+  },
+  "scenario_units": {
+    "minimum": 168,
+    "integrated": 276,
+    "sequential": 312
+  },
+  "heldout_ids": "placeholders; selected and frozen by metadata-only algorithm before evaluation",
+  "usd_enforcement": "NOT IMPLEMENTED; gate required; design quota is not present spending authority",
+  "full_cli_wave_support": "NOT IMPLEMENTED; new registry binding and gate required",
+  "stage_table": "stage_plan.csv",
+  "cell_table": "planned_cells.csv",
+  "strategy_contract": {
+    "all_usd_strategies": {
+      "resource_scope": "whole_episode_including_all_candidates_workers_cm_selector_retries",
+      "max_calls": 40,
+      "cm_call_allowance": 12,
+      "token_limit": 1500000,
+      "wall_seconds": 1800,
+      "lawful_budget_rejection": "strategy_outcome_not_infrastructure_stop"
+    },
+    "S1": {
+      "lead": "gpt-5.6-sol",
+      "candidate_count": 1
+    },
+    "S2": {
+      "candidate_models": [
+        "gpt-5.6-sol",
+        "gpt-5.6-sol"
+      ],
+      "parallel_start": true,
+      "candidate_budget_fractions": [
+        0.45,
+        0.45
+      ],
+      "selector_budget_fraction": 0.1,
+      "unused_budget_transfer": false,
+      "candidate_max_calls": [
+        19,
+        19
+      ],
+      "selector_max_calls": 2,
+      "selector_model": "gpt-5.6-sol",
+      "selector_can_edit_patch": false,
+      "selector_official_grader_access": false,
+      "fallback": "first applicable nonempty patch; then second; else empty",
+      "oracle_pass_at_2": "secondary_upper_bound_only"
+    },
+    "T": {
+      "default_arm": "TG",
+      "assembly_on": false,
+      "selected_from_dev": false
+    },
+    "DYNAMIC": {
+      "status": "unimplemented_policy_must_be_frozen",
+      "fixed_budget": 4,
+      "probe_and_route_costs_in_episode": true
+    }
+  },
+  "confirmatory_analysis": {
+    "stage": "P8",
+    "primary_endpoint": "end_to_end_success",
+    "definition": "official complete pass plus frozen patch and closed usage/grading evidence; no requirement that every worker completes or team_valid is true",
+    "secondary_endpoints": [
+      "official_resolved",
+      "F2P",
+      "P2P",
+      "cost",
+      "wall_time",
+      "team_valid"
+    ],
+    "primary_contrasts": [
+      "T-S1",
+      "T-S2"
+    ],
+    "independent_unit": "task",
+    "tasks": 30,
+    "repeats_within_task": 2,
+    "multiple_comparisons": "two predeclared primary contrasts require familywise control",
+    "continue_research_threshold": "point delta >=0.10 and adjusted interval lower bound >0",
+    "confirmed_practical_magnitude": "adjusted interval lower bound >=0.10",
+    "no_optional_stopping": true
+  }
+}

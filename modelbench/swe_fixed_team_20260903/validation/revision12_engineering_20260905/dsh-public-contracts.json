@@ -1,0 +1,25 @@
+{
+  "dsh_version": "0.1.1-rc.2",
+  "contracts": [
+    {
+      "path": "C:\\Users\\93711\\AppData\\Roaming\\npm\\node_modules\\@deepseek-ai\\dsh\\node_modules\\@deepseek-ai\\dsh-subagent\\lib\\types\\types.d.ts",
+      "sha256": "9b4b3a62c17cdd5aaa4d72400c8d63e594bb5965c7435d113750853ca419bab1"
+    },
+    {
+      "path": "C:\\Users\\93711\\AppData\\Roaming\\npm\\node_modules\\@deepseek-ai\\dsh\\node_modules\\@deepseek-ai\\dsh-subagent\\lib\\types\\depth.d.ts",
+      "sha256": "514c5f694abfad4b70a728fab4a01d1c96ca168c4add93330964c164d0c2555d"
+    },
+    {
+      "path": "C:\\Users\\93711\\AppData\\Roaming\\npm\\node_modules\\@deepseek-ai\\dsh\\node_modules\\@deepseek-ai\\dsh-agent\\lib\\types\\runtime-types.d.ts",
+      "sha256": "29be6e1c22cb254f9d1f1ad503334b8df8402c5d7eb579c01508eaac3c26e012"
+    },
+    {
+      "path": "C:\\Users\\93711\\AppData\\Roaming\\npm\\node_modules\\@deepseek-ai\\dsh\\node_modules\\@deepseek-ai\\dsh-settings\\lib\\types\\index.d.ts",
+      "sha256": "c1960344f09deb0ca4135c74b17e2da5a7e0da0031d5ae0929dfc461bf62b73a"
+    },
+    {
+      "path": "C:\\Users\\93711\\AppData\\Roaming\\npm\\node_modules\\@deepseek-ai\\dsh\\node_modules\\@deepseek-ai\\dsh-client-ui-settings\\lib\\types\\client\\settings-scope.d.ts",
+      "sha256": "344246641ab8deb0afdd4c1c60aecdab89b789b4eb284bf10dfbc836c2c5d1a5"
+    }
+  ]
+}

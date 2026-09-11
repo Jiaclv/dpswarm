@@ -1,0 +1,21 @@
+{
+  "at": "2026-09-06T00:26:47.681279+00:00",
+  "docker": {
+    "ServerVersion": "29.5.3",
+    "NCPU": 24,
+    "MemTotal": 16336486400,
+    "ContainersRunning": 0
+  },
+  "host_available_gib": 11.867,
+  "stage_lease_absent": true,
+  "historical_operator_sources_verified": 15,
+  "authorization_path": "K:\\秋招\\项目\\DPswarm\\modelbench\\minimal_value_20260905\\operations\\A2_BACKFILL_AUTHORIZATION_20260906.json",
+  "authorization_sha256": "ee1c6095af8cbb600112cc1f9017d4a12e8aad62191a16af4857abe51c556d0e",
+  "codex_usage_observation": {
+    "used_percent": 26,
+    "window_minutes": 10080,
+    "account_concurrency_entitlement": null,
+    "reset_consumed": false
+  },
+  "models_started": 0
+}

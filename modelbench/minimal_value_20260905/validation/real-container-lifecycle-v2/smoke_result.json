@@ -1,0 +1,41 @@
+{
+  "passed": false,
+  "completed_arms": 1,
+  "real_provider_calls": 0,
+  "arms": [
+    {
+      "arm": "D",
+      "passed": false,
+      "real_provider_calls": 0,
+      "official_grading": false,
+      "worker_count": 1,
+      "cleanup": {
+        "confirmed": true,
+        "owned": {
+          "dpswarm-swe-4a3183afe9d7491b": "4a3183afe9d7491bb2dea2348c25fbb4",
+          "a7028c6901661c7e62e4b4ee21388ab79d3213b41ac24c8a206f0fc855048c3b": "4a3183afe9d7491bb2dea2348c25fbb4",
+          "dpswarm-swe-27469461dd7f4ec8": "27469461dd7f4ec883081b07aa158adb",
+          "8b178271bc0317c68bd00973d6aff2d4e70c2194055de96386696cb7d32163a1": "27469461dd7f4ec883081b07aa158adb"
+        },
+        "removed": [],
+        "errors": []
+      },
+      "execution_health": {
+        "status": "host_error",
+        "errors": [
+          {
+            "at": "2026-09-05T03:31:18.690849+00:00",
+            "phase": "cm_execution",
+            "type": "AssertionError",
+            "message": "Small lifecycle fixture unexpectedly requested compression",
+            "errno": null,
+            "winerror": null,
+            "call_id": "cm-82685524-45b4-4bd4-841e-a72334046156"
+          }
+        ]
+      },
+      "result_path": "K:\\秋招\\项目\\DPswarm\\modelbench\\minimal_value_20260905\\validation\\real-container-lifecycle-v2\\results\\lifecycle-D\\result.json"
+    }
+  ],
+  "recorded_at": "2026-09-05T03:31:31.732819+00:00"
+}

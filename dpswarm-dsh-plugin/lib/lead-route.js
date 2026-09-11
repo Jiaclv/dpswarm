@@ -1,3 +1,5 @@
+import { sessionEvents } from './host-session-compat.js'
+
 const failure = (code, message) => Object.assign(new Error(`${code}: ${message}`), { code })
 
 /** Read the resolved request that produced the current Lead tool call.
@@ -84,7 +86,7 @@ function recordedRole(agent) {
   const header = agent?.session?.header
   if (!directChild(agent, header?.parentSession) || typeof header.parentSession !== 'string') return false
   // This immutable native descriptor identifies a DP role; session/title is mutable.
-  const descriptor = agent.session.events?.find(e => e.type === 'subagent/descriptor')?.data
+  const descriptor = sessionEvents(agent.session).find(e => e.type === 'subagent/descriptor')?.data
   return typeof descriptor?.label === 'string' && /^dpswarm:DPswarm (implementer|tester|reviewer)$/.test(descriptor.label)
 }
 
@@ -97,7 +99,7 @@ export async function resolveChildRoute(agent, { journal, signal } = {}) {
   let route
   if (capability !== undefined) {
     const state = childRoutes.get(capability)
-    const descriptor = agent?.session?.events?.find(e => e.type === 'subagent/descriptor')?.data
+    const descriptor = sessionEvents(agent.session).find(e => e.type === 'subagent/descriptor')?.data
     if (!state || state.closed || !directChild(agent, state.parentId) || descriptor?.label !== state.label) {
       throw failure('CHILD_ROUTE_BINDING_INVALID', 'This native child does not own the frozen role route')
     }
@@ -114,7 +116,7 @@ export async function resolveChildRoute(agent, { journal, signal } = {}) {
     if (!records.length) throw failure('CHILD_ROUTE_BINDING_REQUIRED', 'Legacy or incomplete role has no durable frozen route')
     if (records.length !== 1) throw failure('CHILD_ROUTE_BINDING_INVALID', 'Ambiguous role route binding')
     const data = records[0].data
-    const label = agent.session.events.find(e => e.type === 'subagent/descriptor').data.label
+    const label = sessionEvents(agent.session).find(e => e.type === 'subagent/descriptor').data.label
     if (snapshot.root_session_id !== rootId || data.protocol !== routeProtocol || data.root_session_id !== rootId
       || data.parent_session_id !== rootId || data.child_session_id !== agent.id || data.owner_session_id !== agent.id
       || data.label !== label || !directChild(agent, rootId)) throw failure('CHILD_ROUTE_BINDING_INVALID', 'Cold role identity differs from its binding')

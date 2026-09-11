@@ -1,0 +1,4304 @@
+{
+  "generated_at": "2026-09-04T13:10:19.922914+00:00",
+  "batch": "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_fixed_team_20260903\\pilot_v15",
+  "manifest_sha256": "46a30aa5a5ca1c025c2868ddaf3e796f14f83692bbaff98ddab50020ab30afe2",
+  "auditor_sha256": "751685994ab5ea7df5f8592160307312111825b9dc5400398db97e5bcb7cc064",
+  "status": "PASS",
+  "mode": "frozen_snapshot_and_current_sources_inputs",
+  "scheduled_runs": 14,
+  "completed_runs_at_start": 14,
+  "audited_runs": 14,
+  "skipped_incomplete_runs": [],
+  "frozen_artifacts": {
+    "source_files": 54,
+    "input_files": 10,
+    "current_files_checked": true,
+    "source_inventory_scope": "exact manifest runtime_sources entries",
+    "official_directory": "K:\\秋招\\项目\\DPswarm\\modelbench\\swe_verified_20260903\\official"
+  },
+  "calls": 421,
+  "known_total_tokens": 7661120,
+  "unknown_total_usage_calls": 0,
+  "error_count": 0,
+  "warning_count": 0,
+  "runs": [
+    {
+      "run_id": "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol",
+      "instance_id": "sphinx-doc__sphinx-8035",
+      "condition": "solo",
+      "arm": "solo_gpt-5.6-sol",
+      "worker_model": null,
+      "result_sha256": "e4b7e21b64dc8d553d4ce457e0e9ea341d908178ba51512ae10b9e1cfd42d3a5",
+      "calls": 31,
+      "call_ids": [
+        "cm-8edfa7fc-6d67-47cf-af6e-ec8571b3433b",
+        "03afeaae-1cda-4f03-adf7-21fc50f242bd",
+        "cm-5b57f5fe-5e34-4a35-87a5-3e401d7f164f",
+        "5134c33f-1c7b-4b68-aaaf-721411451371",
+        "5a939cad-ac11-45c5-8013-67f8fc28e05a",
+        "016ef16a-5625-4c4e-bf8d-d929b34606f7",
+        "cm-5a0ca36e-45be-4dc1-94c3-78a698ffd4c3",
+        "4b1c55db-4fba-4ec2-9e1f-de6549cd574f",
+        "63a84688-3045-4c14-aa11-e25033e36039",
+        "cm-300df931-25dd-428f-99a5-9a8b5344c011",
+        "cm-ac1454ce-da0e-439f-b92f-173ba40620ee",
+        "cm-65fd4eaf-4477-40aa-b94d-d7329582864f",
+        "dd40d846-561f-4462-8f4e-858652a398d3",
+        "935d42ac-96fb-44bb-b470-7dad1fd29e4f",
+        "40439369-193e-4463-8340-66d08098bbd2",
+        "1d26efcc-898f-40ee-90e9-bfe971de5db0",
+        "cm-d5a14372-58b8-4e66-841d-93449f45dfd8",
+        "cm-4d520f7e-8c46-4bf6-88ea-66d1110d1161",
+        "d2593c91-4e72-408d-99f6-9a6b4bf40100",
+        "cm-b8bec005-6436-4e15-8ec8-d0248762768f",
+        "fdbc3f7f-7533-4b67-b803-3c7dc3c31fec",
+        "6e6acae1-429d-4391-8e98-6400182707dd",
+        "15870acf-c236-4a86-a544-13c5daf57197",
+        "eb612264-8063-400d-91f3-96d47268fb1f",
+        "d74bacc1-ab2f-4a47-a5f9-7ee5c690eb2b",
+        "eb23d3e4-7fc3-4ddc-a174-3ada141f8b60",
+        "cm-7c85ab11-0a83-477f-80af-0bf7c1652ab5",
+        "cm-33126af6-5e09-4198-9fd8-3ba8be3995c7",
+        "371d22e7-54da-49c3-b1dd-6918864e5655",
+        "cm-1b7219db-cc3a-44e4-8dc1-1bb3bc804571",
+        "5d1484ae-6e25-4377-bb49-4bd29f84b18b"
+      ],
+      "usage": {
+        "calls": 31,
+        "known_subtotals": {
+          "input_tokens": 509937,
+          "cached_input_tokens": 95872,
+          "output_tokens": 54134,
+          "reasoning_tokens": 0,
+          "total_tokens": 564071
+        },
+        "unknown_counts": {
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 31,
+          "total_tokens": 0
+        },
+        "input_tokens": 509937,
+        "cached_input_tokens": 95872,
+        "output_tokens": 54134,
+        "reasoning_tokens": null,
+        "total_tokens": 564071,
+        "transport_record_count": 31,
+        "transport_attempt_count": 31,
+        "transport_attempt_count_known_subtotal": 31,
+        "transport_attempt_count_unknown_records": 0,
+        "calls_with_transport_attempts": 31,
+        "calls_with_measured_usage": 31,
+        "calls_with_complete_usage": 31
+      },
+      "outcome": "budget_exhausted",
+      "infrastructure_error_type": null,
+      "transport_errors": 0,
+      "protocol_errors": 0,
+      "requested_settings": [
+        {
+          "model": "gpt-5.6-sol",
+          "effort": "max",
+          "tier": "fast"
+        },
+        {
+          "model": "deepseek-v4-flash",
+          "effort": "max",
+          "tier": null
+        }
+      ],
+      "echo_unknown_counts": {
+        "model_reported": 19,
+        "effort_reported": 31,
+        "service_tier_reported": 31
+      },
+      "model_usage": {
+        "glm-5.3": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "glm-5.3-flash": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "gpt-5.6-sol": {
+          "calls": 19,
+          "known_subtotals": {
+            "input_tokens": 413809,
+            "cached_input_tokens": 91136,
+            "output_tokens": 17665,
+            "reasoning_tokens": 0,
+            "total_tokens": 431474
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 19,
+            "total_tokens": 0
+          },
+          "input_tokens": 413809,
+          "cached_input_tokens": 91136,
+          "output_tokens": 17665,
+          "reasoning_tokens": null,
+          "total_tokens": 431474,
+          "transport_record_count": 19,
+          "transport_attempt_count": 19,
+          "transport_attempt_count_known_subtotal": 19,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 19,
+          "calls_with_measured_usage": 19,
+          "calls_with_complete_usage": 19
+        },
+        "gpt-5.6-terra": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "gpt-5.6-luna": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "deepseek-v4-flash": {
+          "calls": 12,
+          "known_subtotals": {
+            "input_tokens": 96128,
+            "cached_input_tokens": 4736,
+            "output_tokens": 36469,
+            "reasoning_tokens": 0,
+            "total_tokens": 132597
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 12,
+            "total_tokens": 0
+          },
+          "input_tokens": 96128,
+          "cached_input_tokens": 4736,
+          "output_tokens": 36469,
+          "reasoning_tokens": null,
+          "total_tokens": 132597,
+          "transport_record_count": 12,
+          "transport_attempt_count": 12,
+          "transport_attempt_count_known_subtotal": 12,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 12,
+          "calls_with_measured_usage": 12,
+          "calls_with_complete_usage": 12
+        }
+      },
+      "sum_call_wall_seconds": 481.617016,
+      "control": {
+        "rich_call_records": 19,
+        "core_token_events": 19,
+        "rich_event_hashes_checked": 44,
+        "invariant_replay_performed": false,
+        "stored_invariant_replay_claim": true
+      },
+      "grading": {
+        "completed": true,
+        "resolved": false,
+        "failure_kind": null,
+        "reports_checked": 1
+      },
+      "activation": {
+        "source": null,
+        "protocol_request_events": 0,
+        "admitted_workers": 0,
+        "activated_workers": 0,
+        "workers_with_actual_calls": 0,
+        "workers_with_call_records": 0,
+        "workers_with_measured_usage": 0,
+        "model_requested_delegation": 0,
+        "team_execution_status": "not_requested",
+        "team_execution_valid": null
+      },
+      "delivery_forensics": {
+        "cleanup_discards": [],
+        "patch_bytes": 7360,
+        "lead_edit_detected": true,
+        "lead_first_edit_ordinal": 19,
+        "cm_skipped_count": 1,
+        "cm_skipped_reasons": {
+          "edit_phase_curfew": 1
+        },
+        "lead_death_phase": "edited",
+        "worker_death_phases": {}
+      },
+      "audit_error_count": 0
+    },
+    {
+      "run_id": "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.nocurf",
+      "instance_id": "sphinx-doc__sphinx-8035",
+      "condition": "solo",
+      "arm": "solo_gpt-5.6-sol.nocurf",
+      "worker_model": null,
+      "result_sha256": "85a1c5795c4bf32a00da21200db49f7d1f0d0d29a623518ba3036b38b0ac725f",
+      "calls": 31,
+      "call_ids": [
+        "e69e9fba-6e4f-4541-b02d-2c1f8a3c336d",
+        "1fe029c1-b6e6-4375-b3cc-ca35e1a40e2d",
+        "c820fc9d-2e64-4ad6-a6f1-cf1d3473385d",
+        "b3d5d738-5c88-4b9e-b68e-aa2460964e58",
+        "02bab759-2b68-471d-8a2c-2b14c56c5129",
+        "cm-f355e515-e031-446b-8d85-d6f5f7badaa5",
+        "5d6c45b0-feae-4489-ac12-e9ade6acff27",
+        "b9020969-be3f-46ad-bcae-2493fa4b8b4d",
+        "cm-5eea128a-7377-4608-82ce-5308369b7eb3",
+        "cm-b7d9cc44-1f67-4df2-aba5-753b17019a56",
+        "cm-87e5a446-b5cf-4fa2-9bdc-9dc5300ff6aa",
+        "ed6e6d45-fba8-4059-94c0-92f656fbf3dc",
+        "beb79325-d97b-4a55-9fc2-c62a158f65b3",
+        "d4ed604b-f86c-44a7-bebe-3ac7e07ce0c1",
+        "9962a883-8f6d-46b1-89fc-80453ba61280",
+        "cm-1739416c-97c9-4e44-8c9e-d8e8aa830196",
+        "cm-2bc05585-2026-48c7-972c-78afd5affcce",
+        "cm-6777ab59-1be2-4c7b-be99-4fc61262eb07",
+        "cm-dce587da-8595-4892-8aea-60b6373b8fcb",
+        "ca017049-581e-4235-9caa-4d5cc3b6c5c6",
+        "cm-c2441a0f-78a8-4909-b7fe-b179714b4a0b",
+        "f89b2683-16a5-4c35-82ba-d1dc5d02ae3d",
+        "cm-4d5689d2-bb03-4aa0-892a-ec5646d9cd1b",
+        "65d5e3f8-ad68-4bd9-b323-0cbdc9e488fd",
+        "cm-531b2c9c-e6d8-41fe-ad7a-9025bb61477b",
+        "dd91513f-1a10-46f5-b1c1-b74c0a9dfd61",
+        "a9652d56-a424-4c2e-836c-45b9624d4eb6",
+        "89da5917-7261-429d-ab5a-e5548fbd61ac",
+        "7e7ebb44-7876-443c-8bf5-10a0511724c2",
+        "cm-84034f9a-64d4-4523-a1df-0a2ba0e11996",
+        "c0f42ab3-17c8-40ab-a731-68370f13b6dd"
+      ],
+      "usage": {
+        "calls": 31,
+        "known_subtotals": {
+          "input_tokens": 518017,
+          "cached_input_tokens": 114432,
+          "output_tokens": 54470,
+          "reasoning_tokens": 0,
+          "total_tokens": 572487
+        },
+        "unknown_counts": {
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 31,
+          "total_tokens": 0
+        },
+        "input_tokens": 518017,
+        "cached_input_tokens": 114432,
+        "output_tokens": 54470,
+        "reasoning_tokens": null,
+        "total_tokens": 572487,
+        "transport_record_count": 31,
+        "transport_attempt_count": 31,
+        "transport_attempt_count_known_subtotal": 31,
+        "transport_attempt_count_unknown_records": 0,
+        "calls_with_transport_attempts": 31,
+        "calls_with_measured_usage": 31,
+        "calls_with_complete_usage": 31
+      },
+      "outcome": "budget_exhausted",
+      "infrastructure_error_type": null,
+      "transport_errors": 0,
+      "protocol_errors": 0,
+      "requested_settings": [
+        {
+          "model": "gpt-5.6-sol",
+          "effort": "max",
+          "tier": "fast"
+        },
+        {
+          "model": "deepseek-v4-flash",
+          "effort": "max",
+          "tier": null
+        }
+      ],
+      "echo_unknown_counts": {
+        "model_reported": 19,
+        "effort_reported": 31,
+        "service_tier_reported": 31
+      },
+      "model_usage": {
+        "glm-5.3": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "glm-5.3-flash": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "gpt-5.6-sol": {
+          "calls": 19,
+          "known_subtotals": {
+            "input_tokens": 415324,
+            "cached_input_tokens": 109696,
+            "output_tokens": 17554,
+            "reasoning_tokens": 0,
+            "total_tokens": 432878
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 19,
+            "total_tokens": 0
+          },
+          "input_tokens": 415324,
+          "cached_input_tokens": 109696,
+          "output_tokens": 17554,
+          "reasoning_tokens": null,
+          "total_tokens": 432878,
+          "transport_record_count": 19,
+          "transport_attempt_count": 19,
+          "transport_attempt_count_known_subtotal": 19,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 19,
+          "calls_with_measured_usage": 19,
+          "calls_with_complete_usage": 19
+        },
+        "gpt-5.6-terra": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "gpt-5.6-luna": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "deepseek-v4-flash": {
+          "calls": 12,
+          "known_subtotals": {
+            "input_tokens": 102693,
+            "cached_input_tokens": 4736,
+            "output_tokens": 36916,
+            "reasoning_tokens": 0,
+            "total_tokens": 139609
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 12,
+            "total_tokens": 0
+          },
+          "input_tokens": 102693,
+          "cached_input_tokens": 4736,
+          "output_tokens": 36916,
+          "reasoning_tokens": null,
+          "total_tokens": 139609,
+          "transport_record_count": 12,
+          "transport_attempt_count": 12,
+          "transport_attempt_count_known_subtotal": 12,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 12,
+          "calls_with_measured_usage": 12,
+          "calls_with_complete_usage": 12
+        }
+      },
+      "sum_call_wall_seconds": 477.337261,
+      "control": {
+        "rich_call_records": 19,
+        "core_token_events": 19,
+        "rich_event_hashes_checked": 44,
+        "invariant_replay_performed": false,
+        "stored_invariant_replay_claim": true
+      },
+      "grading": {
+        "completed": true,
+        "resolved": true,
+        "failure_kind": null,
+        "reports_checked": 1
+      },
+      "activation": {
+        "source": null,
+        "protocol_request_events": 0,
+        "admitted_workers": 0,
+        "activated_workers": 0,
+        "workers_with_actual_calls": 0,
+        "workers_with_call_records": 0,
+        "workers_with_measured_usage": 0,
+        "model_requested_delegation": 0,
+        "team_execution_status": "not_requested",
+        "team_execution_valid": null
+      },
+      "delivery_forensics": {
+        "cleanup_discards": [],
+        "patch_bytes": 5734,
+        "lead_edit_detected": true,
+        "lead_first_edit_ordinal": 18,
+        "cm_skipped_count": 0,
+        "cm_skipped_reasons": {},
+        "lead_death_phase": "edited",
+        "worker_death_phases": {}
+      },
+      "audit_error_count": 0
+    },
+    {
+      "run_id": "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.cm24",
+      "instance_id": "sphinx-doc__sphinx-8035",
+      "condition": "solo",
+      "arm": "solo_gpt-5.6-sol.cm24",
+      "worker_model": null,
+      "result_sha256": "0cf4f8b42e3b3c0f9997bd280d2a0dc92cad1a8233348e6de7c1750074738d59",
+      "calls": 34,
+      "call_ids": [
+        "2fb37beb-13e9-4582-a016-eb7a079cca83",
+        "2fa922e9-becd-455a-9d91-1476055ab09e",
+        "b12448b1-5bb6-47f2-a365-b10837d71e07",
+        "cm-02110ad0-51f2-475f-9f28-9041d93feccf",
+        "6e827bd9-c3d6-41d5-b610-b09da9dc4e87",
+        "cm-3a4d4425-6907-4144-92a5-bf17b7d1e181",
+        "f48f2bc5-dd5b-4c96-94f9-7ff074b0ca37",
+        "cm-72272a96-ce0d-470f-81b2-605848c235a4",
+        "cm-8341ec3b-d231-4de2-9fb3-8d889a99528c",
+        "cm-05bc9d7f-5132-4465-8a07-ba5ac2885e59",
+        "cm-e19efc9b-33ac-45f3-adaf-ad94d3e3b92b",
+        "cm-7a9717f3-360e-4f72-86bd-23475d6601de",
+        "f38f5e7c-cc67-4b9e-8b05-6ee48e7e9635",
+        "fb6f81c7-f957-40a7-9d28-d7b331d148b7",
+        "22fe77dd-3826-4f05-9b57-b1b072d437d6",
+        "cm-1478a063-76cd-4a27-b185-e2756ead1cd9",
+        "cm-cb45bf42-3ab6-4a38-9f83-6cf48be1a98a",
+        "63f5001f-e626-428b-b092-36e98c50fd8e",
+        "cm-511615a9-127e-4885-8b1f-95c90bad900d",
+        "eec0aeb3-0f04-40ef-97e5-5765c413dba4",
+        "91c810fd-5142-4e88-ac46-2b7c6b390d25",
+        "5f010e04-37ee-4385-b6a9-a5a9df62533b",
+        "cm-26fc1e85-fae8-4364-bde2-b336e9757f7f",
+        "c12f4b9e-1f34-459f-89ca-e25927eb200d",
+        "794699b1-30f7-4e84-bce6-91501469fe3d",
+        "8400b474-dcaa-4b14-99cd-ef3a012c1e3b",
+        "cm-710c20e1-ce84-4185-a270-e989bf71fe9e",
+        "80f6c2c7-63a9-4c6f-967f-353d0131c9ec",
+        "cm-e52896bb-729b-4bb1-9945-18b9dba282a0",
+        "cm-b3d2b766-1973-4ea2-b5c8-614ed8e3e930",
+        "cm-837e2111-8453-4fab-ad4b-993dc64561ad",
+        "cm-c47fcbbc-0c98-4745-8502-8c6b18a4ff19",
+        "599508c5-c0f9-4c49-a8d9-407c3f146f45",
+        "e3e9d358-16f8-4276-88ab-1b29f8e0d348"
+      ],
+      "usage": {
+        "calls": 34,
+        "known_subtotals": {
+          "input_tokens": 520235,
+          "cached_input_tokens": 168960,
+          "output_tokens": 69621,
+          "reasoning_tokens": 0,
+          "total_tokens": 589856
+        },
+        "unknown_counts": {
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 34,
+          "total_tokens": 0
+        },
+        "input_tokens": 520235,
+        "cached_input_tokens": 168960,
+        "output_tokens": 69621,
+        "reasoning_tokens": null,
+        "total_tokens": 589856,
+        "transport_record_count": 34,
+        "transport_attempt_count": 34,
+        "transport_attempt_count_known_subtotal": 34,
+        "transport_attempt_count_unknown_records": 0,
+        "calls_with_transport_attempts": 34,
+        "calls_with_measured_usage": 34,
+        "calls_with_complete_usage": 34
+      },
+      "outcome": "budget_exhausted",
+      "infrastructure_error_type": null,
+      "transport_errors": 0,
+      "protocol_errors": 0,
+      "requested_settings": [
+        {
+          "model": "gpt-5.6-sol",
+          "effort": "max",
+          "tier": "fast"
+        },
+        {
+          "model": "deepseek-v4-flash",
+          "effort": "max",
+          "tier": null
+        }
+      ],
+      "echo_unknown_counts": {
+        "model_reported": 18,
+        "effort_reported": 34,
+        "service_tier_reported": 34
+      },
+      "model_usage": {
+        "glm-5.3": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "glm-5.3-flash": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "gpt-5.6-sol": {
+          "calls": 18,
+          "known_subtotals": {
+            "input_tokens": 378532,
+            "cached_input_tokens": 155904,
+            "output_tokens": 9810,
+            "reasoning_tokens": 0,
+            "total_tokens": 388342
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 18,
+            "total_tokens": 0
+          },
+          "input_tokens": 378532,
+          "cached_input_tokens": 155904,
+          "output_tokens": 9810,
+          "reasoning_tokens": null,
+          "total_tokens": 388342,
+          "transport_record_count": 18,
+          "transport_attempt_count": 18,
+          "transport_attempt_count_known_subtotal": 18,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 18,
+          "calls_with_measured_usage": 18,
+          "calls_with_complete_usage": 18
+        },
+        "gpt-5.6-terra": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "gpt-5.6-luna": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "deepseek-v4-flash": {
+          "calls": 16,
+          "known_subtotals": {
+            "input_tokens": 141703,
+            "cached_input_tokens": 13056,
+            "output_tokens": 59811,
+            "reasoning_tokens": 0,
+            "total_tokens": 201514
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 16,
+            "total_tokens": 0
+          },
+          "input_tokens": 141703,
+          "cached_input_tokens": 13056,
+          "output_tokens": 59811,
+          "reasoning_tokens": null,
+          "total_tokens": 201514,
+          "transport_record_count": 16,
+          "transport_attempt_count": 16,
+          "transport_attempt_count_known_subtotal": 16,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 16,
+          "calls_with_measured_usage": 16,
+          "calls_with_complete_usage": 16
+        }
+      },
+      "sum_call_wall_seconds": 485.308048,
+      "control": {
+        "rich_call_records": 18,
+        "core_token_events": 18,
+        "rich_event_hashes_checked": 42,
+        "invariant_replay_performed": false,
+        "stored_invariant_replay_claim": true
+      },
+      "grading": {
+        "completed": true,
+        "resolved": false,
+        "failure_kind": null,
+        "reports_checked": 1
+      },
+      "activation": {
+        "source": null,
+        "protocol_request_events": 0,
+        "admitted_workers": 0,
+        "activated_workers": 0,
+        "workers_with_actual_calls": 0,
+        "workers_with_call_records": 0,
+        "workers_with_measured_usage": 0,
+        "model_requested_delegation": 0,
+        "team_execution_status": "not_requested",
+        "team_execution_valid": null
+      },
+      "delivery_forensics": {
+        "cleanup_discards": [],
+        "patch_bytes": 0,
+        "lead_edit_detected": false,
+        "lead_first_edit_ordinal": null,
+        "cm_skipped_count": 0,
+        "cm_skipped_reasons": {},
+        "lead_death_phase": "no_edit",
+        "worker_death_phases": {}
+      },
+      "audit_error_count": 0
+    },
+    {
+      "run_id": "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.rep2",
+      "instance_id": "sphinx-doc__sphinx-8035",
+      "condition": "solo",
+      "arm": "solo_gpt-5.6-sol",
+      "worker_model": null,
+      "result_sha256": "a8661ee2191b83f9792d2bc63d23747a6d7e6ed9e87e995bbef7d60105983ff6",
+      "calls": 31,
+      "call_ids": [
+        "0226b696-7695-4ecd-bd7c-7f0e179f4426",
+        "11577b5a-9c9a-424a-a2fe-7b865df78a9d",
+        "786207fa-9e86-4d24-8005-dc97154429cb",
+        "cm-99b85619-afbc-4082-bb41-5d1eb05d0c4c",
+        "cm-28b130e6-4481-4281-8857-defce3230ee1",
+        "f1ea9915-7ffc-4524-8437-7dca9c4ba2fa",
+        "cm-957ae148-4ef0-4def-98b9-9f793a575f0e",
+        "cm-48cbfb18-15b5-47fb-8e8e-1ae3af9c1296",
+        "35605372-dcdc-401f-ac79-4000787ce56a",
+        "4972def2-bd76-40fa-9135-571f3d5df173",
+        "e160503f-cfae-47be-82c4-f5d3c8dc2df0",
+        "465a1e8c-0aaf-4348-aec7-ebaf10f07b32",
+        "805f4c25-f183-4740-93b4-62e327321061",
+        "425cfdf0-d29a-4126-89c3-a20d07232baa",
+        "15320cc6-0823-433a-810b-a847c1b58880",
+        "ac7bae7d-8efe-426a-a50c-f54910d290e5",
+        "cm-75577165-63bd-46e8-9fa0-55ffb5b01e51",
+        "cm-a3ab0ef4-a8fc-4706-9906-73692bfdea6d",
+        "81c0f4d4-0c15-41a5-80d5-fca49183d032",
+        "321c0a11-c034-454c-a9fe-d369c972899c",
+        "cm-7032d487-62cc-41e7-8d26-899adbf3bee9",
+        "cm-d6497f5e-72f1-412e-b4aa-a5dce3a728dc",
+        "cm-4d12aa26-37f3-4909-9e0f-63c31acd20e5",
+        "eaa4fecb-c8f5-4dc1-805a-f4340823d0d1",
+        "b082b5e1-470a-4886-9272-17abf9fd2b79",
+        "cm-3d8f8e1e-27bb-4067-9704-1ff00e14d5fe",
+        "cm-c9a3a1ae-2ac6-4b40-845d-3db127753318",
+        "28442d47-8e79-4cc7-b134-de3ac6201e07",
+        "b996d037-57ab-476c-a0f7-8ca26ffc6391",
+        "cm-475870af-26d9-4ecd-87c8-11df3d69a0cc",
+        "ab7be41a-5364-49f2-9242-1c3b47887db1"
+      ],
+      "usage": {
+        "calls": 31,
+        "known_subtotals": {
+          "input_tokens": 512724,
+          "cached_input_tokens": 178944,
+          "output_tokens": 47290,
+          "reasoning_tokens": 0,
+          "total_tokens": 560014
+        },
+        "unknown_counts": {
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 31,
+          "total_tokens": 0
+        },
+        "input_tokens": 512724,
+        "cached_input_tokens": 178944,
+        "output_tokens": 47290,
+        "reasoning_tokens": null,
+        "total_tokens": 560014,
+        "transport_record_count": 31,
+        "transport_attempt_count": 31,
+        "transport_attempt_count_known_subtotal": 31,
+        "transport_attempt_count_unknown_records": 0,
+        "calls_with_transport_attempts": 31,
+        "calls_with_measured_usage": 31,
+        "calls_with_complete_usage": 31
+      },
+      "outcome": "budget_exhausted",
+      "infrastructure_error_type": null,
+      "transport_errors": 0,
+      "protocol_errors": 0,
+      "requested_settings": [
+        {
+          "model": "gpt-5.6-sol",
+          "effort": "max",
+          "tier": "fast"
+        },
+        {
+          "model": "deepseek-v4-flash",
+          "effort": "max",
+          "tier": null
+        }
+      ],
+      "echo_unknown_counts": {
+        "model_reported": 19,
+        "effort_reported": 31,
+        "service_tier_reported": 31
+      },
+      "model_usage": {
+        "glm-5.3": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "glm-5.3-flash": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "gpt-5.6-sol": {
+          "calls": 19,
+          "known_subtotals": {
+            "input_tokens": 421362,
+            "cached_input_tokens": 174080,
+            "output_tokens": 15084,
+            "reasoning_tokens": 0,
+            "total_tokens": 436446
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 19,
+            "total_tokens": 0
+          },
+          "input_tokens": 421362,
+          "cached_input_tokens": 174080,
+          "output_tokens": 15084,
+          "reasoning_tokens": null,
+          "total_tokens": 436446,
+          "transport_record_count": 19,
+          "transport_attempt_count": 19,
+          "transport_attempt_count_known_subtotal": 19,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 19,
+          "calls_with_measured_usage": 19,
+          "calls_with_complete_usage": 19
+        },
+        "gpt-5.6-terra": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "gpt-5.6-luna": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "deepseek-v4-flash": {
+          "calls": 12,
+          "known_subtotals": {
+            "input_tokens": 91362,
+            "cached_input_tokens": 4864,
+            "output_tokens": 32206,
+            "reasoning_tokens": 0,
+            "total_tokens": 123568
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 12,
+            "total_tokens": 0
+          },
+          "input_tokens": 91362,
+          "cached_input_tokens": 4864,
+          "output_tokens": 32206,
+          "reasoning_tokens": null,
+          "total_tokens": 123568,
+          "transport_record_count": 12,
+          "transport_attempt_count": 12,
+          "transport_attempt_count_known_subtotal": 12,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 12,
+          "calls_with_measured_usage": 12,
+          "calls_with_complete_usage": 12
+        }
+      },
+      "sum_call_wall_seconds": 431.899754,
+      "control": {
+        "rich_call_records": 19,
+        "core_token_events": 19,
+        "rich_event_hashes_checked": 44,
+        "invariant_replay_performed": false,
+        "stored_invariant_replay_claim": true
+      },
+      "grading": {
+        "completed": true,
+        "resolved": false,
+        "failure_kind": null,
+        "reports_checked": 1
+      },
+      "activation": {
+        "source": null,
+        "protocol_request_events": 0,
+        "admitted_workers": 0,
+        "activated_workers": 0,
+        "workers_with_actual_calls": 0,
+        "workers_with_call_records": 0,
+        "workers_with_measured_usage": 0,
+        "model_requested_delegation": 0,
+        "team_execution_status": "not_requested",
+        "team_execution_valid": null
+      },
+      "delivery_forensics": {
+        "cleanup_discards": [],
+        "patch_bytes": 7674,
+        "lead_edit_detected": true,
+        "lead_first_edit_ordinal": 17,
+        "cm_skipped_count": 3,
+        "cm_skipped_reasons": {
+          "edit_phase_curfew": 3
+        },
+        "lead_death_phase": "edited",
+        "worker_death_phases": {}
+      },
+      "audit_error_count": 0
+    },
+    {
+      "run_id": "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.nocurf.rep2",
+      "instance_id": "sphinx-doc__sphinx-8035",
+      "condition": "solo",
+      "arm": "solo_gpt-5.6-sol.nocurf",
+      "worker_model": null,
+      "result_sha256": "45fddebecda9b809d42ba15c2a2789761f8235689c5498e36965fbd7bca111ca",
+      "calls": 31,
+      "call_ids": [
+        "cm-20087733-14d2-48d3-a017-06d88bd1091e",
+        "cm-e68203b0-fd99-46e4-b732-d8404f7eb303",
+        "cm-b33d7be9-e175-4075-9d8f-e4befa6202c0",
+        "79719217-5fdc-47e6-bc8e-2cafc4383ff1",
+        "a4366ac8-159f-4e8d-ab39-13b6e54910e3",
+        "cce528f6-8d74-4237-802a-784e9f1795d3",
+        "cm-4e34ef93-d649-4b32-9eeb-d6d14de50e15",
+        "70ca4140-2864-459e-be69-f3ac842d9b60",
+        "589da41e-c1a1-47f3-a9fe-ea4cd478c6fb",
+        "8ff6187f-a303-430a-8745-c5c312a07280",
+        "6023582a-b008-47ac-8ca2-858249685e0b",
+        "145df8a8-9e29-4c20-8eb5-10211d82767c",
+        "9e5ab5a5-beb8-4570-9693-9063f443115d",
+        "1c1b2b36-38d9-4c63-a807-020f1ac352d4",
+        "41d4b71d-96e3-44a4-b62c-70a44253a3ff",
+        "cm-161b37d5-dbc7-4613-a60a-1fa703286db9",
+        "cm-e8e33269-03ce-438d-81e0-ba0e211fc12e",
+        "cm-3cd63f80-6cd4-416f-a00d-2b62858f71ae",
+        "1e96e215-9ec9-43b3-8e43-8fb8530b1f14",
+        "cm-8602f507-1aaf-44ab-8c4c-929ab799dfe9",
+        "53e67b0d-2737-46e2-8423-b749f5d92e2c",
+        "df81baf9-9531-4c71-ae21-c19ca8f37bc3",
+        "8ffe85ff-dc2d-44b9-aea3-84b2d7097e9c",
+        "cm-95cb8ed9-22d7-4f43-9fbc-80641b433671",
+        "a3c316a3-64ae-43e1-86f9-81be4d16a7d0",
+        "cm-e78131c5-b4d6-46c4-adb1-0e0fd3c5fe5f",
+        "46ea8638-aacc-454f-aa02-92c6080ab2e4",
+        "ccc49113-505e-4704-8f71-104ab92c0bdc",
+        "6ffb923f-59d0-4fb3-8e3c-dbb97975d3ce",
+        "cm-8b322386-f0c3-4746-9b8f-cda952a94c08",
+        "cm-85d10101-1c5b-408d-97ab-b91f2c117377"
+      ],
+      "usage": {
+        "calls": 31,
+        "known_subtotals": {
+          "input_tokens": 504439,
+          "cached_input_tokens": 187648,
+          "output_tokens": 53949,
+          "reasoning_tokens": 0,
+          "total_tokens": 558388
+        },
+        "unknown_counts": {
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 31,
+          "total_tokens": 0
+        },
+        "input_tokens": 504439,
+        "cached_input_tokens": 187648,
+        "output_tokens": 53949,
+        "reasoning_tokens": null,
+        "total_tokens": 558388,
+        "transport_record_count": 31,
+        "transport_attempt_count": 31,
+        "transport_attempt_count_known_subtotal": 31,
+        "transport_attempt_count_unknown_records": 0,
+        "calls_with_transport_attempts": 31,
+        "calls_with_measured_usage": 31,
+        "calls_with_complete_usage": 31
+      },
+      "outcome": "budget_exhausted",
+      "infrastructure_error_type": null,
+      "transport_errors": 0,
+      "protocol_errors": 0,
+      "requested_settings": [
+        {
+          "model": "gpt-5.6-sol",
+          "effort": "max",
+          "tier": "fast"
+        },
+        {
+          "model": "deepseek-v4-flash",
+          "effort": "max",
+          "tier": null
+        }
+      ],
+      "echo_unknown_counts": {
+        "model_reported": 19,
+        "effort_reported": 31,
+        "service_tier_reported": 31
+      },
+      "model_usage": {
+        "glm-5.3": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "glm-5.3-flash": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "gpt-5.6-sol": {
+          "calls": 19,
+          "known_subtotals": {
+            "input_tokens": 400557,
+            "cached_input_tokens": 182272,
+            "output_tokens": 17616,
+            "reasoning_tokens": 0,
+            "total_tokens": 418173
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 19,
+            "total_tokens": 0
+          },
+          "input_tokens": 400557,
+          "cached_input_tokens": 182272,
+          "output_tokens": 17616,
+          "reasoning_tokens": null,
+          "total_tokens": 418173,
+          "transport_record_count": 19,
+          "transport_attempt_count": 19,
+          "transport_attempt_count_known_subtotal": 19,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 19,
+          "calls_with_measured_usage": 19,
+          "calls_with_complete_usage": 19
+        },
+        "gpt-5.6-terra": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "gpt-5.6-luna": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "deepseek-v4-flash": {
+          "calls": 12,
+          "known_subtotals": {
+            "input_tokens": 103882,
+            "cached_input_tokens": 5376,
+            "output_tokens": 36333,
+            "reasoning_tokens": 0,
+            "total_tokens": 140215
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 12,
+            "total_tokens": 0
+          },
+          "input_tokens": 103882,
+          "cached_input_tokens": 5376,
+          "output_tokens": 36333,
+          "reasoning_tokens": null,
+          "total_tokens": 140215,
+          "transport_record_count": 12,
+          "transport_attempt_count": 12,
+          "transport_attempt_count_known_subtotal": 12,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 12,
+          "calls_with_measured_usage": 12,
+          "calls_with_complete_usage": 12
+        }
+      },
+      "sum_call_wall_seconds": 476.951565,
+      "control": {
+        "rich_call_records": 19,
+        "core_token_events": 19,
+        "rich_event_hashes_checked": 44,
+        "invariant_replay_performed": false,
+        "stored_invariant_replay_claim": true
+      },
+      "grading": {
+        "completed": true,
+        "resolved": true,
+        "failure_kind": null,
+        "reports_checked": 1
+      },
+      "activation": {
+        "source": null,
+        "protocol_request_events": 0,
+        "admitted_workers": 0,
+        "activated_workers": 0,
+        "workers_with_actual_calls": 0,
+        "workers_with_call_records": 0,
+        "workers_with_measured_usage": 0,
+        "model_requested_delegation": 0,
+        "team_execution_status": "not_requested",
+        "team_execution_valid": null
+      },
+      "delivery_forensics": {
+        "cleanup_discards": [],
+        "patch_bytes": 4642,
+        "lead_edit_detected": true,
+        "lead_first_edit_ordinal": 13,
+        "cm_skipped_count": 0,
+        "cm_skipped_reasons": {},
+        "lead_death_phase": "edited",
+        "worker_death_phases": {}
+      },
+      "audit_error_count": 0
+    },
+    {
+      "run_id": "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.cm24.rep2",
+      "instance_id": "sphinx-doc__sphinx-8035",
+      "condition": "solo",
+      "arm": "solo_gpt-5.6-sol.cm24",
+      "worker_model": null,
+      "result_sha256": "0d1bdc9853ac029011d4f0fa2f7131eedf611b2774df04ddfe7b2eb906c3293c",
+      "calls": 36,
+      "call_ids": [
+        "c5e47811-fb31-47b9-8c3a-8d48b39ac330",
+        "46f7e353-5c02-4c04-b14b-48ee12ed6a83",
+        "e7e104ac-2efc-4232-98a8-16a34dcb8cb2",
+        "63401dee-0d64-436f-9eea-14f1157fbef7",
+        "e57f8357-dc31-4c5d-92ab-a82e7696507e",
+        "7807a306-4186-4f5e-a0f4-8deeaf53e7a2",
+        "47b2ed99-4636-46be-bef1-44a33ee081da",
+        "cm-40980cff-71aa-4024-869a-44496318b25b",
+        "cm-51f60722-5b72-4820-b62c-2e6d6b661bae",
+        "62169af6-a46b-49eb-aca1-2e140af3eddc",
+        "cm-0cae613f-0679-404d-9312-a542db77939a",
+        "cm-50a9ef31-a4c4-489d-954a-f7128bfa6e15",
+        "1afb6082-4e96-495a-b80b-fe61d82690df",
+        "8e282637-936f-40d5-ad98-97477fe14fdc",
+        "cm-7ddfc601-98d0-4655-aa95-57dc66efc3e0",
+        "cm-af0b9553-7944-47ed-a9e8-2cb2e6062070",
+        "cm-618c0f4f-b3f8-4c8e-bf4e-383fd2bdab46",
+        "9f80b53b-688c-4180-aa93-6a59a70ee012",
+        "ad7c4f83-5d36-478a-b71c-01e7dca10714",
+        "cm-3bbcb4cf-5f60-4c59-981b-6a161b487356",
+        "cm-1de588ef-038b-4bdd-9b5e-81d57c392032",
+        "cm-e7aab7c8-ef76-489c-8d05-7e30f6cdd49a",
+        "cm-82a20a08-2d63-4972-9554-39245ea77392",
+        "cm-3a7d1434-27cd-46b1-b2f0-9ffb5890343d",
+        "38517c93-cd60-4bda-ad51-d0a5923adbe8",
+        "313a0403-66a9-41cc-8655-30d4a8468add",
+        "9163bad0-f9ac-4298-b7a6-a28bcb81f8d9",
+        "cm-a6df8bdf-bfbc-4353-8956-589abc1bf1c9",
+        "5961df35-8998-48e5-9d1f-d74dc012a821",
+        "818be95a-7869-42f7-8944-5638a9deca71",
+        "cm-21ffcded-762d-44d8-ab66-b4ff9e67c1c4",
+        "205c0af2-654f-4ac1-8a5d-d9c1b7511095",
+        "cm-529bfca2-1a8b-432a-b7ef-e29eb4ea357a",
+        "d14775f8-f5db-4c72-a5b0-100c42da4729",
+        "cm-4169469a-2204-40f9-bc25-a5aa221484dc",
+        "f69ebbc3-e6aa-43a9-82f3-1752014563ca"
+      ],
+      "usage": {
+        "calls": 36,
+        "known_subtotals": {
+          "input_tokens": 522912,
+          "cached_input_tokens": 182784,
+          "output_tokens": 46684,
+          "reasoning_tokens": 0,
+          "total_tokens": 569596
+        },
+        "unknown_counts": {
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 36,
+          "total_tokens": 0
+        },
+        "input_tokens": 522912,
+        "cached_input_tokens": 182784,
+        "output_tokens": 46684,
+        "reasoning_tokens": null,
+        "total_tokens": 569596,
+        "transport_record_count": 36,
+        "transport_attempt_count": 36,
+        "transport_attempt_count_known_subtotal": 36,
+        "transport_attempt_count_unknown_records": 0,
+        "calls_with_transport_attempts": 36,
+        "calls_with_measured_usage": 36,
+        "calls_with_complete_usage": 36
+      },
+      "outcome": "budget_exhausted",
+      "infrastructure_error_type": null,
+      "transport_errors": 0,
+      "protocol_errors": 0,
+      "requested_settings": [
+        {
+          "model": "gpt-5.6-sol",
+          "effort": "max",
+          "tier": "fast"
+        },
+        {
+          "model": "deepseek-v4-flash",
+          "effort": "max",
+          "tier": null
+        }
+      ],
+      "echo_unknown_counts": {
+        "model_reported": 20,
+        "effort_reported": 36,
+        "service_tier_reported": 36
+      },
+      "model_usage": {
+        "glm-5.3": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "glm-5.3-flash": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "gpt-5.6-sol": {
+          "calls": 20,
+          "known_subtotals": {
+            "input_tokens": 393536,
+            "cached_input_tokens": 176256,
+            "output_tokens": 8775,
+            "reasoning_tokens": 0,
+            "total_tokens": 402311
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 20,
+            "total_tokens": 0
+          },
+          "input_tokens": 393536,
+          "cached_input_tokens": 176256,
+          "output_tokens": 8775,
+          "reasoning_tokens": null,
+          "total_tokens": 402311,
+          "transport_record_count": 20,
+          "transport_attempt_count": 20,
+          "transport_attempt_count_known_subtotal": 20,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 20,
+          "calls_with_measured_usage": 20,
+          "calls_with_complete_usage": 20
+        },
+        "gpt-5.6-terra": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "gpt-5.6-luna": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "deepseek-v4-flash": {
+          "calls": 16,
+          "known_subtotals": {
+            "input_tokens": 129376,
+            "cached_input_tokens": 6528,
+            "output_tokens": 37909,
+            "reasoning_tokens": 0,
+            "total_tokens": 167285
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 16,
+            "total_tokens": 0
+          },
+          "input_tokens": 129376,
+          "cached_input_tokens": 6528,
+          "output_tokens": 37909,
+          "reasoning_tokens": null,
+          "total_tokens": 167285,
+          "transport_record_count": 16,
+          "transport_attempt_count": 16,
+          "transport_attempt_count_known_subtotal": 16,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 16,
+          "calls_with_measured_usage": 16,
+          "calls_with_complete_usage": 16
+        }
+      },
+      "sum_call_wall_seconds": 374.801564,
+      "control": {
+        "rich_call_records": 20,
+        "core_token_events": 20,
+        "rich_event_hashes_checked": 46,
+        "invariant_replay_performed": false,
+        "stored_invariant_replay_claim": true
+      },
+      "grading": {
+        "completed": true,
+        "resolved": false,
+        "failure_kind": null,
+        "reports_checked": 1
+      },
+      "activation": {
+        "source": null,
+        "protocol_request_events": 0,
+        "admitted_workers": 0,
+        "activated_workers": 0,
+        "workers_with_actual_calls": 0,
+        "workers_with_call_records": 0,
+        "workers_with_measured_usage": 0,
+        "model_requested_delegation": 0,
+        "team_execution_status": "not_requested",
+        "team_execution_valid": null
+      },
+      "delivery_forensics": {
+        "cleanup_discards": [],
+        "patch_bytes": 0,
+        "lead_edit_detected": false,
+        "lead_first_edit_ordinal": null,
+        "cm_skipped_count": 0,
+        "cm_skipped_reasons": {},
+        "lead_death_phase": "no_edit",
+        "worker_death_phases": {}
+      },
+      "audit_error_count": 0
+    },
+    {
+      "run_id": "sphinx-doc__sphinx-8035__solo_gpt-5.6-sol.rep3",
+      "instance_id": "sphinx-doc__sphinx-8035",
+      "condition": "solo",
+      "arm": "solo_gpt-5.6-sol",
+      "worker_model": null,
+      "result_sha256": "2ef080ee7f98ac97da40ea37f595cf74bf215e0fdb3ac48f1bc79f68d98c0440",
+      "calls": 31,
+      "call_ids": [
+        "f3c0368f-d26c-45f7-8c00-6df081410f33",
+        "f75f867d-2ee4-4769-9333-51dd8e122cda",
+        "7c8b6197-2c90-49d8-b17c-4afa001f39a2",
+        "4031ae0a-5e16-4c9d-81d6-fa7a0b5b911b",
+        "cm-b138bd00-1183-4e63-9279-2f195e1049ca",
+        "ee67325c-1c6a-4e08-8d38-5a0e39576575",
+        "73843f45-8e2e-49ad-979e-b9b026fad958",
+        "cm-d5199296-bd5d-4966-9c9b-2c4c9900a387",
+        "cm-c66b2eb3-c84c-4c27-9b77-36f23b754063",
+        "cm-154ba200-c046-46a0-a847-e48461a8a902",
+        "1053ddb1-d22f-467a-836e-dbc21d0da1f9",
+        "f8a9db70-edec-43c5-81c0-96a712d505b9",
+        "cm-f4dc3a92-a090-4a6a-b9c0-27f7cad62e9e",
+        "cm-29518838-57c9-4afa-a806-bef9ddaf3494",
+        "cm-e9cab809-b7f2-4ba2-906c-d09d54e3624c",
+        "933491ab-d20d-4611-a014-fd1ad9603899",
+        "675e0914-e121-4e62-aee0-54357fe398a2",
+        "955a255c-c070-41ad-8857-f8d7e3e95320",
+        "cm-0deb6562-3ce8-4609-92e3-e2b4cd3525d9",
+        "bdded7ff-d92b-42e4-ad8e-3bc19c0e8847",
+        "64714934-28ee-4acd-bc71-abaabb7a1f87",
+        "8ecfd219-749e-470e-8725-415fa91da890",
+        "bc4f8b96-5adb-4c67-94e4-33e102fac155",
+        "cm-f49b9d6b-4f90-4cf0-91b5-6b8622346719",
+        "5b466b7b-1eb4-4702-bafb-84c00792793f",
+        "cc342e2b-135d-49ca-8bfc-38e7d3e42c91",
+        "cm-af077c72-36ac-4fd5-bb16-7ad120b6d1bf",
+        "210c57a3-e214-4bd1-8b12-5d6ae926239b",
+        "cm-ffb8051f-325c-4276-b1ef-398bb4f3e5a2",
+        "eabf0153-ebbf-4f0a-965a-165bcfd85f9d",
+        "cm-979a0a1a-548f-4378-b82f-35ea80ebe1fd"
+      ],
+      "usage": {
+        "calls": 31,
+        "known_subtotals": {
+          "input_tokens": 507869,
+          "cached_input_tokens": 192256,
+          "output_tokens": 54984,
+          "reasoning_tokens": 0,
+          "total_tokens": 562853
+        },
+        "unknown_counts": {
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 31,
+          "total_tokens": 0
+        },
+        "input_tokens": 507869,
+        "cached_input_tokens": 192256,
+        "output_tokens": 54984,
+        "reasoning_tokens": null,
+        "total_tokens": 562853,
+        "transport_record_count": 31,
+        "transport_attempt_count": 31,
+        "transport_attempt_count_known_subtotal": 31,
+        "transport_attempt_count_unknown_records": 0,
+        "calls_with_transport_attempts": 31,
+        "calls_with_measured_usage": 31,
+        "calls_with_complete_usage": 31
+      },
+      "outcome": "budget_exhausted",
+      "infrastructure_error_type": null,
+      "transport_errors": 0,
+      "protocol_errors": 0,
+      "requested_settings": [
+        {
+          "model": "gpt-5.6-sol",
+          "effort": "max",
+          "tier": "fast"
+        },
+        {
+          "model": "deepseek-v4-flash",
+          "effort": "max",
+          "tier": null
+        }
+      ],
+      "echo_unknown_counts": {
+        "model_reported": 19,
+        "effort_reported": 31,
+        "service_tier_reported": 31
+      },
+      "model_usage": {
+        "glm-5.3": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "glm-5.3-flash": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "gpt-5.6-sol": {
+          "calls": 19,
+          "known_subtotals": {
+            "input_tokens": 402482,
+            "cached_input_tokens": 184448,
+            "output_tokens": 18098,
+            "reasoning_tokens": 0,
+            "total_tokens": 420580
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 19,
+            "total_tokens": 0
+          },
+          "input_tokens": 402482,
+          "cached_input_tokens": 184448,
+          "output_tokens": 18098,
+          "reasoning_tokens": null,
+          "total_tokens": 420580,
+          "transport_record_count": 19,
+          "transport_attempt_count": 19,
+          "transport_attempt_count_known_subtotal": 19,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 19,
+          "calls_with_measured_usage": 19,
+          "calls_with_complete_usage": 19
+        },
+        "gpt-5.6-terra": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "gpt-5.6-luna": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "deepseek-v4-flash": {
+          "calls": 12,
+          "known_subtotals": {
+            "input_tokens": 105387,
+            "cached_input_tokens": 7808,
+            "output_tokens": 36886,
+            "reasoning_tokens": 0,
+            "total_tokens": 142273
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 12,
+            "total_tokens": 0
+          },
+          "input_tokens": 105387,
+          "cached_input_tokens": 7808,
+          "output_tokens": 36886,
+          "reasoning_tokens": null,
+          "total_tokens": 142273,
+          "transport_record_count": 12,
+          "transport_attempt_count": 12,
+          "transport_attempt_count_known_subtotal": 12,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 12,
+          "calls_with_measured_usage": 12,
+          "calls_with_complete_usage": 12
+        }
+      },
+      "sum_call_wall_seconds": 477.095047,
+      "control": {
+        "rich_call_records": 19,
+        "core_token_events": 19,
+        "rich_event_hashes_checked": 44,
+        "invariant_replay_performed": false,
+        "stored_invariant_replay_claim": true
+      },
+      "grading": {
+        "completed": true,
+        "resolved": true,
+        "failure_kind": null,
+        "reports_checked": 1
+      },
+      "activation": {
+        "source": null,
+        "protocol_request_events": 0,
+        "admitted_workers": 0,
+        "activated_workers": 0,
+        "workers_with_actual_calls": 0,
+        "workers_with_call_records": 0,
+        "workers_with_measured_usage": 0,
+        "model_requested_delegation": 0,
+        "team_execution_status": "not_requested",
+        "team_execution_valid": null
+      },
+      "delivery_forensics": {
+        "cleanup_discards": [],
+        "patch_bytes": 7123,
+        "lead_edit_detected": true,
+        "lead_first_edit_ordinal": 19,
+        "cm_skipped_count": 1,
+        "cm_skipped_reasons": {
+          "edit_phase_curfew": 1
+        },
+        "lead_death_phase": "edited",
+        "worker_death_phases": {}
+      },
+      "audit_error_count": 0
+    },
+    {
+      "run_id": "pydata__xarray-7229__solo_gpt-5.6-sol",
+      "instance_id": "pydata__xarray-7229",
+      "condition": "solo",
+      "arm": "solo_gpt-5.6-sol",
+      "worker_model": null,
+      "result_sha256": "cea0b7eb9a36e980a6d5bd1b8b7c302d02a795fd1679084609941005ef6cb239",
+      "calls": 31,
+      "call_ids": [
+        "c72b0d56-e584-4628-b2e2-4a6ac68fce4a",
+        "7b12a59e-c1a0-48ce-8264-46e0e0e1cbff",
+        "cm-3f9fba00-7a6b-4481-accc-65682a2ca13c",
+        "29651259-a1ae-4184-b813-ac1a77275b24",
+        "cm-5d163500-2b4c-450a-b3f4-02e10fb893fd",
+        "445124e5-b92b-4e74-b4a7-db6559208134",
+        "cm-bb7d94fa-11de-42da-98ff-987a99943338",
+        "ab821bdc-37ed-481c-ac62-3ae457d1459a",
+        "ab59a570-f29c-49b7-9617-344c22c75ccc",
+        "b11f4603-82a9-4569-8cf2-8ca7ffdf1819",
+        "cm-c76341f8-ae3d-4962-893a-02a660c712e5",
+        "d21eb8a4-78ae-4e2e-8b3a-7e06bccf7274",
+        "fd5f60c5-0e54-4c1d-96c6-425ff9eb4d9d",
+        "cm-7748b23d-dc41-46dd-b72c-3fca281597a0",
+        "cm-6009d045-0725-48b8-8180-c6ff6575f579",
+        "cm-88a71555-fefe-492d-beb5-8e9e5e74e781",
+        "ce48ac59-03b3-4707-b0c9-d109446e917f",
+        "71a6c115-878b-4383-b9a0-a525e0f8eaa9",
+        "cm-ab8c9234-4a47-4e29-b7a6-7da55eedb679",
+        "83ec797b-4eee-4bee-94cb-432f765afd96",
+        "6d43a9a0-4a2f-4771-a763-af426b56f1cb",
+        "873c5147-e39a-4d59-9519-21a7c561bc06",
+        "3fb37c5f-094c-4c96-89d0-77e7eff147bf",
+        "cm-05b76ea6-d1b6-4d73-89fc-975c2a13e3bb",
+        "92c4ad31-0aeb-4cb6-8b60-c3f668616b72",
+        "0869484a-2d42-4a7c-928d-e91665aa3d98",
+        "cm-ba9bf63c-ad11-47bd-a38a-b01afeb00c1f",
+        "cm-83876a88-d02f-41bf-b96f-3be4cfd6171b",
+        "cm-d6f01a44-4af0-4040-863e-2876244d92a9",
+        "57325f17-1cf1-4a05-acf4-ac323ce19679",
+        "39a647e2-9fab-45da-997a-7c4d61ed985c"
+      ],
+      "usage": {
+        "calls": 31,
+        "known_subtotals": {
+          "input_tokens": 517578,
+          "cached_input_tokens": 203904,
+          "output_tokens": 50597,
+          "reasoning_tokens": 0,
+          "total_tokens": 568175
+        },
+        "unknown_counts": {
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 31,
+          "total_tokens": 0
+        },
+        "input_tokens": 517578,
+        "cached_input_tokens": 203904,
+        "output_tokens": 50597,
+        "reasoning_tokens": null,
+        "total_tokens": 568175,
+        "transport_record_count": 31,
+        "transport_attempt_count": 31,
+        "transport_attempt_count_known_subtotal": 31,
+        "transport_attempt_count_unknown_records": 0,
+        "calls_with_transport_attempts": 31,
+        "calls_with_measured_usage": 31,
+        "calls_with_complete_usage": 31
+      },
+      "outcome": "budget_exhausted",
+      "infrastructure_error_type": null,
+      "transport_errors": 0,
+      "protocol_errors": 0,
+      "requested_settings": [
+        {
+          "model": "gpt-5.6-sol",
+          "effort": "max",
+          "tier": "fast"
+        },
+        {
+          "model": "deepseek-v4-flash",
+          "effort": "max",
+          "tier": null
+        }
+      ],
+      "echo_unknown_counts": {
+        "model_reported": 19,
+        "effort_reported": 31,
+        "service_tier_reported": 31
+      },
+      "model_usage": {
+        "glm-5.3": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "glm-5.3-flash": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "gpt-5.6-sol": {
+          "calls": 19,
+          "known_subtotals": {
+            "input_tokens": 406398,
+            "cached_input_tokens": 192640,
+            "output_tokens": 17661,
+            "reasoning_tokens": 0,
+            "total_tokens": 424059
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 19,
+            "total_tokens": 0
+          },
+          "input_tokens": 406398,
+          "cached_input_tokens": 192640,
+          "output_tokens": 17661,
+          "reasoning_tokens": null,
+          "total_tokens": 424059,
+          "transport_record_count": 19,
+          "transport_attempt_count": 19,
+          "transport_attempt_count_known_subtotal": 19,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 19,
+          "calls_with_measured_usage": 19,
+          "calls_with_complete_usage": 19
+        },
+        "gpt-5.6-terra": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "gpt-5.6-luna": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "deepseek-v4-flash": {
+          "calls": 12,
+          "known_subtotals": {
+            "input_tokens": 111180,
+            "cached_input_tokens": 11264,
+            "output_tokens": 32936,
+            "reasoning_tokens": 0,
+            "total_tokens": 144116
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 12,
+            "total_tokens": 0
+          },
+          "input_tokens": 111180,
+          "cached_input_tokens": 11264,
+          "output_tokens": 32936,
+          "reasoning_tokens": null,
+          "total_tokens": 144116,
+          "transport_record_count": 12,
+          "transport_attempt_count": 12,
+          "transport_attempt_count_known_subtotal": 12,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 12,
+          "calls_with_measured_usage": 12,
+          "calls_with_complete_usage": 12
+        }
+      },
+      "sum_call_wall_seconds": 471.861879,
+      "control": {
+        "rich_call_records": 19,
+        "core_token_events": 19,
+        "rich_event_hashes_checked": 44,
+        "invariant_replay_performed": false,
+        "stored_invariant_replay_claim": true
+      },
+      "grading": {
+        "completed": true,
+        "resolved": false,
+        "failure_kind": null,
+        "reports_checked": 1
+      },
+      "activation": {
+        "source": null,
+        "protocol_request_events": 0,
+        "admitted_workers": 0,
+        "activated_workers": 0,
+        "workers_with_actual_calls": 0,
+        "workers_with_call_records": 0,
+        "workers_with_measured_usage": 0,
+        "model_requested_delegation": 0,
+        "team_execution_status": "not_requested",
+        "team_execution_valid": null
+      },
+      "delivery_forensics": {
+        "cleanup_discards": [],
+        "patch_bytes": 0,
+        "lead_edit_detected": false,
+        "lead_first_edit_ordinal": null,
+        "cm_skipped_count": 0,
+        "cm_skipped_reasons": {},
+        "lead_death_phase": "no_edit",
+        "worker_death_phases": {}
+      },
+      "audit_error_count": 0
+    },
+    {
+      "run_id": "pydata__xarray-7229__solo_gpt-5.6-sol.rep2",
+      "instance_id": "pydata__xarray-7229",
+      "condition": "solo",
+      "arm": "solo_gpt-5.6-sol",
+      "worker_model": null,
+      "result_sha256": "977e668c2f6502ed8b3e1cb16989a85d59ea2c6377e07ed3461e6eb68ce7b234",
+      "calls": 30,
+      "call_ids": [
+        "cm-3adb09f9-90fe-4fed-920c-6c2d160970f2",
+        "cm-584cb0f6-3922-4f4d-9da5-d445407ae7ea",
+        "cm-fd9eff83-06a2-4522-81e9-734043579199",
+        "86f6c348-1a40-47c9-b996-bc0e2d178ffe",
+        "cm-2f2b03f9-bc6a-4b90-bee9-a0eab90b8992",
+        "cm-c803732f-67b2-49f9-8171-b39ec054e1b8",
+        "f1f46411-7b83-4515-87a0-0adf66675e66",
+        "d2d3bc6a-9321-488e-b8ae-5c652eeb8133",
+        "f7ee5394-0c16-4976-9196-cf47c527fee3",
+        "1409e73f-a026-4d7f-9b17-dfe080d2cda4",
+        "c823ba69-47d4-434f-b9d4-9c70eb4bb6bf",
+        "cm-a6d2dbf4-fbec-4f86-95f5-c9dec7412ae5",
+        "b4ce1ff4-3a9d-4105-ba7b-348c6f6dc7a2",
+        "fbd8485e-5efe-4bfe-a460-4185b6d78eba",
+        "c28b551d-ec58-43f1-88d9-beeb51e2015d",
+        "cm-2c3134b1-5690-4f93-a6d6-7bd8168387ba",
+        "6f354203-4ff1-4eb0-9b62-86e30d57e692",
+        "2ddd5d4d-8ddf-4d31-b7cd-a66e3ba1d7b5",
+        "9270c818-b966-4b0f-b206-a516fe47b9a7",
+        "cm-79ae9ee0-1232-4adf-b357-73ee6e473edc",
+        "14b53f5c-fe9b-49b2-b80d-b286f85e3da3",
+        "cm-c4f4884b-86cc-483a-9d46-40354b96ab8d",
+        "1582aa74-5f8a-4654-91f8-251715543c3c",
+        "4519eb54-8a41-4859-9f39-90f124fe09a5",
+        "cm-c271db60-de97-4e12-9437-9661540a7258",
+        "cm-c2d7cf0e-eaef-4a4b-b3f8-599500aa8b6d",
+        "4af76b99-9b16-4102-901f-d888649e2677",
+        "cm-70d13ce3-b2de-439b-9805-bea4294485cb",
+        "85c2b971-99ac-4620-a1c2-a41f68d199dc",
+        "4125afec-56ff-4f99-82db-98e96bf8aa81"
+      ],
+      "usage": {
+        "calls": 30,
+        "known_subtotals": {
+          "input_tokens": 510034,
+          "cached_input_tokens": 198016,
+          "output_tokens": 49862,
+          "reasoning_tokens": 0,
+          "total_tokens": 559896
+        },
+        "unknown_counts": {
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 30,
+          "total_tokens": 0
+        },
+        "input_tokens": 510034,
+        "cached_input_tokens": 198016,
+        "output_tokens": 49862,
+        "reasoning_tokens": null,
+        "total_tokens": 559896,
+        "transport_record_count": 30,
+        "transport_attempt_count": 30,
+        "transport_attempt_count_known_subtotal": 30,
+        "transport_attempt_count_unknown_records": 0,
+        "calls_with_transport_attempts": 30,
+        "calls_with_measured_usage": 30,
+        "calls_with_complete_usage": 30
+      },
+      "outcome": "budget_exhausted",
+      "infrastructure_error_type": null,
+      "transport_errors": 0,
+      "protocol_errors": 0,
+      "requested_settings": [
+        {
+          "model": "gpt-5.6-sol",
+          "effort": "max",
+          "tier": "fast"
+        },
+        {
+          "model": "deepseek-v4-flash",
+          "effort": "max",
+          "tier": null
+        }
+      ],
+      "echo_unknown_counts": {
+        "model_reported": 18,
+        "effort_reported": 30,
+        "service_tier_reported": 30
+      },
+      "model_usage": {
+        "glm-5.3": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "glm-5.3-flash": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "gpt-5.6-sol": {
+          "calls": 18,
+          "known_subtotals": {
+            "input_tokens": 398828,
+            "cached_input_tokens": 187008,
+            "output_tokens": 18564,
+            "reasoning_tokens": 0,
+            "total_tokens": 417392
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 18,
+            "total_tokens": 0
+          },
+          "input_tokens": 398828,
+          "cached_input_tokens": 187008,
+          "output_tokens": 18564,
+          "reasoning_tokens": null,
+          "total_tokens": 417392,
+          "transport_record_count": 18,
+          "transport_attempt_count": 18,
+          "transport_attempt_count_known_subtotal": 18,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 18,
+          "calls_with_measured_usage": 18,
+          "calls_with_complete_usage": 18
+        },
+        "gpt-5.6-terra": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "gpt-5.6-luna": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "deepseek-v4-flash": {
+          "calls": 12,
+          "known_subtotals": {
+            "input_tokens": 111206,
+            "cached_input_tokens": 11008,
+            "output_tokens": 31298,
+            "reasoning_tokens": 0,
+            "total_tokens": 142504
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 12,
+            "total_tokens": 0
+          },
+          "input_tokens": 111206,
+          "cached_input_tokens": 11008,
+          "output_tokens": 31298,
+          "reasoning_tokens": null,
+          "total_tokens": 142504,
+          "transport_record_count": 12,
+          "transport_attempt_count": 12,
+          "transport_attempt_count_known_subtotal": 12,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 12,
+          "calls_with_measured_usage": 12,
+          "calls_with_complete_usage": 12
+        }
+      },
+      "sum_call_wall_seconds": 476.96856,
+      "control": {
+        "rich_call_records": 18,
+        "core_token_events": 18,
+        "rich_event_hashes_checked": 42,
+        "invariant_replay_performed": false,
+        "stored_invariant_replay_claim": true
+      },
+      "grading": {
+        "completed": true,
+        "resolved": false,
+        "failure_kind": null,
+        "reports_checked": 1
+      },
+      "activation": {
+        "source": null,
+        "protocol_request_events": 0,
+        "admitted_workers": 0,
+        "activated_workers": 0,
+        "workers_with_actual_calls": 0,
+        "workers_with_call_records": 0,
+        "workers_with_measured_usage": 0,
+        "model_requested_delegation": 0,
+        "team_execution_status": "not_requested",
+        "team_execution_valid": null
+      },
+      "delivery_forensics": {
+        "cleanup_discards": [],
+        "patch_bytes": 0,
+        "lead_edit_detected": false,
+        "lead_first_edit_ordinal": null,
+        "cm_skipped_count": 0,
+        "cm_skipped_reasons": {},
+        "lead_death_phase": "no_edit",
+        "worker_death_phases": {}
+      },
+      "audit_error_count": 0
+    },
+    {
+      "run_id": "mwaskom__seaborn-3069__solo_gpt-5.6-sol",
+      "instance_id": "mwaskom__seaborn-3069",
+      "condition": "solo",
+      "arm": "solo_gpt-5.6-sol",
+      "worker_model": null,
+      "result_sha256": "235898a426750e9e7663f8d0a1fb8c8d3fff3ddaddeb8bb5bf2b2acb62d68360",
+      "calls": 29,
+      "call_ids": [
+        "cm-559e3d22-8b0a-40c3-af40-0e12238ffa7c",
+        "163ba409-f51f-4a72-b918-cbeae9fa6551",
+        "cm-167d350e-920e-457a-ae8b-29ac212dde87",
+        "1bdfb58d-3914-417c-9bb5-ea549dbf9339",
+        "cm-f7e8c82f-99a4-4ad9-b9ab-d23268c39a27",
+        "a2c3a113-1bbe-4201-884a-f5ac142c1bad",
+        "cm-23a75be5-0c9b-4cab-be57-578ff441b281",
+        "cda1d0a7-2809-43ba-aea5-bd7ec4470f6b",
+        "9248d331-b74d-4741-ac0d-bf10c2923f85",
+        "cm-fdcf1abd-79d8-43bb-8a90-2688dc860b48",
+        "cm-c5cba557-1806-4ac2-b32e-0de51f6cfd44",
+        "cm-33c9b732-1427-4b99-a8ba-818194df261a",
+        "08b7d402-43e7-455d-ba45-9bf5d16f018c",
+        "4fa63fc5-22fb-42fa-864f-d92c5fa5337e",
+        "cm-65a57b75-bbdc-40d6-86ca-cee14a64e51d",
+        "cm-1b89fca3-3119-4e0f-a97c-96a8a0292ef8",
+        "5749cb42-0cb7-4777-a196-fbf12da2fe83",
+        "9c331a0a-477f-40c1-b853-89539846e1e3",
+        "18463d36-c1b5-49c6-bf73-1e81e0f2f5fc",
+        "cm-8dc03642-fa85-41ba-9a2d-95fca20f5988",
+        "3cf6815d-7df4-4532-b8a0-1cb03e39483b",
+        "5b8feb22-77c1-41ff-89d1-6994f594c7ab",
+        "14e28677-2c1b-4339-b52d-5eb6765d1b89",
+        "6993ffa0-b9b3-4a3a-bd9c-38641fe8f238",
+        "c2464a2a-9ea6-4fb1-adbd-e0568d0a0b61",
+        "7450c33b-9b9c-4171-a506-3d5627245494",
+        "cm-c4437538-a996-4528-8985-f1b3fc5f1f11",
+        "a32121a5-f113-415d-8e05-a4e7a8e62c84",
+        "cm-3ed53e5e-b1f8-4784-9d95-088b87b55123"
+      ],
+      "usage": {
+        "calls": 29,
+        "known_subtotals": {
+          "input_tokens": 510186,
+          "cached_input_tokens": 190848,
+          "output_tokens": 52043,
+          "reasoning_tokens": 0,
+          "total_tokens": 562229
+        },
+        "unknown_counts": {
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 29,
+          "total_tokens": 0
+        },
+        "input_tokens": 510186,
+        "cached_input_tokens": 190848,
+        "output_tokens": 52043,
+        "reasoning_tokens": null,
+        "total_tokens": 562229,
+        "transport_record_count": 29,
+        "transport_attempt_count": 29,
+        "transport_attempt_count_known_subtotal": 29,
+        "transport_attempt_count_unknown_records": 0,
+        "calls_with_transport_attempts": 29,
+        "calls_with_measured_usage": 29,
+        "calls_with_complete_usage": 29
+      },
+      "outcome": "budget_exhausted",
+      "infrastructure_error_type": null,
+      "transport_errors": 0,
+      "protocol_errors": 0,
+      "requested_settings": [
+        {
+          "model": "gpt-5.6-sol",
+          "effort": "max",
+          "tier": "fast"
+        },
+        {
+          "model": "deepseek-v4-flash",
+          "effort": "max",
+          "tier": null
+        }
+      ],
+      "echo_unknown_counts": {
+        "model_reported": 17,
+        "effort_reported": 29,
+        "service_tier_reported": 29
+      },
+      "model_usage": {
+        "glm-5.3": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "glm-5.3-flash": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "gpt-5.6-sol": {
+          "calls": 17,
+          "known_subtotals": {
+            "input_tokens": 391970,
+            "cached_input_tokens": 181376,
+            "output_tokens": 9625,
+            "reasoning_tokens": 0,
+            "total_tokens": 401595
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 17,
+            "total_tokens": 0
+          },
+          "input_tokens": 391970,
+          "cached_input_tokens": 181376,
+          "output_tokens": 9625,
+          "reasoning_tokens": null,
+          "total_tokens": 401595,
+          "transport_record_count": 17,
+          "transport_attempt_count": 17,
+          "transport_attempt_count_known_subtotal": 17,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 17,
+          "calls_with_measured_usage": 17,
+          "calls_with_complete_usage": 17
+        },
+        "gpt-5.6-terra": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "gpt-5.6-luna": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "deepseek-v4-flash": {
+          "calls": 12,
+          "known_subtotals": {
+            "input_tokens": 118216,
+            "cached_input_tokens": 9472,
+            "output_tokens": 42418,
+            "reasoning_tokens": 0,
+            "total_tokens": 160634
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 12,
+            "total_tokens": 0
+          },
+          "input_tokens": 118216,
+          "cached_input_tokens": 9472,
+          "output_tokens": 42418,
+          "reasoning_tokens": null,
+          "total_tokens": 160634,
+          "transport_record_count": 12,
+          "transport_attempt_count": 12,
+          "transport_attempt_count_known_subtotal": 12,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 12,
+          "calls_with_measured_usage": 12,
+          "calls_with_complete_usage": 12
+        }
+      },
+      "sum_call_wall_seconds": 390.851485,
+      "control": {
+        "rich_call_records": 17,
+        "core_token_events": 17,
+        "rich_event_hashes_checked": 40,
+        "invariant_replay_performed": false,
+        "stored_invariant_replay_claim": true
+      },
+      "grading": {
+        "completed": true,
+        "resolved": false,
+        "failure_kind": null,
+        "reports_checked": 1
+      },
+      "activation": {
+        "source": null,
+        "protocol_request_events": 0,
+        "admitted_workers": 0,
+        "activated_workers": 0,
+        "workers_with_actual_calls": 0,
+        "workers_with_call_records": 0,
+        "workers_with_measured_usage": 0,
+        "model_requested_delegation": 0,
+        "team_execution_status": "not_requested",
+        "team_execution_valid": null
+      },
+      "delivery_forensics": {
+        "cleanup_discards": [],
+        "patch_bytes": 0,
+        "lead_edit_detected": false,
+        "lead_first_edit_ordinal": null,
+        "cm_skipped_count": 0,
+        "cm_skipped_reasons": {},
+        "lead_death_phase": "no_edit",
+        "worker_death_phases": {}
+      },
+      "audit_error_count": 0
+    },
+    {
+      "run_id": "mwaskom__seaborn-3069__solo_gpt-5.6-sol.rep2",
+      "instance_id": "mwaskom__seaborn-3069",
+      "condition": "solo",
+      "arm": "solo_gpt-5.6-sol",
+      "worker_model": null,
+      "result_sha256": "e7de5cb8cd7b10aaa0ef68e0d85dd31baf1b12eb432851c12336148c1daca029",
+      "calls": 30,
+      "call_ids": [
+        "cm-4dc83642-4e3b-434e-9f1f-6b7b8f5374fa",
+        "cm-6b0a274b-6c6d-49d3-ba99-efe5f2266f55",
+        "cm-216b270d-1a59-4db2-96ee-27864aef575a",
+        "cm-5e19ce40-cf5c-4a32-abc6-7a63c6d85dae",
+        "69fcf0b2-12c0-463a-8048-327c06c89a07",
+        "81e55452-b6b3-45ec-b5fb-62acca69ce95",
+        "cm-4b9aad8c-4c04-4cc4-b8dd-ee250834100b",
+        "8fdd4e52-cf59-4b09-949f-93986a792f85",
+        "867985e3-17ee-44bc-b0cc-b4c7517e5709",
+        "f11c24e6-83db-4e66-bcf0-a61579649280",
+        "cm-c2101cb8-06ba-4748-ba99-4fae7391781d",
+        "cm-608743c8-4b42-4467-ada2-30c3f8eef7ea",
+        "170781ba-67d9-4f99-8d8c-40fed759cd8c",
+        "60716be8-dce6-487d-93b5-ad8c614fd504",
+        "da7cba0a-dbbc-4af2-ae9a-b34d78dd4fa8",
+        "cm-bb62c828-a419-4cf8-9f27-356c06f08e20",
+        "553cb0b6-481d-426d-a8f1-24d87fc18a7a",
+        "cm-8089088c-ae7b-40b7-a0b9-1adfb6f59811",
+        "4ae3744e-7c8e-413f-af10-a96c534ad365",
+        "cm-380fa7e9-69de-4023-8475-2471d9f83339",
+        "cm-af28080d-9154-4c9c-9b8c-d408201a4887",
+        "cm-88536699-6908-4906-82ef-7a7b0640ccd6",
+        "6ecc14a0-d4c7-45a6-adc8-cf3042460f04",
+        "156ca658-6747-4751-ad0b-36175cb2808d",
+        "47eb101b-97dc-4135-9acc-9f6dcbe920e6",
+        "f1e2b956-c9cc-4085-9bef-3a61815f04f9",
+        "58d8db80-d55d-4b99-8c5e-73438194944f",
+        "5c0f90aa-028b-4502-8bd2-da68741c4a27",
+        "924923e5-e4f3-4cd9-a69f-c5c58f983fd9",
+        "717a4ff1-b99e-4c6d-a591-53f348695e9c"
+      ],
+      "usage": {
+        "calls": 30,
+        "known_subtotals": {
+          "input_tokens": 503553,
+          "cached_input_tokens": 183040,
+          "output_tokens": 50419,
+          "reasoning_tokens": 0,
+          "total_tokens": 553972
+        },
+        "unknown_counts": {
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 30,
+          "total_tokens": 0
+        },
+        "input_tokens": 503553,
+        "cached_input_tokens": 183040,
+        "output_tokens": 50419,
+        "reasoning_tokens": null,
+        "total_tokens": 553972,
+        "transport_record_count": 30,
+        "transport_attempt_count": 30,
+        "transport_attempt_count_known_subtotal": 30,
+        "transport_attempt_count_unknown_records": 0,
+        "calls_with_transport_attempts": 30,
+        "calls_with_measured_usage": 30,
+        "calls_with_complete_usage": 30
+      },
+      "outcome": "budget_exhausted",
+      "infrastructure_error_type": null,
+      "transport_errors": 0,
+      "protocol_errors": 0,
+      "requested_settings": [
+        {
+          "model": "gpt-5.6-sol",
+          "effort": "max",
+          "tier": "fast"
+        },
+        {
+          "model": "deepseek-v4-flash",
+          "effort": "max",
+          "tier": null
+        }
+      ],
+      "echo_unknown_counts": {
+        "model_reported": 18,
+        "effort_reported": 30,
+        "service_tier_reported": 30
+      },
+      "model_usage": {
+        "glm-5.3": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "glm-5.3-flash": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "gpt-5.6-sol": {
+          "calls": 18,
+          "known_subtotals": {
+            "input_tokens": 388156,
+            "cached_input_tokens": 176256,
+            "output_tokens": 9182,
+            "reasoning_tokens": 0,
+            "total_tokens": 397338
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 18,
+            "total_tokens": 0
+          },
+          "input_tokens": 388156,
+          "cached_input_tokens": 176256,
+          "output_tokens": 9182,
+          "reasoning_tokens": null,
+          "total_tokens": 397338,
+          "transport_record_count": 18,
+          "transport_attempt_count": 18,
+          "transport_attempt_count_known_subtotal": 18,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 18,
+          "calls_with_measured_usage": 18,
+          "calls_with_complete_usage": 18
+        },
+        "gpt-5.6-terra": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "gpt-5.6-luna": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "deepseek-v4-flash": {
+          "calls": 12,
+          "known_subtotals": {
+            "input_tokens": 115397,
+            "cached_input_tokens": 6784,
+            "output_tokens": 41237,
+            "reasoning_tokens": 0,
+            "total_tokens": 156634
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 12,
+            "total_tokens": 0
+          },
+          "input_tokens": 115397,
+          "cached_input_tokens": 6784,
+          "output_tokens": 41237,
+          "reasoning_tokens": null,
+          "total_tokens": 156634,
+          "transport_record_count": 12,
+          "transport_attempt_count": 12,
+          "transport_attempt_count_known_subtotal": 12,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 12,
+          "calls_with_measured_usage": 12,
+          "calls_with_complete_usage": 12
+        }
+      },
+      "sum_call_wall_seconds": 389.712239,
+      "control": {
+        "rich_call_records": 18,
+        "core_token_events": 18,
+        "rich_event_hashes_checked": 42,
+        "invariant_replay_performed": false,
+        "stored_invariant_replay_claim": true
+      },
+      "grading": {
+        "completed": true,
+        "resolved": false,
+        "failure_kind": null,
+        "reports_checked": 1
+      },
+      "activation": {
+        "source": null,
+        "protocol_request_events": 0,
+        "admitted_workers": 0,
+        "activated_workers": 0,
+        "workers_with_actual_calls": 0,
+        "workers_with_call_records": 0,
+        "workers_with_measured_usage": 0,
+        "model_requested_delegation": 0,
+        "team_execution_status": "not_requested",
+        "team_execution_valid": null
+      },
+      "delivery_forensics": {
+        "cleanup_discards": [],
+        "patch_bytes": 0,
+        "lead_edit_detected": false,
+        "lead_first_edit_ordinal": null,
+        "cm_skipped_count": 0,
+        "cm_skipped_reasons": {},
+        "lead_death_phase": "no_edit",
+        "worker_death_phases": {}
+      },
+      "audit_error_count": 0
+    },
+    {
+      "run_id": "scikit-learn__scikit-learn-25232__solo_gpt-5.6-sol",
+      "instance_id": "scikit-learn__scikit-learn-25232",
+      "condition": "solo",
+      "arm": "solo_gpt-5.6-sol",
+      "worker_model": null,
+      "result_sha256": "f6becb069053dc37048e0c0c5568def0e60151d8b1c17bbc632634b42ed8d016",
+      "calls": 30,
+      "call_ids": [
+        "30f75dd9-0d66-4884-a68b-1a903c3392be",
+        "df08d451-8fca-4f0d-b4d6-9eceda012b02",
+        "cm-4aa22182-9047-4a85-bb52-8047d4b097e6",
+        "75c0e3ac-45da-4c76-a74e-759274a026d8",
+        "e7ff6e0d-3b49-4be6-99be-6c235fae8005",
+        "cm-bd42d0a2-27c9-4455-9438-16e91c5b627d",
+        "cm-91e5a379-82ac-4c1b-b7a3-7f20ecaeb6bb",
+        "4ace85ad-be6d-4db1-a532-69d08c08412f",
+        "9de04719-940e-487a-87e9-199e3d388fb1",
+        "cm-8cd1888d-51a6-41a7-b1dd-777d9bd92510",
+        "cm-0226165e-c6f5-4dea-a687-86bf522ca3f5",
+        "b60ba7ad-d9c9-4b5d-a814-9f7d98f78ddc",
+        "cm-beafed8f-eac3-4185-b252-2f1b89af004c",
+        "76cc1958-aa60-4e20-b0a9-7fd26684b179",
+        "418a2105-fff8-43ad-8c08-a9fb17005b88",
+        "6bc1805b-2546-47dc-a8fa-22ad92d5c0ce",
+        "0fb2df60-e22a-4590-bd7b-f999e0dfda40",
+        "7f15f905-1dab-4bd0-9d90-ad0fc170c707",
+        "baf2ded0-7998-4810-9cc9-e50b66253615",
+        "d18f7aea-52ad-47a0-8599-3156106c3eed",
+        "bbf8068e-1ec2-4f07-8728-9c02771ee3c9",
+        "104e0e2e-e59d-4a3c-95eb-fcf23aaf6841",
+        "c2a47b02-6448-462b-9554-e77094493084",
+        "cm-1992934e-9e9a-48ff-bc4e-6accddf36405",
+        "cm-21eea534-1b4a-44d2-8edc-72492734a838",
+        "cm-49e5971f-4f9b-469f-90cf-49789120496c",
+        "cm-f24a63ab-df90-4ac6-b4a0-b70ff5e05ec0",
+        "cm-3a2afe9c-5975-4fa3-9133-4c315e2c8fcc",
+        "b4c57cc7-1830-43c5-8a88-1e0afdc9d143",
+        "cm-70d82b18-4e4a-406f-aaac-18e59820b077"
+      ],
+      "usage": {
+        "calls": 30,
+        "known_subtotals": {
+          "input_tokens": 508653,
+          "cached_input_tokens": 180736,
+          "output_tokens": 51629,
+          "reasoning_tokens": 0,
+          "total_tokens": 560282
+        },
+        "unknown_counts": {
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 30,
+          "total_tokens": 0
+        },
+        "input_tokens": 508653,
+        "cached_input_tokens": 180736,
+        "output_tokens": 51629,
+        "reasoning_tokens": null,
+        "total_tokens": 560282,
+        "transport_record_count": 30,
+        "transport_attempt_count": 30,
+        "transport_attempt_count_known_subtotal": 30,
+        "transport_attempt_count_unknown_records": 0,
+        "calls_with_transport_attempts": 30,
+        "calls_with_measured_usage": 30,
+        "calls_with_complete_usage": 30
+      },
+      "outcome": "budget_exhausted",
+      "infrastructure_error_type": null,
+      "transport_errors": 0,
+      "protocol_errors": 0,
+      "requested_settings": [
+        {
+          "model": "gpt-5.6-sol",
+          "effort": "max",
+          "tier": "fast"
+        },
+        {
+          "model": "deepseek-v4-flash",
+          "effort": "max",
+          "tier": null
+        }
+      ],
+      "echo_unknown_counts": {
+        "model_reported": 18,
+        "effort_reported": 30,
+        "service_tier_reported": 30
+      },
+      "model_usage": {
+        "glm-5.3": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "glm-5.3-flash": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "gpt-5.6-sol": {
+          "calls": 18,
+          "known_subtotals": {
+            "input_tokens": 398700,
+            "cached_input_tokens": 174080,
+            "output_tokens": 15570,
+            "reasoning_tokens": 0,
+            "total_tokens": 414270
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 18,
+            "total_tokens": 0
+          },
+          "input_tokens": 398700,
+          "cached_input_tokens": 174080,
+          "output_tokens": 15570,
+          "reasoning_tokens": null,
+          "total_tokens": 414270,
+          "transport_record_count": 18,
+          "transport_attempt_count": 18,
+          "transport_attempt_count_known_subtotal": 18,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 18,
+          "calls_with_measured_usage": 18,
+          "calls_with_complete_usage": 18
+        },
+        "gpt-5.6-terra": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "gpt-5.6-luna": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "deepseek-v4-flash": {
+          "calls": 12,
+          "known_subtotals": {
+            "input_tokens": 109953,
+            "cached_input_tokens": 6656,
+            "output_tokens": 36059,
+            "reasoning_tokens": 0,
+            "total_tokens": 146012
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 12,
+            "total_tokens": 0
+          },
+          "input_tokens": 109953,
+          "cached_input_tokens": 6656,
+          "output_tokens": 36059,
+          "reasoning_tokens": null,
+          "total_tokens": 146012,
+          "transport_record_count": 12,
+          "transport_attempt_count": 12,
+          "transport_attempt_count_known_subtotal": 12,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 12,
+          "calls_with_measured_usage": 12,
+          "calls_with_complete_usage": 12
+        }
+      },
+      "sum_call_wall_seconds": 452.93258099999997,
+      "control": {
+        "rich_call_records": 18,
+        "core_token_events": 18,
+        "rich_event_hashes_checked": 42,
+        "invariant_replay_performed": false,
+        "stored_invariant_replay_claim": true
+      },
+      "grading": {
+        "completed": true,
+        "resolved": true,
+        "failure_kind": null,
+        "reports_checked": 1
+      },
+      "activation": {
+        "source": null,
+        "protocol_request_events": 0,
+        "admitted_workers": 0,
+        "activated_workers": 0,
+        "workers_with_actual_calls": 0,
+        "workers_with_call_records": 0,
+        "workers_with_measured_usage": 0,
+        "model_requested_delegation": 0,
+        "team_execution_status": "not_requested",
+        "team_execution_valid": null
+      },
+      "delivery_forensics": {
+        "cleanup_discards": [],
+        "patch_bytes": 4003,
+        "lead_edit_detected": true,
+        "lead_first_edit_ordinal": 17,
+        "cm_skipped_count": 2,
+        "cm_skipped_reasons": {
+          "edit_phase_curfew": 2
+        },
+        "lead_death_phase": "edited",
+        "worker_death_phases": {}
+      },
+      "audit_error_count": 0
+    },
+    {
+      "run_id": "sympy__sympy-16792__solo_gpt-5.6-sol",
+      "instance_id": "sympy__sympy-16792",
+      "condition": "solo",
+      "arm": "solo_gpt-5.6-sol",
+      "worker_model": null,
+      "result_sha256": "880a2920f816c9cd4221ea3fc7109d514a983b3df5f60b1e06caa65e79d62cc2",
+      "calls": 31,
+      "call_ids": [
+        "dd1389f9-fec4-4770-b64f-e1426b25334a",
+        "57198932-23ba-4fb7-b83e-6e8bf9a13d43",
+        "9d21d8e0-54ef-41a0-beca-4d0f6256a585",
+        "ab15de3d-6c9a-4e34-9c84-8368d7eca4de",
+        "ddd1434a-62c1-4b24-9804-74bf004c644f",
+        "e92c771a-4cd2-411b-9fdf-86235333624a",
+        "a8e42aca-7579-47c6-a2a2-51d879c71567",
+        "a4d1f92c-c623-4e96-90a6-d1dab5836cef",
+        "cm-e19cd59f-2786-41db-aab2-fe8676812c83",
+        "708da1f2-cad9-4a98-b26e-d7b5e1386ed0",
+        "f10c9c94-68e6-441d-b7a8-5bd1be0d3b19",
+        "ddc519a4-759c-4088-8ab7-30fee1cedc2f",
+        "ab26e53b-7cec-4b0b-8dca-9ccfdc91a40a",
+        "55d094c6-f6ad-44b6-8910-943a9c389324",
+        "cm-bb5e328b-2855-4387-97d5-3136ccba217d",
+        "cm-8ee166df-138e-41c9-8d4d-96936b5e8abe",
+        "79f87198-92b0-40e4-b6a4-56717566c5ab",
+        "cm-1fb8355a-2da3-45bd-8177-5c7a3743ada6",
+        "3823a8e1-b95d-4b4a-bcb0-9ccf7712318a",
+        "cm-7dbdad06-067a-4889-918c-dcdd52356e41",
+        "cm-7ed404a6-15cd-4be5-a884-9000ad330cef",
+        "3bb7a4b9-be14-479f-b516-6840b9af6e86",
+        "cm-a96e6bdf-bb7a-48ef-ade8-e97cac7a33dc",
+        "2fb67b1a-0ee5-46cb-b91c-20a3a785a23f",
+        "cm-2aaa9f56-4b54-4866-a116-0433c2b1debb",
+        "cm-7ab2c5a0-de8d-4be4-99f6-a7be029030c4",
+        "cm-858a3c4e-6e31-4d91-bd20-48ffc8a3a635",
+        "7e06ee5d-b5f0-4d9d-9923-86d57448bc9b",
+        "9dad7b45-b7b7-4966-beeb-ddd601f4eb38",
+        "cm-bfd35619-fb0d-41f9-800b-2eb497cdf9c7",
+        "cm-b3f44122-b2c9-4a79-bda4-0a0257e049c1"
+      ],
+      "usage": {
+        "calls": 31,
+        "known_subtotals": {
+          "input_tokens": 529675,
+          "cached_input_tokens": 181376,
+          "output_tokens": 45512,
+          "reasoning_tokens": 0,
+          "total_tokens": 575187
+        },
+        "unknown_counts": {
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 31,
+          "total_tokens": 0
+        },
+        "input_tokens": 529675,
+        "cached_input_tokens": 181376,
+        "output_tokens": 45512,
+        "reasoning_tokens": null,
+        "total_tokens": 575187,
+        "transport_record_count": 31,
+        "transport_attempt_count": 31,
+        "transport_attempt_count_known_subtotal": 31,
+        "transport_attempt_count_unknown_records": 0,
+        "calls_with_transport_attempts": 31,
+        "calls_with_measured_usage": 31,
+        "calls_with_complete_usage": 31
+      },
+      "outcome": "budget_exhausted",
+      "infrastructure_error_type": null,
+      "transport_errors": 0,
+      "protocol_errors": 0,
+      "requested_settings": [
+        {
+          "model": "gpt-5.6-sol",
+          "effort": "max",
+          "tier": "fast"
+        },
+        {
+          "model": "deepseek-v4-flash",
+          "effort": "max",
+          "tier": null
+        }
+      ],
+      "echo_unknown_counts": {
+        "model_reported": 19,
+        "effort_reported": 31,
+        "service_tier_reported": 31
+      },
+      "model_usage": {
+        "glm-5.3": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "glm-5.3-flash": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "gpt-5.6-sol": {
+          "calls": 19,
+          "known_subtotals": {
+            "input_tokens": 423100,
+            "cached_input_tokens": 171904,
+            "output_tokens": 11286,
+            "reasoning_tokens": 0,
+            "total_tokens": 434386
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 19,
+            "total_tokens": 0
+          },
+          "input_tokens": 423100,
+          "cached_input_tokens": 171904,
+          "output_tokens": 11286,
+          "reasoning_tokens": null,
+          "total_tokens": 434386,
+          "transport_record_count": 19,
+          "transport_attempt_count": 19,
+          "transport_attempt_count_known_subtotal": 19,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 19,
+          "calls_with_measured_usage": 19,
+          "calls_with_complete_usage": 19
+        },
+        "gpt-5.6-terra": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "gpt-5.6-luna": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "deepseek-v4-flash": {
+          "calls": 12,
+          "known_subtotals": {
+            "input_tokens": 106575,
+            "cached_input_tokens": 9472,
+            "output_tokens": 34226,
+            "reasoning_tokens": 0,
+            "total_tokens": 140801
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 12,
+            "total_tokens": 0
+          },
+          "input_tokens": 106575,
+          "cached_input_tokens": 9472,
+          "output_tokens": 34226,
+          "reasoning_tokens": null,
+          "total_tokens": 140801,
+          "transport_record_count": 12,
+          "transport_attempt_count": 12,
+          "transport_attempt_count_known_subtotal": 12,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 12,
+          "calls_with_measured_usage": 12,
+          "calls_with_complete_usage": 12
+        }
+      },
+      "sum_call_wall_seconds": 422.53493,
+      "control": {
+        "rich_call_records": 19,
+        "core_token_events": 19,
+        "rich_event_hashes_checked": 44,
+        "invariant_replay_performed": false,
+        "stored_invariant_replay_claim": true
+      },
+      "grading": {
+        "completed": true,
+        "resolved": true,
+        "failure_kind": null,
+        "reports_checked": 1
+      },
+      "activation": {
+        "source": null,
+        "protocol_request_events": 0,
+        "admitted_workers": 0,
+        "activated_workers": 0,
+        "workers_with_actual_calls": 0,
+        "workers_with_call_records": 0,
+        "workers_with_measured_usage": 0,
+        "model_requested_delegation": 0,
+        "team_execution_status": "not_requested",
+        "team_execution_valid": null
+      },
+      "delivery_forensics": {
+        "cleanup_discards": [],
+        "patch_bytes": 1981,
+        "lead_edit_detected": true,
+        "lead_first_edit_ordinal": 19,
+        "cm_skipped_count": 1,
+        "cm_skipped_reasons": {
+          "edit_phase_curfew": 1
+        },
+        "lead_death_phase": "edited",
+        "worker_death_phases": {}
+      },
+      "audit_error_count": 0
+    },
+    {
+      "run_id": "astropy__astropy-14995__solo_gpt-5.6-sol",
+      "instance_id": "astropy__astropy-14995",
+      "condition": "solo",
+      "arm": "solo_gpt-5.6-sol",
+      "worker_model": null,
+      "result_sha256": "5d3dae04ad2f3a5712075e2683ecf659dae7e7ad9b504fb9dbe9d4e543d1b427",
+      "calls": 15,
+      "call_ids": [
+        "cm-8220c144-1f6a-48ce-992e-a97b8cc3dacb",
+        "23158f79-125a-4dc4-ba62-d26522c87405",
+        "9a264672-9944-4dd2-8cf9-df57d69e63aa",
+        "a72f5ba0-bcf4-4ef8-af83-dd50a4014f9b",
+        "3a3fb988-8a31-40cb-b3ad-edc18d85f38a",
+        "f9a09054-ac5f-4783-a6cc-205fd0f99fa1",
+        "75693174-4694-4872-8077-5286596611d5",
+        "0bb2e3a7-a667-43fa-8096-cc2ff4be6abd",
+        "401c0b11-5ec8-4e73-9b48-12cab872adc7",
+        "08a157e1-471a-472c-bc0d-d23fc15bdd65",
+        "0eaa8abc-d8eb-4067-b31e-843cc4bd655e",
+        "af49a6ed-1a1e-4c81-8338-1961779a9819",
+        "6d44b3f5-e48f-4143-a981-bd706ce49f85",
+        "cm-272da53f-cac7-417a-9860-2de75f6e3216",
+        "d9bf2635-6576-4b72-9089-6b40b3cdcd72"
+      ],
+      "usage": {
+        "calls": 15,
+        "known_subtotals": {
+          "input_tokens": 295780,
+          "cached_input_tokens": 131456,
+          "output_tokens": 8334,
+          "reasoning_tokens": 0,
+          "total_tokens": 304114
+        },
+        "unknown_counts": {
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 15,
+          "total_tokens": 0
+        },
+        "input_tokens": 295780,
+        "cached_input_tokens": 131456,
+        "output_tokens": 8334,
+        "reasoning_tokens": null,
+        "total_tokens": 304114,
+        "transport_record_count": 15,
+        "transport_attempt_count": 15,
+        "transport_attempt_count_known_subtotal": 15,
+        "transport_attempt_count_unknown_records": 0,
+        "calls_with_transport_attempts": 15,
+        "calls_with_measured_usage": 15,
+        "calls_with_complete_usage": 15
+      },
+      "outcome": "completed",
+      "infrastructure_error_type": null,
+      "transport_errors": 0,
+      "protocol_errors": 0,
+      "requested_settings": [
+        {
+          "model": "gpt-5.6-sol",
+          "effort": "max",
+          "tier": "fast"
+        },
+        {
+          "model": "deepseek-v4-flash",
+          "effort": "max",
+          "tier": null
+        }
+      ],
+      "echo_unknown_counts": {
+        "model_reported": 13,
+        "effort_reported": 15,
+        "service_tier_reported": 15
+      },
+      "model_usage": {
+        "glm-5.3": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "glm-5.3-flash": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "gpt-5.6-sol": {
+          "calls": 13,
+          "known_subtotals": {
+            "input_tokens": 279258,
+            "cached_input_tokens": 129536,
+            "output_tokens": 5652,
+            "reasoning_tokens": 0,
+            "total_tokens": 284910
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 13,
+            "total_tokens": 0
+          },
+          "input_tokens": 279258,
+          "cached_input_tokens": 129536,
+          "output_tokens": 5652,
+          "reasoning_tokens": null,
+          "total_tokens": 284910,
+          "transport_record_count": 13,
+          "transport_attempt_count": 13,
+          "transport_attempt_count_known_subtotal": 13,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 13,
+          "calls_with_measured_usage": 13,
+          "calls_with_complete_usage": 13
+        },
+        "gpt-5.6-terra": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "gpt-5.6-luna": {
+          "calls": 0,
+          "known_subtotals": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 0,
+            "total_tokens": 0
+          },
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "reasoning_tokens": 0,
+          "total_tokens": 0,
+          "transport_record_count": 0,
+          "transport_attempt_count": 0,
+          "transport_attempt_count_known_subtotal": 0,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 0,
+          "calls_with_measured_usage": 0,
+          "calls_with_complete_usage": 0
+        },
+        "deepseek-v4-flash": {
+          "calls": 2,
+          "known_subtotals": {
+            "input_tokens": 16522,
+            "cached_input_tokens": 1920,
+            "output_tokens": 2682,
+            "reasoning_tokens": 0,
+            "total_tokens": 19204
+          },
+          "unknown_counts": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0,
+            "reasoning_tokens": 2,
+            "total_tokens": 0
+          },
+          "input_tokens": 16522,
+          "cached_input_tokens": 1920,
+          "output_tokens": 2682,
+          "reasoning_tokens": null,
+          "total_tokens": 19204,
+          "transport_record_count": 2,
+          "transport_attempt_count": 2,
+          "transport_attempt_count_known_subtotal": 2,
+          "transport_attempt_count_unknown_records": 0,
+          "calls_with_transport_attempts": 2,
+          "calls_with_measured_usage": 2,
+          "calls_with_complete_usage": 2
+        }
+      },
+      "sum_call_wall_seconds": 155.61753099999999,
+      "control": {
+        "rich_call_records": 13,
+        "core_token_events": 13,
+        "rich_event_hashes_checked": 32,
+        "invariant_replay_performed": false,
+        "stored_invariant_replay_claim": true
+      },
+      "grading": {
+        "completed": true,
+        "resolved": true,
+        "failure_kind": null,
+        "reports_checked": 1
+      },
+      "activation": {
+        "source": null,
+        "protocol_request_events": 0,
+        "admitted_workers": 0,
+        "activated_workers": 0,
+        "workers_with_actual_calls": 0,
+        "workers_with_call_records": 0,
+        "workers_with_measured_usage": 0,
+        "model_requested_delegation": 0,
+        "team_execution_status": "not_requested",
+        "team_execution_valid": null
+      },
+      "delivery_forensics": {
+        "cleanup_discards": [],
+        "patch_bytes": 1798,
+        "lead_edit_detected": true,
+        "lead_first_edit_ordinal": 9,
+        "cm_skipped_count": 4,
+        "cm_skipped_reasons": {
+          "edit_phase_curfew": 4
+        },
+        "lead_death_phase": "edited",
+        "worker_death_phases": {}
+      },
+      "audit_error_count": 0
+    }
+  ],
+  "findings": [],
+  "scope": {
+    "models_called": false,
+    "grader_rerun": false,
+    "original_evidence_modified": false,
+    "private_inputs": "opaque SHA256 only; gold patches and private tests are not decoded",
+    "cp": "raw journal/handle/token mapping and rich hash chain checked; no invariant replay or correctness claim",
+    "pricing": "not computed; missing provider echoes and usage remain unknown"
+  }
+}

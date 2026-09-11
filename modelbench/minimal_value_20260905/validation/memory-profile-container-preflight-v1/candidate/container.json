@@ -1,0 +1,10 @@
+{
+  "id": "dcce30656c9f1611173ca3b9a82541e8bf2f6ec575fdd43346aae531a3820ad8",
+  "owner": "36176e6e81b8433ebff04d9bd5be7cfb",
+  "image_id": "sha256:e1c746371f8f7132c29768bea9cc1380871c87f6e4404a2282d8d3c582786874",
+  "instance_id": "astropy__astropy-14995",
+  "base_commit": "b16c7d12ccbc7b2d20364b89fb44285bcbfede54",
+  "cpus": 2,
+  "memory": "1g",
+  "network": "none"
+}

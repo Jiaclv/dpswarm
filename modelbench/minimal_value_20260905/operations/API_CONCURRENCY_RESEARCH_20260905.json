@@ -1,0 +1,34 @@
+{
+  "observed_date": "2026-09-05",
+  "timezone": "Australia/Sydney",
+  "scope": "First twelve original A2 episodes; operator-configured local limits",
+  "codex": {
+    "transport": "Codex CLI subscription transport shared by Sol, Luna and Terra",
+    "account_concurrency_hard_limit": null,
+    "local_concurrency": 4,
+    "usage_snapshot": {"source": "Codex app get_usage_limits", "plan": "pro", "window_minutes": 10080, "used_percent": 0, "interpretation": "Historical preparation-time snapshot; not a concurrency entitlement"},
+    "source_url": "https://learn.chatgpt.com/docs/pricing",
+    "external_chat_activity_controlled": false
+  },
+  "glm": {
+    "transport": "GLM Coding Plan endpoint",
+    "account_concurrency_hard_limit": null,
+    "local_concurrency": 1,
+    "source_url": "https://docs.bigmodel.cn/cn/coding-plan/faq",
+    "account_limit_page": "https://www.bigmodel.cn/usercenter/corporateequity",
+    "limitation": "Public read did not expose this account's concurrency or usage; standard API tier table is not applied to Coding Plan"
+  },
+  "deepseek": {
+    "model": "deepseek-v4-flash",
+    "documented_account_concurrency": 2500,
+    "keys_share_account_limit": true,
+    "local_concurrency": 4,
+    "source_url": "https://api-docs.deepseek.com/quick_start/rate_limit/"
+  },
+  "global_model_concurrency": 8,
+  "maximum_wave_episodes": 12,
+  "maximum_candidate_containers": 12,
+  "candidate_memory_bytes": 1073741824,
+  "explicit_limit_response_action": "Stop new group admissions; preserve response and accounting; no automatic retry or identity rotation",
+  "quota_reset_or_purchase_performed": false
+}

@@ -3,7 +3,7 @@ import test from 'node:test'
 import { effectiveLeadRoute, installChildRoutes, prepareChildRoute, resolveChildRoute } from '../lib/lead-route.js'
 import { MemoryAuditJournal } from './helpers/memory-audit.mjs'
 import { resolveHostRoot, hostModuleUrl } from '../lib/host-modules.js'
-const { Session } = await import(hostModuleUrl(resolveHostRoot(), 'dsh-session/lib/index.js'))
+const { Session, SESSION_FORMAT_VERSION } = await import(hostModuleUrl(resolveHostRoot(), 'dsh-session/lib/index.js'))
 
 const parent = config => ({ options: { provider: 'old', model: 'deepseek-v4-pro', reasoningEffort: 'high' },
   session: { requestHeader: () => config === undefined ? undefined : ({ config }) } })
@@ -31,7 +31,7 @@ test('missing native header accessor cannot fall back to configured startup mode
 })
 
 test('native folded request headers preserve actual effort and apply its removal', () => {
-  const session=Session.create('route-parent',undefined,{version:0,id:'route-parent',createdAt:1})
+  const session=Session.create('route-parent',undefined,{version:SESSION_FORMAT_VERSION,id:'route-parent',createdAt:1,isSeeded:false})
   const agent={session,options:{provider:'old',model:'deepseek-v4-pro',reasoningEffort:'high'}}
   assert.throws(() => effectiveLeadRoute(agent),/ROOT_MODEL_REQUIRED/)
   session.append('request/header',{header:{config:{provider:'deepseek-official',model:'deepseek-v4-flash',reasoningEffort:'max'}}})
@@ -51,7 +51,7 @@ function requestFixture(route = { provider: 'chosen', model: 'worker', reasoning
   } }, { journal })
   const lead = { session: { id: 'root' } }
   const ticket = prepareChildRoute(lead, route, { journal, label: 'dpswarm:DPswarm implementer' })
-  const session = Session.create('child', undefined, { version: 0, id: 'child', createdAt: 1,
+  const session = Session.create('child', undefined, { version: SESSION_FORMAT_VERSION, id: 'child', createdAt: 1, isSeeded: false,
     origin: 'subagent', parentSession: 'root', delegationDepth: 1 })
   session.append('subagent/descriptor', { label: 'dpswarm:DPswarm implementer' })
   return { request, ticket, journal, agent: { id: 'child', session, options: { ...ticket.agentOptions, subagentDepth: 1 } } }
@@ -193,7 +193,7 @@ test('read-only cold CM lookup preserves route checks and leaves ordinary agents
   assert.deepEqual(await resolveChildRoute(cold, { journal }), { provider: 'glmcp', model: 'glm-5.3-flash' })
   assert.equal(JSON.stringify(await journal.read('root')), before)
   await assert.rejects(resolveChildRoute(cold), /CHILD_ROUTE_BINDING_REQUIRED/)
-  const alien = { ...cold, session: { ...cold.session, id: 'child', header: { ...cold.session.header, parentSession: 'other' }, events: cold.session.events } }
+  const alien = { ...cold, session: { ...cold.session, id: 'child', header: { ...cold.session.header, parentSession: 'other' }, events: cold.session.snapshotEvents() } }
   await assert.rejects(resolveChildRoute(alien, { journal }), /CHILD_ROUTE_BINDING_REQUIRED|CHILD_ROUTE_BINDING_INVALID/)
   assert.equal(await resolveChildRoute({ id: 'ordinary-root', session: { id: 'ordinary-root', header: {} } }), null)
   assert.equal(await resolveChildRoute({ ...cold, session: { ...cold.session, header: cold.session.header, events: [] } }), null)

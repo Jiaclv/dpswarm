@@ -15,6 +15,22 @@ export const CLOSEOUT_ESTIMATE_SLACK_RATIO = 1 / 3
 export const CLOSEOUT_INSTRUCTION = `[${CLOSEOUT_MARKER}]
 This worker reached its budget rail. Stop expanding the task and return your final report now: what is complete, which files were provably saved (exact paths), what remains unfinished, and an estimate of what is left. If nothing was provably saved, say so explicitly. Tool calls are disabled and will be rejected — write the report as plain prose, never as tool-call markup. The Lead will decide whether to continue the work in a linked continuation, accept the partial result, or stop. Do not claim unperformed tests, successful delivery, or completion without evidence. Do not ask for more budget or wait for another step. This instruction does not change the task or increase your allowance.`
 
+// Check the frozen request that will actually reach the adapter. DSH 0.1.5
+// projects its prompt into system-role messages; legacy one-shot callers use
+// options.system. A later nonempty system prompt supersedes an earlier one.
+// User/tool text must never satisfy the closeout instruction requirement.
+export function requestSystemText(options) {
+  let current = typeof options?.system === 'string' ? options.system : ''
+  for (const message of Array.isArray(options?.messages) ? options.messages : []) {
+    if (message?.role !== 'system') continue
+    const content = message.content
+    const text = typeof content === 'string' ? content : Array.isArray(content)
+      ? content.filter(part => part?.type === 'text' && typeof part.text === 'string').map(part => part.text).join('\n') : ''
+    if (text.trim()) current = text
+  }
+  return current
+}
+
 export function closeoutForecast({ remainingTokens, remainingCalls, inputEstimate, finalInputEstimate }) {
   // Rail model: park when one more full step plus a viable report no longer
   // fit, then hand the continuation decision to the Lead. No output squeeze.
