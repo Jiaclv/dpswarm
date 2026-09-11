@@ -29,6 +29,10 @@ window.__ModuleLoader__.load({
     const h = React.createElement
 
     let settingsScope, settingsApi, settingsMirror, llmApi
+    // 宿主 Remote 命名空间的惰性解析器（apply 时装配；每次调用都重读，
+    // 跟上 typed Remote 晚于插件 apply 挂载的节奏——一次性固化会把模型
+    // 选择器永久锁死在"宿主未提供模型目录"）。
+    let remoteSessionRef = () => undefined, legacyRef = () => undefined
     let writeTail = Promise.resolve()
     // Use the public atomic mutation API. SettingsScope.set() can resolve after
     // recovering a rejected write, so resolution alone is not proof of a save.
@@ -486,8 +490,16 @@ window.__ModuleLoader__.load({
         setState(old => ({ ...old, status: 'loading', error: '' }))
         let timer
         try {
-          if (!llmApi?.models) throw new Error('当前宿主未提供模型目录，请更新 DPH 或使用手动配置。')
-          const result = await Promise.race([llmApi.models({}, abort.signal), new Promise((_, reject) => {
+          // 0.1.5 的 typed Remote 命名空间挂载晚于插件 apply：启动时读到的
+          // llmApi 可能是空壳（remote.session 尚未挂载），一次性固化就会把
+          // 选择器永久锁死在"宿主未提供模型目录"。此处每次加载都惰性重读
+          // （注释于启动段的 remount 语义同样适用于此），命名空间后挂载的
+          // 宿主在打开选择器时即可读到目录。
+          const liveLlm = llmApi ?? (typeof remoteSessionRef()?.modelCatalog === 'function'
+            ? { models: async () => ({ result: await remoteSessionRef().modelCatalog() }) }
+            : legacyRef()?.llm)
+          if (!liveLlm?.models) throw new Error('当前宿主未提供模型目录，请更新 DPH 或使用手动配置。')
+          const result = await Promise.race([liveLlm.models({}, abort.signal), new Promise((_, reject) => {
             timer = setTimeout(() => { abort.abort(); reject(new Error('读取模型列表超时，请重试。')) }, 12000)
           })])
           if (!result?.result?.ok) throw new Error(result?.result?.error?.message || '无法读取 DPH 模型列表')
@@ -996,6 +1008,17 @@ window.__ModuleLoader__.load({
       }
       const remoteSession = () => ctx.get('remote.session')
       const legacy = ctx.connection.api
+      remoteSessionRef = () => {
+        const direct = remoteSession()
+        if (typeof direct?.modelCatalog === 'function') return direct
+        // 宿主自带 UI 走 ctx.remote.session 嵌套属性；插件 ctx.get 的点号键
+        // 在部分宿主代次不可读。仅在直读失败时尝试该路径，保持启动期读序列不变。
+        try {
+          const viaRoot = ctx.remote?.session
+          return typeof viaRoot?.modelCatalog === 'function' ? viaRoot : undefined
+        } catch { return undefined }
+      }
+      legacyRef = () => legacy
       settingsApi = ctx.connection.isLoopback
         ? remoteSettings()
           ? {
