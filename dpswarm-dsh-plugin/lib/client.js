@@ -489,6 +489,15 @@ window.__ModuleLoader__.load({
         const abort = new AbortController(); request.current = abort
         setState(old => ({ ...old, status: 'loading', error: '' }))
         let timer
+        // 诊断探针：失败时把现场打进错误信息（宿主代次/挂载状态不可离线
+        // 复现，靠这份现场定位）。
+        const probe = () => {
+          try {
+            const rs = remoteSessionRef()
+            const names = rs ? Object.keys(rs).filter(k => typeof rs[k] === 'function').slice(0, 20).join(',') : ''
+            return `llmApi=${!!llmApi?.models};remote.session=${rs ? 'found' : 'absent'};modelCatalog=${typeof rs?.modelCatalog};methods=[${names}]`
+          } catch (err) { return 'probe-error:' + String(err && err.message || err) }
+        }
         try {
           // 0.1.5 的 typed Remote 命名空间挂载晚于插件 apply：启动时读到的
           // llmApi 可能是空壳（remote.session 尚未挂载），一次性固化就会把
@@ -498,11 +507,11 @@ window.__ModuleLoader__.load({
           const liveLlm = llmApi ?? (typeof remoteSessionRef()?.modelCatalog === 'function'
             ? { models: async () => ({ result: await remoteSessionRef().modelCatalog() }) }
             : legacyRef()?.llm)
-          if (!liveLlm?.models) throw new Error('当前宿主未提供模型目录，请更新 DPH 或使用手动配置。')
+          if (!liveLlm?.models) throw new Error('当前宿主未提供模型目录，请更新 DPH 或使用手动配置。[' + probe() + ']')
           const result = await Promise.race([liveLlm.models({}, abort.signal), new Promise((_, reject) => {
             timer = setTimeout(() => { abort.abort(); reject(new Error('读取模型列表超时，请重试。')) }, 12000)
           })])
-          if (!result?.result?.ok) throw new Error(result?.result?.error?.message || '无法读取 DPH 模型列表')
+          if (!result?.result?.ok) throw new Error((result?.result?.error?.message || '无法读取 DPH 模型列表') + ' [' + probe() + ']')
           if (generation.current !== ticket) return
           const value = result.result.value
           if (!Array.isArray(value?.groups) || !Array.isArray(value?.failures)) throw new Error('宿主返回的模型列表格式不兼容。')
@@ -1019,6 +1028,19 @@ window.__ModuleLoader__.load({
         } catch { return undefined }
       }
       legacyRef = () => legacy
+      // 根因修复：0.1.5 里 remote.session 是 cordis 服务，未注入即不可读——
+      // 插件顶层 inject 不能加它（legacy 宿主无此服务会导致模块永不加载），
+      // 故条件注入：服务挂载时武装目录解析器；缺席则维持手动配置兜底。
+      if (typeof ctx.inject === 'function') {
+        try {
+          ctx.inject(['remote', 'remote.session'], (scoped) => {
+            const armed = scoped.remote?.session ?? scoped.get?.('remote.session')
+            if (typeof armed?.modelCatalog === 'function') {
+              remoteSessionRef = () => armed
+            }
+          })
+        } catch { /* 旧宿主无此语义：忽略，走 legacy 路径 */ }
+      }
       settingsApi = ctx.connection.isLoopback
         ? remoteSettings()
           ? {
