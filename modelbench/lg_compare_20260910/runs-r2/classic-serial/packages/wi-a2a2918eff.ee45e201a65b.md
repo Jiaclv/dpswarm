@@ -1,0 +1,1 @@
+子任务A·schema设计：为迷你记账记录设计 JSON Schema——字段：id(字符串)、amount(数值，两位小数)、currency(三字母代码)、tags(字符串数组，可空)。交付：一个 json 代码块含 schema 全文，另附不超过 10 行设计说明。验收标准：schema 语法正确、四字段约束齐全、说明不超行。

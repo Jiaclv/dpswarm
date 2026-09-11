@@ -1,0 +1,19 @@
+```python
+def is_palindrome(s: str) -> bool:
+    """判断字符串是否为回文（忽略大小写与非字母数字字符）。
+
+    >>> is_palindrome("A man, a plan, a canal: Panama")
+    True
+    >>> is_palindrome("race a car")
+    False
+    >>> is_palindrome("No 'x' in Nixon")
+    True
+    """
+    cleaned = [c.lower() for c in s if c.isalnum()]
+    return cleaned == cleaned[::-1]
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=True)
+```

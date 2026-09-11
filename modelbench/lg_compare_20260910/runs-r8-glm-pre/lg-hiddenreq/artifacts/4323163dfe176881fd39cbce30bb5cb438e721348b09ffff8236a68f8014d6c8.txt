@@ -1,0 +1,60 @@
+# 子任务 1：实现 parse_kv（含 2 个 doctest 用例）
+
+## 设计决策
+- 每行一个键值对，以第一个 `=` 分隔（value 中可含 `=`）
+- 自动去除 key/value 首尾空白；空行与 `#` 开头的注释行跳过
+- 缺少 `=` 的行抛出 `ValueError`，携带行号便于定位
+
+## 代码
+
+```python
+def parse_kv(text: str) -> dict:
+    """解析 key=value 文本为 dict。
+
+    规则：每行一对；忽略空行与以 # 开头的注释行；
+    按第一个 '=' 切分，去除两侧空白；无 '=' 的行报错。
+
+    >>> parse_kv("host=localhost\\nport=5432")
+    {'host': 'localhost', 'port': '5432'}
+
+    >>> parse_kv("# 注释行\\n\\n  url = https://a.io?p=1&q=2  ")
+    {'url': 'https://a.io?p=1&q=2'}
+    """
+    result = {}
+    for lineno, line in enumerate(text.splitlines(), start=1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if "=" not in stripped:
+            raise ValueError(f"第 {lineno} 行缺少 '=': {stripped!r}")
+        key, _, value = stripped.partition("=")
+        result[key.strip()] = value.strip()
+    return result
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=True)
+```
+
+**doctest 运行方式**：`python parse_kv.py` 或 `python -m doctest parse_kv.py -v`，2 个用例均通过。
+
+---
+
+# 子任务 2：使用说明文档（deps=[0]，≤200 字）
+
+## parse_kv 使用说明
+
+`parse_kv(text)` 将多行 `key=value` 文本解析为字典。用法：
+
+```python
+from parse_kv import parse_kv
+cfg = parse_kv(open("app.conf").read())
+print(cfg["host"])
+```
+
+规则：忽略空行与 `#` 注释；按第一个 `=` 切分，两端空白自动去除，value 可含 `=`。格式非法时抛出带行号的 `ValueError`。值均为字符串，需类型请自行转换。
+
+---
+
+**作者：DPswarm worker**

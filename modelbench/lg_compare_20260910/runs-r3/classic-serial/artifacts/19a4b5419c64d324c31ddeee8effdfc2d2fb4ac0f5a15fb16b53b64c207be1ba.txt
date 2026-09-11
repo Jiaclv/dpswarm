@@ -1,0 +1,43 @@
+## 子任务 A 交付：迷你记账记录 JSON Schema
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/mini-ledger-entry.json",
+  "title": "迷你记账记录",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "记录唯一标识"
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "description": "金额，保留两位小数"
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "ISO 4217 三字母货币代码"
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "标签列表，可为空数组"
+    }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+**设计说明**（9 行）：
+
+1. 采用 JSON Schema Draft 2020-12，字段 `id`、`amount`、`currency`、`tags` 均设为必填。
+2. `amount` 用 `multipleOf: 0.01` 约束到两位小数，避免浮点字符串解析的额外依赖。
+3. `currency` 用 `^[A-Z]{3}$` 正则限定为大写三字母代码（ISO 4217）。
+4. `tags` 定义为字符串数组；题目中"可空"理解为允许空数组 `[]`，故不设 `minItems`。
+5. 若"可空"需包含 `null`，可把 `tags` 类型改为 `["array", "null"]`，当前取更严格的数组语义。
+6. 关闭 `additionalProperties` 以保证结构严格、利于逐字校验。
+7. Schema 自包含，含 `$id` 与 `title`，可整体复制引用，无外部依赖。

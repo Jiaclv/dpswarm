@@ -39,6 +39,8 @@ def escalation_path(attribution: RejectAttribution) -> str:
         RejectAttribution.CONTEXT: "fix-context-and-retry",          # 修 context 重试，不动模型（兼作 manager 裁偏率观测点）
         RejectAttribution.DESCRIPTION: "fix-description-and-retry",  # 修描述重试
         RejectAttribution.CONTRADICTION: "degenerate-or-escalate",   # 任务矛盾：退化或上报人工，不硬磕
+        RejectAttribution.UNCERTAIN: "fix-context-and-retry",        # 证据不足：补 context（⑥）
+        RejectAttribution.INVALID_OUTPUT: "fix-description-and-retry",  # 输出非法：修述重试（⑥）
     }[attribution]
 
 

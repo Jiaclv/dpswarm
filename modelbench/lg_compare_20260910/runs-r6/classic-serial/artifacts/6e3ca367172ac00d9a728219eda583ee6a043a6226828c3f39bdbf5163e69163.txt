@@ -1,0 +1,112 @@
+收到打回，归因接受：阻塞前提不成立，上游交付 [wi-cc8152c306] 已随审查包逐字可得，本次直接产出实质交付。以下为子任务 B 的完整产出。
+
+## A 交付的 schema 原文（逐字引用自 [wi-cc8152c306]）
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "id": {"type": "string"},
+    "amount": {"type": "number", "multipleOf": 0.01},
+    "currency": {"type": "string", "pattern": "^[A-Z]{3}$"},
+    "tags": {"type": "array", "items": {"type": "string"}}
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+## validate_record 实现（纯标准库 + 3 个 doctest）
+
+```python
+"""迷你记账记录校验器：严格依据子任务 A 验收交付 [wi-cc8152c306] 的 schema 文本实现。"""
+
+import re
+
+SCHEMA = {
+    "type": "object",
+    "properties": {
+        "id": {"type": "string"},
+        "amount": {"type": "number", "multipleOf": 0.01},
+        "currency": {"type": "string", "pattern": "^[A-Z]{3}$"},
+        "tags": {"type": "array", "items": {"type": "string"}},
+    },
+    "required": ["id", "amount", "currency", "tags"],
+    "additionalProperties": False,
+}
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验记账记录是否符合 schema，返回违规信息列表（空列表 = 通过）。
+
+    支持的约束（与 A 交付 schema 中出现的键一一对应）：
+    type=object/string/number/array、required、additionalProperties=False、
+    pattern、multipleOf、items.type。纯标准库，浮点比较使用 1e-9 容差。
+
+    >>> validate_record({"id": "r-001", "amount": 12.34, "currency": "CNY", "tags": ["food", "travel"]}, SCHEMA)
+    []
+    >>> validate_record({"id": "r-002", "amount": 1.234, "currency": "cny", "tags": ["meal", 7]}, SCHEMA)
+    ['amount: 1.234 is not a multiple of 0.01', 'currency: does not match pattern ^[A-Z]{3}$', 'tags[1]: expected string, got int']
+    >>> validate_record({"id": 3, "note": "lunch"}, SCHEMA)
+    ['missing required field: amount', 'missing required field: currency', 'missing required field: tags', 'unexpected field: note', 'id: expected string, got int']
+    """
+    errors: list[str] = []
+    properties = schema.get("properties", {})
+
+    for field in schema.get("required", []):
+        if field not in record:
+            errors.append(f"missing required field: {field}")
+
+    if schema.get("additionalProperties") is False:
+        for field in record:
+            if field not in properties:
+                errors.append(f"unexpected field: {field}")
+
+    for field, rule in properties.items():
+        if field not in record:
+            continue
+        value = record[field]
+        ftype = rule.get("type")
+
+        if ftype == "string":
+            if not isinstance(value, str):
+                errors.append(f"{field}: expected string, got {type(value).__name__}")
+            elif "pattern" in rule and not re.search(rule["pattern"], value):
+                errors.append(f"{field}: does not match pattern {rule['pattern']}")
+
+        elif ftype == "number":
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                errors.append(f"{field}: expected number, got {type(value).__name__}")
+            elif "multipleOf" in rule:
+                step = rule["multipleOf"]
+                if abs(round(value / step) * step - value) > 1e-9:
+                    errors.append(f"{field}: {value} is not a multiple of {step}")
+
+        elif ftype == "array":
+            if not isinstance(value, list):
+                errors.append(f"{field}: expected array, got {type(value).__name__}")
+            else:
+                item_rule = rule.get("items", {})
+                for i, item in enumerate(value):
+                    if item_rule.get("type") == "string" and not isinstance(item, str):
+                        errors.append(f"{field}[{i}]: expected string, got {type(item).__name__}")
+
+    return errors
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=False)
+```
+
+## 附注（不超过 10 行的实现对齐说明）
+
+- 错误顺序确定：先 required 缺失，再 additionalProperties 违规，最后按 `properties` 声明顺序逐字段检查，保证 doctest 输出可精确匹配。
+- `amount` 的两位小数对应 schema 的 `multipleOf: 0.01`，浮点比较使用 1e-9 容差，`1.234` 正确判违、`12.34` 正确通过。
+- `currency` 用 schema 中的 `pattern ^[A-Z]{3}$` 校验，小写或长度不符均报错。
+- `tags` 允许空数组（无 minItems 约束），仅校验元素类型为字符串。
+- `additionalProperties: false` 使多余字段（如 `note`）报 `unexpected field`。
+- 布尔值被显式排除出 `number`（Python 中 `bool` 是 `int` 子类）。
+- 3 个 doctest 分别覆盖：合法通过、字段内约束违规、缺失/多余字段与类型违规。
+- 可通过 `python -m doctest validator.py -v` 直接验证，全部用例通过。
+- 依赖约束说明：用例中的 `SCHEMA` 与上方引用的 [wi-cc8152c306] schema 原文逐字一致，未做任何改写。

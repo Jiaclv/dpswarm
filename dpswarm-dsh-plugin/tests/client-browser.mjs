@@ -19,7 +19,7 @@ const entry=`import React from ${JSON.stringify(react)};import {createRoot} from
 window.__ModuleLoader__={load(mod){window.dpsModule=mod.factory(id=>{if(id==='react')return React;throw new Error('optional icon absent')})}};
 window.mount=()=>{
  let snapshot={status:'ready',writable:true,mode:'host',revision:1,value:{enabledSessions:[],sidecarUrl:'http://127.0.0.1:8791',implMode:'',implProvider:'',testProvider:'',implModel:'',testModel:'glm-5.3-flash',workerTimeoutSeconds:600,cmEnabledSessions:[],cmProvider:'deepseek',cmModel:'deepseek-v4-flash',cmEffort:'off',reviewerMode:'lead',reviewerProvider:'',reviewerModel:'',reviewerEffort:''}};
- const listeners=new Set();window.calls=[];window.fetches=[];
+ const listeners=new Set();window.calls=[];window.fetches=[];window.remoteReads=[];
  const scope={getSnapshot:()=>snapshot,subscribe:f=>{listeners.add(f);return()=>listeners.delete(f)}};
  const view=()=>({ns:'dpswarm',revision:snapshot.revision,value:snapshot.value});
  const mirror={acceptView(next){snapshot={...snapshot,value:next.value,revision:next.revision};for(const f of listeners)f()}};
@@ -33,7 +33,7 @@ window.mount=()=>{
  {id:'coding-plan',name:'智谱 Coding Plan',models:[{id:'glm-5.3-flash',name:'GLM-5.3-Flash',reasoning:effort('high')}]},
  {id:'gpt',name:'GPT Provider',models:[{id:'gpt-5.6-terra',name:'GPT Terra',reasoning:effort('max')},{id:'gpt-5.6-sol',name:'GPT Sol',reasoning:effort('high','max')}]}];
  window.catalogReads=0;const llm={async models(){window.catalogReads++;if(window.catalogError)return{result:{ok:false,error:{message:'fixture catalog unavailable'}}};return{result:{ok:true,value:{groups:window.catalogGroups,failures:window.catalogPartial?[{id:'broken',name:'Broken Provider',message:'offline'}]:[]}}}}};
- const slots={};window.registrations=[];window.dpsModule.apply({settingsScope:{bind:()=>scope,describe:()=>mirror},connection:{isLoopback:true,api:{settings:api,llm}},slots:{inject:(name,f)=>f(),register:(spec,component)=>{slots[spec.name]=component;window.registrations.push({name:spec.name,id:spec.id,label:spec.label?.()})}},logger:{warn:console.warn}});
+ const slots={};window.registrations=[];window.dpsModule.apply({settingsScope:{bind:()=>scope,describe:()=>mirror},connection:{isLoopback:true,api:{settings:api,llm}},slots:{inject:(name,f)=>f(),register:(spec,component)=>{slots[spec.name]=component;window.registrations.push({name:spec.name,id:spec.id,label:spec.label?.()})}},logger:{warn:console.warn},get:name=>{window.remoteReads.push(name);return undefined}});
  createRoot(document.getElementById('card')).render(React.createElement(slots['settings.plugin.item']));
  createRoot(document.getElementById('settings')).render(React.createElement(slots['settings.section'],{close:()=>{window.leadReturn=true}}));
  for(const id of ['session-a','session-b'])createRoot(document.getElementById(id)).render(React.createElement(slots['conversation.input.left'],{sessionId:id}));

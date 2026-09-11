@@ -1,0 +1,180 @@
+# 校验器实现：`validate_record`
+
+依据子任务 0 已验收的 ExpenseRecord schema（材料 [wi-fb44ba1124]），纯标准库实现，schema 文本逐字内嵌于 `EXPENSE_RECORD_SCHEMA` 常量。
+
+```python
+# validator.py
+"""ExpenseRecord 校验器（纯标准库）。
+
+支持的关键字：type（含类型数组）、required、additionalProperties、
+minLength、pattern、multipleOf、exclusiveMinimum、items。
+multipleOf 使用 Decimal 精确判断，规避浮点精度问题（材料 [wi-fb44ba1124]
+已注明该风险点）。
+"""
+
+import re
+from decimal import Decimal
+
+# 以下 schema 逐字引用子任务 0 交付（[wi-fb44ba1124]）
+EXPENSE_RECORD_SCHEMA = """
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/expense-record.json",
+  "title": "ExpenseRecord",
+  "description": "迷你记账记录",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "记录唯一标识"
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "exclusiveMinimum": 0,
+      "description": "金额，保留两位小数"
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "ISO 4217 三字母货币代码"
+    },
+    "tags": {
+      "type": ["array", "null"],
+      "items": { "type": "string" },
+      "description": "标签，可为空"
+    }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+"""
+
+_TYPE_CHECKS = {
+    "string": lambda v: isinstance(v, str),
+    "number": lambda v: isinstance(v, (int, float)) and not isinstance(v, bool),
+    "array": lambda v: isinstance(v, list),
+    "null": lambda v: v is None,
+}
+
+
+def _type_label(value):
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "boolean"
+    if isinstance(value, (int, float)):
+        return "number"
+    if isinstance(value, str):
+        return "string"
+    if isinstance(value, list):
+        return "array"
+    if isinstance(value, dict):
+        return "object"
+    return type(value).__name__
+
+
+def _check_type(name, value, expected, errors):
+    """expected 为字符串或字符串列表（如 ["array", "null"]）。"""
+    types = expected if isinstance(expected, list) else [expected]
+    if not any(_TYPE_CHECKS[t](value) for t in types):
+        errors.append(
+            f"{name}: 期望类型 {' 或 '.join(types)}，实际 {_type_label(value)}"
+        )
+
+
+def _validate_value(name, value, subschema, errors):
+    if "type" in subschema:
+        _check_type(name, value, subschema["type"], errors)
+        if _type_label(value) not in (
+            [subschema["type"]] if isinstance(subschema["type"], str)
+            else subschema["type"]
+        ):
+            return  # 类型不符，后续约束不再检查
+    if "minLength" in subschema and isinstance(value, str):
+        if len(value) < subschema["minLength"]:
+            errors.append(f"{name}: 长度不能小于 {subschema['minLength']}")
+    if "pattern" in subschema and isinstance(value, str):
+        if re.search(subschema["pattern"], value) is None:
+            errors.append(f"{name}: 不匹配模式 {subschema['pattern']}")
+    if "multipleOf" in subschema and isinstance(value, (int, float)) \
+            and not isinstance(value, bool):
+        # 用 Decimal 规避二进制浮点精度问题
+        if Decimal(str(value)) % Decimal(str(subschema["multipleOf"])) != 0:
+            errors.append(
+                f"{name}: {value} 不是 {subschema['multipleOf']} 的整数倍"
+            )
+    if "exclusiveMinimum" in subschema and isinstance(value, (int, float)) \
+            and not isinstance(value, bool):
+        if value <= subschema["exclusiveMinimum"]:
+            errors.append(
+                f"{name}: 必须大于 {subschema['exclusiveMinimum']}（不含）"
+            )
+    if subschema.get("type") == "array" and "items" in subschema \
+            and isinstance(value, list):
+        for i, item in enumerate(value):
+            _check_type(f"{name}[{i}]", item, subschema["items"].get("type", []),
+                        errors)
+
+
+def validate_record(record, schema):
+    """校验一条迷你记账记录，返回错误列表（空列表 = 通过）。
+
+    >>> import json
+    >>> schema = json.loads(EXPENSE_RECORD_SCHEMA)
+    >>> validate_record({"id": "r1", "amount": 12.5, "currency": "CNY",
+    ...                  "tags": ["food", "lunch"]}, schema)
+    []
+
+    >>> validate_record({"id": "r2", "amount": 1.005, "currency": "cny",
+    ...                  "tags": ["a", 1]}, schema)
+    ['amount: 1.005 不是 0.01 的整数倍', 'currency: 不匹配模式 ^[A-Z]{3}$', 'tags[1]: 期望类型 string，实际 number']
+
+    >>> validate_record({"id": "", "amount": 0, "currency": "CNY"},
+    ...                 schema)
+    ['tags: 缺失必填字段', 'id: 长度不能小于 1', 'amount: 必须大于 0（不含）']
+    """
+    if not isinstance(record, dict):
+        return [f"root: 期望类型 object，实际 {_type_label(record)}"]
+
+    errors = []
+
+    # additionalProperties: false —— 禁止 schema 之外的字段
+    properties = schema.get("properties", {})
+    if schema.get("additionalProperties") is False:
+        for key in record:
+            if key not in properties:
+                errors.append(f"{key}: 不允许的额外字段")
+
+    # required —— 缺失必填字段（tags 可为 null 但必须存在）
+    for name in schema.get("required", []):
+        if name not in record:
+            errors.append(f"{name}: 缺失必填字段")
+
+    # 逐字段按 schema 约束校验
+    for name, subschema in properties.items():
+        if name in record:
+            _validate_value(name, record[name], subschema, errors)
+
+    return errors
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=True)
+```
+
+## 实现说明
+
+| schema 约束 | 实现方式 |
+|---|---|
+| `additionalProperties: false` | 遍历 record 键，不在 `properties` 中即报错 |
+| `required` | 缺失即报错；`tags: null` 合法（"缺失"≠"显式为空"） |
+| `type: ["array", "null"]` | 类型数组任一匹配即可；类型不符时跳过后续约束，避免误报 |
+| `multipleOf: 0.01` | `Decimal(str(v)) % Decimal("0.01")`，规避浮点误差（对应材料未决问题①） |
+| `exclusiveMinimum: 0` | `value <= 0` 报错（对应材料未决问题②，当前实现严格排除零及负数） |
+| `items: {type: string}` | 数组元素逐个校验，错误信息带下标（如 `tags[1]`） |
+| `pattern` / `minLength` | `re.search` / `len()`，仅对 string 类型生效 |
+
+错误消息格式统一为 `字段路径: 原因`，稳定排序：额外字段 → 缺失必填 → 按 schema 属性顺序。运行 `python validator.py` 或 `python -m doctest validator.py -v` 均可通过全部 3 个用例。

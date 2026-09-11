@@ -1,0 +1,33 @@
+状态：`fix-description-and-retry` 已处理  
+结论：当前不能直接合法实现子任务 B，因为描述缺少“子任务 0 验收后的 schema 文本”。在不补齐该依赖前实现或写 doctest，都会被迫虚构 schema，违反“严格依据 / 逐字引用”的约束。
+
+修正后的子任务描述如下：
+
+```text
+子任务 1「校验器实现」
+deps=[0]
+
+依赖输入：
+- schema_text：必须原样携带子任务 0 验收后的 JSON Schema 原文。
+- 该文本不得用字段摘要、等价改写、重新排版或新生成 schema 代替。
+
+任务：
+严格依据 schema_text，用 Python 纯标准库实现：
+validate_record(record: dict, schema: dict) -> list[str]
+
+要求：
+- 返回违规信息列表；空列表表示通过。
+- 只使用 Python 标准库。
+- 附 3 个 doctest 用例。
+- doctest 中构造 schema 参数时，必须基于 schema_text 原文，例如：
+  schema = json.loads(schema_text)
+  不得重新手写等价 dict。
+- 若 schema_text 缺失、被截断或与子任务 0 验收文本不一致，应返回 blocker，不得开始实现。
+
+验收：
+- 3 个 doctest 全部通过。
+- schema 在用例中可追溯到子任务 0 的验收原文。
+- 实现不引入第三方依赖。
+```
+
+下一步：请补入子任务 0 验收后的 JSON Schema 原文；收到后我再执行校验器实现。

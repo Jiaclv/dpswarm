@@ -1,0 +1,28 @@
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/mini-ledger-record.json",
+  "title": "MiniLedgerRecord",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "amount": { "type": "number", "multipleOf": 0.01 },
+    "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+设计说明：
+1. `amount` 用 `multipleOf: 0.01` 约束两位小数；但子任务 B 的纯标准库校验器需注意浮点精度，建议以字符串化小数位数判定。
+2. `currency` 用 `pattern: ^[A-Z]{3}$` 保证三字母大写代码（ISO 4217 风格）。
+3. `tags` 允许空数组即"可空"（JSON Schema 中空数组即可表达），元素要求非空字符串。
+4. 四个字段均列入 `required`，`tags: []` 表示"可空"而非"可缺失"，语义更明确；若业务允许缺失可再放宽。
+5. `additionalProperties: false` 拒绝未知字段，便于校验器确定性报错，降低 B 的实现歧义。
+6. 本 schema 未包含 `items` 数组字段；如需支持明细（items 可为空），可扩展 `"items": { "type": "array", "default": [] }`——按当前任务字段清单暂不加入，避免 B 引用不一致。

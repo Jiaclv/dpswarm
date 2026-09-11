@@ -1,0 +1,153 @@
+# 交付说明
+
+本任务为串行两阶段：先给出已验收基线（A 的 schema 文本，作为 B 的唯一依据），再交付 B 的实现。B 代码中的 `SCHEMA` 常量与 A 的 ```json 块**逐字一致**。
+
+---
+
+## 子任务 A「schema 设计」（已验收基线）
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MiniLedgerRecord",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "amount": { "type": "number", "multipleOf": 0.01 },
+    "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+    "tags": { "type": "array", "items": { "type": "string" } }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+**设计说明**（≤10 行）：
+
+1. `amount` 用 `multipleOf: 0.01` 约束两位小数，保持数值类型而非转字符串；
+2. `currency` 用 `pattern: ^[A-Z]{3}$` 约束三字母大写代码（ISO 4217 风格）；
+3. `tags` 声明为字符串数组且不设 `minItems`，即允许空数组（"可空"）；
+4. 四个字段全部 `required`，`additionalProperties: false` 拒绝未知字段；
+5. `id` 加 `minLength: 1`，拒绝空串作为标识符。
+
+---
+
+## 子任务 B「校验器实现」
+
+```python
+"""迷你记账记录校验器（纯标准库实现）。
+
+validate_record 依据 schema 中实际使用的关键字子集进行校验：
+type / minLength / pattern / multipleOf / items / required /
+additionalProperties。返回违规信息列表，空列表表示通过。
+"""
+
+import re
+from decimal import Decimal
+
+# ---- SCHEMA：逐字引用子任务 A 验收交付的 ```json 块，不得改动 ----
+SCHEMA = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "MiniLedgerRecord",
+    "type": "object",
+    "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "amount": {"type": "number", "multipleOf": 0.01},
+        "currency": {"type": "string", "pattern": "^[A-Z]{3}$"},
+        "tags": {"type": "array", "items": {"type": "string"}},
+    },
+    "required": ["id", "amount", "currency", "tags"],
+    "additionalProperties": False,
+}
+
+
+def _type_ok(value, expected):
+    """判断 value 是否匹配 JSON Schema 的 type 名。"""
+    mapping = {
+        "string": str,
+        "number": (int, float),
+        "array": list,
+        "object": dict,
+        "boolean": bool,
+        "null": type(None),
+    }
+    if expected not in mapping:
+        return True  # 未声明的 type 视为不约束
+    return isinstance(value, mapping[expected])
+
+
+def validate_record(record: dict, schema: dict) -> list:
+    """校验单条记账记录，返回违规信息列表（空列表 = 通过）。
+
+    >>> validate_record({"id": "r001", "amount": 19.99, "currency": "CNY", "tags": ["food", "lunch"]}, SCHEMA)
+    []
+
+    >>> validate_record({"id": "r002", "amount": 19.999, "currency": "USD", "tags": []}, SCHEMA)
+    ['amount: 数值不满足 multipleOf 0.01（须为两位小数）', 'currency: 不匹配 pattern \\'^[A-Z]{3}$\\'']
+
+    >>> validate_record({"id": "", "amount": 5, "currency": 123, "tags": ["a", 1], "note": "extra"}, SCHEMA)
+    ['id: 字符串长度须 >= 1', 'currency: 类型应为 string', 'tags[1]: 元素类型应为 string', 'note: 不允许的额外字段']
+    """
+    if not isinstance(record, dict):
+        return [f"record: 顶层应为 object，实际为 {type(record).__name__}"]
+
+    errors = []
+    properties = schema.get("properties", {})
+
+    # 1) required
+    for key in schema.get("required", []):
+        if key not in record:
+            errors.append(f"{key}: 缺少必填字段")
+
+    # 2) additionalProperties: false
+    if schema.get("additionalProperties") is False:
+        for key in record:
+            if key not in properties:
+                errors.append(f"{key}: 不允许的额外字段")
+
+    # 3) 逐字段校验（按 properties 声明顺序，保证输出确定）
+    for name, rules in properties.items():
+        if name not in record:
+            continue
+        value = record[name]
+        expected_type = rules.get("type")
+
+        if not _type_ok(value, expected_type):
+            errors.append(f"{name}: 类型应为 {expected_type}")
+            continue
+
+        if isinstance(value, str) and "minLength" in rules:
+            if len(value) < rules["minLength"]:
+                errors.append(f"{name}: 字符串长度须 >= {rules['minLength']}")
+
+        if isinstance(value, str) and "pattern" in rules:
+            if not re.search(rules["pattern"], value):
+                errors.append(f"{name}: 不匹配 pattern '{rules['pattern']}'")
+
+        if "multipleOf" in rules and not isinstance(value, bool):
+            step = Decimal(str(rules["multipleOf"]))
+            if Decimal(str(value)) % step != 0:
+                errors.append(
+                    f"{name}: 数值不满足 multipleOf {rules['multipleOf']}（须为两位小数）"
+                )
+
+        if expected_type == "array" and "items" in rules:
+            item_type = rules["items"].get("type")
+            for i, item in enumerate(value):
+                if not _type_ok(item, item_type):
+                    errors.append(f"{name}[{i}]: 元素类型应为 {item_type}")
+
+    return errors
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=False)
+```
+
+### 实现要点
+
+1. **schema 逐字引用**：`SCHEMA` 常量与 A 的交付 JSON 完全一致（仅 JSON→Python 字面量转换：`false`→`False`），三个 doctest 全部以 `SCHEMA` 为入参；
+2. **两位小数用 `Decimal` 判定**：`19.999 % 0.01` 的浮点直接取模不可靠，故走 `Decimal(str(value))` 路径；
+3. **输出确定性**：按 `required → additionalProperties → properties 声明顺序` 产生违规信息，便于验收比对；
+4. **纯标准库**：仅依赖 `re`、`decimal`、`doctest`，零第三方包。

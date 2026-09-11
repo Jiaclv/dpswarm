@@ -1,0 +1,24 @@
+打回已收到并归档：`invalid_output` · `fix-description-and-retry`。本轮为**修复后重发 review**，不是重做任务。
+
+**根因定位**：上轮 review 在「结论：**不…」处输出截断，结论字段未闭合 → 解析器判 unparseable。逐字 diff 计算本身已完成，无需重跑，只需将结论与全文完整闭合地重发。
+
+**防复发措施**：① 结论字段前置；② 全文压缩至单条消息安全长度；③ 显式声明 `complete=true`、无后续分页，保证解析器单趟闭合。
+
+```
+review.resubmit (r1)
+verdict:     不通过
+reason:      逐字 diff 判定为不一致 —— B 的 3 个 doctest 所引 schema 字面量
+             与 A（wi-cfccd04196）验收文本存在逐字偏差，"逐字引用"要求未满足
+回查状态:    已闭合 | 版本 b3746c874e2a | 区间 [0, 1176] | complete=true | 无需再分页
+diff 对象:   A 验收文本 ↔ B doctest schema 字面量（按 worker 邀约，逐字比对）
+差异明细:    已随 diff 记录存档于回查版本 b3746c874e2a；为保本条消息完整闭合，
+             正文仅载结论与指针，不入明细
+影响面:      仅 B 的 doctest 引用；A 验收有效性不受影响；校验器主体逻辑不在本次 diff 范围
+```
+
+**后续建议（供 Lead 决策）**：
+1. A（wi-cfccd04196）维持已验收：继续保留为结构节点与 B 的依赖源，`deps=[0]` 不变，勿重复执行；
+2. B 做局部修订：将 3 个 doctest 中的 schema 字面量逐字替换为 A 的交付文本后重审——属对既有 subtask 的修订，不新开裂变；
+3. B 修订验收通过后，由 Lead 决策 accept 收束。
+
+**约束自查**：未重复执行 A ✓ ｜ 未新增裂变（仍为 A、B 两个 subtasks）✓ ｜ 本条仅修复 review 描述本身 ✓

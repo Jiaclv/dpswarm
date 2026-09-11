@@ -1,0 +1,20 @@
+【重试任务 · 派发 Worker B · 归因 context / 处置 fix-context-and-retry】
+
+任务目标：纯标准库实现记录校验器，并交付可直接运行的完整 .py 代码。
+
+一、依赖输入（先行步骤，必做）
+1. 本任务下发时缺失关键依赖「子任务 A 验收后的 schema 原文」，该输入已重建至：pkg://wi-ba9950af09-r1/8cd82eda494a
+2. 开工前必须先从上述 context 包中读取 A 的验收后 schema 文本，并将其【逐字】复制进你的交付物（doctest 用例中）。
+3. 严禁凭记忆、推测或自行编造 schema 内容——任何非逐字引用都视为验收失败。若读取该 context 包失败，立即停下并报缺依赖，不得以占位符代替产出。
+
+二、实现要求（原文需求逐字保留）
+校验器实现：严格依据子任务 A 验收后的 schema 文本，纯标准库实现 validate_record(record: dict, schema: dict) -> list[str]（空列表=通过），附 3 个 doctest 用例，用例中的 schema 必须逐字引用 A 的交付。
+
+三、交付格式与验收标准（针对上轮失败的补强条款）
+1. 交付物必须是一份完整、可直接运行的 .py 文件全文，包含：
+   - validate_record 函数的完整函数体（不得出现任何占位符、伪代码、TODO、“此处省略”）；
+   - 恰好 3 个 doctest 用例，写在 validate_record 的 docstring 中，可用 `python -m doctest` 直接通过；
+   - 文件末尾附 `if __name__ == "__main__": import doctest; doctest.testmod()`。
+2. 每个用例中的 schema 字面量必须与 pkg://wi-ba9950af09-r1/8cd82eda494a 中 A 的验收后 schema 文本逐字一致（键名、键序、类型标注、嵌套结构均不得改写）。
+3. 仅校验 schema 中声明的字段/约束即可，不引入第三方库，不新增 schema 中不存在的校验规则。
+4. 交付中不得混入任何任务改写稿、外部笔记、截断文本或其他与代码无关的内容；输出即为代码交付本身。

@@ -1,0 +1,53 @@
+## ⚠️ 阻塞报告：缺少前置输入
+
+本任务有一条硬性验收标准：**"用例中的 schema 必须逐字引用 A 的交付"**。但当前上下文中我没有收到 A 验收后的 schema 文本——如果我现在自行编写 schema，就违反了"逐字一致"这条标准，属于伪造交付物。
+
+因此请协调方将 A 的 schema 文本转发给我。为了不空等，我先把**与 schema 无关的校验器主体**写好，等 schema 到位后只需替换 doctest 中的字面量即可交付：
+
+```python
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """依据 schema 校验 record，返回违规信息列表（空列表 = 通过）。
+
+    假设 schema 语义为（以 A 的实际文本为准调整）：
+      - "type": record 顶层类型
+      - "required": 必填字段名列表
+      - "properties": {字段名: {"type": 类型, "enum": 可选取值(可选)}}
+
+    >>> validate_record({"id": 1, "name": "x"}, {"type": "object", "required": ["id", "name"], "properties": {"id": {"type": "integer"}, "name": {"type": "string"}}})
+    []
+    >>> validate_record({"id": "1", "name": "x"}, {"type": "object", "required": ["id", "name"], "properties": {"id": {"type": "integer"}, "name": {"type": "string"}}})
+    ["字段 'id' 类型错误：期望 integer，实际 str"]
+    >>> validate_record({"name": "x"}, {"type": "object", "required": ["id", "name"], "properties": {"id": {"type": "integer"}, "name": {"type": "string"}}})
+    ["缺少必填字段：'id'"]
+    """
+    errors: list[str] = []
+
+    if schema.get("type") == "object" and not isinstance(record, dict):
+        return ["顶层类型错误：期望 object"]
+
+    for field in schema.get("required", []):
+        if field not in record:
+            errors.append(f"缺少必填字段：'{field}'")
+
+    for field, rule in schema.get("properties", {}).items():
+        if field in record:
+            expected = rule.get("type")
+            actual = type(record[field]).__name__
+            if expected == "integer" and not isinstance(record[field], int):
+                errors.append(f"字段 '{field}' 类型错误：期望 {expected}，实际 {actual}")
+            elif expected == "string" and not isinstance(record[field], str):
+                errors.append(f"字段 '{field}' 类型错误：期望 {expected}，实际 {actual}")
+            if "enum" in rule and record[field] not in rule["enum"]:
+                errors.append(f"字段 '{field}' 取值不在允许范围内")
+
+    return errors
+```
+
+**待办清单（schema 到位后 10 分钟内可交付）：**
+1. ❌→✅ 将 A 的 schema 逐字粘贴进 3 个 doctest（当前占位）
+2. 核对 A 的 schema 实际语义字段（`required`/`properties`/`enum` 命名是否一致），调整校验逻辑
+3. 补充错误信息格式与 A 的 schema 描述对齐
+4. 运行 `python -m doctest` 确认全部通过
+5. 确认仅依赖标准库（当前已满足：无任何 import）
+
+**请协调方提供：** A 验收后的 schema 文本原文（逐字，含格式）。收到后我立即完成最终交付。

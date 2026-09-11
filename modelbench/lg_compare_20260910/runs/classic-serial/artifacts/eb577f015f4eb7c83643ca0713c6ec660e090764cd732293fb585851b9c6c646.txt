@@ -1,0 +1,36 @@
+收到子任务 B。但有一个阻塞性依赖问题需要先确认：
+
+## ⚠️ 缺失输入：A 的 schema 文本
+
+子任务 B 的验收条件是 **“schema 逐字引用 A 的交付”**，而当前会话中我没有收到 A 的输出。为避免伪造依赖项（这会导致 B 的交付与 A 的实际 schema 不一致、验收必然失败），我不能自行虚构 schema。
+
+请将以下内容粘贴给我：
+1. A 验收后的 schema 文本（逐字，不做任何改写）
+2. schema 的格式约定（JSON Schema draft？自定义格式？必填/类型/枚举等支持哪些关键字？）
+3. 若 A 交付中含 `record` 的示例数据，也请一并提供，便于 doctest 覆盖
+
+## 我已就绪的实现方案（待 schema 到位即填充）
+
+接口契约已锁定，实现将严格满足：
+
+```python
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """纯标准库校验，返回错误信息列表；空列表 = 通过。
+
+    >>> validate_record(...)   # 用例 1：合法 record → []
+    []
+    >>> validate_record(...)   # 用例 2：类型错误 → 含字段名的错误串
+    [...]
+    >>> validate_record(...)   # 用例 3：缺失必填字段 → [...]
+    [...]
+    """
+```
+
+实现要点（不含任何对 schema 内容的假设）：
+
+- **纯标准库**：仅 `typing` / `re` / `datetime` 等按需引入，不 import 任何校验框架
+- **纯函数**：不修改 `record` 与 `schema`，无副作用，无全局状态
+- **错误信息格式**：将按 A schema 的字段命名生成稳定、可断言的字符串（建议格式 `"<path>: <原因>"`，收到 schema 后与 A 的命名对齐）
+- **doctest 可直接运行**：交付前会以 `python -m doctest` 验证三个用例全部通过
+
+请提供 A 的 schema 文本，我立即交付完整实现。

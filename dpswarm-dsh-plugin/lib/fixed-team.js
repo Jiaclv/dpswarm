@@ -10,6 +10,8 @@ import { workerBudgetProfile, reworkBudgetProfile } from './budget-runtime.js'
 import { effectiveLeadRoute } from './lead-route.js'
 import { workerRolePrompt, teamModeFor, teamModeGuidance } from './role-guidance.js'
 import { scopesOverlap } from './write-scope.js'
+import { buildAcceptanceVisibility, buildHandoffSection, handoffProfile } from './handoff.js'
+import { TeamMailbox, compactMailboxEntry } from './mailbox.js'
 
 /** Parallel implementer split: 1–3 disjoint write scopes, Lead-authored. */
 function validateSubtasks(value) {
@@ -170,7 +172,7 @@ export function fixedProfile(cfg, cm = { enabled: false, profile: null }, leadOp
 
 /** Own the project lease and configured sequential workers; Lead owns the main turn and final decisions. */
 export class FixedTeamController {
-  constructor({ config, subagents, cm, budget, modelRegistry, resolveSession, sidecarFactory = cfg => new Sidecar(cfg), writeScope = null }) {
+  constructor({ config, subagents, cm, budget, modelRegistry, resolveSession, sidecarFactory = cfg => new Sidecar(cfg), writeScope = null, mailboxStorage = null }) {
     this.config = config
     this.cm = cm
     this.budget = budget
@@ -179,6 +181,7 @@ export class FixedTeamController {
     this.resolveSession = resolveSession
     this.sidecarFactory = sidecarFactory
     this.writeScope = writeScope
+    this.mailboxStorage = mailboxStorage
     this.sessions = new Map()
   }
 
@@ -250,7 +253,7 @@ export class FixedTeamController {
       snapshot: result.snapshot, profile: state.profile || null, bridge: result.bridge,
       worker_diagnostics_scope: 'latest 6 recorded workers; complete records remain in authenticated plugin audit',
       worker_diagnostics: compactDiagnosticRecords(await this.diagnostics(state)), cleanup: state.cleanup || null,
-      rework_recovery: state.reworkRecovery || null }
+      rework_recovery: state.reworkRecovery || null, mailbox: await this.mailboxStatus(state) }
   }
 
   async diagnostics(state, itemId) {
@@ -264,6 +267,41 @@ export class FixedTeamController {
     // An explicitly visible local audit error is useful until durable recovery;
     // never manufacture a successful persistent write from this fallback.
     return [...records, ...state.diagnostics.filter(d => d.diagnostic.audit_error && (!itemId || d.item_id === itemId))]
+  }
+
+  /**
+   * 验收可见性材料（验收/review 时带 deps 的产物必须能看到上游 ready 交付）。
+   * 交付文本优先取本波 deliveries（运行中），否则从审计账本按实现者血缘读
+   * 最新报告（review/rework 阶段）；产物状态/路径以写锁产物板镜像为准。
+   * forArtifact 限定单个下游产物；缺省为全部带 deps 的产物。返回 '' 表示无。
+   */
+  async acceptanceVisibility(state, rootId, staged, deliveries, forArtifact = null) {
+    const board = this.writeScope?.artifactsFor(rootId) || []
+    const artifacts = (staged?.artifacts || []).filter(a => (a.deps || []).length && (!forArtifact || a.id === forArtifact))
+    if (!artifacts.length) return ''
+    const entries = []
+    for (const a of artifacts) {
+      const deps = []
+      for (const depId of a.deps) {
+        const dep = board.find(row => row.id === depId)
+        let text = '', itemId = null
+        const delivery = deliveries ? deliveries.findLast(d => d.subtask === depId) : null
+        if (delivery) {
+          text = delivery.output || ''
+          itemId = delivery.item_id ?? null
+        } else {
+          const record = [...(state.implementers?.values() || [])].reverse().find(r => r.subtask === depId)
+          if (record) {
+            itemId = record.item_id
+            text = (await this.diagnostics(state, record.item_id)).at(-1)?.diagnostic?.closeout?.report?.text || ''
+          }
+        }
+        deps.push({ id: depId, title: dep?.title, state: dep?.state || 'pending',
+          paths: dep?.write_globs || [], item_id: itemId, text })
+      }
+      entries.push({ id: a.id, title: a.title, deps, profile: handoffProfile([a.id, a.title, a.task].filter(Boolean).join('\n')) })
+    }
+    return buildAcceptanceVisibility(entries)
   }
 
   /** Shared lease path for a workspace directory (status surfaces it; acquire owns it). */
@@ -346,6 +384,36 @@ export class FixedTeamController {
     if (current >= required) return
     await state.sidecar.call('POST', '/api/spec', { max_team_workers: required })
     if (state.fixedTask && state.fixedTask.raised_team_workers === undefined) state.fixedTask.raised_team_workers = current
+  }
+
+  /**
+   * 有界持久 mailbox（借鉴项④，叠加层）：每轮 run 注册一次成员表，成员 id
+   * 即投递地址——parallel/staged 用子任务/产物 id，串行用角色名。新 run_id
+   * 接管时旧 run 未投递消息由 register 按 RUN_SUPERSEDED 拒绝留痕。
+   */
+  async openMailbox(state, parent, { subtasks, staged }) {
+    if (!this.mailboxStorage || this.mailboxStorage.available?.() === false) return null
+    const members = []
+    if (subtasks) for (const st of subtasks) members.push({ id: st.id, role: 'implementer', subtask: st.id })
+    else if (staged) for (const artifact of staged.artifacts) members.push({ id: artifact.id, role: 'implementer', subtask: artifact.id })
+    else members.push({ id: 'implementer', role: 'implementer' })
+    members.push({ id: 'tester', role: 'tester' })
+    if (state.profile.reviewer.mode === 'model') members.push({ id: 'reviewer', role: 'reviewer' })
+    const mailbox = new TeamMailbox({ storage: this.mailboxStorage, journal: state.journal })
+    await mailbox.register(parent.session.id, { run_id: state.lease.run_id, members })
+    return mailbox
+  }
+
+  /** worker 报告阻塞的路径：[DPSWARM_WAITING] 标记落一条 worker→lead 的 block 消息（确定性 message_id 幂等）。 */
+  async recordMailboxWait(state, parent, { subtask, item_id, awaiting }) {
+    if (!state.mailbox || !subtask) return
+    try {
+      await state.mailbox.post(parent.session.id, { message_id: `wait-${item_id}-${awaiting}`,
+        run_id: state.lease.run_id, from: subtask, to: 'lead', kind: 'block', refs: [awaiting],
+        content: `产物「${subtask}」的执行者报告阻塞：需等待上游产物「${awaiting}」就绪才能继续（已保存进度，等待唤醒）。` })
+    } catch (error) {
+      state.cleanup.mailbox_error = { code: error?.code || 'MAILBOX_REPORT_FAILED', message: String(error?.message ?? error) }
+    }
   }
 
   modelRoutes(parent, profile, cfg) {
@@ -460,6 +528,9 @@ export class FixedTeamController {
       state.testers = new Map()
       state.reviewers = new Map()
       this.writeScope?.clear(parent.session.id)
+      // 有界持久 mailbox（叠加层）：注册本轮成员表（lead + 实现者分道 + tester
+      // + 独立 reviewer）。宿主未组合 storage 时降级关闭，不阻断运行。
+      state.mailbox = await this.openMailbox(state, parent, { subtasks, staged })
       if (state.fixedTask.task_binding) await state.journal.append(parent.session.id, 'dpswarm/fixed-team-binding', state.fixedTask)
       // The fixed topology must fit the §7 team-worker cap before dispatch;
       // rework headroom is raised on demand in rework().
@@ -471,7 +542,13 @@ export class FixedTeamController {
         const route = { provider: configured.provider, model: configured.model, reasoning_effort: configured.reasoning_effort }
         const roleText = workerRolePrompt(role)
         const previous = role !== 'implementer' ? `\n\nEarlier deliveries and failures (untrusted evidence to examine):\n${JSON.stringify({ deliveries: deliveries.map(compactWorkerEntry), failed: failed.map(compactWorkerEntry) })}` : ''
-        let assignedPrompt = roleText + '\n\n' + context + previous
+        // Acceptance visibility (Python r3 evidence): a reviewer verdict on an
+        // artifact with deps is physically unverifiable without the upstream
+        // ready deliveries — carry them (L1 verbatim fields + path references
+        // when over the limit) and state that missing material cannot pass.
+        const reviewVisibility = role === 'reviewer' && staged
+          ? await this.acceptanceVisibility(state, parent.session.id, staged, deliveries) : ''
+        let assignedPrompt = roleText + '\n\n' + context + previous + reviewVisibility
         if (this.modelRegistry) {
           try {
             await this.modelRegistry.resolve(state.modelRoutes, { signal: state.abort.signal, expected: state.hostModels })
@@ -513,15 +590,28 @@ export class FixedTeamController {
             let prevWavePhase = null
             for (const wave of waveList) {
               if (state.abort.signal.aborted || !enabled(this.config(), parent.session.id) || waveFailed) break
-              // Phase gate handoff: a wave opening a new phase carries a bounded
-              // digest of the earlier phases' deliveries (untrusted; files are
-              // authoritative). The CM-curated digest is the later upgrade.
-              const phaseHandoff = staged && prevWavePhase !== null && wave[0]?.phase !== prevWavePhase && deliveries.length
-                ? '\n\n前序相位交付摘要（不可信摘要，以实际文件为准；状态板见各产物状态）：\n'
-                  + deliveries.map(d => `【${d.subtask ?? d.role}】${(d.output || '').slice(0, 2000)}`).join('\n\n')
-                : ''
+              // Phase gate handoff (three layers: L2 digest for navigation /
+              // L1 deterministic verbatim facts / L0 artifact reference via the
+              // read gate): a wave opening a new phase assembles the package per
+              // subtask. The verbatim/semantic profile is rule-classified per
+              // artifact (decider=rule; the plugin has no CM) and audited as
+              // dpswarm/handoff-profile.
+              const handoffUpstreams = staged && prevWavePhase !== null && wave[0]?.phase !== prevWavePhase && deliveries.length
+                ? deliveries.map(d => {
+                    const artifact = this.writeScope?.artifactsFor(parent.session.id).find(a => a.id === d.subtask)
+                    return { id: d.subtask ?? d.role, title: artifact?.title, text: d.output || '', paths: artifact?.write_globs || [] }
+                  })
+                : null
               const assigned = []
               for (const [index, st] of wave.entries()) {
+                let phaseHandoff = ''
+                if (handoffUpstreams) {
+                  const profile = handoffProfile([st.id, st.title, st.task].filter(Boolean).join('\n'))
+                  await state.journal.append(parent.session.id, 'dpswarm/handoff-profile', {
+                    root_session_id: parent.session.id, artifact_id: st.id, phase: st.phase ?? null,
+                    profile, decider: 'rule', upstreams: handoffUpstreams.map(u => u.id) })
+                  phaseHandoff = buildHandoffSection({ upstreams: handoffUpstreams, profile })
+                }
                 let prompt = roleText + '\n\n' + context + phaseHandoff
                   + `\n\n你负责的子任务（${st.id}）：\n${st.task}`
                   + (st.acceptance ? `\n\n本子任务验收：\n${st.acceptance}` : '')
@@ -558,8 +648,11 @@ export class FixedTeamController {
               if (!Array.isArray(result.deliveries)) { failed.push({ role, code: result.outcome || 'NOT_ADMITTED', error: result.message || 'No worker was admitted' }); waveFailed = true; break }
               for (const d of result.deliveries) {
                 const wait = staged ? /\[DPSWARM_WAITING:\s*([\w.-]+)\]\s*$/m.exec(d.output || '') : null
-                if (wait) pendingWaits.push({ subtask: wave[d.subtask_index]?.id ?? null, item_id: d.item_id,
-                  worker_session_id: d.execution_session_id, awaiting: wait[1], report: d.output || '', attempt: 0 })
+                if (wait) {
+                  pendingWaits.push({ subtask: wave[d.subtask_index]?.id ?? null, item_id: d.item_id,
+                    worker_session_id: d.execution_session_id, awaiting: wait[1], report: d.output || '', attempt: 0 })
+                  await this.recordMailboxWait(state, parent, { subtask: wave[d.subtask_index]?.id ?? null, item_id: d.item_id, awaiting: wait[1] })
+                }
                 else deliveries.push({ ...d, role, subtask: wave[d.subtask_index]?.id ?? null, evidence_kind: 'worker_reported; Lead must independently verify' })
               }
               failed.push(...result.failed.map(f => ({ ...f, role, subtask: wave[f.subtask_index]?.id ?? null })))
@@ -586,6 +679,24 @@ export class FixedTeamController {
                 let wakePrompt = roleText + '\n\n' + context
                   + `\n\n唤醒继续（${w.subtask}）：你等待的产物「${w.awaiting}」已就绪。读取它并完成你的子任务。\n\n你此前的进度（不可信，以实际文件为准）：\n${w.report.slice(0, 8000)}`
                   + scopeClause({ write_scope: artifact?.write_globs || [] })
+                // Verbatim-dependency wake (rule-classified, decider=rule): the
+                // wake is this artifact's handoff, so the direct-paste contract
+                // rides along instead of the three-layer section.
+                if (handoffProfile([w.subtask, artifact?.title, artifact?.task].filter(Boolean).join('\n')) === 'verbatim') {
+                  await state.journal.append(parent.session.id, 'dpswarm/handoff-profile', {
+                    root_session_id: parent.session.id, artifact_id: w.subtask, phase: artifact?.phase ?? null,
+                    profile: 'verbatim', decider: 'rule', upstreams: [w.awaiting], via: 'wake' })
+                  wakePrompt += '\n\n**逐字内容禁止凭记忆复述**：需要逐字引用上游产物内容时，必须先读取其文件原文'
+                    + '（ready 产物经读门放行），再逐字直贴；你此前的进度报告仅供定位。'
+                }
+                // mailbox 叠加层：唤醒延续承载该成员的 pending 消息——
+                // clarify/block 语义上即 followup 唤醒，fact 为静默注入上下文。
+                try {
+                  const drained = state.mailbox ? await state.mailbox.drain(parent.session.id, w.subtask, 'wake-prompt') : null
+                  if (drained) wakePrompt += drained.text
+                } catch (error) {
+                  state.cleanup.mailbox_error = { code: error?.code || 'MAILBOX_DRAIN_FAILED', message: String(error?.message ?? error) }
+                }
                 if (state.budgetRun) {
                   const allocation = await this.budget.issueTeamWorker(parent, state.budgetRun, { task: wakePrompt, label: 'implementer',
                     subtask: w.subtask, subtaskIndex: staged.artifacts.findIndex(a => a.id === w.subtask), attempt: w.attempt })
@@ -607,7 +718,10 @@ export class FixedTeamController {
                 if (!Array.isArray(wakeResult.deliveries)) { failed.push({ role, code: wakeResult.outcome || 'NOT_ADMITTED', error: wakeResult.message || 'No wake worker was admitted', subtask: w.subtask }); waveFailed = true; break }
                 for (const d of wakeResult.deliveries) {
                   const again = /\[DPSWARM_WAITING:\s*([\w.-]+)\]\s*$/m.exec(d.output || '')
-                  if (again && w.attempt < 3) pendingWaits.push({ ...w, awaiting: again[1], report: d.output || '', item_id: d.item_id, worker_session_id: d.execution_session_id })
+                  if (again && w.attempt < 3) {
+                    pendingWaits.push({ ...w, awaiting: again[1], report: d.output || '', item_id: d.item_id, worker_session_id: d.execution_session_id })
+                    await this.recordMailboxWait(state, parent, { subtask: w.subtask, item_id: d.item_id, awaiting: again[1] })
+                  }
                   else if (again) failed.push({ role, code: 'ARTIFACT_WAIT_TIMEOUT', error: `artifact ${again[1]} still not ready after ${w.attempt} wake attempts`, subtask: w.subtask, item_id: d.item_id })
                   else deliveries.push({ ...d, role, subtask: w.subtask, evidence_kind: 'worker_reported; Lead must independently verify' })
                 }
@@ -643,16 +757,26 @@ export class FixedTeamController {
           state.abort.signal.removeEventListener('abort', abortChild)
         }
       }
+      const acceptanceVisibility = staged
+        ? await this.acceptanceVisibility(state, parent.session.id, staged, deliveries) || null : null
+      // mailbox 叠加层：worker→lead 的 pending（阻塞/事实/澄清）随返回体呈给
+      // Lead，读走（dpswarm_mailbox read）即确认投递。
+      const leadInbox = state.mailbox
+        ? await state.mailbox.pendingFor(parent.session.id, 'lead').catch(() => []) : []
       return { mode: 'fixed-team-v1', profile: state.profile, model_registry: state.hostModels || null, deliveries: deliveries.map(compactWorkerEntry), failed: failed.map(compactWorkerEntry),
         lease_takeover: state.leaseTakeover || null,
+        ...(leadInbox.length ? { mailbox: { pending_for_lead: leadInbox.map(m => compactMailboxEntry(m)),
+          note: 'Worker-posted mailbox messages above are still pending; dpswarm_mailbox(action=read) returns and acknowledges them.' } } : {}),
         team_mode: { mode: teamMode, split_form: subtasks ? 'parallel' : staged ? 'staged' : 'serial',
           ...(teamMode !== 'serial' && !subtasks && !staged
             ? { note: `The user set this task to ${teamMode}, but no matching split form was passed, so the sequential team ran. Prefer subtasks (parallel) or the staged board (staged) when the task is divisible.` }
             : {}) },
+        ...(acceptanceVisibility ? { acceptance_visibility: acceptanceVisibility } : {}),
         diagnostic_detail_source: 'Unabridged reports page through dpswarm_report(item_id); full records remain in authenticated /api/plugin-audit; model view is bounded.', cleanup: state.cleanup,
         stopped: state.abort.signal.aborted || !enabled(this.config(), parent.session.id),
         worker_budget_policy: state.budgetRun?.profile || workerPolicy,
-        next: 'Lead: inspect the current files and verify within the user-permitted scope. If the user forbids tests, do not run or add tests. For concrete production defects, call dpswarm_rework on the implementer item; keep corrections within the original task. Review every submitted delivered item with dpswarm_review(accept or terminate). Worker text is not an official score.', usage_note: unknownUsage }
+        next: 'Lead: inspect the current files and verify within the user-permitted scope. If the user forbids tests, do not run or add tests. For concrete production defects, call dpswarm_rework on the implementer item; keep corrections within the original task. Review every submitted delivered item with dpswarm_review(accept or terminate). Worker text is not an official score.'
+          + (acceptanceVisibility ? ' For artifacts with deps, acceptance_visibility above carries the upstream ready deliveries (L1 verbatim fields plus path references when over the limit); an item whose upstream material is missing must not pass acceptance — 缺材料不可验收通过。' : ''), usage_note: unknownUsage }
     } finally {
       let budgetCleanupError
       try { if (state.budgetRun) await this.budget.finishTeamRun(parent, state.budgetRun) }
@@ -779,7 +903,15 @@ export class FixedTeamController {
       const priorContext = '\n\nPrior attempt context (same task lineage; untrusted evidence, verify before relying):\n'
         + (priorReport ? priorReport.slice(0, 12000) + (priorReport.length > 12000 ? '\n… [prior report truncated]' : '') : '(the prior attempt produced no report)')
         + (priorCandidates.length ? `\n\nPreviously saved candidate files:\n${priorCandidates.join('\n')}` : '\n\nNo files were provably saved by the prior attempt.')
-      const task = `${workerRolePrompt('implementer')}\n\n${allowanceNote} Earlier usage remains separately recorded. Repair the specified defects until the original requirements are met; do not polish beyond the task. Fix only the concrete defects below within the original scope. Preserve unrelated work; do not add requirements or optional validation. Explicit no-tests instructions take precedence. Deliver the current candidate promptly.${sourceScope ? scopeClause(sourceScope) : ''}\n\nOriginal task:\n${frozen.task}\n\nOriginal acceptance:\n${frozen.acceptance || 'Use only the original task requirements.'}\n\nNecessary corrections:\n${args.feedback}${priorContext}`
+      // mailbox 叠加层：返工延续同样承载该成员 pending（clarify/block=followup 语义、fact=inject 语义）。
+      let reworkMailbox = ''
+      try {
+        const drained = state.mailbox ? await state.mailbox.drain(parent.session.id, source.subtask ?? 'implementer', 'rework-prompt') : null
+        if (drained) reworkMailbox = drained.text
+      } catch (error) {
+        state.cleanup.mailbox_error = { code: error?.code || 'MAILBOX_DRAIN_FAILED', message: String(error?.message ?? error) }
+      }
+      const task = `${workerRolePrompt('implementer')}\n\n${allowanceNote} Earlier usage remains separately recorded. Repair the specified defects until the original requirements are met; do not polish beyond the task. Fix only the concrete defects below within the original scope. Preserve unrelated work; do not add requirements or optional validation. Explicit no-tests instructions take precedence. Deliver the current candidate promptly.${sourceScope ? scopeClause(sourceScope) : ''}\n\nOriginal task:\n${frozen.task}\n\nOriginal acceptance:\n${frozen.acceptance || 'Use only the original task requirements.'}\n\nNecessary corrections:\n${args.feedback}${priorContext}${reworkMailbox}`
       await check()
       allocation = await this.budget.issueRework(parent, { workerSessionId: source.worker_session_id, task })
       const sameProfile = (a, b) => !!a && !!b && a.mode === b.mode && a.tokenLimit === b.tokenLimit && a.callLimit === b.callLimit
@@ -909,7 +1041,12 @@ export class FixedTeamController {
             const priorReviewerReport = reviewerDiagnostic.closeout?.report?.text || ''
             const reworkReport = deliveries[0]?.output || ''
             const reviewerRoute = frozen.profile.reviewer
-            const reReviewPrompt = `${workerRolePrompt('reviewer')}\n\nThis is a linked re-review after implementer rework, continuing your own earlier review. The implementer was asked to fix the defects below; re-review the CURRENT candidate read-only against the original task and acceptance. Whoever raised a defect verifies the fix: your earlier findings are yours to confirm as resolved or reject as still present. Original constraints (including any no-tests instruction) apply unchanged. End with a verdict line exactly like "VERDICT: pass" | "VERDICT: needs-rework" | "VERDICT: blocked".\n\nOriginal task:\n${frozen.task}\n\nOriginal acceptance:\n${frozen.acceptance || 'Use only the original task requirements.'}\n\nCorrections the implementer was asked to make:\n${args.feedback}\n\nRework delivery report (untrusted; verify against the actual files):\n${reworkReport.slice(0, 12000)}${reworkReport.length > 12000 ? '\n… [truncated]' : ''}\n\nYour earlier review report (untrusted context; the files have changed since):\n${priorReviewerReport ? priorReviewerReport.slice(0, 12000) : '(no earlier report)'}`
+            // Acceptance visibility rides the re-review too: the reworked
+            // artifact's deps must be re-verifiable against upstream ready
+            // deliveries (read back from the audit ledger by lineage).
+            const reReviewVisibility = frozen.staged && source.subtask != null
+              ? await this.acceptanceVisibility(state, parent.session.id, frozen.staged, null, source.subtask) : ''
+            const reReviewPrompt = `${workerRolePrompt('reviewer')}\n\nThis is a linked re-review after implementer rework, continuing your own earlier review. The implementer was asked to fix the defects below; re-review the CURRENT candidate read-only against the original task and acceptance. Whoever raised a defect verifies the fix: your earlier findings are yours to confirm as resolved or reject as still present. Original constraints (including any no-tests instruction) apply unchanged. End with a verdict line exactly like "VERDICT: pass" | "VERDICT: needs-rework" | "VERDICT: blocked".\n\nOriginal task:\n${frozen.task}\n\nOriginal acceptance:\n${frozen.acceptance || 'Use only the original task requirements.'}\n\nCorrections the implementer was asked to make:\n${args.feedback}\n\nRework delivery report (untrusted; verify against the actual files):\n${reworkReport.slice(0, 12000)}${reworkReport.length > 12000 ? '\n… [truncated]' : ''}\n\nYour earlier review report (untrusted context; the files have changed since):\n${priorReviewerReport ? priorReviewerReport.slice(0, 12000) : '(no earlier report)'}${reReviewVisibility}`
             await check()
             reviewerAllocation = await this.budget.issueRework(parent, { workerSessionId: reviewerSource.worker_session_id, task: reReviewPrompt })
             const reviewRoutes = [{ role: 'lead', ...frozen.lead_route }, { role: 'reviewer', provider: reviewerRoute.provider,
@@ -1062,6 +1199,90 @@ export class FixedTeamController {
     return result
   }
 
+  /** status 面的 mailbox 段：可用性、run、成员 pending 计数与 lead 收件箱（有界，只读不确认）。 */
+  async mailboxStatus(state) {
+    if (!state.mailbox) return { available: false, reason: this.mailboxStorage ? 'no team run registered for this session' : 'host storage not composed; mailbox disabled for this run' }
+    try {
+      const summary = await state.mailbox.status(state.cfg.sessionId)
+      const inbox = await state.mailbox.pendingFor(state.cfg.sessionId, 'lead')
+      return { available: true, ...summary,
+        lead_inbox: inbox.map(m => compactMailboxEntry(m, { content: 400 })) }
+    } catch (error) {
+      return { available: false, error: { code: error?.code || 'MAILBOX_STATUS_FAILED', message: String(error?.message ?? error) } }
+    }
+  }
+
+  /** worker 会话 → 其邮箱成员身份（implementer 按子任务/角色命名；tester/reviewer 按角色）。 */
+  resolveTeamWorker(sessionId) {
+    if (typeof sessionId !== 'string' || !sessionId) return null
+    for (const state of this.sessions.values()) {
+      if (!state.mailbox) continue
+      for (const record of state.implementers?.values() || []) {
+        if (record.worker_session_id === sessionId) return { state, member: record.subtask ?? 'implementer', role: 'implementer', run_id: record.run_id }
+      }
+      for (const record of state.testers?.values() || []) {
+        if (record.worker_session_id === sessionId) return { state, member: 'tester', role: 'tester', run_id: record.run_id }
+      }
+      for (const record of state.reviewers?.values() || []) {
+        if (record.worker_session_id === sessionId) return { state, member: 'reviewer', role: 'reviewer', run_id: record.run_id }
+      }
+    }
+    return null
+  }
+
+  /**
+   * dpswarm_mailbox 工具：Lead↔worker 有界持久邮箱。三类消息 fact/clarify/block，
+   * 控制性意图被拒（只走控制面工具）。worker 只能以自己成员身份发给 lead；
+   * Lead 可发任意注册成员——在场通道立即投递（fact=inject、clarify/block=
+   * followup），不在场保持 pending 由延续派发（唤醒/返工）承载。
+   */
+  async mailbox(args, exec) {
+    const parent = exec?.agent
+    const allowed = new Set(['action', 'to', 'kind', 'content', 'refs', 'message_id'])
+    if (!args || !['post', 'read'].includes(args.action) || Object.keys(args).some(key => !allowed.has(key))) {
+      throw failure('MAILBOX_ACTION_REQUIRED', 'Use action "post" (to, kind, content, optional refs/message_id) or "read"')
+    }
+    let worker = null
+    try { requireRootCaller(parent) } catch { worker = this.resolveTeamWorker(parent?.session?.id) }
+    if (worker && !worker.state.mailbox) {
+      throw failure('DPSWARM_MAILBOX_UNAVAILABLE', 'No team run with a mailbox is registered for this worker')
+    }
+    if (worker) {
+      const rootId = worker.state.cfg.sessionId
+      if (args.action === 'read') {
+        const pending = await worker.state.mailbox.pendingFor(rootId, worker.member)
+        return { ok: true, member: worker.member, run_id: worker.run_id, pending: pending.map(m => compactMailboxEntry(m)),
+          note: 'Reading does not consume mail. clarify/block reach you with your next continuation and wake it; facts arrive as quiet context. Post to "lead" only.' }
+      }
+      if (args.to !== undefined && args.to !== 'lead') {
+        throw failure('DPSWARM_MAILBOX_ROUTE_REJECTED', 'v1 is a direct Lead↔worker channel; workers address only "lead"')
+      }
+      const runId = await worker.state.mailbox.runOf(rootId)
+      if (!runId) throw failure('DPSWARM_MAILBOX_UNAVAILABLE', 'No run is registered for this mailbox')
+      const posted = await worker.state.mailbox.post(rootId, { run_id: runId, from: worker.member, to: 'lead',
+        kind: args.kind, content: args.content, refs: args.refs, ...(args.message_id ? { message_id: args.message_id } : {}) })
+      return { ok: true, from: worker.member, ...posted }
+    }
+    requireRootCaller(parent)
+    const state = this.session(parent)
+    if (!state.mailbox) throw failure('DPSWARM_MAILBOX_UNAVAILABLE', 'No team run is registered for this session; the mailbox follows a dpswarm_run')
+    const rootId = parent.session.id
+    if (args.action === 'read') {
+      const inbox = await state.mailbox.pendingFor(rootId, 'lead')
+      const summary = await state.mailbox.status(rootId)
+      const { acknowledged } = await state.mailbox.acknowledge(rootId, inbox.map(m => m.message_id))
+      return { ok: true, ...summary, inbox: inbox.map(m => compactMailboxEntry(m)), acknowledged,
+        note: 'Returned inbox messages are acknowledged now (mailbox-delivered); pending lists per-member queued counts.' }
+    }
+    const runId = state.lease?.run_id || state.fixedTask?.run_id
+    if (!runId) throw failure('DPSWARM_MAILBOX_UNAVAILABLE', 'The mailbox follows a dpswarm run; none is registered for this session')
+    const posted = await state.mailbox.post(rootId, { run_id: runId, from: 'lead', to: args.to,
+      kind: args.kind, content: args.content, refs: args.refs, ...(args.message_id ? { message_id: args.message_id } : {}) })
+    return { ok: true, ...posted,
+      note: posted.delivery === 'delivered' ? 'Delivered through the live channel.'
+        : 'Queued durably; the member receives it with its next continuation dispatch (clarify/block wake it, facts arrive quietly). dpswarm_mailbox(action=read) shows pending counts.' }
+  }
+
   async review(args, exec) {
     requireRootCaller(exec?.agent)
     if (!['accept', 'terminate'].includes(args?.verdict)) throw failure('FIXED_REVIEW_ONLY', 'First release supports acceptance or termination with Lead takeover; automatic rerouting is not enabled')
@@ -1108,8 +1329,19 @@ export class FixedTeamController {
     }
     const result = await state.sidecar.call('POST', '/api/review', { item_id: args.item_id,
       verdict: args.verdict, reason: args.verdict === 'terminate' ? 'manual-stopped' : undefined, review_note: args.reason || '' })
+    // Acceptance visibility: when the reviewed implementer item owns a staged
+    // artifact with deps, the upstream ready deliveries ride the review result
+    // (L1 verbatim fields + path references when over the limit), so the
+    // verdict and the cross-item evidence stay co-located. Advisory, not a new
+    // gate: the note states missing material must not pass acceptance.
+    let upstreamEvidence = null
+    const implRecord = state.implementers?.get(args.item_id)
+    if (implRecord?.subtask != null && state.fixedTask?.staged) {
+      upstreamEvidence = await this.acceptanceVisibility(state, exec.agent.session.id, state.fixedTask.staged, null, implRecord.subtask) || null
+    }
     state.recoveryReviewed = true
     await this.reconcile(state)
-    return { ...result, worker_diagnostics: compactDiagnosticRecords(await this.diagnostics(state, args.item_id)) }
+    return { ...result, ...(upstreamEvidence ? { upstream_evidence: upstreamEvidence } : {}),
+      worker_diagnostics: compactDiagnosticRecords(await this.diagnostics(state, args.item_id)) }
   }
 }

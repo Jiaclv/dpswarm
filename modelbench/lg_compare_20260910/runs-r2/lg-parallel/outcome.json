@@ -1,0 +1,60 @@
+{
+  "summary": {
+    "run_id": "lg-parallel",
+    "arm": "lg",
+    "task": "parallel",
+    "wall_seconds": 74.8,
+    "final": "accepted-by-lead",
+    "error": null,
+    "actions": [
+      "fission",
+      "accept"
+    ],
+    "items": [
+      {
+        "item": "wi-0a7f82307c",
+        "outcome": "accepted",
+        "submission": "```python\ndef is_palindrome(s: str) -> bool:\n    \"\"\"\n    判断字符串是否为回文：忽略大小写与非字母数字字符。\n\n    >>> is_palindrome(\"A man, a plan, a canal: Panama\")\n    True\n    >>> is_palindrome(\"race a car\")\n    False\n    >"
+      },
+      {
+        "item": "wi-f60535842a",
+        "outcome": "accepted",
+        "submission": "```python\ndef to_roman(n: int) -> str:\n    \"\"\"\n    将 1 到 3999 的整数转换为罗马数字。\n\n    >>> to_roman(1)\n    'I'\n    >>> to_roman(1994)\n    'MCMXCIV'\n    >>> to_roman(3999)\n    'MMMCMXCIX'\n    \"\"\"\n    if not 1 "
+      },
+      {
+        "item": "wi-4a96abc658",
+        "outcome": "accepted",
+        "submission": "```python\ndef base_convert(s: str, from_base: int, to_base: int) -> str:\n    \"\"\"将字符串 s 从 from_base 进制转换为 to_base 进制（均支持 2-36）。\n\n    >>> base_convert(\"ff\", 16, 10)\n    '255'\n    >>> base_convert(\"1010\""
+      }
+    ],
+    "lead_tokens": 8046,
+    "protocol_failures": 0,
+    "protocol_failure_detail": []
+  },
+  "outcome": {
+    "task": "三个完全独立的小型交付，互不依赖、互不引用：\n1. 子任务「回文」：实现 Python 函数 is_palindrome(s: str) -> bool，忽略大小写与非字母数字字符，附 3 个 doctest 用例；\n2. 子任务「罗马数字」：实现 to_roman(n: int) -> str（1<=n<=3999），附 3 个 doctest 用例；\n3. 子任务「进制转换」：实现 base_convert(s: str, from_base: int, to_base: int) -> str（支持 2-36），附 3 个 doctest 用例。\n每个子任务交付一个 ```python 代码块（≤50 行，含函数与 doctest）。\n分工提示：三者零依赖，建议 fission 拆 3 个 subtasks 并行执行、不要标 deps；全部验收通过后 Lead 决策 accept 收束。",
+    "bucket": "coding",
+    "items": [
+      {
+        "item": "wi-0a7f82307c",
+        "outcome": "accepted",
+        "submission": "```python\ndef is_palindrome(s: str) -> bool:\n    \"\"\"\n    判断字符串是否为回文：忽略大小写与非字母数字字符。\n\n    >>> is_palindrome(\"A man, a plan, a canal: Panama\")\n    True\n    >>> is_palindrome(\"race a car\")\n    False\n    >"
+      },
+      {
+        "item": "wi-f60535842a",
+        "outcome": "accepted",
+        "submission": "```python\ndef to_roman(n: int) -> str:\n    \"\"\"\n    将 1 到 3999 的整数转换为罗马数字。\n\n    >>> to_roman(1)\n    'I'\n    >>> to_roman(1994)\n    'MCMXCIV'\n    >>> to_roman(3999)\n    'MMMCMXCIX'\n    \"\"\"\n    if not 1 "
+      },
+      {
+        "item": "wi-4a96abc658",
+        "outcome": "accepted",
+        "submission": "```python\ndef base_convert(s: str, from_base: int, to_base: int) -> str:\n    \"\"\"将字符串 s 从 from_base 进制转换为 to_base 进制（均支持 2-36）。\n\n    >>> base_convert(\"ff\", 16, 10)\n    '255'\n    >>> base_convert(\"1010\""
+      }
+    ],
+    "actions": [
+      "fission",
+      "accept"
+    ],
+    "final": "accepted-by-lead"
+  }
+}

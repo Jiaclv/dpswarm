@@ -1,0 +1,46 @@
+## 子任务 A 交付：迷你记账记录 JSON Schema
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MiniLedgerRecord",
+  "description": "迷你记账记录：一笔收入/支出的最小结构化描述",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "记录唯一标识，非空字符串"
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "description": "金额，精确到两位小数"
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "ISO 4217 三字母大写货币代码，如 CNY、USD"
+    },
+    "tags": {
+      "type": ["array", "null"],
+      "items": { "type": "string" },
+      "uniqueItems": true,
+      "description": "标签列表，可为 null"
+    }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+**设计说明（≤10 行）：**
+
+1. `amount` 用 `multipleOf: 0.01` 约束两位小数；注意浮点实现需谨慎（B 阶段校验器建议用 `Decimal` 或字符串比较规避精度陷阱）。
+2. `currency` 用 `pattern` 限定为大写三字母，与 ISO 4217 约定一致。
+3. `tags` 用 `"type": ["array", "null"]` 实现"可空"，元素须为字符串且不重复（`uniqueItems`）。
+4. 四个字段全部 `required`，语义上"可空"仅指 tags 值可为 null，而非字段可缺省——避免歧义。
+5. `additionalProperties: false` 锁定结构，防止冗余字段混入，便于 B 阶段严格校验。
+6. 采用 draft-07，兼容性最广，`"type": ["array","null"]` 数组写法在此版本合法。
+
+— 子任务 A 完，待验收后 B 方可启动（deps=[0]）。

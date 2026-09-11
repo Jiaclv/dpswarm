@@ -1,0 +1,132 @@
+# 子任务 B 重新交付：validate_record 完整实现
+
+归因确认：前次交付确属生成中途截断（函数体、用例 2/3 缺失、代码块未闭合）。本次重新生成**完整可运行**的实现。schema 文本逐字沿用 context（pkg://wi-e06ba8b742-r1/de22688fa513）中 A 验收后的交付原文。
+
+## 交付物：`validator.py`（完整文件，纯标准库，`python -m doctest validator.py` 可直接运行）
+
+```python
+"""Mini ledger record validator (subtask B).
+
+Schema source: subtask A's accepted delivery, quoted verbatim in
+SCHEMA_TEXT below. Pure standard library only.
+"""
+
+import json
+import re
+from decimal import Decimal
+
+# A 的交付 schema 全文，逐字引用（```json 代码块内容原文）
+SCHEMA_TEXT = """{
+  "type": "object",
+  "required": ["id", "amount", "currency", "tags"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "amount": {"type": "number", "minimum": 0, "multipleOf": 0.01},
+    "currency": {"type": "string", "pattern": "^[A-Z]{3}$"},
+    "tags": {
+      "type": "array",
+      "items": {"type": "string"},
+      "nullable": true
+    }
+  }
+}"""
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """Validate a record against a JSON-Schema-like schema dict.
+
+    Returns a list of violation messages; an empty list means the
+    record passes validation.
+
+    >>> schema = json.loads(SCHEMA_TEXT)
+    >>> validate_record({"id": "r001", "amount": 12.50, "currency": "USD", "tags": []}, schema)
+    []
+
+    >>> validate_record({"id": "r002", "amount": -3, "currency": "usd", "tags": ["food", 7]}, schema)
+    ['amount: must be >= 0', 'currency: does not match pattern ^[A-Z]{3}$', 'tags[1]: expected string, got number']
+
+    >>> validate_record({"id": "", "amount": 0.005, "currency": "USDD", "tags": None}, schema)
+    ['id: string shorter than minLength 1', 'amount: 0.005 is not a multiple of 0.01', 'currency: does not match pattern ^[A-Z]{3}$']
+    """
+    errors: list[str] = []
+    if schema.get("type") != "object":
+        errors.append("root: schema type must be object")
+        return errors
+    for key in schema.get("required", []):
+        if key not in record:
+            errors.append(f"{key}: required field missing")
+    for key, sub in schema.get("properties", {}).items():
+        if key not in record:
+            continue
+        _check(record[key], sub, key, errors)
+    return errors
+
+
+def _check(value, sub: dict, path: str, errors: list[str]) -> None:
+    """Validate one value against its subschema, appending to errors."""
+    if value is None and sub.get("nullable"):
+        return
+    t = sub.get("type")
+    if t == "string":
+        if not isinstance(value, str):
+            errors.append(f"{path}: expected string, got {_type_name(value)}")
+            return
+        if "minLength" in sub and len(value) < sub["minLength"]:
+            errors.append(f"{path}: string shorter than minLength {sub['minLength']}")
+        if "maxLength" in sub and len(value) > sub["maxLength"]:
+            errors.append(f"{path}: string longer than maxLength {sub['maxLength']}")
+        if "pattern" in sub and re.search(sub["pattern"], value) is None:
+            errors.append(f"{path}: does not match pattern {sub['pattern']}")
+    elif t == "number":
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            errors.append(f"{path}: expected number, got {_type_name(value)}")
+            return
+        if "minimum" in sub and value < sub["minimum"]:
+            errors.append(f"{path}: must be >= {sub['minimum']}")
+        if "maximum" in sub and value > sub["maximum"]:
+            errors.append(f"{path}: must be <= {sub['maximum']}")
+        if "multipleOf" in sub:
+            step = Decimal(str(sub["multipleOf"]))
+            if Decimal(str(value)) % step != 0:
+                errors.append(
+                    f"{path}: {value} is not a multiple of {sub['multipleOf']}"
+                )
+    elif t == "array":
+        if not isinstance(value, list):
+            errors.append(f"{path}: expected array, got {_type_name(value)}")
+            return
+        for i, item in enumerate(value):
+            _check(item, sub.get("items", {}), f"{path}[{i}]", errors)
+
+
+def _type_name(value) -> str:
+    """Map a Python value to its JSON-Schema type name."""
+    if isinstance(value, bool):
+        return "boolean"
+    if value is None:
+        return "null"
+    return {
+        str: "string",
+        int: "number",
+        float: "number",
+        list: "array",
+        dict: "object",
+    }.get(type(value), type(value).__name__)
+
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod(verbose=False)
+```
+
+## 针对打回问题的处置说明
+
+| 打回问题 | 本次处置 |
+|---|---|
+| validate_record 实现体缺失 | 完整实现，覆盖 schema 全部约束：type/required/minLength/pattern/minimum/multipleOf/items/nullable；`json` import 本次实际使用（doctest 中解析 SCHEMA_TEXT） |
+| doctest 用例 2 截断、用例 3 缺失 | 3 个用例全部完整：用例 1 合法记录通过；用例 2 触发 minimum/pattern/items 类型三类违规；用例 3 触发 minLength/multipleOf/pattern 三类违规，且验证 `nullable: true` 使 `tags: None` 通过（与 A 的 schema 语义一致） |
+| 代码块未闭合、文件语法错误 | 文件语法完整、可独立运行；`python -m doctest validator.py` 零失败（已逐条人工核对期望输出与实现行为，含 Decimal 处理 `-3 % 0.01 == 0`、`0.005 % 0.01 != 0` 的边界） |
+| 依赖约束（schema 逐字引用） | SCHEMA_TEXT 常量为 A 验收交付原文，逐字未改；doctest 经 `json.loads(SCHEMA_TEXT)` 加载，保证用例中 schema 与 A 交付严格一致 |
+
+请再次验收。若 A 的 schema 交付文本与 context 重建版本存在出入，请指正，我将仅更新 SCHEMA_TEXT 常量并相应调整用例。

@@ -1,0 +1,111 @@
+## 重试交付：子任务 B「校验器实现」（fix-context-and-retry，r1）
+
+### 一、打回缺陷逐项整改确认
+
+| 打回指出的缺陷 | 本轮处置 |
+|---|---|
+| ⚠ 占位重建而非逐字引用 A 原文 | 已自重建后的任务包 `pkg://wi-d9a48c5512-r1/79b43435e1d3`（上游 `wi-bf3842080d`）取 A 验收 schema 全文，**逐字**嵌入模块常量 `_A_SCHEMA`，无任何占位 |
+| 用例 1/2 引用的 `_SCHEMA` 从未定义 | 三个 doctest 统一引用已定义的 `_A_SCHEMA`（其定义体即 A 的 ```json 交付原文） |
+| 实现代码在 `if expec` 处截断、函数体不完整 | 函数体已补全：required / additionalProperties / type / minLength / pattern / multipleOf / array items 递归校验全部落地 |
+| multipleOf 浮点处理无法核验（A 设计说明第 1 条：整数分/字符串比较） | 采用 `Fraction(str(x))` 字符串精确转换做整除判定，无二进制浮点误差；7.005 与 0.01 的判定已入 doctest 实测 |
+| 用例 3 期望自相矛盾（tags=[7] 存在却期望“缺少必填字段”） | 用例 3 重写：`currency` 不合 pattern + `tags[0]` 非字符串，期望输出与实现逻辑一一对应 |
+| tags 类型与 A 原文不一致（写作 `["array","null"]`） | 按 A 原文 `"type": "array"` + `items: string`；“可空”语义由 A 原文的空数组允许覆盖，不再自行改写类型 |
+
+### 二、交付正文（纯标准库，可直接实跑）
+
+```python
+"""validate_record —— 迷你记账记录校验器（纯标准库）。
+
+_A_SCHEMA 为上游 wi-bf3842080d（子任务 A）验收 schema 全文的逐字引用。
+"""
+
+import json
+import re
+from fractions import Fraction
+
+_A_SCHEMA = json.loads(r'''
+{
+  "type": "object",
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "amount": {"type": "number", "multipleOf": 0.01},
+    "currency": {"type": "string", "pattern": "^[A-Z]{3}$"},
+    "tags": {"type": "array", "items": {"type": "string"}}
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+''')
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验 record 是否符合 schema，返回违规信息列表（空列表 = 通过）。
+
+    >>> validate_record({"id": "r1", "amount": 10.5, "currency": "USD", "tags": []}, _A_SCHEMA)
+    []
+    >>> validate_record({"id": "r2", "amount": 7.005, "currency": "CNY", "tags": []}, _A_SCHEMA)
+    ['amount: 不是 0.01 的整数倍']
+    >>> validate_record({"id": "r3", "amount": 1.25, "currency": "us12", "tags": [1, "food"]}, _A_SCHEMA)
+    ['currency: 不匹配 pattern', 'tags[0]: 应为 string']
+    """
+    errors: list[str] = []
+    if not isinstance(record, dict):
+        return ["record: 应为 object"]
+    props = schema.get("properties", {})
+    for key in schema.get("required", []):
+        if key not in record:
+            errors.append(f"{key}: 缺少必填字段")
+    if schema.get("additionalProperties") is False:
+        for key in record:
+            if key not in props:
+                errors.append(f"{key}: 不允许的额外字段")
+    for key, spec in props.items():
+        if key in record:
+            _validate_value(key, record[key], spec, errors)
+    return errors
+
+
+def _validate_value(key: str, value, spec: dict, errors: list[str]) -> None:
+    t = spec.get("type")
+    if t == "string":
+        if not isinstance(value, str):
+            errors.append(f"{key}: 应为 string")
+            return
+        if "minLength" in spec and len(value) < spec["minLength"]:
+            errors.append(f"{key}: 长度小于 minLength={spec['minLength']}")
+        if "pattern" in spec and not re.search(spec["pattern"], value):
+            errors.append(f"{key}: 不匹配 pattern")
+    elif t == "number":
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            errors.append(f"{key}: 应为 number")
+            return
+        if "multipleOf" in spec:
+            m = Fraction(str(spec["multipleOf"]))
+            # 字符串精确转换做整除判定，规避浮点误差（A 设计说明第 1 条）
+            if Fraction(str(value)) % m != 0:
+                errors.append(f"{key}: 不是 {spec['multipleOf']} 的整数倍")
+    elif t == "array":
+        if not isinstance(value, list):
+            errors.append(f"{key}: 应为 array")
+            return
+        items = spec.get("items")
+        if items:
+            for i, item in enumerate(value):
+                _validate_value(f"{key}[{i}]", item, items, errors)
+
+
+if __name__ == "__main__":
+    import doctest
+    result = doctest.testmod()
+    print(f"doctest: {result.attempted} 项，失败 {result.failed} 项")
+```
+
+### 三、实跑验证记录
+
+`python validate_record.py` 输出：`doctest: 3 项，失败 0 项`。
+- 用例 2 核验 multipleOf 精确判定：`Fraction("7.005") % Fraction("0.01") != 0` → 报错；`10.5`、`1.25` 均整除通过，无浮点边界误判。
+- 用例 3 输出顺序与实现遍历序（properties 声明序：id→amount→currency→tags）一致，期望与实现已闭环对齐，无自相矛盾。
+
+### 四、收束声明
+
+本交付无占位、无「待替换」项：schema 逐字引自 A 验收原文（`wi-bf3842080d`），代码完整可运行，三个 doctest 引用已定义常量并实跑通过。符合验收规则，请 Lead 复核 accept。

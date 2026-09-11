@@ -1,0 +1,39 @@
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MiniLedgerRecord",
+  "type": "object",
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "记录唯一标识"
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "description": "金额，精确到两位小数"
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "ISO 4217 三字母货币代码"
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": [],
+      "description": "标签数组，可为空数组"
+    }
+  }
+}
+```
+
+设计说明：
+1. 四个字段全部设为 required，避免记录缺失关键信息。
+2. amount 用 `multipleOf: 0.01` 约束两位小数精度。
+3. currency 用正则 `^[A-Z]{3}$` 保证三字母大写代码格式。
+4. tags 允许空数组（"可空"按可传 `[]` 理解）；若需允许 null，可改 items 为 `{"type": ["string", "null"]}` 或外层加 "null"。
+5. `additionalProperties: false` 拒绝未知字段，保持 schema 严格。

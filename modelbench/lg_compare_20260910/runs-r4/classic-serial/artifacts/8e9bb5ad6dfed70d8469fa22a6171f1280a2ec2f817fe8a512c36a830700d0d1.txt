@@ -1,0 +1,41 @@
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/schemas/mini-ledger-record.json",
+  "title": "迷你记账记录",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "记录唯一标识，非空字符串"
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "description": "金额，最多两位小数"
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "ISO 4217 三字母货币代码"
+    },
+    "tags": {
+      "type": ["array", "null"],
+      "items": { "type": "string" },
+      "description": "标签数组，可为 null"
+    }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+**设计说明（≤10 行）**
+
+1. `amount` 用 `multipleOf: 0.01` 约束两位小数；实现校验时建议用整数分/字符串比较规避浮点误差（B 阶段注意点）。
+2. `currency` 用正则 `^[A-Z]{3}$` 强制三字母大写（ISO 4217 风格），不引入外部枚举以保持 schema 自包含。
+3. `tags` 允许 `null` 或字符串数组，元素必须为字符串；禁止数字混入。
+4. 四个字段均列入 `required`；`additionalProperties: false` 收紧结构，便于 B 的校验器做确定性判定。
+5. 采用 2020-12 草案但仅用基础关键字（type/pattern/multipleOf/required），确保标准库手写校验器可无歧义实现。
+6. `id` 加 `minLength: 1` 排除空串。

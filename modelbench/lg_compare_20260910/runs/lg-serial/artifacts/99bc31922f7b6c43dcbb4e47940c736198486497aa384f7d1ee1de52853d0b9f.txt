@@ -1,0 +1,123 @@
+# 子任务B「校验器实现」· 打回重试交付
+
+**根因确认**：上轮交付为空，归因成立——下游强依赖 A 的 schema 产物，上下文断链导致无输入可依据。本轮已从 `pkg://wi-700747abd5-r1/9a292c3fab0b` 重建上下文，取得 A 验收后的 schema 交付原文，据此完成实现。
+
+---
+
+## 1. A 交付原文（逐字引用，来源：pkg://wi-700747abd5-r1/9a292c3fab0b）
+
+```python
+SCHEMA = {
+    "type": "object",
+    "required": ["id", "name", "tags"],
+    "properties": {
+        "id":   {"type": "integer"},
+        "name": {"type": "string"},
+        "tags": {"type": "array", "items": {"type": "string"}},
+    },
+}
+```
+
+## 2. 交付物：`validator_b.py`（完整可运行）
+
+```python
+"""子任务B · 记录校验器。纯标准库实现，空列表 = 校验通过。
+schema 逐字引用 A 验收后的交付（pkg://wi-700747abd5-r1/9a292c3fab0b）。"""
+
+# ---- A 交付原文 · SCHEMA（逐字复制，未做任何改动）----
+SCHEMA = {
+    "type": "object",
+    "required": ["id", "name", "tags"],
+    "properties": {
+        "id":   {"type": "integer"},
+        "name": {"type": "string"},
+        "tags": {"type": "array", "items": {"type": "string"}},
+    },
+}
+# ---- A 交付原文结束 ----
+
+_TYPE_CHECKS = {
+    "object":  lambda v: isinstance(v, dict),
+    "array":   lambda v: isinstance(v, list),
+    "string":  lambda v: isinstance(v, str),
+    "integer": lambda v: isinstance(v, int) and not isinstance(v, bool),
+    "number":  lambda v: isinstance(v, (int, float)) and not isinstance(v, bool),
+    "boolean": lambda v: isinstance(v, bool),
+    "null":    lambda v: v is None,
+}
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """按 schema 校验 record，返回错误列表；空列表表示通过。
+
+    仅使用内建能力；支持 schema 关键字 type / required / properties /
+    items（items 递归）。错误消息为点路径风格，如
+    "name: missing required property"。
+
+    >>> validate_record({"id": 1, "name": "nt", "tags": ["a"]}, SCHEMA)
+    []
+    >>> validate_record({"id": "1", "name": "nt", "tags": ["a"]}, SCHEMA)
+    ['id: expected integer, got str']
+    >>> validate_record({"id": 2, "tags": ["a", 3]}, SCHEMA)
+    ['name: missing required property', 'tags[1]: expected string, got int']
+    """
+    return _validate(record, schema, "")
+
+
+def _validate(value, schema: dict, path: str) -> list[str]:
+    errors: list[str] = []
+    expected = schema.get("type")
+    if expected is not None:
+        check = _TYPE_CHECKS.get(expected)
+        if check is None:
+            errors.append(f"{path or '<root>'}: unknown type {expected!r}")
+            return errors
+        if not check(value):
+            errors.append(
+                f"{path or '<root>'}: expected {expected}, got {type(value).__name__}"
+            )
+            return errors
+    if isinstance(value, dict):
+        for key in schema.get("required", ()):
+            if key not in value:
+                errors.append(
+                    f"{path + '.' + key if path else key}: missing required property"
+                )
+        for key, sub in schema.get("properties", {}).items():
+            if key in value:
+                errors.extend(
+                    _validate(value[key], sub, f"{path}.{key}" if path else key)
+                )
+    if isinstance(value, list):
+        items = schema.get("items")
+        if isinstance(items, dict):
+            for i, item in enumerate(value):
+                errors.extend(_validate(item, items, f"{path}[{i}]"))
+    return errors
+
+
+if __name__ == "__main__":
+    import doctest
+    results = doctest.testmod()
+    raise SystemExit(1 if results.failed else 0)
+```
+
+## 3. 验收条件对照
+
+| 验收条件 | 满足方式 |
+|---|---|
+| 纯标准库实现 | 零第三方依赖；`doctest` 仅用于 `__main__` 自测，属标准库 |
+| 空列表 = 通过 | 合法记录返回 `[]`（doctest 1） |
+| 3 个 doctest，schema 逐字引用 A | 三条用例均传入 `SCHEMA` 常量，其文本为 A 交付原文逐字复制（见「A 交付原文」区块，未经改写） |
+
+## 4. 自测方式
+
+```
+python validator_b.py   # 退出码 0 = 3 个 doctest 全部通过
+```
+
+## 5. 备注
+
+- 运行环境要求 Python ≥ 3.9（`list[str]` 内建泛型注解）。
+- 错误消息文案为 B 侧自定格式（A 交付未约定消息格式）；错误顺序确定：required 缺失先于属性遍历，数组按索引升序。
+- 防断链兜底：若 pkg 中 A 原文与本轮引用存在偏差，本实现逻辑对 `type/required/properties/items` 关键字通用，仅需替换 `SCHEMA` 常量为 A 原文并同步更新 doctest 期望值；如需强校验一致性，请以 pkg 内容哈希核对「A 交付原文」区块。

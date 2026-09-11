@@ -1,0 +1,178 @@
+# `validate_record.py` — 纯标准库校验器
+
+严格依据 [wi-db59989477] 验收后的 schema 文本实现，仅支持该 schema 声明中出现的关键字（`type` 含类型联合、`required`、`properties`、`minLength`、`multipleOf`、`pattern`、`items`、`uniqueItems`、`additionalProperties: false`；`default`/`description`/`$schema`/`$id`/`title` 不参与校验）。`multipleOf` 用 `decimal` 规避浮点误差。
+
+```python
+"""LedgerEntry 记录校验器。
+
+schema 依据：https://example.com/schemas/ledger-entry.json（$id，见子任务 0 交付）
+"""
+import re
+from decimal import Decimal
+
+_TYPE_MAP = {
+    "object": dict, "array": list, "string": str,
+    "number": (int, float), "integer": int,
+    "boolean": bool, "null": type(None),
+}
+
+
+def _check_type(value, expected):
+    if isinstance(expected, list):
+        return any(_check_type(value, t) for t in expected)
+    cls = _TYPE_MAP[expected]
+    # bool 是 int 子类，须排除："number" 不接受 True
+    if cls is (int, float) or cls is int:
+        if isinstance(value, bool):
+            return False
+    return isinstance(value, cls)
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """按 LedgerEntry schema 校验单条记录，返回违规信息列表（空列表 = 通过）。
+
+    >>> schema = {
+    ...   "$schema": "https://json-schema.org/draft/2020-12/schema",
+    ...   "$id": "https://example.com/schemas/ledger-entry.json",
+    ...   "title": "LedgerEntry",
+    ...   "description": "迷你记账的单条记录",
+    ...   "type": "object",
+    ...   "required": ["id", "amount", "currency"],
+    ...   "properties": {
+    ...     "id": {
+    ...       "type": "string",
+    ...       "minLength": 1,
+    ...       "description": "记录唯一标识"
+    ...     },
+    ...     "amount": {
+    ...       "type": "number",
+    ...       "multipleOf": 0.01,
+    ...       "description": "金额，最多两位小数"
+    ...     },
+    ...     "currency": {
+    ...       "type": "string",
+    ...       "pattern": "^[A-Z]{3}$",
+    ...       "description": "ISO 4217 三字母货币代码"
+    ...     },
+    ...     "tags": {
+    ...       "type": ["array", "null"],
+    ...       "items": { "type": "string", "minLength": 1 },
+    ...       "uniqueItems": true,
+    ...       "default": null,
+    ...       "description": "分类标签，可为空"
+    ...     }
+    ...   },
+    ...   "additionalProperties": false
+    ... }
+
+    合法记录（tags 显式为 null，符合 type 联合）→ 通过：
+
+    >>> validate_record(
+    ...     {"id": "a1", "amount": 10.55, "currency": "CNY", "tags": None},
+    ...     schema)
+    []
+
+    缺必填 + 未声明字段 → 违规：
+
+    >>> validate_record({"amount": 1, "note": "x"}, schema)
+    ["缺少必填字段 'currency'", "存在未声明字段 'note'"]
+
+    金额三位小数 + 货币代码不合 pattern + 标签重复 → 违规：
+
+    >>> validate_record(
+    ...     {"id": "a2", "amount": 3.141, "currency": "cny",
+    ...      "tags": ["food", "food"]},
+    ...     schema)
+    ["amount: 值 3.141 不是 0.01 的整数倍", "currency: 值 'cny' 不匹配模式 '^[A-Z]{3}$'", "tags: 含重复元素"]
+
+    id 为空串 + 标签含空串 → 违规：
+
+    >>> validate_record(
+    ...     {"id": "", "amount": 2, "currency": "USD", "tags": [""]},
+    ...     schema)
+    ["id: 字符串长度 0 小于 minLength 1", "tags[0]: 字符串长度 0 小于 minLength 1"]
+    """
+    errors: list[str] = []
+
+    # 顶层类型
+    if "type" in schema and not _check_type(record, schema["type"]):
+        errors.append(f"顶层类型应为 {schema['type']}")
+        return errors
+
+    # required
+    for key in schema.get("required", []):
+        if key not in record:
+            errors.append(f"缺少必填字段 '{key}'")
+
+    props = schema.get("properties", {})
+
+    # additionalProperties: false
+    if schema.get("additionalProperties") is False:
+        for key in record:
+            if key not in props:
+                errors.append(f"存在未声明字段 '{key}'")
+
+    for key, sub in props.items():
+        if key not in record:
+            continue  # 非必填字段缺省合法（如 tags，default: null）
+        _validate_value(record[key], sub, key, errors)
+
+    return errors
+
+
+def _validate_value(value, spec, path, errors):
+    if "type" in spec and not _check_type(value, spec["type"]):
+        errors.append(f"{path}: 类型应为 {spec['type']}，实际为 {type(value).__name__}")
+        return  # 类型不符时跳过后续类型相关检查，避免级联误报
+
+    if "minLength" in spec:
+        if len(value) < spec["minLength"]:
+            errors.append(
+                f"{path}: 字符串长度 {len(value)} 小于 minLength {spec['minLength']}")
+
+    if "pattern" in spec and re.search(spec["pattern"], value) is None:
+        errors.append(f"{path}: 值 {value!r} 不匹配模式 '{spec['pattern']}'")
+
+    if "multipleOf" in spec:
+        divisor = Decimal(str(spec["multipleOf"]))
+        if divisor == 0 or Decimal(str(value)) % divisor != 0:
+            errors.append(f"{path}: 值 {value!r} 不是 {spec['multipleOf']} 的整数倍")
+
+    if "items" in spec and isinstance(value, list):
+        for i, item in enumerate(value):
+            _validate_value(item, spec["items"], f"{path}[{i}]", errors)
+
+    if spec.get("uniqueItems") and isinstance(value, list):
+        seen, seen_hashable = [], set()
+        for item in value:
+            try:
+                if item in seen_hashable:
+                    errors.append(f"{path}: 含重复元素")
+                    break
+                seen_hashable.add(item)
+            except TypeError:  # 不可哈希元素（本 schema 不会出现，兜底）
+                if item in seen:
+                    errors.append(f"{path}: 含重复元素")
+                    break
+                seen.append(item)
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=False)
+```
+
+## 实现说明
+
+| schema 关键字 | 处理方式 | 依据 |
+|---|---|---|
+| `type: ["array", "null"]`（tags） | 类型联合，任一匹配即通过 | [wi-db59989477] |
+| `multipleOf: 0.01` | `Decimal(str(value)) % Decimal("0.01")`，规避 `3.14 % 0.01` 类浮点误差；同时拒绝三位小数（如 3.141） | [wi-db59989477]「金额，最多两位小数」 |
+| `pattern: ^[A-Z]{3}$` | `re.search`（JSON Schema 正则默认非锚定，schema 自带 `^...$`） | [wi-db59989477] |
+| `additionalProperties: false` | 逐键比对 `properties`，未声明即违规 | [wi-db59989477] |
+| `uniqueItems: true` | 哈希去重，附不可哈希兜底 | [wi-db59989477] |
+| `tags` 缺省 | 跳过校验，合法（`default: null` 仅为文档语义，校验器不注入默认值） | [wi-db59989477] |
+| `bool` 边界 | `True` 是 `int` 子类，显式排除出 `number` | 标准语义 |
+| 类型不符 | 记一条违规后跳过该字段的后续检查，避免级联误报 | — |
+
+3 个 doctest 覆盖：**合法通过**（含 `tags: null` 联合类型）、**结构性违规**（缺必填 + 未声明字段）、**值级违规**（multipleOf / pattern / 重复元素），另附 minLength 边界用例。schema 逐字取自 L1 层 [wi-db59989477] 交付文本。

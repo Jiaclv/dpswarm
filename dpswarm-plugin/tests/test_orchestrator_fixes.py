@@ -70,6 +70,7 @@ class TestRateLimitBackoff:
             {"raise": "rate-limit", "retry_after": 0},   # 首次 Lead 决策调用 429
             {"text": _decision("single")},
             {"text": "最终答案：42"},
+            {"text": json.dumps({"integrated": "pass", "gaps": []})},  # 集成验收（O2）
         ])
         out = orch.run_task("the answer task")
         assert out["final"] == "single"
@@ -77,7 +78,7 @@ class TestRateLimitBackoff:
         assert cp.proj.work_items[root].acceptance.value == "accepted"
         # raise 项同样推进脚本索引：退避后的重试读到第 2 条脚本
         calls = orch.provider.calls
-        assert len(calls) == 3
+        assert len(calls) == 4
         assert calls[0]["script_index"] == 0 and calls[1]["script_index"] == 1
         # 429 不记 aborted（不是终局，不进 failure audit）
         aborted = [e for e in cp.store.read_all()
@@ -199,8 +200,8 @@ class TestLeadTerminalDecisions:
 
 
 class TestAttributionFallback:
-    """§8：打回归因缺省/非法 → 回退 DESCRIPTION（与验收保守默认对齐；
-    capability 是最贵路径，不作兜底），回退记审计事件。"""
+    """§8 + ⑥：打回归因缺省/非法 → 记 INVALID_OUTPUT（不再伪装成
+    description；处置仍走修述重试），回退记审计事件（措辞同步解析维度）。"""
 
     def _run_reject(self, tmp_path, verdict):
         cp = make_cp(tmp_path)
@@ -215,25 +216,26 @@ class TestAttributionFallback:
         out = orch.run_task("归因兜底任务")
         return cp, out
 
-    def test_missing_attribution_falls_back_to_description(self, tmp_path):
+    def test_missing_attribution_recorded_as_invalid_output(self, tmp_path):
         cp, out = self._run_reject(
             tmp_path, {"verdict": "reject", "verdict_reason": "不行"})
-        assert out["items"][0]["outcome"] == "accepted"
+        assert out["items"][0]["outcome"] == "accepted"   # 修述重试路径不变
         rejected = next(e for e in cp.store.read_all()
                         if e.kind == "work_item_rejected")
-        assert rejected.payload["attribution"] == "description"
+        assert rejected.payload["attribution"] == "invalid_output"
         audit = [e for e in cp.store.read_all()
                  if e.kind == "watchdog_suggested"
                  and e.payload.get("kind") == "attribution-fallback"]
         assert audit                                       # 回退可审计
+        assert "invalid_output" in audit[0].payload["note"]
 
-    def test_invalid_attribution_falls_back_to_description(self, tmp_path):
+    def test_invalid_attribution_recorded_as_invalid_output(self, tmp_path):
         cp, out = self._run_reject(
             tmp_path, {"verdict": "reject", "verdict_reason": "不行",
                        "attribution": "bogus"})
         rejected = next(e for e in cp.store.read_all()
                         if e.kind == "work_item_rejected")
-        assert rejected.payload["attribution"] == "description"
+        assert rejected.payload["attribution"] == "invalid_output"
         audit = [e for e in cp.store.read_all()
                  if e.kind == "watchdog_suggested"
                  and e.payload.get("kind") == "attribution-fallback"]
@@ -456,22 +458,23 @@ class TestLeadReviewAccounting:
             {"text": json.dumps({"verdict": "accept", "verdict_reason": "ok"}),
              "usage": {"input_tokens": 60, "output_tokens": 6,
                        "cache_read_tokens": 700, "cache_write_tokens": 30}},
-            {"text": _decision("accept"),
+            {"text": json.dumps({"integrated": "pass", "gaps": []}),
              "usage": {"input_tokens": 40, "output_tokens": 4}},
-        ])
+        ])   # 收束硬规则（债①）：全树 accepted → 集成验收（记 Lead 账）→ 收束
         out = orch.run_task("验收记账任务")
         assert out["items"][0]["outcome"] == "accepted"
+        assert out["result"] == "success"
         lead = cp.root_lead_node
         tok = [e for e in cp.store.read_all()
                if e.kind == "token_usage_recorded" and e.payload["node_id"] == lead]
-        # Lead 调用三笔全入账：决策 ×2 + 验收 ×1（验收此前漏记 token 事件）
+        # Lead 调用三笔全入账：决策 ×1 + 验收 ×1 + 集成验收 ×1（验收/集成都记）
         assert len(tok) == 3
         review_ev = next(e for e in tok if e.payload.get("cache_read") == 700)
         assert review_ev.payload["cache_write"] == 30
-        # cache 计入 lead_tokens：110 + 796 + 44 = 950（此前丢 cache 分账）
+        # cache 计入 lead_tokens：110 + 796 + 44 = 950（两口径一致，§6）
         assert orch.lead_tokens == 950
         econ = ObservationSink(cp.store.read_all()).economics_summary()
-        assert econ["lead_tokens"] == 950                # 两口径一致（§6）
+        assert econ["lead_tokens"] == 950
 
 
 class TestEconomicsSavings:

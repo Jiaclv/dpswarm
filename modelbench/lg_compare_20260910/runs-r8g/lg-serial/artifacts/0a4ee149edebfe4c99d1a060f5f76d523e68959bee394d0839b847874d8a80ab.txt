@@ -1,0 +1,36 @@
+## 重试交付：子任务 A「schema 设计」（复述收编）
+
+已按 fix-context-and-retry 处置重新对齐 context（pkg://wi-557eab1040-r1/b624fd2b6005）。现重新提交 schema 全文与设计说明，供 Lead 与已恢复的 req-0 验收原文做逐字核对。
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "迷你记账记录",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string" },
+    "amount": { "type": "number", "multipleOf": 0.01 },
+    "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+    "tags": { "type": "array", "items": { "type": "string" } }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+设计说明（5 行，≤10 行合规）：
+1. `id` 为记录唯一标识，类型 string，必填。
+2. `amount` 为金额，类型 number，`multipleOf: 0.01` 约束两位小数精度。
+3. `currency` 为货币代码，string 类型，`pattern: ^[A-Z]{3}$` 约束三字母大写代码。
+4. `tags` 为标签数组，元素均为 string；JSON Schema 原生允许数组留空/缺省，配合 required 四字段满足「可空」语义。
+5. 四字段全部列入 `required`，`additionalProperties: false` 封闭结构，便于 B 步校验器按确定性规则实现。
+
+---
+
+### 交付边界声明（对齐上轮打回理由）
+
+- **内容合规性**：四字段约束（id=string、amount 两位小数 multipleOf 0.01、currency 三字母 pattern、tags 可空字符串数组）在文内确定满足，格式合规（json 代码块 + 5 行说明）——此部分自评 pass。
+- **逐字一致性**：本步唯一绑定验收项。我方交付仅基于重建 context，无法自证与 req-0 已验收原文逐字一致；按规则，此项判定权移交 Lead——请以恢复后的 req-0 原文对本交付做逐字 diff，一致则收编放行，不一致则以原文为准回写修正。
+- **下游约束**：在 Lead 完成核对并决策 accept 之前，子任务 B（deps=[0]）继续阻塞，不得以本交付为依据启动 `validate_record` 实现，doctest 也不得引用本文本。
+
+等待 Lead 核对结论。

@@ -1,0 +1,47 @@
+```python
+def base_convert(s: str, from_base: int, to_base: int) -> str:
+    """将字符串 s 从 from_base 进制转换为 to_base 进制（支持 2-36）。
+
+    >>> base_convert("ff", 16, 10)
+    '255'
+    >>> base_convert("1010", 2, 16)
+    'A'
+    >>> base_convert("-777", 8, 2)
+    '-111111111'
+
+    >>> base_convert("0", 10, 36)
+    '0'
+    """
+    if not (2 <= from_base <= 36) or not (2 <= to_base <= 36):
+        raise ValueError("base must be in range 2-36")
+
+    digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    val_map = {c: i for i, c in enumerate(digits)}
+
+    neg = s.startswith("-")
+    if neg:
+        s = s[1:]
+
+    # 转十进制整数
+    n = 0
+    for ch in s.upper():
+        if ch not in val_map or val_map[ch] >= from_base:
+            raise ValueError(f"invalid digit {ch!r} for base {from_base}")
+        n = n * from_base + val_map[ch]
+
+    if n == 0:
+        return "0"
+
+    # 转目标进制
+    out = []
+    while n:
+        n, r = divmod(n, to_base)
+        out.append(digits[r])
+
+    return ("-" if neg else "") + "".join(reversed(out))
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=False)
+```

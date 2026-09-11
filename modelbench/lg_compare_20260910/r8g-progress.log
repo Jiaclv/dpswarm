@@ -1,0 +1,25 @@
+2026-09-11 11:42:34 [r8g] lg-direct started
+2026-09-11 11:42:34 [r8g] lg-hiddenreq started
+2026-09-11 11:42:34 [r8g] lg-longdoc started
+2026-09-11 11:42:34 [r8g] lg-semantic started
+2026-09-11 11:42:47 [r8g] lg-direct started
+2026-09-11 11:42:48 [r8g] lg-longdoc started
+2026-09-11 11:42:48 [r8g] lg-hiddenreq started
+2026-09-11 11:42:50 [r8g] lg-semantic started
+2026-09-11 11:43:31 [r8g] lg-direct done final=single error=None wall=44s
+2026-09-11 11:43:32 [r8g] lg-direct done rc=0
+2026-09-11 11:53:09 [r8g] lg-hiddenreq done final=accepted-by-lead error=None wall=620s
+2026-09-11 11:53:09 [r8g] lg-hiddenreq done rc=0
+2026-09-11 11:58:33 [r8g] lg-semantic done final=accepted-by-lead error=None wall=943s
+2026-09-11 11:58:33 [r8g] lg-semantic done rc=0
+2026-09-11 12:34:54 [r8g] classic-semantic started
+2026-09-11 12:34:54 [r8g] lg-serial started
+2026-09-11 12:35:05 [r8g] classic-semantic started
+2026-09-11 12:35:05 [r8g] lg-serial started
+2026-09-11 12:47:31 [r8g] lg-longdoc done final=None error=BudgetExceeded: BudgetExceeded(>=200000) wall=3883s
+2026-09-11 13:11:30 [r8g] classic-semantic done final=None error=None wall=2185s
+2026-09-11 13:11:30 [r8g] classic-semantic done rc=0
+2026-09-11 13:37:09 [r8g] lg-serial done final=None error=None wall=3725s
+2026-09-11 13:37:10 [r8g] lg-serial done rc=0
+2026-09-11 13:37:10 [r8g] batch2 结束，lg-longdoc outcome=有
+2026-09-11 13:37:18 [r8g] analyze done rc=0

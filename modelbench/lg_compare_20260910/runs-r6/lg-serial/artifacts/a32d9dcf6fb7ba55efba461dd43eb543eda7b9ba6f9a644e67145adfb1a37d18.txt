@@ -1,0 +1,145 @@
+PULL 结果已核对，schema 原文与我嵌入的 `SCHEMA_TEXT` 逐字一致。撤销上一轮草稿中不满足「逐字引用」的 Python 化改写以及 items 校验段的冗余分支，以下为**最终交付**：
+
+## 子任务 B 最终交付
+
+```python
+import json
+import re
+from fractions import Fraction
+
+# 逐字引用子任务 A（[wi-3ef26a8a60]）交付的 schema 全文：
+SCHEMA_TEXT = '''{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MiniBookkeepingRecord",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "tags": {
+      "type": ["array", "null"],
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}'''
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """按 schema 校验单条记录，返回违规信息列表（空列表=通过）。
+
+    纯标准库实现，覆盖本 schema 用到的关键字：type（含类型数组）、
+    properties、required、additionalProperties、minLength、pattern、
+    multipleOf、items、uniqueItems。
+
+    >>> SCHEMA = json.loads(SCHEMA_TEXT)
+    >>> validate_record({"id": "r001", "amount": 12.34,
+    ...                  "currency": "CNY", "tags": ["food", "lunch"]}, SCHEMA)
+    []
+    >>> validate_record({"id": "", "amount": 12.345,
+    ...                  "currency": "cny", "tags": ["food", "food"]}, SCHEMA)
+    ['id: minLength 1 violated (got length 0)', 'amount: not a multiple of 0.01', "currency: does not match pattern '^[A-Z]{3}$'", 'tags: duplicate items at positions 0, 1']
+    >>> validate_record({"id": "r002", "amount": 5,
+    ...                  "currency": "USD", "extra": 1}, SCHEMA)
+    ['tags: required field missing', 'extra: additional property not allowed']
+    """
+    errors: list[str] = []
+
+    def type_ok(value, t):
+        if t == "object":
+            return isinstance(value, dict)
+        if t == "array":
+            return isinstance(value, list)
+        if t == "string":
+            return isinstance(value, str)
+        if t == "number":
+            return isinstance(value, (int, float)) and not isinstance(value, bool)
+        if t == "null":
+            return value is None
+        return False
+
+    # 顶层 object 校验
+    top_type = schema.get("type", "object")
+    allowed = top_type if isinstance(top_type, list) else [top_type]
+    if not any(type_ok(record, t) for t in allowed):
+        return [f"record: expected type {allowed}, got {type(record).__name__}"]
+
+    props = schema.get("properties", {})
+    for name in schema.get("required", []):
+        if name not in record:
+            errors.append(f"{name}: required field missing")
+    if schema.get("additionalProperties") is False:
+        for name in record:
+            if name not in props:
+                errors.append(f"{name}: additional property not allowed")
+
+    for name, sub in props.items():
+        if name not in record:
+            continue
+        value = record[name]
+        stype = sub.get("type")
+        sallowed = stype if isinstance(stype, list) else [stype]
+        if stype is not None and not any(type_ok(value, t) for t in sallowed):
+            errors.append(
+                f"{name}: expected type {sallowed}, got {type(value).__name__}")
+            continue
+        if isinstance(value, str):
+            if "minLength" in sub and len(value) < sub["minLength"]:
+                errors.append(
+                    f"{name}: minLength {sub['minLength']} violated (got length {len(value)})")
+            if "pattern" in sub and not re.search(sub["pattern"], value):
+                errors.append(f"{name}: does not match pattern '{sub['pattern']}'")
+        elif isinstance(value, (int, float)) and not isinstance(value, bool):
+            if "multipleOf" in sub:
+                # 用 Fraction 规避二进制浮点精度问题（A 设计说明第 1 条）
+                if Fraction(str(value)) % Fraction(str(sub["multipleOf"])) != 0:
+                    errors.append(f"{name}: not a multiple of {sub['multipleOf']}")
+        elif isinstance(value, list):
+            if sub.get("uniqueItems"):
+                seen = {}
+                for i, item in enumerate(value):
+                    key = json.dumps(item, sort_keys=True, ensure_ascii=False)
+                    if key in seen:
+                        errors.append(
+                            f"{name}: duplicate items at positions {seen[key]}, {i}")
+                    else:
+                        seen[key] = i
+            items_schema = sub.get("items")
+            if isinstance(items_schema, dict):
+                for i, item in enumerate(value):
+                    if isinstance(item, str):
+                        if "minLength" in items_schema and len(item) < items_schema["minLength"]:
+                            errors.append(
+                                f"{name}[{i}]: minLength {items_schema['minLength']} violated (got length {len(item)})")
+                        if "pattern" in items_schema and not re.search(items_schema["pattern"], item):
+                            errors.append(
+                                f"{name}[{i}]: does not match pattern '{items_schema['pattern']}'")
+    return errors
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()
+```
+
+## 与上游逐字依据的核对
+
+- **`SCHEMA_TEXT`**：与 PULL 回取的 [wi-3ef26a8a60] ```json 代码块全文逐字一致（含缩进、键序、`["array", "null"]`、`"items": { ... }` 单行写法），满足「用例中的 schema 必须逐字引用 A 的交付文本」。
+- **doctest 用例 1（通过）**：全字段合规，返回 `[]`。
+- **doctest 用例 2（四类违规）**：`id` 空串违反 `minLength: 1`；`amount=12.345` 经 `Fraction("12.345") % Fraction("0.01") = 0.005 ≠ 0` 判违反 `multipleOf`（规避 `12.345 % 0.01` 浮点假阳性/假阴性，对应 A 设计说明第 1 条的精度提醒）；`currency="cny"` 不匹配 `^[A-Z]{3}$`；`tags` 含重复元素违反 `uniqueItems`。
+- **doctest 用例 3（结构违规）**：`tags` 缺失（required 第 4 项）+ `extra` 为 `additionalProperties: false` 禁止的附加字段；`amount=5` 为合法数值（5 是 0.01 的整数倍），不误报。
+- **tags 可空**：`type: ["array", "null"]` 按类型数组处理，`tags: null` 通过校验（对应 A 设计说明第 3 条）。
+- **依赖**：仅 `json`、`re`、`fractions`，全部为 Python 标准库。
+
+交付完毕，等待 Lead 验收。

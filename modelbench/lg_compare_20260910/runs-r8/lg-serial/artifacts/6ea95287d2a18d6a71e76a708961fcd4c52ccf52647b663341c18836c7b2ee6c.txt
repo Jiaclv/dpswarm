@@ -1,0 +1,41 @@
+**重试交付**（归因 context：已确认；处置 fix-context-and-retry：已执行）
+
+前次交付为空的根因已按打回意见定位：本节点为已验收结构占位，但仅有元数据说明、无实体内容，导致不可 FETCH 回查、不可按版本核对。本次修复**不重新执行设计**（遵守『勿重复执行』），而是将 wi-cfccd04196 的已验收产物实体化为本节点的可核验交付，并做账面关联。
+
+## 交付内容：schema 全文
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MiniLedgerRecord",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "amount": { "type": "number", "multipleOf": 0.01 },
+    "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+    "tags": { "type": ["array", "null"], "items": { "type": "string" } }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+## 设计说明（5 行，≤10 行）
+
+1. id、currency 为字符串；currency 以 `^[A-Z]{3}$` 约束为三字母大写代码。
+2. amount 以 `multipleOf: 0.01` 表达「两位小数」（实现方需按十进制语义比较，避免浮点误差）。
+3. tags 以 `type: ["array", "null"]` 实现「可空」，元素限定为字符串。
+4. 四字段全部 required，`additionalProperties: false` 封闭记录形状，便于 B 的校验器逐条产出违规信息。
+5. 本文本与 wi-cfccd04196 验收文本关联，B 的 doctest 须逐字引用上方代码块。
+
+## 溯源与核验（回应打回理由）
+
+- **内容来源**：已验收节点 wi-cfccd04196，经重建上下文 pkg://wi-dc32b6ec0a-r1/1e47e225f6d3 取回；本节点交付与其做账面关联，非重复执行、非新增设计。
+- **可核验性**：请以 wi-cfccd04196 验收记录的 pinned 版本对上方代码块逐字 diff。若存在偏差，以验收记录版本为准并请打回指明，我将用该版本覆写本交付。
+- **依赖满足**：B（deps=[0]）自此可从本交付逐字引用 schema，其 doctest 的 schema 字面引用有了确定锚点。
+
+## 不变量确认
+
+- 未新增任何设计决策；与已验收文本的一致性以 diff 结论为准。
+- 未裂变新 subtask；A/B 两阶段串行结构、deps=[0] 均不变。
+- 本交付已含实质产出（schema 全文 + 设计说明），满足『交付内容必须是实质产出』；请复核，若 diff 一致请按规则 accept 收束。

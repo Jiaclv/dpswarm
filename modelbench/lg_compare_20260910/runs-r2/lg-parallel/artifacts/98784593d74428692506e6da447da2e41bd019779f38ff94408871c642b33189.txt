@@ -1,0 +1,39 @@
+```python
+def base_convert(s: str, from_base: int, to_base: int) -> str:
+    """将字符串 s 从 from_base 进制转换为 to_base 进制（均支持 2-36）。
+
+    >>> base_convert("ff", 16, 10)
+    '255'
+    >>> base_convert("1010", 2, 16)
+    'a'
+    >>> base_convert("-255", 10, 8)
+    '-377'
+    """
+    if not 2 <= from_base <= 36 or not 2 <= to_base <= 36:
+        raise ValueError("进制必须在 2 到 36 之间")
+    digits = "0123456789abcdefghijklmnopqrstuvwxyz"
+    neg = s.lstrip().startswith("-")
+    if neg or s.lstrip().startswith("+"):
+        s = s.lstrip()[1:]
+    s = s.strip().lower()
+    if not s:
+        raise ValueError("空字符串无效")
+    value = 0
+    for ch in s:
+        d = digits.find(ch)
+        if d < 0 or d >= from_base:
+            raise ValueError(f"字符 {ch!r} 不是 {from_base} 进制的有效数字")
+        value = value * from_base + d
+    if value == 0:
+        return "0"
+    out = []
+    while value:
+        value, r = divmod(value, to_base)
+        out.append(digits[r])
+    return ("-" if neg else "") + "".join(reversed(out))
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=True)
+```

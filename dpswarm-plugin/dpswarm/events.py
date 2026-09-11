@@ -105,6 +105,28 @@ EVENT_KINDS = {
     "observation_recorded",
     "token_usage_recorded",
     "stop_reason_recorded",
+    "max_tokens_escalated",      # §4 截断阶梯：max-tokens → 预算翻倍升档（from/to）
+    "handoff_profile",           # 交接包依赖类型分派（verbatim/semantic，实验归因）
+    "pull_served",               # §5.4 PULL 兜底应答（source: upstream/memory/none）
+    "attribution_remapped",      # §8 同构目录 capability→description 改道（不短路重试预算）
+    # 债① 任务级正确性（finalize 三值 / 集成验收 / 需求覆盖）
+    "run_finalized",             # result 三值落账（success/partial/failed + 覆盖统计）
+    "integration_review",        # 父任务级集成验收（verdict + gaps + 逐需求 status）
+    "coverage_gap",              # 需求覆盖缺口（covers 并集未覆盖全部要求）
+    # 债①-b ③④：需求登记 / 候选装配 / 封存核对
+    "requirements_registered",
+    "candidate_assembled",
+    "candidate_version_mismatch",
+    # O3/O4/O6：finding 处置 / 合同修正 / 原地弱化 / Reviewer 回查
+    "finding_disposition",
+    "contract_amended",
+    "mandate_weakened",
+    "review_fetch",
+    # 借鉴项①：verdict↔实际输入清单关联（验收结论绑定它实际看过的证据）
+    "review_evidence",
+    # 借鉴项③：按输入版本解锁与版本失效传播
+    "input_versions_consumed",     # 下游晋级时锚定消费的上游版本（解锁依据）
+    "dependency_version_drift",    # 候选装配时上游版本与消费时不一致（证据过期）
     # 记忆与语义包（§5.3 / §5.6 / §5.7）
     "package_stored",
     "memory_candidate",

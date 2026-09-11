@@ -1,0 +1,43 @@
+# 交付 1：parse_kv 实现（含 2 个 doctest）
+
+```python
+def parse_kv(text: str) -> dict:
+    """将 key=value 形式的文本解析为 dict。
+
+    规则：按行解析；忽略空行；去除首尾空白；
+    值中可包含 '='，仅按第一个 '=' 分割。
+
+    >>> parse_kv("host=127.0.0.1\\nport=8080")
+    {'host': '127.0.0.1', 'port': '8080'}
+    >>> parse_kv("token=abc=def\\n\\n  # 注释将被忽略\\nname =  db ")
+    {'token': 'abc=def', 'name': 'db'}
+    """
+    result = {}
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        key, sep, value = line.partition("=")
+        if not sep:
+            continue  # 无 '=' 的行跳过
+        result[key.strip()] = value.strip()
+    return result
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=False)
+```
+
+**doctest 覆盖点：**
+- 用例 1：多行基本解析，值为普通字符串
+- 用例 2：值中含 `=`、空行跳过、`#` 注释行跳过、键值两侧空白剥离
+
+# 交付 2：使用说明（≤200 字）
+
+> **parse_kv 使用说明**：将 key=value 文本转为 dict，传入字符串即可：`parse_kv("host=1.2.3.4\\nport=80")`。逐行解析，自动忽略空行与 `#` 开头的注释行，键值两端的空白会被剥离；值中若含 `=`，仅首个 `=` 作为分隔符。无 `=` 的行被跳过，值一律保留为字符串类型，不做类型转换。适用于轻量配置文件读取，返回的 dict 可直接用 `config["host"]` 取值。
+
+（正文 156 字，符合 ≤200 字限制）
+
+---
+作者：DPswarm worker

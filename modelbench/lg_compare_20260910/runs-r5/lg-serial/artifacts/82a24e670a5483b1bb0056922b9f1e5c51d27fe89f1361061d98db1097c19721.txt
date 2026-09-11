@@ -1,0 +1,31 @@
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MiniLedgerRecord",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string" },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "tags": {
+      "type": ["array", "null"],
+      "items": { "type": "string" }
+    }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+设计说明：
+1. `id` 用 `type: string`，不强约束格式，交由业务层（如 UUID）保证。
+2. `amount` 用 `multipleOf: 0.01` 限定两位小数（JSON Schema 无法直接表达「小数位 ≤2」，multipleOf 是标准等价做法）。
+3. `currency` 用正则 `^[A-Z]{3}$` 保证 ISO 4217 形式（大写三字母）；是否为合法币种代码留给校验器查表。
+4. `tags` 类型为 `["array", "null"]` 满足「可空」，元素须为字符串。
+5. 四个字段均 `required`，`tags` 可为 null 但不可缺失；`additionalProperties: false` 严格封顶，便于子任务 B 做逐字段校验。

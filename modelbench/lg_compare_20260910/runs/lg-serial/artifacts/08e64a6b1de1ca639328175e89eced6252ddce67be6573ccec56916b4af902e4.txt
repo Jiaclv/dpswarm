@@ -1,0 +1,40 @@
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/ledger-record.json",
+  "title": "LedgerRecord",
+  "description": "迷你记账记录",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "记录唯一标识"
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "description": "金额，精确到两位小数"
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "ISO 4217 三字母货币代码"
+    },
+    "tags": {
+      "type": ["array", "null"],
+      "items": { "type": "string", "minLength": 1 },
+      "description": "标签列表，可为 null"
+    }
+  },
+  "required": ["id", "amount", "currency"],
+  "additionalProperties": false
+}
+```
+
+设计说明：
+1. `amount` 用 `multipleOf: 0.01` 约束两位小数，并建议序列化时避免浮点误差（如以整数分存储）。
+2. `currency` 用正则 `^[A-Z]{3}$` 保证三字母大写格式，语义上对应 ISO 4217。
+3. `tags` 类型设为 `["array", "null"]`，允许空值；单个标签非空字符串。
+4. `id`/`amount`/`currency` 为必填，`tags` 可缺省。
+5. `additionalProperties: false` 封闭结构，防止脏字段混入。

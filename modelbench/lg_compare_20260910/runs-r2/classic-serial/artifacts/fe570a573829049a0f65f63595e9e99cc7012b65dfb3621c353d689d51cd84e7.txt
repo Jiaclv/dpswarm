@@ -1,0 +1,146 @@
+## 重试受理与状态判定
+
+- 已收到打回理由与重试指令，确认上一轮归因（context）与处置路径（fix-context-and-retry）。
+- **关键核对结果**：编排方通知"context 已重建"，但实际到达本会话的只是指针 `pkg://wi-73c1e7df69-r1/9287f03178f0`——**子任务 0 验收后的 schema 原文本身仍未出现在我可读的上下文中**，且本会话不具备解析 `pkg://` 的取回工具。
+- 逐字引用是硬性验收项。原文未内联到位前，任何"复述/重构"出来的 schema 都构成伪造，正是上轮裁定所要避免的流水线污染。
+- **据此判定：阻塞在本会话侧并未实际消除。本轮不作为验收提交，维持挂起状态。**
+
+## 解除阻塞的唯一充分条件（请编排方执行）
+
+将子任务 0 验收后的 schema **原文以内联文本形式直接写入 prompt/context**（整段，保留原始键序、空白、换行）。请勿再以 URI/哈希/指针形式注入——本轮即为反例：指针到达了，原文没有。
+
+## 本轮预备产物（非验收提交，目的：原文到位后一轮内完成替换与重交）
+
+完整自包含骨架 + **3 个完整闭合的 doctest**（已修复上轮截断缺陷），含唯一替换点：
+
+```python
+"""validate_record —— 纯标准库记录校验器。
+
+骨架就绪版：SCHEMA_SUBTASK0 当前为占位（唯一替换点），
+子任务 0 原文内联到位后逐字替换，并按原文关键词裁剪支持面。
+"""
+
+import re
+
+# ▼▼▼ 唯一替换点：整段替换为子任务 0 验收后的 schema 原文（逐字，保留键序/空白/换行）▼▼▼
+SCHEMA_SUBTASK0 = {
+    "type": "object",
+    "required": ["id", "name"],
+    "properties": {
+        "id": {"type": "integer"},
+        "name": {"type": "string", "minLength": 1},
+        "role": {"type": "string", "enum": ["admin", "user"]},
+    },
+}
+# ▲▲▲ 替换点结束 ▲▲▲
+
+
+def _type_name(value):
+    """JSON 风格类型名；先判 bool 再判 int，二者严格不混。"""
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "boolean"
+    if isinstance(value, int):
+        return "integer"
+    if isinstance(value, float):
+        return "number"
+    if isinstance(value, str):
+        return "string"
+    if isinstance(value, list):
+        return "array"
+    if isinstance(value, dict):
+        return "object"
+    return type(value).__name__
+
+
+def _type_ok(value, expected):
+    """bool 与 integer 严格区分：True/False 不视为 integer。"""
+    if expected == "object":
+        return isinstance(value, dict)
+    if expected == "array":
+        return isinstance(value, list)
+    if expected == "string":
+        return isinstance(value, str)
+    if expected == "boolean":
+        return isinstance(value, bool)
+    if expected == "integer":
+        return isinstance(value, int) and not isinstance(value, bool)
+    if expected == "number":
+        return isinstance(value, (int, float)) and not isinstance(value, bool)
+    if expected == "null":
+        return value is None
+    return False
+
+
+def _walk(path, value, schema, errors):
+    t = schema.get("type")
+    if t is not None and not _type_ok(value, t):
+        errors.append(f"{path}: expected type {t}, got {_type_name(value)}")
+        return  # 类型不符即止，避免连锁噪音
+    if "enum" in schema and value not in schema["enum"]:
+        allowed = ", ".join(str(v) for v in schema["enum"])
+        errors.append(f"{path}: enum mismatch (allowed: {allowed})")
+    if isinstance(value, str):
+        if "minLength" in schema and len(value) < schema["minLength"]:
+            errors.append(f"{path}: string length {len(value)} < minLength {schema['minLength']}")
+        if "maxLength" in schema and len(value) > schema["maxLength"]:
+            errors.append(f"{path}: string length {len(value)} > maxLength {schema['maxLength']}")
+        if "pattern" in schema and re.search(schema["pattern"], value) is None:
+            errors.append(f"{path}: pattern mismatch")
+    elif isinstance(value, (int, float)) and not isinstance(value, bool):
+        if "minimum" in schema and value < schema["minimum"]:
+            errors.append(f"{path}: value {value} < minimum {schema['minimum']}")
+        if "maximum" in schema and value > schema["maximum"]:
+            errors.append(f"{path}: value {value} > maximum {schema['maximum']}")
+    elif isinstance(value, dict):
+        for key in schema.get("required", ()):
+            if key not in value:
+                errors.append(f"{path}.{key}: missing required field")
+        for key, sub in schema.get("properties", {}).items():
+            if key in value:
+                _walk(f"{path}.{key}", value[key], sub, errors)
+    elif isinstance(value, list):
+        n = len(value)
+        if "minItems" in schema and n < schema["minItems"]:
+            errors.append(f"{path}: array length {n} < minItems {schema['minItems']}")
+        if "maxItems" in schema and n > schema["maxItems"]:
+            errors.append(f"{path}: array length {n} > maxItems {schema['maxItems']}")
+        if "items" in schema:
+            for i, item in enumerate(value):
+                _walk(f"{path}[{i}]", item, schema["items"], errors)
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """按 schema 校验 record，返回错误列表；空列表 = 通过。
+
+    路径记法：$ 为根，.key 为对象键，[i] 为数组下标；
+    错误按 schema 键定义顺序确定性产出。
+
+    >>> validate_record({"id": 7, "name": "Ada", "role": "admin"}, SCHEMA_SUBTASK0)
+    []
+    >>> validate_record({"id": True, "name": "", "role": "guest"}, SCHEMA_SUBTASK0)
+    ['$.id: expected type integer, got boolean', '$.name: string length 0 < minLength 1', '$.role: enum mismatch (allowed: admin, user)']
+    >>> validate_record({"name": "Ada"}, SCHEMA_SUBTASK0)
+    ['$.id: missing required field']
+    """
+    errors: list[str] = []
+    _walk("$", record, schema, errors)
+    return errors
+```
+
+设计说明：
+
+- 上轮获认可的设计点全部保留：bool/integer 严格区分、纯标准库（仅 `re`）、确定性输出（按 schema 键定义序产出，非遍历顺序随机）。
+- 当前支持面为**超集**：type / required / properties / items / enum / minimum / maximum / minLength / maxLength / minItems / maxItems / pattern。这是刻意为之——支持关键词最终须与原文严格一致，在见到原文之前无法确定裁剪边界，故先备齐再裁。
+- 当前占位 schema 仅为使 3 个 doctest 现在即可跑通（`python -m doctest` 直接验证），其期望输出已逐条人工推导核对。
+
+## 原文到位后的重交检查单
+
+1. `SCHEMA_SUBTASK0` 整段逐字替换为子任务 0 原文，不做任何格式化、重排或"等价改写"。
+2. 按原文关键词集裁剪实现支持面（原文未出现的关键词连同分支与 `re` 依赖一并移除），确保支持面与原文严格一致。
+3. 围绕原文 schema 重写 3 个用例，期望输出逐条重新推导，不得沿用占位期望。
+4. 全量 doctest 通过。
+5. 确认交付代码块完整无截断：3 个用例全部可见且闭合（对照上轮缺陷项）。
+
+**当前状态：挂起中，等待子任务 0 schema 原文内联注入。原文到达即按上述检查单执行并重交。**

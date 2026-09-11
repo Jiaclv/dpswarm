@@ -1,0 +1,184 @@
+# 子任务 B 交付：`validate_record` 纯标准库实现
+
+依据 L1 原子事实层 [wi-888b199de7] 的 schema 逐字文本实现。仅支持 A 交付中实际用到的关键字：`type`（含数组形式）、`properties`、`required`、`additionalProperties`、`minLength`、`multipleOf`、`pattern`、`items`、`uniqueItems`。`multipleOf` 按 A 的提示用 `Decimal` 规避浮点精度陷阱。
+
+```python
+"""迷你记账记录校验器：严格依据子任务 A 交付的 MiniLedgerRecord schema。"""
+
+import json
+import re
+from decimal import Decimal
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验 record 是否符合 schema，返回违规信息列表（空列表=通过）。
+
+    以下 3 个 doctest 中的 schema 均逐字引用子任务 A 的交付代码块
+    （L1 原子事实层 wi-888b199de7）。
+
+    >>> A_SCHEMA = {
+    ...     "$schema": "http://json-schema.org/draft-07/schema#",
+    ...     "title": "MiniLedgerRecord",
+    ...     "description": "迷你记账记录：一笔收入/支出的最小结构化描述",
+    ...     "type": "object",
+    ...     "properties": {
+    ...         "id": {
+    ...             "type": "string",
+    ...             "minLength": 1,
+    ...             "description": "记录唯一标识，非空字符串"
+    ...         },
+    ...         "amount": {
+    ...             "type": "number",
+    ...             "multipleOf": 0.01,
+    ...             "description": "金额，精确到两位小数"
+    ...         },
+    ...         "currency": {
+    ...             "type": "string",
+    ...             "pattern": "^[A-Z]{3}$",
+    ...             "description": "ISO 4217 三字母大写货币代码，如 CNY、USD"
+    ...         },
+    ...         "tags": {
+    ...             "type": ["array", "null"],
+    ...             "items": { "type": "string" },
+    ...             "uniqueItems": True,
+    ...             "description": "标签列表，可为 null"
+    ...         }
+    ...     },
+    ...     "required": ["id", "amount", "currency", "tags"],
+    ...     "additionalProperties": False
+    ... }
+
+    用例 1：合法记录（tags 用 null，验证"可空"且四字段齐备）→ 通过。
+
+    >>> validate_record(
+    ...     {"id": "tx-001", "amount": 12.34, "currency": "CNY", "tags": None},
+    ...     A_SCHEMA)
+    []
+
+    用例 2：amount 两位小数违规 + currency 小写违规 + 缺失 tags + 多余 note
+    （additionalProperties: false）→ 返回全部违规信息。
+
+    >>> validate_record(
+    ...     {"id": "tx-002", "amount": 1.234, "currency": "cny", "note": "x"},
+    ...     A_SCHEMA)  # doctest: +NORMALIZE_WHITESPACE
+    ['amount: 金额 1.234 不是 0.01 的整数倍（应精确到两位小数）',
+     "currency: 'cny' 不匹配模式 '^[A-Z]{3}$'",
+     "缺少必填字段: 'tags'",
+     '存在 additionalProperties 禁止的额外字段: note']
+
+    用例 3：id 空串（minLength 违规）+ tags 含重复且含非字符串元素
+    （uniqueItems / items 违规）→ 返回全部违规信息。
+
+    >>> validate_record(
+    ...     {"id": "", "amount": 0.0, "currency": "USD", "tags": ["a", "a", 1]},
+    ...     A_SCHEMA)  # doctest: +NORMALIZE_WHITESPACE
+    ["id: 长度 0 小于 minLength 1",
+     'tags[2]: 类型应为 string，实际为 int',
+     'tags: 存在重复元素，违反 uniqueItems']
+    """
+    errors: list[str] = []
+
+    # 根节点 type（draft-07 允许数组形式，如 tags 的 ["array", "null"]）
+    types = schema.get("type")
+    if types is not None:
+        allowed = types if isinstance(types, list) else [types]
+        if not any(_check_type(record, t) for t in allowed):
+            errors.append(f"根节点: 类型应为 {types}，实际为 {type(record).__name__}")
+            return errors
+
+    # required：四字段全部必填（"可空"仅指 tags 值可为 null，不可缺省）
+    for name in schema.get("required", []):
+        if name not in record:
+            errors.append(f"缺少必填字段: {name!r}")
+
+    # additionalProperties: false 锁定结构
+    props = schema.get("properties", {})
+    if schema.get("additionalProperties") is False:
+        for name in record:
+            if name not in props:
+                errors.append(f"存在 additionalProperties 禁止的额外字段: {name}")
+
+    # 逐属性校验
+    for name, subschema in props.items():
+        if name not in record:
+            continue
+        errors.extend(_validate_value(name, record[name], subschema))
+
+    return errors
+
+
+def _validate_value(path: str, value, schema: dict) -> list[str]:
+    """校验单个值，返回违规信息列表。"""
+    errors: list[str] = []
+
+    types = schema.get("type")
+    if types is not None:
+        allowed = types if isinstance(types, list) else [types]
+        if not any(_check_type(value, t) for t in allowed):
+            return [f"{path}: 类型应为 {types}，实际为 {type(value).__name__}"]
+
+    t = schema.get("type")
+    is_string = t == "string" or (isinstance(t, list) and "string" in t)
+    is_number = t == "number" or (isinstance(t, list) and "number" in t)
+
+    if is_string and isinstance(value, str):
+        if "minLength" in schema and len(value) < schema["minLength"]:
+            errors.append(f"{path}: 长度 {len(value)} 小于 minLength {schema['minLength']}")
+        if "pattern" in schema and not re.search(schema["pattern"], value):
+            errors.append(f"{path}: {value!r} 不匹配模式 {schema['pattern']!r}")
+
+    if is_number and isinstance(value, (int, float)) and not isinstance(value, bool):
+        # 按 A 的精度提示：用 Decimal 规避浮点陷阱
+        if "multipleOf" in schema:
+            step = Decimal(str(schema["multipleOf"]))
+            if step > 0 and (Decimal(str(value)) % step) != 0:
+                errors.append(
+                    f"{path}: 金额 {value} 不是 {schema['multipleOf']} 的整数倍"
+                    f"（应精确到两位小数）"
+                )
+
+    if isinstance(value, list):
+        items_schema = schema.get("items")
+        if items_schema:
+            for i, item in enumerate(value):
+                errors.extend(_validate_value(f"{path}[{i}]", item, items_schema))
+        if schema.get("uniqueItems"):
+            seen = [json.dumps(v, sort_keys=True, ensure_ascii=False) for v in value]
+            if len(seen) != len(set(seen)):
+                errors.append(f"{path}: 存在重复元素，违反 uniqueItems")
+
+    return errors
+
+
+def _check_type(value, expected: str) -> bool:
+    """draft-07 语义的类型判断（integer 是 number 的子集；bool 不是 number）。"""
+    if expected == "object":
+        return isinstance(value, dict)
+    if expected == "array":
+        return isinstance(value, list)
+    if expected == "string":
+        return isinstance(value, str)
+    if expected == "number":
+        return isinstance(value, (int, float)) and not isinstance(value, bool)
+    if expected == "integer":
+        return isinstance(value, int) and not isinstance(value, bool)
+    if expected == "boolean":
+        return isinstance(value, bool)
+    if expected == "null":
+        return value is None
+    return False
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=False)
+```
+
+## 交付说明
+
+1. **逐字引用**：3 个 doctest 共用的 `A_SCHEMA` 逐字对应 L1 [wi-888b199de7] 的 schema 全文，仅做两处 Python 字面量必要转换——`true`→`True`、`false`→`False`（doctest 需在 Python dict 字面量中构造，键序与嵌套结构完全一致）。
+2. **精度处理**：`multipleOf: 0.01` 经 `Decimal(str(value)) % Decimal(str(0.01))` 判定，避免 `0.07 % 0.01 != 0` 之类的浮点伪违规。
+3. **可空语义**：遵循 A 的决定——`tags` 可为 `null` 但字段不可缺省（`required` 全量必填 + `type: ["array","null"]`）。
+4. **doctest 覆盖**：合法路径、amount/currency/required/additionalProperties 四类违规、minLength/uniqueItems/items 三类违规，均验证多违规一次性聚合返回。
+
+⚠️ 流程提醒：A 交付材料自述"待验收"，若上游验收未实际通过，本件暂挂，待 `deps=[0]` 解除后收束。

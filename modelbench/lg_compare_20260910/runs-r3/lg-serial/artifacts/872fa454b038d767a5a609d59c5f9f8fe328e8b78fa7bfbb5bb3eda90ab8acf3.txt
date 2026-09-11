@@ -1,0 +1,37 @@
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MiniLedgerEntry",
+  "description": "迷你记账记录",
+  "type": "object",
+  "required": ["id", "amount", "currency", "tags"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "minLength": 3,
+      "maxLength": 3
+    },
+    "tags": {
+      "type": ["array", "null"],
+      "items": { "type": "string" },
+      "uniqueItems": true
+    }
+  },
+  "additionalProperties": false
+}
+```
+
+设计说明：
+1. `amount` 用 `multipleOf: 0.01` 强制两位小数精度。
+2. `currency` 用正则 `^[A-Z]{3}$` 限定 ISO 4217 风格三字母大写代码。
+3. `tags` 类型为 `["array", "null"]`，允许空值，元素为字符串且去重。
+4. 四个字段均 `required`，`additionalProperties: false` 防止脏字段混入。

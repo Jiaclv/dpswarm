@@ -1,0 +1,38 @@
+## 子任务 A 交付：迷你记账记录 JSON Schema
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/mini-ledger-record.json",
+  "title": "MiniLedgerRecord",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "tags": {
+      "type": ["array", "null"],
+      "items": { "type": "string" }
+    }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+**设计说明（≤10 行）**
+
+1. `amount` 用 `multipleOf: 0.01` 约束两位小数，这是数值型金额的标准做法；B 实现时需注意浮点比较应改用整数分（round(x*100)）避免精度误判。
+2. `currency` 用 `^[A-Z]{3}$` 强制三字母大写 ISO 4217 风格，排除空串与小写。
+3. `tags` 用 `type: ["array", "null"]` 表达"可空"，元素必须为字符串；`null` 与缺失不同，故仍列入 `required`。
+4. 四字段全部 `required` 且 `additionalProperties: false`，保证 B 的校验器可对未知字段直接报错，行为确定。
+5. 采用 2020-12 draft；本 schema 自包含，可直接作为 B 中 `schema: dict` 参数逐字嵌入 doctest。

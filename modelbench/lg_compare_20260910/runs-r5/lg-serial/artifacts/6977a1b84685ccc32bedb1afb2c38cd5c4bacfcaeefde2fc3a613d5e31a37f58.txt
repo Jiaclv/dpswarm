@@ -1,0 +1,137 @@
+PULL 结果与 L1 层逐字一致，schema 引用有效。据此交付校验器实现（与上一轮一致，确认无偏差）：
+
+```python
+# 校验器实现：严格依据 [wi-aa9a879828] 验收后的 schema，纯标准库。
+# 仅实现本 schema 用到的关键字：type（含联合 ["array","null"]）/ multipleOf /
+# pattern / items / required / additionalProperties。
+
+import re
+from decimal import Decimal
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验 record 是否符合 schema，返回违规信息列表（空列表=通过）。
+
+    >>> schema = {
+    ...   "$schema": "https://json-schema.org/draft/2020-12/schema",
+    ...   "title": "MiniLedgerRecord",
+    ...   "type": "object",
+    ...   "properties": {
+    ...     "id": { "type": "string" },
+    ...     "amount": {
+    ...       "type": "number",
+    ...       "multipleOf": 0.01
+    ...     },
+    ...     "currency": {
+    ...       "type": "string",
+    ...       "pattern": "^[A-Z]{3}$"
+    ...     },
+    ...     "tags": {
+    ...       "type": ["array", "null"],
+    ...       "items": { "type": "string" }
+    ...     }
+    ...   },
+    ...   "required": ["id", "amount", "currency", "tags"],
+    ...   "additionalProperties": False
+    ... }
+    >>> validate_record({"id": "a1", "amount": 12.34, "currency": "CNY", "tags": ["food", None]}, schema)
+    ["tags[1]: 元素类型应为 ['string'] 之一，实际为 NoneType"]
+
+    >>> validate_record({"id": "a1", "amount": 1.234, "currency": "us", "tags": None}, schema)
+    ['amount: 违反 multipleOf 0.01（1.234 不是 0.01 的整数倍）', "currency: 不匹配 pattern '^[A-Z]{3}$'"]
+
+    >>> validate_record({"id": "a1", "amount": 1.25, "currency": "USD"}, schema)
+    ["tags: 缺失必填字段 'tags'"]
+    """
+    errors: list[str] = []
+
+    expected_top = schema.get("type")
+    if expected_top and not _type_ok(record, expected_top):
+        errors.append(f"record: 顶层类型应为 {expected_top}，实际为 {type(record).__name__}")
+        return errors
+
+    properties = schema.get("properties", {})
+
+    # required
+    for name in schema.get("required", []):
+        if name not in record:
+            errors.append(f"{name}: 缺失必填字段 '{name}'")
+
+    # additionalProperties: false
+    if schema.get("additionalProperties") is False:
+        for name in record:
+            if name not in properties:
+                errors.append(f"{name}: additionalProperties 为 false，不允许额外字段 '{name}'")
+
+    # properties
+    for name, subschema in properties.items():
+        if name not in record:
+            continue
+        value = record[name]
+        vtype = subschema.get("type")
+        if vtype and not _type_ok(value, vtype):
+            errors.append(f"{name}: 类型应为 {vtype} 之一，实际为 {type(value).__name__}")
+            continue
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            m = subschema.get("multipleOf")
+            if m is not None and not _multiple_of(value, m):
+                errors.append(f"{name}: 违反 multipleOf {m}（{value} 不是 {m} 的整数倍）")
+        if isinstance(value, str):
+            pat = subschema.get("pattern")
+            if pat and not re.search(pat, value):
+                errors.append(f"{name}: 不匹配 pattern '{pat}'")
+        if isinstance(value, list):
+            item_schema = subschema.get("items")
+            if item_schema:
+                itype = item_schema.get("type")
+                for i, item in enumerate(value):
+                    if itype and not _type_ok(item, itype):
+                        errors.append(
+                            f"{name}[{i}]: 元素类型应为 {itype} 之一，实际为 {type(item).__name__}"
+                        )
+
+    return errors
+
+
+def _type_ok(value, expected) -> bool:
+    """expected 可为字符串或字符串列表；bool 不视为 number（JSON Schema 语义）。"""
+    types = expected if isinstance(expected, list) else [expected]
+    for t in types:
+        if t == "object" and isinstance(value, dict):
+            return True
+        if t == "array" and isinstance(value, list):
+            return True
+        if t == "string" and isinstance(value, str):
+            return True
+        if t == "null" and value is None:
+            return True
+        if t == "number" and isinstance(value, (int, float)) and not isinstance(value, bool):
+            return True
+        if t == "integer" and isinstance(value, int) and not isinstance(value, bool):
+            return True
+        if t == "boolean" and isinstance(value, bool):
+            return True
+    return False
+
+
+def _multiple_of(value, multiple) -> bool:
+    """Decimal 精确判倍，规避 0.01 浮点误差。"""
+    try:
+        dv = Decimal(str(value))
+        dm = Decimal(str(multiple))
+        return (dv / dm) % 1 == 0
+    except Exception:
+        return False
+
+
+if __name__ == "__main__":
+    import doctest
+    print(doctest.testmod())
+```
+
+交付说明（≤10 行）：
+- schema 逐字取自 PULL: wi-aa9a879828 原文（三个 doctest 共用同一 schema 字典）。
+- 纯标准库：`re` 实现 pattern，`decimal` 实现 multipleOf 精确判倍（`Decimal(str(1.234))/Decimal("0.01")=123.4` → 违规，`12.34` → 通过）。
+- 仅实现验收 schema 实际使用的关键字；tags 的联合类型 `["array","null"]` 正确处理 null 通过、非字符串元素逐项报错（`tags[1]`）。
+- required 与 additionalProperties:false 严格执行，覆盖「缺失」与「多余字段」两类违规。
+- 返回 `list[str]`，空列表即通过；三个 doctest 分别覆盖：元素类型违规、multipleOf+pattern 双违规、缺失必填字段。

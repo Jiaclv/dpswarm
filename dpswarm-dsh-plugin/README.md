@@ -1,4 +1,4 @@
-# DPswarm for DSH · 0.9.7
+# DPswarm for DSH · 0.11.0
 
 给当前 DSH 主 agent 增加**用户显式开启的固定团队**：实现者 → 测试者 → Lead 复核与验收；必要修复交回实现者。Reviewer 默认由 Lead 承担；用户指定独立模型时才增加一道审查。安装后默认关闭；每个已有会话独立开启。模型不能通过工具参数打开开关、换角色或动态扩队。
 
@@ -68,8 +68,29 @@ Provider、模型和推理强度点击保存后整组提交；Reviewer 的模式
 - **状态读锁**：read/grep 读到他人未 ready 的产物路径被 `ARTIFACT_NOT_READY` 拒绝；自己的、已就绪的、范围外的不拦。
 - **相位波次派发**：相位按序、相位内按依赖分波（Kahn）；每波是一组并行实现者（复用 0.8.0 机器）。
 - **挂起/唤醒**：worker 缺他人就绪产物时保存进度并以 `[DPSWARM_WAITING: <产物id>]` 收尾（零资源空转）；该产物转 ready 后由**链接延续**会话唤醒继续（携带前序进度报告，同子任务认领、同血缘预算键）。等待超时记 `ARTIFACT_WAIT_TIMEOUT` 报 Lead。
-- **相位交接**：新相位首波提示词带前序相位交付摘要（有界截断、标注不可信、以实际文件为准）。CM 精选摘要分发是后续升级（见根目录 v3 备忘）。
+- **相位交接（0.10.0 三层化）**：新相位首波提示词为每个子任务装配三层交接包——L2 摘要层（有界截断，仅供导航）、L1 原子事实层（确定性逐字提取 fenced 块/JSON 行/签名行等，超上限按优先级丢弃）、L0 原文层（产物 id + 文件路径，ready 产物经读门放行直接取原文）。逐字依赖命中的产物（规则判型，记 `dpswarm/handoff-profile` 审计）L1 前置放宽并附"禁止凭记忆复述、取原文直贴"契约。CM 精选摘要分发仍是后续升级（见根目录 v3 备忘）。
 - 真实 resume（同会话续跑）经接口级核查可行但未验证轮次驱动，列为后续探针轮次；本期唤醒走已验证的链接延续路径。
+
+## 三层交接包与验收可见性（0.10.0）
+
+把 Python 编排器五轮实验验证的三项机制回移到插件（语义口径：`dpswarm-plugin/dpswarm/orchestrator_lg.py` 与 `orchestrator.py`）：
+
+- **三层交接包**：staged 相位交接从"有界截断 + 不可信摘要"升级为 L2 摘要导航（截断保留，明示"摘要仅供导航，逐字内容以 L1/原文为准"）+ L1 逐字依据（纯代码确定性提取：fenced 代码块 > JSON/schema 行 > 函数/类签名 > 表格行/键值对/文件路径/版本号；上限 semantic 4000 / verbatim 8000，超上限按优先级丢弃）+ L0 原文回查（产物 id + 文件路径 + 读门指引）。
+- **verbatim 直贴契约**：产物登记/任务描述命中逐字关键词（逐字/引用/一致/schema/签名等）时判型 `handoff_profile=verbatim`（插件无 CM，恒规则兜底 `decider=rule`，逐次记审计）：L1 前置放宽，头部明示"逐字内容禁止凭记忆复述，必须读取原文直贴，L1 仅供定位预览"；相位内依赖的唤醒延续同样携带该契约。
+- **验收可见性**：验收/review 带 deps 的产物时，上游 ready 交付内容随四处提示面共置——独立 Reviewer 派发 prompt、`dpswarm_run` 返回体 `acceptance_visibility`、`dpswarm_review` 返回体 `upstream_evidence`、返工 Reviewer 复核 prompt（每份 ≤4000、总量 ≤8000；超限降级 L1 逐字段 + 路径/`dpswarm_report` 引用），并明示"缺材料不可验收通过"。消灭"跨产物约束物理上不可核验"的盲放；验收门禁语义不变（不新增硬门）。
+
+插件侧有意偏差：无 CM 与 PULL 通道（L2 恒截断摘要；L0 回查 = 读门 + 文件路径，读门对 ready 产物本就放行）；判型无 LLM 路径。写锁、返工血缘、准入与三档互斥规则均未触碰。
+
+## 有界持久 mailbox（0.11.0，Lead↔worker 直系通道）
+
+借鉴宿主 experimental team mailbox 的有界模式（`maxPendingMessagesPerMember` 默认 64 超限 `TEAM_MAILBOX_FULL`、单条 64KiB）落一条**有界、持久、可审计**的 Lead↔worker 消息通道（v1 只做直系通道，平级 worker 互发不在稳定 API 内，不做）：
+
+- **三类消息**：`fact`（事实更新，投递走 inject 语义——静默注入不唤醒）/ `clarify`（澄清请求，followup 语义——排队并唤醒）/ `block`（阻塞通知，followup 语义）。其余 kind 一律结构化拒绝；控制性意图（approve/rework/grant/override 等词表）额外以 `DPSWARM_MAILBOX_CONTROL_REJECTED` 拒绝并明示走控制面工具——改契约/扩权限/批准交付永远不进此通道。
+- **有界**：每成员 pending ≤64（`DPSWARM_MAILBOX_FULL`）、单条成帧 ≤64KiB（`DPSWARM_MESSAGE_TOO_LARGE`），两次超限都记 `dpswarm/mailbox-rejected` 审计。
+- **持久**：消息落宿主 `ctx.storage` KV（`dpswarm_mailbox` 单元，单调用原子 + 按根会话串行化），每条带 `{message_id, run_id, from, to, kind, refs, ts}`，按 `message_id` 幂等去重；重启/冷恢复后 pending 不丢。跨进程审计仍走 sidecar 账本（`dpswarm/mailbox-queued` / `mailbox-delivered` / `mailbox-rejected`）。
+- **投递路由**：目标成员在场（宿主 continuable 子会话，`attachChannel`）时 fact→`inject` 静默、clarify/block→`followup` 唤醒；不在场保持 pending，由**延续派发承载**——staged 唤醒循环与返工延续的 prompt 携带该成员全部 pending（审计记 `via: inject|followup` + `carrier: wake-prompt|rework-prompt`）。产物 ready 唤醒语义原样保留，mailbox 是叠加层。
+- **接线**：worker 报告阻塞的路径（`[DPSWARM_WAITING]` 标记）自动落一条 worker→lead 的 `block` 消息（确定性 message_id 幂等）；worker 可用 `dpswarm_mailbox` 中途向 lead 报事实/澄清/阻塞（只能发 lead）；`dpswarm_run` 返回体与 `dpswarm_status` 呈现 lead 收件箱，`dpswarm_mailbox(action=read)` 读取并确认。宿主未组合 storage 时叠加层降级关闭，不阻断运行。
+- **成员表**：每轮 run 注册（lead + parallel/staged 子任务 id 或串行角色名 + tester + 独立 reviewer）；新 run_id 接管时旧 run 未投递消息按 `DPSWARM_MAILBOX_RUN_SUPERSEDED` 拒绝留痕。
 
 ## 工作区 lease 自愈与可见性（0.9.7）
 
@@ -186,6 +207,7 @@ DPH 罗盘弹层只保留主开关、关键参数与按角色分段的总 token 
 | `dpswarm_rework(item_id, feedback)` | 将必要缺陷交回当前任务的原实现者；返工额度 0.9.5 起默认固定护栏（600,000 token / 28 次），可在“预算与运行”调整或改为不限；原用量保留 |
 | `dpswarm_review(item_id, verdict, reason)` | Lead 验收或终止，`verdict` 为 `accept` 或 `terminate` |
 | `dpswarm_report(item_id, offset?, limit?)` | 0.7.8 新增：从审计账本分页读取该交付的完整 worker 报告（运行视图只显示 600 字符摘要）；只读，不改变状态 |
+| `dpswarm_mailbox(action, to?, kind?, content?, refs?, message_id?)` | 0.11.0 新增：有界持久 Lead↔worker 邮箱。`post` 发 fact/clarify/block（控制性意图被拒，走控制面工具）；`read` 读 pending（lead 读取即确认）。worker 只能以自己成员身份发 lead。在场成员即时投递（fact 静默注入、clarify/block 唤醒），不在场由唤醒/返工延续承载 |
 
 旧 `dpswarm_delegate` 不再向模型注册；底层适配器保留用于内部执行与历史合同测试。
 

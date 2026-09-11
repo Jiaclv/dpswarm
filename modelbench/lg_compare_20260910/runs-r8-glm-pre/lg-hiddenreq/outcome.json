@@ -1,0 +1,74 @@
+{
+  "summary": {
+    "run_id": "lg-hiddenreq",
+    "arm": "lg",
+    "task": "hiddenreq",
+    "wall_seconds": 800.99,
+    "final": "accepted-by-lead",
+    "result": "success",
+    "error": null,
+    "actions": [
+      "fission",
+      "settled-autoclose"
+    ],
+    "items": [
+      {
+        "item": "wi-24a1663d3f",
+        "outcome": "accepted",
+        "submission": "# 子任务 1：实现 parse_kv（含 2 个 doctest 用例）\n\n## 设计决策\n- 每行一个键值对，以第一个 `=` 分隔（value 中可含 `=`）\n- 自动去除 key/value 首尾空白；空行与 `#` 开头的注释行跳过\n- 缺少 `=` 的行抛出 `ValueError`，携带行号便于定位\n\n## 代码\n\n```python\ndef parse_kv(text: str)"
+      },
+      {
+        "item": "wi-b528f8f045",
+        "outcome": "accepted",
+        "submission": "# parse_kv 使用说明\n\n`parse_kv(text)` 将 key=value 格式的多行文本解析为 dict，适用于简易配置文件。\n\n**调用方式**：传入文本字符串，返回字典。每行一个键值对，以首个 `=` 分隔，值中可含 `=`；空行及不含 `=` 的行自动跳过；键与值两侧空白自动去除，值保持字符串类型。\n\n示例：`parse_kv(\"host=localhost\\nport=8"
+      }
+    ],
+    "lead_tokens": 36676,
+    "protocol_failures": 1,
+    "protocol_failure_detail": [
+      {
+        "kind": "review",
+        "snippet": "**验收核查：**\n\n1. **实质产出判定**：交付为实现代码 + 文档，非阻塞报告。✓\n2. **功能核对**：\n   - `partition(\"=\")` 按第一个 `=` 切分，value 可含 `=` ✓\n   - `strip()` 去两端空白、跳过空行与 `#` 注释行 ✓\n   - 缺 `=` 行抛带行"
+      }
+    ]
+  },
+  "outcome": {
+    "task": "两步任务：\n1. 实现配置解析函数 parse_kv（key=value 文本 → dict）并附 2 个 doctest 用例\n2. 编写使用说明文档（≤200 字）\n附注：交付末尾请附上作者署名行。\n分工提示：fission 拆且只拆 2 个 subtasks（1 与 2），2 标 deps=[0]；全部验收通过后 Lead 决策 accept 收束。",
+    "bucket": "coding",
+    "items": [
+      {
+        "item": "wi-24a1663d3f",
+        "outcome": "accepted",
+        "submission": "# 子任务 1：实现 parse_kv（含 2 个 doctest 用例）\n\n## 设计决策\n- 每行一个键值对，以第一个 `=` 分隔（value 中可含 `=`）\n- 自动去除 key/value 首尾空白；空行与 `#` 开头的注释行跳过\n- 缺少 `=` 的行抛出 `ValueError`，携带行号便于定位\n\n## 代码\n\n```python\ndef parse_kv(text: str)"
+      },
+      {
+        "item": "wi-b528f8f045",
+        "outcome": "accepted",
+        "submission": "# parse_kv 使用说明\n\n`parse_kv(text)` 将 key=value 格式的多行文本解析为 dict，适用于简易配置文件。\n\n**调用方式**：传入文本字符串，返回字典。每行一个键值对，以首个 `=` 分隔，值中可含 `=`；空行及不含 `=` 的行自动跳过；键与值两侧空白自动去除，值保持字符串类型。\n\n示例：`parse_kv(\"host=localhost\\nport=8"
+      }
+    ],
+    "actions": [
+      "fission",
+      "settled-autoclose"
+    ],
+    "final": "accepted-by-lead",
+    "phase": "finalized",
+    "outcome": "success",
+    "result": "success",
+    "stop_reason": "completed",
+    "candidate": {
+      "candidate_id": "cand-70680d80f4",
+      "contract_version": "ec5699e57f46",
+      "selected_submission_package_ids": [
+        "dep-e87b906173",
+        "dep-baa7cd6d6a"
+      ],
+      "artifact_manifest": [
+        "dep-e87b906173",
+        "dep-baa7cd6d6a"
+      ],
+      "bundle_digest": "a908e3a3da2c58e7",
+      "drift": []
+    }
+  }
+}

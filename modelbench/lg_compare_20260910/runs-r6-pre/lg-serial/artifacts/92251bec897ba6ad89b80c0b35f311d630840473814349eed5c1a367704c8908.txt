@@ -1,0 +1,45 @@
+# 子任务 A 交付：迷你记账记录 JSON Schema
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/mini-expense-record.json",
+  "title": "迷你记账记录",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "记录唯一标识，非空字符串"
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "minimum": 0,
+      "description": "金额，数值且精确到两位小数"
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "ISO 4217 三字母货币代码，如 CNY/USD"
+    },
+    "tags": {
+      "type": ["array", "null"],
+      "items": { "type": "string" },
+      "uniqueItems": true,
+      "description": "标签数组，可为 null；元素为字符串且不重复"
+    }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+**设计说明（≤10 行）：**
+1. `amount` 用 `multipleOf: 0.01` 近似约束两位小数——JSON Schema 无法直接表达“小数位数”，这是社区通行做法（校验器 B 需注意浮点误差，建议按整数分处理）。
+2. `currency` 用 `pattern: ^[A-Z]{3}$` 锁定大写三字母代码，与 ISO 4217 对齐。
+3. `tags` 类型声明为 `["array", "null"]`，满足“可空”要求；`uniqueItems` 防止重复标签。
+4. 四个字段全部 `required`（tags 可为 null 但不可缺失），`additionalProperties: false` 拒绝冗余字段，利于 B 的校验器做封闭检查。
+5. `id` 加 `minLength: 1` 排除空串，语义上等价于“必须提供标识”。
+
+⏸ **状态：待验收。** 子任务 B（校验器实现）须待本 schema 验收通过后启动，依赖 deps=[0]，doctest 中的 schema 须逐字引用上方代码块。

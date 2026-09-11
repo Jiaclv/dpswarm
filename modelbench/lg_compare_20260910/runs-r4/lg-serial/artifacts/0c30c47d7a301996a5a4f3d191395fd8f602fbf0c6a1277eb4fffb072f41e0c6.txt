@@ -1,0 +1,122 @@
+# 子任务 B 交付：`validate_record` 实现
+
+**依据**：L1 层 `wi-16b6d17087` 的 schema 逐字引用（`_SCHEMA_TEXT` 字符串与 A 交付的 ```json 代码块逐字一致，仅经 `json.loads` 载入，未改写任何字符）。代码纯标准库，可直接 `python ledger_validator.py` 运行 doctest。
+
+```python
+"""MiniLedgerRecord 校验器 —— 严格依据子任务 A（wi-16b6d17087）已验收 schema 实现。
+
+纯 Python 标准库；运行 `python ledger_validator.py` 执行全部 doctest。
+"""
+
+import json
+import re
+from decimal import Decimal
+
+# ---- 以下 schema 文本逐字引用自 A 的交付（wi-16b6d17087），未作任何改写 ----
+_SCHEMA_TEXT = '''\
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MiniLedgerRecord",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string" },
+    "amount": { "type": "number", "multipleOf": 0.01 },
+    "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": []
+    }
+  },
+  "required": ["id", "amount", "currency"],
+  "additionalProperties": false
+}
+'''
+
+SCHEMA = json.loads(_SCHEMA_TEXT)
+
+
+def _check_type(value, type_name):
+    """按 schema type 名做最小类型判定（bool 不算 number）。"""
+    if type_name == "string":
+        return isinstance(value, str)
+    if type_name == "number":
+        return isinstance(value, (int, float)) and not isinstance(value, bool)
+    if type_name == "array":
+        return isinstance(value, list)
+    return True
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验 record 是否符合 MiniLedgerRecord schema，返回违规信息列表（空列表=通过）。
+
+    覆盖路径：必填缺失 / 未知字段 / 类型错误 / pattern / multipleOf / 数组元素类型。
+
+    >>> validate_record({"id": "r-001", "amount": 12.34, "currency": "CNY", "tags": []}, SCHEMA)
+    []
+
+    >>> validate_record({"id": "r-002", "amount": 1.234, "currency": "usd", "tags": [1]}, SCHEMA)
+    ['amount: 不满足 multipleOf 0.01', 'currency: 不匹配 pattern ^[A-Z]{3}$', 'tags[0]: 期望 string, 得到 int']
+
+    >>> validate_record({"amount": 5, "currency": "USD", "memo": "x"}, SCHEMA)
+    ['缺少必填字段: id', '未知字段: memo']
+    """
+    errors: list[str] = []
+    properties = schema.get("properties", {})
+
+    # 1) required：必填字段缺失
+    for key in schema.get("required", []):
+        if key not in record:
+            errors.append(f"缺少必填字段: {key}")
+
+    # 2) additionalProperties: false —— 未知字段确定性枚举检查
+    if schema.get("additionalProperties") is False:
+        for key in record:
+            if key not in properties:
+                errors.append(f"未知字段: {key}")
+
+    # 3) 逐字段校验（按 schema properties 声明顺序，保证输出确定）
+    for key, subschema in properties.items():
+        if key not in record:
+            continue
+        value = record[key]
+        type_name = subschema.get("type")
+
+        if type_name and not _check_type(value, type_name):
+            errors.append(
+                f"{key}: 期望 {type_name}, 得到 {type(value).__name__}"
+            )
+            continue
+
+        if type_name == "string" and "pattern" in subschema:
+            if not re.search(subschema["pattern"], value):
+                errors.append(f"{key}: 不匹配 pattern {subschema['pattern']}")
+
+        if type_name == "number" and "multipleOf" in subschema:
+            step = Decimal(str(subschema["multipleOf"]))
+            if step > 0 and Decimal(str(value)) % step != 0:
+                errors.append(f"{key}: 不满足 multipleOf {subschema['multipleOf']}")
+
+        if type_name == "array" and "items" in subschema:
+            item_type = subschema["items"].get("type")
+            for i, item in enumerate(value):
+                if item_type and not _check_type(item, item_type):
+                    errors.append(
+                        f"{key}[{i}]: 期望 {item_type}, 得到 {type(item).__name__}"
+                    )
+
+    return errors
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=False)
+    print("doctest 完成")
+```
+
+## 交付说明（≤10 行）
+
+1. **逐字引用保证**：schema 以 `_SCHEMA_TEXT` 原始字符串载入，与 A 交付逐字一致；3 个 doctest 均传入 `SCHEMA`，满足「用例 schema 与 A 逐字一致」。
+2. **multipleOf 用 `decimal.Decimal`**：规避二进制浮点误差，`Decimal(str(value)) % Decimal(str(multipleOf))` 精确判定（如 `1.234` 违规、`1.2`/`5` 合规）。
+3. **违规路径全覆盖**：必填缺失（id）、未知字段（`additionalProperties: false`）、pattern 不匹配（currency 小写）、multipleOf 违规（amount 三位小数）、tags 元素类型错误；tags 可省略/空数组均通过（用例 1 验证空数组，省略路径由循环 `continue` 天然覆盖）。
+4. **确定性输出**：错误顺序固定为 required → additionalProperties → 按 properties 声明顺序，便于验收比对。

@@ -1,0 +1,43 @@
+# 子任务 A 交付：迷你记账记录 JSON Schema
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/schemas/mini-ledger-record.json",
+  "title": "MiniLedgerRecord",
+  "description": "迷你记账记录：唯一标识、金额、币种与可选标签",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "minimum": 0
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+**设计说明（≤10 行）**
+
+1. `id` 设 `minLength: 1`，拒绝空字符串，保证唯一标识可用。
+2. `amount` 用 `multipleOf: 0.01` 约束两位小数精度，并加 `minimum: 0` 禁止负账目。
+3. `currency` 用 `^[A-Z]{3}$` 正则匹配 ISO 4217 三字母大写代码（如 CNY、USD）。
+4. `tags` 定为数组、元素为字符串；「可空」按 JSON Schema 语义用可缺省/元素可空数组实现，故 `tags` 不设 `minItems`，允许传 `[]`。
+5. 四个字段均列入 `required`（tags 需显式提供，可为空数组）；如需完全可选 tags 可去掉 required 中的该项。
+6. `additionalProperties: false` 收紧结构，防止脏字段混入，便于子任务 B 做确定性校验。
+
+**验收状态**：待 Lead 确认后，子任务 B（校验器实现，deps=[0]）方可依据此 schema 全文逐字引用并开始实现。

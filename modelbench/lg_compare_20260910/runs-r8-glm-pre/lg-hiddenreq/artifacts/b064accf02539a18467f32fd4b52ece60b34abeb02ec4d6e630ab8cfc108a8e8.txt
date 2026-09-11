@@ -1,0 +1,36 @@
+## 任务 1：parse_kv 实现代码（含 2 个 doctest 用例）
+
+```python
+def parse_kv(text):
+    """将 key=value 文本解析为 dict。
+
+    每行一个键值对，以首个 '=' 分隔；空行跳过。
+
+    >>> parse_kv("host=localhost\\nport=8080")
+    {'host': 'localhost', 'port': '8080'}
+
+    >>> parse_kv("token=a=b\\n\\nflag=on")
+    {'token': 'a=b', 'flag': 'on'}
+    """
+    result = {}
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        result[key.strip()] = value.strip()
+    return result
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=True)
+```
+
+## 任务 2：使用说明文档（≤200 字）
+
+调用 `parse_kv(text)`，传入 key=value 格式的多行文本，返回 dict。每行一个键值对，以首个 `=` 分隔，值中可含 `=`。空行与无 `=` 的行自动跳过。运行 `python parse_kv.py` 可执行 doctest 验证。适合解析简易配置文件，键值两侧空白自动去除。
+
+## 作者署名
+
+作者：DPswarm worker

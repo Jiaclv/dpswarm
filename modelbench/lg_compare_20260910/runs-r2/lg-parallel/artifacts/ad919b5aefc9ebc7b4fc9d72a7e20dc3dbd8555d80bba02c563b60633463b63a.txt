@@ -1,0 +1,29 @@
+```python
+def is_palindrome(s: str) -> bool:
+    """
+    判断字符串是否为回文：忽略大小写与非字母数字字符。
+
+    >>> is_palindrome("A man, a plan, a canal: Panama")
+    True
+    >>> is_palindrome("race a car")
+    False
+    >>> is_palindrome("")
+    True
+    """
+    cleaned = [ch.lower() for ch in s if ch.isalnum()]
+    return cleaned == cleaned[::-1]
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=True)
+```
+
+**实现说明**
+
+- **清洗**：`ch.isalnum()` 过滤非字母数字字符，`ch.lower()` 统一大小写，两步在一次列表推导中完成。
+- **判定**：清洗后的列表与其反转 `[::-1]` 比较，等价即为回文。
+- **边界**：空串或全符号串清洗后为空列表，`[] == []` 为 `True`，符合常见约定（LeetCode 125 同口径）。
+- **复杂度**：时间 O(n)，空间 O(n)。
+
+运行方式：`python -m doctest 文件名.py -v` 或直接执行脚本即可验证 3 个用例。

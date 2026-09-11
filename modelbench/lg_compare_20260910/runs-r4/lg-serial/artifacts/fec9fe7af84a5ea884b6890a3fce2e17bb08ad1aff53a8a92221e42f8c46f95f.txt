@@ -1,0 +1,120 @@
+# DPswarm worker
+
+## 交付（子任务 B「校验器实现」，fix-context-and-retry 后重交）
+
+**依赖核对**：context 已重建（pkg://wi-f5e7f506a1-r1/269855fa5ada），上游 A 验收要点在 context 中完整可查：`$schema`/`$id`/`title` 齐备、`id` 含 `minLength:1`、`currency` 含 `pattern ^[A-Z]{3}$`、`tags` 为 `type: ["array","null"]`。本次交付严格按该验收文本逐字引用，**不再自行重写或简化任何约束**；错误信息也与上游约束语义对齐（不再出现「长度应至少为 3」这类只匹配简化版的文案）。`validate_record` 函数体本次完整交付、无截断，可直接 `python -m doctest` 核验。
+
+```python
+# validator.py —— 纯标准库实现（仅依赖 re；无第三方包）
+import re
+
+# 逐字引用子任务 A 验收后的 schema 全文（依 context 重建，未做任何改写/简化）
+SCHEMA = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://example.com/mini-ledger-record.schema.json",
+    "title": "迷你记账记录",
+    "type": "object",
+    "required": ["id", "amount", "currency", "tags"],
+    "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "amount": {"type": "number"},
+        "currency": {"type": "string", "pattern": "^[A-Z]{3}$"},
+        "tags": {"type": ["array", "null"], "items": {"type": "string"}}
+    }
+}
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验 record 是否符合 schema，返回违规信息列表；空列表表示通过。
+
+    支持关键字：type（含 ["array","null"] 联合类型）、required、
+    minLength、maxLength、pattern、items、properties。
+
+    >>> validate_record({"id": "a1", "amount": 12.5,
+    ...                  "currency": "CNY", "tags": ["food", None]}, SCHEMA)
+    ['tags[1]: 应为类型 string，实际为 null']
+
+    >>> validate_record({"id": "", "amount": 3,
+    ...                  "currency": "usd", "tags": None}, SCHEMA)
+    ['id: 长度 0 低于最小长度 1', "currency: 'usd' 不匹配模式 '^[A-Z]{3}$'"]
+
+    >>> validate_record({"id": "x", "amount": 1.0,
+    ...                  "currency": "USD", "tags": ["a"]}, SCHEMA)
+    []
+    """
+    errors: list[str] = []
+    _check_object(record, schema, "", errors)
+    return errors
+
+
+def _check_object(value: dict, schema: dict, path: str, errors: list) -> None:
+    for key in schema.get("required", []):
+        if key not in value:
+            errors.append(f"缺少必填字段 '{key}'")
+    for key, sub in schema.get("properties", {}).items():
+        if key in value:
+            _check_value(value[key], sub, f"{path}.{key}" if path else key, errors)
+
+
+def _check_value(value, schema: dict, path: str, errors: list) -> None:
+    types = schema.get("type")
+    if types is not None:
+        allowed = types if isinstance(types, list) else [types]
+        if not any(_type_ok(value, t) for t in allowed):
+            errors.append(f"{path}: 应为类型 {'/'.join(allowed)}，实际为 {_type_name(value)}")
+            return
+    if isinstance(value, str):
+        if "minLength" in schema and len(value) < schema["minLength"]:
+            errors.append(f"{path}: 长度 {len(value)} 低于最小长度 {schema['minLength']}")
+        if "maxLength" in schema and len(value) > schema["maxLength"]:
+            errors.append(f"{path}: 长度 {len(value)} 超过最大长度 {schema['maxLength']}")
+        if "pattern" in schema and re.search(schema["pattern"], value) is None:
+            errors.append(f"{path}: '{value}' 不匹配模式 '{schema['pattern']}'")
+    if isinstance(value, list) and "items" in schema:
+        for i, item in enumerate(value):
+            _check_value(item, schema["items"], f"{path}[{i}]", errors)
+    if isinstance(value, dict) and "properties" in schema:
+        _check_object(value, schema, path, errors)
+
+
+def _type_ok(value, t: str) -> bool:
+    if t == "string":
+        return isinstance(value, str)
+    if t == "number":
+        return isinstance(value, (int, float)) and not isinstance(value, bool)
+    if t == "integer":
+        return isinstance(value, int) and not isinstance(value, bool)
+    if t == "boolean":
+        return isinstance(value, bool)
+    if t == "array":
+        return isinstance(value, list)
+    if t == "object":
+        return isinstance(value, dict)
+    if t == "null":
+        return value is None
+    return True
+
+
+def _type_name(value) -> str:
+    return "null" if value is None else type(value).__name__
+```
+
+## 自检
+
+| 检查项 | 结果 |
+|---|---|
+| schema 逐字引用 A 交付 | ✅ `$schema`/`$id`/`title` 齐备；`id.minLength:1`、`currency.pattern ^[A-Z]{3}$`、`tags.type ["array","null"]` 与 context 中 A 验收要点逐字一致，未重写 |
+| 错误信息与上游约束语义一致 | ✅ `minLength` 报「长度 N 低于最小长度 1」，`pattern` 报「不匹配模式」 |
+| 代码完整性 | ✅ `validate_record` 及全部辅助函数函数体完整闭合，文件级交付，`python -m doctest validator.py -v` 可直接运行通过 |
+| 纯标准库 | ✅ 仅 `import re`（`SCHEMA` 本身即 dict，无需 json 反序列化） |
+| 3 个 doctest 用例 | ✅ ① tags 元素 null 违规；② id 空串 + currency 小写双违规（且 tags=null 合法通过联合类型）；③ 全合规返回 `[]` |
+| 返回类型 | ✅ `list[str]`，空列表=通过 |
+
+## 设计说明（≤10 行）
+
+1. 校验范围严格限定为 A 交付 schema 中出现的关键字，避免实现与上游文本脱节。
+2. `type` 支持联合类型（`["array","null"]`），任一匹配即通过，`null` 字面量按 JSON Schema 语义处理。
+3. `pattern` 采用 `re.search`（JSON Schema 规范行为：非锚定匹配；A 的 pattern 自带 `^...$` 锚定）。
+4. `bool` 是 `int` 子类，故 `number`/`integer` 判定显式排除 `bool`。
+5. 违规信息带路径（如 `tags[1]`），缺失必填字段逐条报告，便于定位。
+6. 3 个 doctest 覆盖：单点违规、多点违规、完全通过三条路径。

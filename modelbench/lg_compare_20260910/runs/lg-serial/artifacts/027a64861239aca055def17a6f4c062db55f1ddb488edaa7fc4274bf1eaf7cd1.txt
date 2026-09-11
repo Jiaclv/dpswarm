@@ -1,0 +1,43 @@
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/mini-ledger-entry.json",
+  "title": "MiniLedgerEntry",
+  "description": "迷你记账记录：单条收支条目",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "记录唯一标识"
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "minimum": 0,
+      "description": "金额，保留两位小数，非负"
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "ISO 4217 三字母货币代码，如 USD/CNY"
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "default": [],
+      "description": "标签列表，可为空数组"
+    }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+**设计说明**
+
+1. **amount** 用 `multipleOf: 0.01` 约束两位小数；加 `minimum: 0` 防负数（收支方向建议用单独 `type` 字段表示，而非负数金额）。
+2. **currency** 用 `^[A-Z]{3}$` 正则校验三字母大写代码；若枚举固定（如仅 USD/CNY/EUR），可改用 `enum` 更严格。
+3. **tags** 要求必填但可为空数组——比「可缺失」更利于消费端统一处理，避免 undefined/null 分支。
+4. `additionalProperties: false` + 全字段 `required`，保证数据严格符合契约，便于版本演进时发现脏字段。
+5. 使用 draft 2020-12，兼容主流校验库（Ajv 等）。

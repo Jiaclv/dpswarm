@@ -1,0 +1,32 @@
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MiniBookkeepingRecord",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "minimum": 0
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "tags": {
+      "type": ["array", "null"],
+      "items": { "type": "string" }
+    }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+设计说明（≤10 行）：
+1. `amount` 用 `multipleOf: 0.01` 约束两位小数；`minimum: 0` 排除负金额（记账语义）。
+2. `currency` 用正则 `^[A-Z]{3}$` 强制三字母大写代码（如 CNY/USD）。
+3. `tags` 类型写为 `["array", "null"]`，即"字符串数组、可空"的双重约束。
+4. 四个字段均列入 `required`（可空 ≠ 可缺省），`additionalProperties: false` 收紧结构，便于 B 阶段校验器实现逐字对齐。
+5. `id` 仅约束非空字符串，未限定格式，保持 schema 最小可用。

@@ -69,6 +69,8 @@ MODEL_LEVELS: Dict[str, Level] = {
     "glm/glm-4.7-flash": Level.C,
     "deepseek/deepseek-v4-pro": Level.S,
     "deepseek/deepseek-v4-flash": Level.B,
+    # 2026-09-11 实测 /models 返回的规范 id（与 v4-flash 同模型别名）
+    "deepseek/deepseek-flash": Level.B,
 }
 
 # 价目经 2026-09-03 官方页核实（modelbench/price.yaml);GLM=CNY、DeepSeek=USD
@@ -78,12 +80,15 @@ _MODEL_META = {
     # 5.3-flash 按量等价 ¥0.4/¥1.4(限时五折);本实验 GLM 走 Coding Plan,
     # 实际按积分抵扣(系数 Input 2.3/Cached 0.56/Output 24,price.yaml),
     # 成本对比在 summary 里按"按量等价"归一并声明口径。
-    "glm/glm-5.3-flash":          {"ctx": 1_000_000, "in": 0.4,  "out": 1.4},
+    "glm/glm-5.3-flash":          {"ctx": 1_000_000, "in": 0.4,  "out": 1.4,
+                                   "max_output": 131_072},
     "glm/glm-4.7":                {"ctx": 200_000,   "in": 2.0,  "out": 8.0},
     "glm/glm-4.5-air":            {"ctx": 128_000,   "in": 0.8,  "out": 2.0},
     "glm/glm-4.7-flash":          {"ctx": 200_000,   "in": 0.0,  "out": 0.0},
     "deepseek/deepseek-v4-pro":   {"ctx": 1_000_000, "in": 0.66, "out": 1.98},
     "deepseek/deepseek-v4-flash": {"ctx": 1_000_000, "in": 0.22, "out": 0.66},
+    # 规范 id（2026-09-11 /models 实测）；价格口径同 v4-flash
+    "deepseek/deepseek-flash":    {"ctx": 1_000_000, "in": 0.22, "out": 0.66},
 }
 _AA_BY_LEVEL = {Level.S: 9.0, Level.A: 8.0, Level.B: 7.0, Level.C: 6.0, Level.D: 5.0}
 
@@ -106,7 +111,7 @@ def build_catalog(model_keys: Optional[List[str]] = None) -> ModelCatalog:
             provider, model, level,
             aa_dimensional={"coding": aa, "reasoning": aa, "overall": aa},
             aa_source="declared",  # 声明值，待 preflight 用真实快照/价目替换
-            context_window=meta["ctx"],
+            context_window=meta["ctx"], max_output=meta.get("max_output"),
             input_price_per_mtok=meta["in"], output_price_per_mtok=meta["out"]))
     return catalog
 
@@ -355,11 +360,15 @@ def _backoff_complete(orch: Orchestrator, route, messages, node_id,
 
 class BigTokenOrchestrator(Orchestrator):
     """logpipe team 臂：全部调用面（Lead 决策/验收 + worker）max_tokens=16384，
-    与 thin 臂对齐（理由见 _backoff_complete docstring 的 Phase A 实证）。"""
+    与 thin 臂对齐（理由见 _backoff_complete docstring 的 Phase A 实证）。
 
-    def _complete_with_backoff(self, route, messages, node_id):
-        return _backoff_complete(self, route, messages, node_id,
-                                 tools=None, max_tokens=16384)
+    max_tokens kwarg 是 dpswarm 截断阶梯的透传通道：显式值经父类
+    _token_budget_for（角色下限 + 模型 max_output clamp）后生效。"""
+
+    def _complete_with_backoff(self, route, messages, node_id, max_tokens=None):
+        return _backoff_complete(self, route, messages, node_id, tools=None,
+                                 max_tokens=self._token_budget_for(
+                                     route, node_id, max_tokens or 16384))
 
 
 class WebSearchOrchestrator(Orchestrator):
@@ -379,15 +388,18 @@ class WebSearchOrchestrator(Orchestrator):
         self._worker_tool_providers = set(worker_tool_providers)
         self._worker_max_tokens = worker_max_tokens
 
-    def _complete_with_backoff(self, route, messages, node_id):
+    def _complete_with_backoff(self, route, messages, node_id, max_tokens=None):
+        base = max_tokens or (16384 if node_id == self.cp.root_lead_node
+                              else self._worker_max_tokens)
+        budget = self._token_budget_for(route, node_id, base)
         if node_id == self.cp.root_lead_node:
             # Lead 无工具，但同抬 16384（thinking 截断风险与 logpipe 臂相同）
             return _backoff_complete(self, route, messages, node_id,
-                                     tools=None, max_tokens=16384)
+                                     tools=None, max_tokens=budget)
         # DeepSeek 无服务端 web_search → tools=None（闭卷，B3 参考臂口径）
         tools = self._worker_tools if route.provider in self._worker_tool_providers else None
         return _backoff_complete(self, route, messages, node_id,
-                                 tools=tools, max_tokens=self._worker_max_tokens)
+                                 tools=tools, max_tokens=budget)
 
 
 def _router_for(cfg: Dict[str, Any]) -> Provider:

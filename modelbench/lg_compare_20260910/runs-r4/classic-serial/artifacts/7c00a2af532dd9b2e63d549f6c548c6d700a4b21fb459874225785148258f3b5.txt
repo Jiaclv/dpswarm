@@ -1,0 +1,90 @@
+## 子任务 B 状态：⛔ 阻塞（依赖未满足）
+
+按编排协议（`deps=[0]`，B 必须等 A 验收后开工），我先做依赖检查：
+
+**依赖检查结果**：本任务材料中**没有子任务 A 的交付文本**。任务红线明确要求「用例中的 schema 必须逐字引用 A 的交付」——在 A 的 ```json 代码块到达并被验收之前，我无法构造合规的 doctest，任何自行编造的 schema 都属于越权。因此本次只交付**可预先完成的部分**，其余待 A 验收后一轮补齐。
+
+---
+
+## 预交付 1：校验器实现（与 A 的 schema 文本无耦合，可先行验收）
+
+纯标准库（`re` + `decimal`），schema 驱动、不硬编码字段名，A 最终产出何种字段约束均可覆盖：
+
+```python
+"""mini-ledger 校验器：validate_record(record, schema) -> list[str]"""
+import re
+from decimal import Decimal, InvalidOperation
+
+_TYPE_MAP = {
+    "string": str, "number": (int, float), "integer": int,
+    "boolean": bool, "array": list, "object": dict,
+}
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """按 JSON Schema 子集校验 record，返回违规信息列表（空列表=通过）。
+
+    支持：type / required / properties / pattern / minLength /
+    maxLength / multipleOf（用于两位小数约束）/ items。
+    """
+    errors: list[str] = []
+
+    def check(value, sch, path):
+        t = sch.get("type")
+        if t is not None:
+            # bool 是 int 子类，须显式排除
+            if t == "boolean":
+                ok = isinstance(value, bool)
+            else:
+                ok = isinstance(value, _TYPE_MAP[t]) and not isinstance(value, bool)
+            if not ok:
+                errors.append(f"{path}: 期望类型 {t}, 实际 {type(value).__name__}")
+                return
+        if t in ("number", "integer") and "multipleOf" in sch:
+            try:
+                if Decimal(str(value)) % Decimal(str(sch["multipleOf"])) != 0:
+                    errors.append(f"{path}: 不满足 multipleOf {sch['multipleOf']}")
+            except InvalidOperation:
+                errors.append(f"{path}: 无法进行数值取模检查")
+        if isinstance(value, str):
+            if "pattern" in sch and re.search(sch["pattern"], value) is None:
+                errors.append(f"{path}: 不匹配 pattern {sch['pattern']!r}")
+            if "minLength" in sch and len(value) < sch["minLength"]:
+                errors.append(f"{path}: 长度 {len(value)} < minLength {sch['minLength']}")
+            if "maxLength" in sch and len(value) > sch["maxLength"]:
+                errors.append(f"{path}: 长度 {len(value)} > maxLength {sch['maxLength']}")
+        if isinstance(value, list) and "items" in sch:
+            for i, item in enumerate(value):
+                check(item, sch["items"], f"{path}[{i}]")
+        if isinstance(value, dict):
+            for req in sch.get("required", []):
+                if req not in value:
+                    errors.append(f"{path}: 缺少必填字段 {req!r}")
+            for key, sub in sch.get("properties", {}).items():
+                if key in value:
+                    check(value[key], sub, f"{path}.{key}")
+
+    check(record, schema, "$")
+    return errors
+```
+
+## 预交付 2：doctest 骨架（⛔ 待 A 的 verbatim schema 回填）
+
+```python
+    >>> SCHEMA = {  # TODO(A 验收后)：逐字粘贴 A 交付的 ```json 代码块全文
+    ... }
+    >>> validate_record({"id": "r001", "amount": 12.34, "currency": "CNY", "tags": []}, SCHEMA)  # 通过
+    []
+    >>> validate_record({"id": "r002", "amount": 1.999, "currency": "us1", "tags": []}, SCHEMA)  # 小数位+币种违规
+    [...]  # 以 A schema 的 pattern/multipleOf 回填后确定精确输出
+    >>> validate_record({"id": "", "amount": 12.34, "tags": "food"}, SCHEMA)  # 缺 currency + tags 类型违规
+    [...]  # 同上
+```
+
+---
+
+## 移交回 Lead 的请求
+
+1. 请将 **A 的 ```json schema 交付文本**（验收通过版）下发给我；
+2. 我将在一个回合内完成：回填 doctest 中的 schema 逐字引用、跑通 3 个 doctest、按 A 的实际字段（id/amount/currency/tags）核对错误信息措辞，然后提交最终验收。
+
+在此之前，子任务 B 保持 **blocked** 状态，不做任何 schema 臆造。

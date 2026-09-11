@@ -1,0 +1,35 @@
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MiniLedgerRecord",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": []
+    }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+设计说明：
+1. `id` 仅约束非空字符串，具体格式（如 UUID）留给业务层，避免 schema 过度耦合。
+2. `amount` 用 `multipleOf: 0.01` 强制两位小数精度，防止浮点脏数据。
+3. `currency` 用正则 `^[A-Z]{3}$` 保证三字母大写代码（如 CNY、USD）。
+4. `tags` 允许空数组，元素均为字符串；未传时 `default: []` 兜底。
+5. 四个字段均 `required`，`additionalProperties: false` 拒绝未知字段，保证结构严格。

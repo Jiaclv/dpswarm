@@ -1,0 +1,123 @@
+# 子任务 B 重交交付：validate_record 校验器实现（fix-description-and-retry）
+
+## 一、打回缺陷确认
+
+上版交付在 id 校验的 if 语句中途截断（无冒号、无分支体），amount/currency/tags 校验逻辑与 return 语句整体缺失，属语法错误代码，3 个 doctest 均不可执行。本版为**完整函数体 + 完整 doctest**，逐行核对无截断。
+
+## 二、完整交付代码
+
+```python
+"""validate_record：迷你记账记录校验器（纯标准库实现）。
+
+函数内 schema 判定依据与已验收节点 wi-cc8152c306 交付的 ```json schema
+块逐字一致，未对 schema 本身做任何改动。
+"""
+
+import re
+from decimal import Decimal
+
+# JSON Schema 基本类型到 Python 判定的映射（tags 的 "null" 亦在此处理）
+_TYPE_CHECKS = {
+    "string": lambda v: isinstance(v, str),
+    "number": lambda v: isinstance(v, (int, float)) and not isinstance(v, bool),
+    "array": lambda v: isinstance(v, list),
+    "null": lambda v: v is None,
+}
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验单条记账记录，返回违规信息列表（空列表=通过）。
+
+    判定依据（与 wi-cc8152c306 交付块逐字一致）：
+    id: string/minLength；amount: number/multipleOf 0.01；
+    currency: string/pattern ^[A-Z]{3}$；tags: [array,null]/items string，可空。
+
+    >>> SCHEMA = {
+    ...     "type": "object",
+    ...     "properties": {
+    ...         "id": {"type": "string", "minLength": 1},
+    ...         "amount": {"type": "number", "multipleOf": 0.01},
+    ...         "currency": {"type": "string", "pattern": "^[A-Z]{3}$"},
+    ...         "tags": {"type": ["array", "null"], "items": {"type": "string"}}
+    ...     }
+    ... }
+    >>> validate_record({"id": "r001", "amount": 12.30, "currency": "CNY", "tags": ["food", "lunch"]}, SCHEMA)
+    []
+    >>> validate_record({"id": "r002", "amount": 3.141, "currency": "CNY", "tags": []}, SCHEMA)
+    ['amount: 值 3.141 不满足 multipleOf 0.01']
+    >>> validate_record({"id": "r003", "amount": 9.99, "currency": "usd", "tags": [1]}, SCHEMA)
+    ['currency: 值 usd 不匹配 pattern ^[A-Z]{3}$', 'tags[0]: 元素 1 非字符串']
+    """
+    errors: list[str] = []
+    props = schema.get("properties", {})
+
+    for field, spec in props.items():
+        if field not in record:
+            continue  # schema 未声明 required，缺失字段不作判定
+        value = record[field]
+        allowed = spec.get("type")
+        types = allowed if isinstance(allowed, list) else [allowed]
+
+        # 1) type 判定（tags 可空：["array","null"] 含 "null"，None 直接放行）
+        if not any(_TYPE_CHECKS.get(t, lambda v: False)(value) for t in types):
+            errors.append(f"{field}: 期望类型 {allowed}，实际 {type(value).__name__}")
+            continue
+
+        # 2) string 约束：minLength / pattern
+        if isinstance(value, str):
+            min_len = spec.get("minLength")
+            if min_len is not None and len(value) < min_len:
+                errors.append(f"{field}: 长度 {len(value)} 低于 minLength {min_len}")
+            pattern = spec.get("pattern")
+            if pattern is not None and re.search(pattern, value) is None:
+                errors.append(f"{field}: 值 {value} 不匹配 pattern {pattern}")
+
+        # 3) number 约束：multipleOf（用 Decimal 规避二进制浮点误差）
+        elif isinstance(value, (int, float)) and not isinstance(value, bool):
+            step = spec.get("multipleOf")
+            if step is not None and Decimal(str(value)) % Decimal(str(step)) != 0:
+                errors.append(f"{field}: 值 {value} 不满足 multipleOf {step}")
+
+        # 4) array 约束：items 类型（本 schema 中 items 为 string）
+        elif isinstance(value, list):
+            items_spec = spec.get("items") or {}
+            for i, item in enumerate(value):
+                if not _TYPE_CHECKS.get(items_spec.get("type"), lambda v: False)(item):
+                    errors.append(f"{field}[{i}]: 元素 {item} 非字符串")
+
+    return errors
+
+
+if __name__ == "__main__":
+    import doctest
+
+    failures, total = doctest.testmod()
+    print(f"doctest: {total - failures}/{total} 通过")
+```
+
+## 三、逐字一致性声明
+
+- **schema 字面量**：3 个 doctest 中的 schema 字典与 wi-cc8152c306 交付块逐字一致（id: string/minLength；amount: number/multipleOf 0.01；currency: string/pattern `^[A-Z]{3}$`；tags: ["array","null"]/items string），未增删任何关键词，未改动 schema 本身。
+- **函数判定依据**：仅从 schema 关键词读取约束（`type`/`minLength`/`multipleOf`/`pattern`/`items`），无 schema 之外的硬编码规则。
+
+## 四、实现要点（对上版缺失部分的补全说明）
+
+| 缺失项 | 本版补全 |
+|---|---|
+| id 校验 if 截断 | 完整 type + minLength 分支（含 `continue`） |
+| amount 校验 | `Decimal(str(v)) % Decimal(str(0.01)) != 0` 判定，精确排除 3.141 这类超两位小数，且 12.30、12.3、100 均正确放行（规避 `3.14 % 0.01` 的二进制浮点假阳性） |
+| currency 校验 | `re.search(pattern, value)`，`usd` 不匹配 `^[A-Z]{3}$` 即记录违规 |
+| tags 校验 | `["array","null"]` 中 `None` 放行；list 时逐元素校验 items 为 string，`[1]` 记录 `tags[0]` 违规 |
+| return 语句 | 循环结束后 `return errors`，违规信息按 schema 属性顺序累积 |
+
+## 五、自验结果
+
+- 语法完整性：单文件可整体执行（`python validator.py`）；
+- doctest：`python -m doctest validator.py -v` → 3/3 通过：
+  - ① 合规记录 `{"id": "r001", ...}` → `[]`；
+  - ② `amount=3.141` → 返回 multipleOf 违规信息；
+  - ③ `currency='usd'` 且 `tags=[1]` → 同时返回 pattern 违规与 items 违规两条信息。
+
+## 六、分工声明
+
+本节点为子任务 B（deps=[0]，依赖 A 已验收），**未裂变**，未改动 schema，未新增 subtasks。等待 Lead 验收。

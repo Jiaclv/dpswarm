@@ -1,0 +1,35 @@
+⛔ **阻塞：缺少上游输入**
+
+子任务B 的硬性要求是「schema 必须逐字引用 A 的交付」，但当前上下文中没有 A 的验收后 schema 文本。我不能凭空编造一份 schema 再声称"引用"了它——那会违反逐字一致性要求，也会让 B 的 doctest 在 A 真实交付面前全部失效。
+
+**请提供以下任一形式的输入：**
+
+1. A 的 schema 文本原文（最理想：直接粘贴 JSON/dict 字面量）
+2. 或其规格说明，至少包含：
+   - 字段名列表
+   - 每个字段的类型约束（str / int / float / bool / list / dict / 可空性）
+   - 必填 vs 可选字段
+   - 是否有嵌套对象 / 数组元素类型约束
+   - 是否有额外约束（枚举值、min/max、pattern 等）
+
+**收到后我将立即交付（承诺的输出格式）：**
+
+```python
+# validate_record.py —— 仅用标准库，无第三方依赖
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """
+    >>> schema = { ... A 的 schema 逐字粘贴 ... }
+    >>> validate_record({...合法样例...}, schema)
+    []
+    >>> validate_record({...类型错误样例...}, schema)
+    ['<字段>: ...']
+    >>> validate_record({...缺字段样例...}, schema)
+    ['<字段>: ...']
+    """
+```
+
+- 错误信息格式：`"<字段路径>: <原因>"`，嵌套用点号路径（如 `address.city`）
+- 校验顺序固定（先缺字段、后类型、后额外约束），保证 doctest 输出确定性
+- 不修改 A 的 schema 一个字符
+
+请把 A 的 schema 贴过来，我立刻开工。

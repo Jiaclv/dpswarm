@@ -1,0 +1,27 @@
+## 逐字比对核验（PULL 原文 vs B 交付中的 schema）
+
+将 PULL 取回的 [wi-b23127d3b0] 原文与上一条交付中 doctest 的 `schema` 字典逐项核对：
+
+| 项 | PULL 原文 | B 交付 doctest | 一致性 |
+|---|---|---|---|
+| `properties` 五字段及各自约束 | id(string, minLength 1) / amount(number, multipleOf 0.01) / currency(string, pattern ^[A-Z]{3}$) / tags(array, items string, default []) / items(array, default []) | 同 | ✅ 逐字一致 |
+| `required` | ["id", "amount", "currency", "tags", "items"] | 同 | ✅ 逐字一致 |
+| `additionalProperties` | false | False | ✅ 唯一差异为 JSON→Python 字面量的强制转换（`false`→`False`），属语言语法而非内容改动 |
+| `title` / `$schema` / 顶层 `type` | 同 | 同 | ✅ 逐字一致 |
+
+比对结论：B 交付的 schema 引用与 A 验收原文**完全一致**，无凭记忆复述的偏差。
+
+## 实现逻辑复核（对照 PULL 原文的设计说明）
+
+- 设计说明第 1 条：「items 不约束元素 schema」→ B 实现中 `items` 子 schema 无 `items` 键，仅校验其本身为 array，不做元素检查 ✅
+- 第 3 条：「若需严格十进制精度应在应用层二次校验」→ B 用 `Decimal(str(value)) % Decimal("0.01")` 在校验器内做到精确判定（`Decimal(str(12.34))` 精确为 12.34，规避浮点误差），属应用层实现选择，不与 schema 语义冲突 ✅
+- 第 5 条：「tags 可为空数组」→ doctest 用例 3 的 `"tags": []` 通过，验证此不变量 ✅
+- 第 6 条：「可空 = 值可为空集，非可缺省」→ required 全量检查 + 缺字段报 `缺少必填字段` ✅
+
+## B 交付状态
+
+**交付完毕，等待验收。** 交付物：
+1. `validate_record(record: dict, schema: dict) -> list` 纯标准库实现（仅 `re`、`decimal`）；
+2. 3 个 doctest 用例（合法 / 六类违规 / 边界合法），schema 逐字引用 A 验收原文。
+
+本子任务为 fission 的最后一环（deps=[0] 已满足，A 已验收），验收通过后即达收束条件，**不再裂变**，由 Lead 决策 accept。

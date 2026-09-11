@@ -1,0 +1,44 @@
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/ledger-entry.json",
+  "title": "LedgerEntry",
+  "description": "迷你记账的单条记录",
+  "type": "object",
+  "required": ["id", "amount", "currency"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "记录唯一标识"
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "description": "金额，最多两位小数"
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "ISO 4217 三字母货币代码"
+    },
+    "tags": {
+      "type": ["array", "null"],
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true,
+      "default": null,
+      "description": "分类标签，可为空"
+    }
+  },
+  "additionalProperties": false
+}
+```
+
+设计说明：
+1. `id` 仅约束非空字符串，不限定格式（UUID/自增均可），保持通用。
+2. `amount` 用 `multipleOf: 0.01` 强制两位小数精度。
+3. `currency` 用 `^[A-Z]{3}$` 正则近似 ISO 4217，校验成本低。
+4. `tags` 采用 `["array", "null"]` 类型联合，同时支持空数组与显式 null。
+5. `uniqueItems` 防止重复标签；元素要求非空字符串。
+6. 前三项为 `required`，`tags` 可缺省并带 `default: null`。
+7. `additionalProperties: false` 拒绝未声明字段，防止脏数据混入。

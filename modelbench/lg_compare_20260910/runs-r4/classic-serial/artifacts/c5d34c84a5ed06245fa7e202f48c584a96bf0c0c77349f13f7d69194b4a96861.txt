@@ -1,0 +1,116 @@
+# 子任务 B 交付：validate_record
+
+## ⚠️ 输入缺口声明（deps=[0] 门禁）
+
+本 prompt **未随附 A 的验收 schema 文本**。按分工规则 B 必须以 A 验收文本为唯一依据；为不阻塞，下方 `SCHEMA_A` 按 A 的规格（id: string / amount: number 两位小数 / currency: 三字母 / tags: string[] 可空）**逐字冻结**为候选交付。若 Lead 确认的 A 文本与此有出入，仅需原样替换 `SCHEMA_A` 字面量并重跑 doctest，`validate_record` 本体无需改动。
+
+## 交付物（纯标准库，单文件可运行）
+
+```python
+"""Mini ledger record validator — pure stdlib, JSON Schema subset."""
+import re
+
+# ↓↓↓ 逐字引用 A 的交付（候选冻结文本，见顶部声明） ↓↓↓
+SCHEMA_A = {
+    "type": "object",
+    "required": ["id", "amount", "currency", "tags"],
+    "additionalProperties": False,
+    "properties": {
+        "id": {"type": "string"},
+        "amount": {"type": "number", "multipleOf": 0.01},
+        "currency": {"type": "string", "pattern": "^[A-Z]{3}$"},
+        "tags": {"type": "array", "items": {"type": "string"}}
+    }
+}
+# ↑↑↑ 逐字引用结束 ↑↑↑
+
+
+def _type_ok(value, expected):
+    if expected == "object":
+        return isinstance(value, dict)
+    if expected == "array":
+        return isinstance(value, list)
+    if expected == "string":
+        return isinstance(value, str)
+    if expected == "number":
+        return isinstance(value, (int, float)) and not isinstance(value, bool)
+    if expected == "integer":
+        return isinstance(value, int) and not isinstance(value, bool)
+    if expected == "boolean":
+        return isinstance(value, bool)
+    if expected == "null":
+        return value is None
+    return True
+
+
+def _multiple_of(value, m):
+    q = value / m
+    return abs(q - round(q)) < 1e-9  # 容差吸收浮点误差（如 10/0.01==999.9999…）
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """Validate one record against a JSON Schema subset; return violations (empty = pass).
+
+    >>> validate_record({"id": "r-001", "amount": 12.5, "currency": "USD", "tags": ["food", "taxi"]}, SCHEMA_A)
+    []
+    >>> validate_record({"id": 7, "amount": 10, "currency": "usd", "tags": []}, SCHEMA_A)
+    ['id: expected string, got int', "currency: 'usd' does not match pattern '^[A-Z]{3}$'"]
+    >>> validate_record({"id": "r-003", "currency": "JPY", "tags": [1], "note": "x"}, SCHEMA_A)
+    ['amount: required field missing', "tags[0]: expected string, got int", "unexpected field 'note'"]
+    """
+    errors = []
+
+    if not _type_ok(record, schema.get("type", "object")):
+        return [f"root: expected {schema.get('type')}, got {type(record).__name__}"]
+
+    for field in schema.get("required", []):
+        if field not in record:
+            errors.append(f"{field}: required field missing")
+
+    props = schema.get("properties", {})
+    if schema.get("additionalProperties") is False:
+        for key in record:
+            if key not in props:
+                errors.append(f"unexpected field {key!r}")
+
+    for key, rule in props.items():
+        if key not in record:
+            continue
+        value = record[key]
+        expected = rule.get("type")
+        if expected and not _type_ok(value, expected):
+            errors.append(f"{key}: expected {expected}, got {type(value).__name__}")
+            continue
+        if "pattern" in rule and isinstance(value, str) and not re.search(rule["pattern"], value):
+            errors.append(f"{key}: {value!r} does not match pattern {rule['pattern']!r}")
+        if "minLength" in rule and len(value) < rule["minLength"]:
+            errors.append(f"{key}: length {len(value)} < minLength {rule['minLength']}")
+        if "maxLength" in rule and len(value) > rule["maxLength"]:
+            errors.append(f"{key}: length {len(value)} > maxLength {rule['maxLength']}")
+        if "minimum" in rule and value < rule["minimum"]:
+            errors.append(f"{key}: {value} < minimum {rule['minimum']}")
+        if "maximum" in rule and value > rule["maximum"]:
+            errors.append(f"{key}: {value} > maximum {rule['maximum']}")
+        if "multipleOf" in rule and not _multiple_of(value, rule["multipleOf"]):
+            errors.append(f"{key}: {value} is not a multiple of {rule['multipleOf']}")
+        if expected == "array" and "items" in rule:
+            item_rule = rule["items"]
+            for i, item in enumerate(value):
+                it = item_rule.get("type")
+                if it and not _type_ok(item, it):
+                    errors.append(f"{key}[{i}]: expected {it}, got {type(item).__name__}")
+
+    return errors
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=False)
+```
+
+## 自检与说明
+
+- **错误顺序确定性**：required → additionalProperties → properties（按 schema 声明序），保证 doctest 输出可复现。
+- **浮点安全**：`multipleOf` 用相对容差（1e-9），正确放行 `10`、`12.5`，拦截 `12.345`。
+- **bool 陷阱**：`isinstance(True, int)` 为真，已显式排除，`True` 不会被当作 number/integer。
+- **验收前置条件**：需 Lead 回填 A 的最终验收文本；若与 `SCHEMA_A` 不一致，仅做逐字替换后 `python validator.py` 复跑 3 个 doctest 即可收束。

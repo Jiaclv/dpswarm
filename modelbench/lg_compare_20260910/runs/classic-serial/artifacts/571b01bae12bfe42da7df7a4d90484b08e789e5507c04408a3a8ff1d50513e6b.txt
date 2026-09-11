@@ -1,0 +1,156 @@
+## 依赖说明（先行声明）
+
+本任务严格依赖子任务 A 验收后的 schema 文本。当前会话中**未收到 A 的交付内容**，因此下面的 doctest 中的 schema 先以「占位块」标注——管线调度时请将 `A_DELIVERED_SCHEMA_1/2/3` 逐字替换为 A 的原文（包括空格与键序），再做 doctest 验证。实现本身不依赖占位内容的写法，仅依赖 A 采用的约定（见下文「schema 约定」一节；若 A 的约定不同，需同步调整解释层）。
+
+## schema 约定（实现所依据的解释规则）
+
+```python
+"""
+record_schema_validator
+=======================
+纯标准库实现的记录校验器。
+
+schema 约定（与子任务 A 交付对齐）：
+    {
+      "type": "object",
+      "required": ["id", "name"],          # 缺失即违规
+      "properties": {
+        "id":   {"type": "integer", "minimum": 1},
+        "name": {"type": "string", "minLength": 1, "maxLength": 32,
+                 "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"},
+        "score": {"type": "number", "minimum": 0.0, "maximum": 100.0},
+        "active": {"type": "boolean"}
+      }
+    }
+
+违规信息格式（稳定、可排序）：
+    "record.<字段路径>: <描述>"
+顶层未知键：  "record: unexpected key '<k>'"
+缺失必填键：  "record: missing required key '<k>'"
+类型错误：    "record.<k>: expected <t>, got <实际类型>"
+数值越界：    "record.<k>: value <v> violates minimum/maximum <bound>"
+字符串越界：  "record.<k>: length <n> violates minLength/maxLength <bound>"
+模式不匹配：  "record.<k>: value <v!r> does not match pattern '<p>'"
+
+只做一层 properties（A 的 schema 为扁平结构）；不支持嵌套对象/数组。
+bool 是 int 的子类，类型检查时显式排除（isinstance(x, bool) 优先判断）。
+"""
+
+import re
+
+__all__ = ["validate_record"]
+
+
+def _check_type(value, expected: str) -> bool:
+    """类型判定：bool 优先于 int/number，number 兼容 int。"""
+    if expected == "boolean":
+        return isinstance(value, bool)
+    if expected == "integer":
+        return isinstance(value, int) and not isinstance(value, bool)
+    if expected == "number":
+        return isinstance(value, (int, float)) and not isinstance(value, bool)
+    if expected == "string":
+        return isinstance(value, str)
+    return False  # 未知类型声明一律判不通过，保守处理
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验 record 是否符合 schema，返回违规信息列表（空列表 = 通过）。
+
+    >>> validate_record(
+    ...     {"id": 7, "name": "alpha_1", "score": 88.5, "active": True},
+    ...     A_DELIVERED_SCHEMA_1,
+    ... )
+    []
+
+    >>> validate_record(
+    ...     {"name": "", "score": 120, "extra": 1},
+    ...     A_DELIVERED_SCHEMA_2,
+    ... )
+    ['record: missing required key 'id'', \
+'record: unexpected key 'extra'', \
+"record.name: length 0 violates minLength 1", \
+"record.score: value 120 violates maximum 100.0"]
+
+    >>> validate_record(
+    ...     {"id": "x", "name": "9bad name"},
+    ...     A_DELIVERED_SCHEMA_3,
+    ... )
+    ["record.id: expected integer, got str", \
+"record.name: value '9bad name' does not match pattern '^[A-Za-z][A-Za-z0-9_-]*$'"]
+
+    doctest 占位：A_DELIVERED_SCHEMA_1/2/3 必须替换为 A 交付原文。
+    """
+    violations: list[str] = []
+
+    # 顶层必须是对象
+    if not isinstance(record, dict):
+        return [f"record: expected object, got {type(record).__name__}"]
+
+    props = schema.get("properties", {})
+    required = schema.get("required", [])
+
+    # 1) 必填键缺失（按 required 声明顺序，保证输出稳定）
+    for key in required:
+        if key not in record:
+            violations.append(f"record: missing required key '{key}'")
+
+    # 2) 未知键（按插入顺序）
+    for key in record:
+        if key not in props:
+            violations.append(f"record: unexpected key '{key}'")
+
+    # 3) 逐字段约束（按 properties 声明顺序）
+    for key, spec in props.items():
+        if key not in record:
+            continue  # 缺失已由 required 报告，或本就不必填
+        value = record[key]
+        expected = spec.get("type")
+        if expected and not _check_type(value, expected):
+            violations.append(
+                f"record.{key}: expected {expected}, got {type(value).__name__}"
+            )
+            continue  # 类型不符时跳过值域检查，避免级联噪声
+        if isinstance(value, bool):
+            continue  # boolean 无值域约束
+        if isinstance(value, (int, float)):
+            if "minimum" in spec and value < spec["minimum"]:
+                violations.append(
+                    f"record.{key}: value {value} violates minimum {spec['minimum']}"
+                )
+            if "maximum" in spec and value > spec["maximum"]:
+                violations.append(
+                    f"record.{key}: value {value} violates maximum {spec['maximum']}"
+                )
+        elif isinstance(value, str):
+            if "minLength" in spec and len(value) < spec["minLength"]:
+                violations.append(
+                    f"record.{key}: length {len(value)} violates "
+                    f"minLength {spec['minLength']}"
+                )
+            if "maxLength" in spec and len(value) > spec["maxLength"]:
+                violations.append(
+                    f"record.{key}: length {len(value)} violates "
+                    f"maxLength {spec['maxLength']}"
+                )
+            pattern = spec.get("pattern")
+            if pattern and re.match(pattern, value) is None:
+                violations.append(
+                    f"record.{key}: value {value!r} does not match "
+                    f"pattern '{pattern}'"
+                )
+
+    return violations
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=True)
+```
+
+## 交接要点
+
+1. **阻塞项**：`A_DELIVERED_SCHEMA_1/2/3` 为占位标识符，需调度方在 A 验收后将原文逐字粘入（建议作为模块级常量定义在 doctest 上方，保证逐字引用可被 diff 审计）。
+2. **约定风险**：若 A 的 schema 使用 `minimum`/`maximum` 之外的键（如 `exclusiveMinimum`、`enum`），需在此解释层补对应分支——当前实现按上表约定保守处理，未知键不生效。
+3. **确定性**：违规输出顺序 = required 顺序 → record 插入序 → properties 声明序，不排序、不稳定排序不参与，保证两次运行输出逐字节一致，便于下游快照测试。
+4. **已知边界**：不处理嵌套对象/数组/`items`/`additionalProperties`；`bool` 判型优先于数值（Python `bool` 是 `int` 子类，已显式排除）。

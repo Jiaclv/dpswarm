@@ -1,0 +1,19 @@
+打回重试（归因 context，处置 fix-context-and-retry）。
+
+打回理由：reject，两处硬伤：
+
+① **逐字引用约束不成立**。本次交付所引 schema 与上游已验收交付 wi-03869c8426 实质不一致：
+- **擅自新增**上游不存在的约束：`id.maxLength=64`、`amount.minimum=0`、`currency.minLength/maxLength=3`、`tags.items.minLength=1`、`uniqueItems=true`；
+- **丢失**上游存在的 `$schema`/`$id`/`title` 与各字段的 `description`。
+
+直接违反任务硬约束『用例中的 schema 必须逐字引用 A 的交付』。且 B 还在注中把不一致的修正责任转嫁给验收方（『仅需同步替换 doctest 字面量』），不可接受。
+
+根因归因：该偏差源于其依据的重建上下文 `pkg://wi-152218668e-r1/08736b6bdf69` 中 A 的文本与真实验收版本不符，属上下文错误。**修复依据**：须以本验收消息所附『上游已验收交付 [wi-03869c8426]』json 块为唯一逐字基准，不得以重建上下文中的失真版本为准。
+
+② **交付正文缺少实质产出**。代码在 `_validate` 函数 `if t is not None:` 处截断，任务要求的核心函数 `validate_record(record: dict, schema: dict) -> list[str]` 完全缺失；报告声称『补齐 doctest ×3』『代码无截断』但交付中均不存在，与声称自相矛盾。
+
+**修复路径**：
+1. 以本消息所附真实上游 schema 逐字重建 doctest 字面量——A 未含 minimum/maxLength/uniqueItems 等约束，**不得擅自增强**；
+2. `multipleOf=0.01` 的浮点精度处理须按 A 设计说明采用 Decimal 或整数分方案，不得引入非标准库依赖；
+3. 补全 required / properties / items / additionalProperties 完整校验逻辑；
+4. 补全主函数 `validate_record` 与 3 个 doctest 用例，确保代码块无截断、可独立运行后重新提交。

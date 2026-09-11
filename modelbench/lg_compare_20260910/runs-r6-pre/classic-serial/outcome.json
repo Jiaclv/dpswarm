@@ -1,0 +1,66 @@
+{
+  "summary": {
+    "run_id": "classic-serial",
+    "arm": "classic",
+    "task": "serial",
+    "wall_seconds": 924.65,
+    "final": null,
+    "error": null,
+    "actions": [
+      "fission",
+      "integration-failed",
+      "fission",
+      "coverage-rejected:missing=[0]",
+      "fission",
+      "coverage-rejected:missing=[0]",
+      "fission",
+      "coverage-rejected:missing=[0]",
+      "fission",
+      "coverage-rejected:missing=[0]"
+    ],
+    "items": [
+      {
+        "item": "wi-14b1346acc",
+        "outcome": "accepted",
+        "submission": "## 子任务 A：迷你记账记录 JSON Schema\n\n```json\n{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"$id\": \"https://example.com/schemas/mini-ledger-record.json\",\n  \"title\": \"MiniLedgerRecord\",\n  \"de"
+      },
+      {
+        "item": "wi-f6be4f1e0c",
+        "outcome": "escalated",
+        "submission": "## 子任务 B 交付：校验器实现\n\n依据分工约束，B 以 A 验收后的 schema 全文为唯一依据。以下先给出 A 的交付原文（B 的 doctest 逐字引用），再给出纯标准库校验器。\n\n### A 的 schema 交付原文（逐字引用于下方 doctest）\n\n```json\n{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/sch"
+      }
+    ],
+    "lead_tokens": 37251,
+    "protocol_failures": 0,
+    "protocol_failure_detail": []
+  },
+  "outcome": {
+    "task": "两阶段串行交付，第二阶段严格依赖第一阶段产出：\n- 子任务 A「schema 设计」：为一个「迷你记账记录」设计 JSON Schema——字段含 id(字符串)、amount(数值，两位小数)、currency(三字母代码)、tags(字符串数组，可空)；交付一个 ```json 代码块（schema 全文）与不超过 10 行的设计说明；\n- 子任务 B「校验器实现」：严格依据 A 验收后的 schema 文本，用纯标准库实现 validate_record(record: dict, schema: dict) -> list[str]（返回违规信息列表，空列表=通过），附 3 个 doctest 用例（用例里的 schema 必须逐字引用 A 的交付）。\n分工提示：B 必须等 A 验收后才能开始，fission 拆且只拆 2 个 subtasks（A 与 B），为 B 标 deps=[0]；全部验收通过后 Lead 决策 accept 收束，不得再继续裂变。",
+    "bucket": "coding",
+    "items": [
+      {
+        "item": "wi-14b1346acc",
+        "outcome": "accepted",
+        "submission": "## 子任务 A：迷你记账记录 JSON Schema\n\n```json\n{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"$id\": \"https://example.com/schemas/mini-ledger-record.json\",\n  \"title\": \"MiniLedgerRecord\",\n  \"de"
+      },
+      {
+        "item": "wi-f6be4f1e0c",
+        "outcome": "escalated",
+        "submission": "## 子任务 B 交付：校验器实现\n\n依据分工约束，B 以 A 验收后的 schema 全文为唯一依据。以下先给出 A 的交付原文（B 的 doctest 逐字引用），再给出纯标准库校验器。\n\n### A 的 schema 交付原文（逐字引用于下方 doctest）\n\n```json\n{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/sch"
+      }
+    ],
+    "actions": [
+      "fission",
+      "integration-failed",
+      "fission",
+      "coverage-rejected:missing=[0]",
+      "fission",
+      "coverage-rejected:missing=[0]",
+      "fission",
+      "coverage-rejected:missing=[0]",
+      "fission",
+      "coverage-rejected:missing=[0]"
+    ],
+    "result": "partial"
+  }
+}

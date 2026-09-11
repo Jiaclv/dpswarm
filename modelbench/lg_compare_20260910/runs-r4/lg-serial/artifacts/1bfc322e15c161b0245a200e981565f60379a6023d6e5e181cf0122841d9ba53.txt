@@ -1,0 +1,225 @@
+# 子任务 B 交付：校验器实现
+
+**依赖确认**：A（schema 设计）已验收，本文仅消费 [wi-1bb08b2f1b]，schema 原文以 L1 层为准、逐字内嵌，未改动任何字符。
+
+```python
+# -*- coding: utf-8 -*-
+"""validate_record —— Mini Expense Record 校验器（子任务 B，依赖 A 交付）。
+
+严格依据上游 A 验收的 schema 文本（[wi-1bb08b2f1b]，JSON Schema draft
+2020-12）实现：纯标准库（json / re / decimal），无第三方依赖。
+validate_record(record, schema) 返回违规信息列表，空列表 = 通过。
+"""
+
+from __future__ import annotations
+
+import json
+import re
+from decimal import Decimal
+
+__all__ = ["MINI_EXPENSE_SCHEMA", "validate_record"]
+
+# ---------------------------------------------------------------------------
+# 上游 A（[wi-1bb08b2f1b]）交付的 schema 全文：逐字保留、逐字引用。
+# 以原始字符串经 json.loads 解析，任何字符不得改动（契约载体）。
+# ---------------------------------------------------------------------------
+MINI_EXPENSE_SCHEMA = json.loads(r"""
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Mini Expense Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "amount", "currency", "tags"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "tags": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}
+""")
+
+
+def _type_matches(value: object, expected: str) -> bool:
+    """按 JSON Schema 语义判定 value 是否属于 expected 类型。"""
+    if expected == "object":
+        return isinstance(value, dict)
+    if expected == "array":
+        return isinstance(value, list)
+    if expected == "string":
+        return isinstance(value, str)
+    if expected == "boolean":
+        return isinstance(value, bool)
+    if expected == "number":
+        # JSON 中 true/false 不是 number；Python 的 bool 是 int 子类，须排除。
+        return isinstance(value, (int, float)) and not isinstance(value, bool)
+    if expected == "integer":
+        return isinstance(value, int) and not isinstance(value, bool)
+    if expected == "null":
+        return value is None
+    return True  # 未知类型关键词：宽松放行
+
+
+def _type_name(value: object) -> str:
+    """返回 value 对应的 JSON 类型名（用于违规信息）。"""
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "boolean"
+    if isinstance(value, (int, float)):
+        return "number"
+    if isinstance(value, str):
+        return "string"
+    if isinstance(value, list):
+        return "array"
+    if isinstance(value, dict):
+        return "object"
+    return type(value).__name__
+
+
+def _is_multiple_of(value: object, multiple_of: object) -> bool:
+    """multipleOf 判定。
+
+    0.01 这类十进制小数用 float 直接取模有二进制浮点误差
+    （如 0.07 % 0.01 != 0），故按字面文本转 Decimal 做整除判定，
+    与上游“精确到两位小数、1.5 等价 1.50”的验收决定（不变量 4/5）一致。
+    """
+    dividend = Decimal(str(value))
+    divisor = Decimal(str(multiple_of))
+    if divisor == 0:
+        return True
+    return (dividend / divisor) % 1 == 0
+
+
+def _validate(value: object, schema: dict, path: str, violations: list[str]) -> None:
+    """按单个子 schema 校验 value，追加违规信息到 violations。"""
+    expected_type = schema.get("type")
+    if expected_type is not None:
+        allowed = expected_type if isinstance(expected_type, list) else [expected_type]
+        if not any(_type_matches(value, t) for t in allowed):
+            want = " or ".join(f"'{t}'" for t in allowed)
+            violations.append(f"{path}: expected type {want}, got '{_type_name(value)}'")
+            return  # 类型不符时不再叠加后续关键词的级联报错
+
+    if isinstance(value, str):
+        min_length = schema.get("minLength")
+        if min_length is not None and len(value) < min_length:
+            violations.append(
+                f"{path}: minLength {min_length} violated (length {len(value)})"
+            )
+        pattern = schema.get("pattern")
+        if pattern is not None and re.search(pattern, value) is None:
+            violations.append(f"{path}: {value!r} does not match pattern {pattern!r}")
+
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        multiple_of = schema.get("multipleOf")
+        if multiple_of is not None and not _is_multiple_of(value, multiple_of):
+            violations.append(f"{path}: {value!r} is not a multiple of {multiple_of!r}")
+
+    if isinstance(value, list):
+        items = schema.get("items")
+        if isinstance(items, dict):
+            for index, item in enumerate(value):
+                _validate(item, items, f"{path}[{index}]", violations)
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验 record 是否符合 schema；返回违规信息列表（空列表 = 通过）。
+
+    覆盖本契约用到的 JSON Schema 2020-12 关键词子集：type（含类型数组）、
+    required、additionalProperties: false、properties、minLength、pattern、
+    multipleOf、items。违规信息按固定顺序输出：required → additionalProperties
+    → properties（按 schema 内字段顺序，数组按下标），保证结果可复现。
+
+    下列 3 个用例中的 schema 逐字引用上游 A 的交付（[wi-1bb08b2f1b]，
+    即上方 MINI_EXPENSE_SCHEMA 的原文）：
+
+    >>> SCHEMA = MINI_EXPENSE_SCHEMA
+
+    用例 1：合法记录——amount 12.5 与 12.50 等价（JSON 数值不留尾零，见上游
+    不变量 5），满足 multipleOf 0.01；tags 为字符串数组。
+    >>> validate_record({"id": "r-001", "amount": 12.5,
+    ...                  "currency": "USD", "tags": ["food", "travel"]}, SCHEMA)
+    []
+
+    用例 2：tags 为 null 合法（type: ["array", "null"]）；amount 取整数 100
+    也属 number 且满足 multipleOf 0.01。
+    >>> validate_record({"id": "r-002", "amount": 100,
+    ...                  "currency": "CNY", "tags": None}, SCHEMA)
+    []
+
+    用例 3：多重违规——多余字段 note、id 空串、amount 三位小数、currency
+    小写、tags 含非字符串项。
+    >>> for msg in validate_record({"id": "", "amount": 10.555, "currency": "usd",
+    ...                             "tags": ["a", 42], "note": "x"}, SCHEMA):
+    ...     print(msg)
+    additionalProperties: unexpected property 'note'
+    $.id: minLength 1 violated (length 0)
+    $.amount: 10.555 is not a multiple of 0.01
+    $.currency: 'usd' does not match pattern '^[A-Z]{3}$'
+    $.tags[1]: expected type 'string', got 'number'
+    """
+    violations: list[str] = []
+
+    # 1) 根类型
+    expected_type = schema.get("type")
+    if expected_type is not None:
+        allowed = expected_type if isinstance(expected_type, list) else [expected_type]
+        if not any(_type_matches(record, t) for t in allowed):
+            want = " or ".join(f"'{t}'" for t in allowed)
+            violations.append(f"$: expected type {want}, got '{_type_name(record)}'")
+            return violations
+
+    # 2) required（按 schema 的 required 列表顺序）
+    for key in schema.get("required", []):
+        if key not in record:
+            violations.append(f"required: missing property '{key}'")
+
+    properties = schema.get("properties", {})
+
+    # 3) additionalProperties: false（多余字段）
+    if schema.get("additionalProperties") is False:
+        for key in record:
+            if key not in properties:
+                violations.append(f"additionalProperties: unexpected property '{key}'")
+
+    # 4) 逐字段校验（按 schema 的 properties 顺序：id/amount/currency/tags）
+    for key, subschema in properties.items():
+        if key in record and isinstance(subschema, dict):
+            _validate(record[key], subschema, f"$.{key}", violations)
+
+    return violations
+
+
+if __name__ == "__main__":
+    import doctest
+
+    _results = doctest.testmod()
+    print(f"doctest: {_results.attempted} examples, {_results.failed} failed")
+    raise SystemExit(1 if _results.failed else 0)
+```
+
+## 交付说明
+
+1. **依赖与逐字性**：schema 全文（[wi-1bb08b2f1b]）以原始字符串内嵌于 `MINI_EXPENSE_SCHEMA`，字符级未改动；3 个 doctest 用例经该常量逐字引用 A 的交付，满足“B 等待 A 验收后开始”的 deps=[0] 契约。
+2. **签名与契约**：`validate_record(record: dict, schema: dict) -> list[str]`，空列表 = 通过。
+3. **关键词覆盖**：`type`（含类型数组，支撑 tags 的 `["array", "null"]`）、`required`、`additionalProperties: false`、`properties`、`minLength`、`pattern`（按 2020-12 语义用 `re.search`）、`multipleOf`、`items`。
+4. **浮点陷阱规避**：`multipleOf: 0.01` 若用 float 取模会误判（如 `0.07 % 0.01 != 0`），实现按字面文本转 `Decimal` 整除判定；`12.5`/`100` 通过，`10.555` 拒绝，与上游不变量 4/5（两位小数、尾零不保留）一致。
+5. **结果确定性**：违规顺序固定（required → 多余字段 → properties 顺序 → 数组下标），类型不符即短路，不产生级联噪音。
+6. **自检方式**：`python mini_expense_validator.py`（内置 doctest 运行器）或 `python -m doctest mini_expense_validator.py -v`；3 用例全部通过。
+
+交付完毕，请 Lead 验收（全部通过后 accept 收束）。

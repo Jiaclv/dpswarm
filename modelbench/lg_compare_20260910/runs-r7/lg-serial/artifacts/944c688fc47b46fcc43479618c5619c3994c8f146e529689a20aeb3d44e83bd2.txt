@@ -1,0 +1,29 @@
+归因与处置已确认：误读清单（items 在五项字段之内），处置 fix-description-and-retry。现按原任务要求重新交付，补齐 items 字段，其余四项保留原设计。
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MiniLedgerRecord",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "amount": { "type": "number", "multipleOf": 0.01 },
+    "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+    "tags": { "type": "array", "items": { "type": "string" }, "default": [] },
+    "items": { "type": "array", "default": [] }
+  },
+  "required": ["id", "amount", "currency", "tags", "items"],
+  "additionalProperties": false
+}
+```
+
+设计说明（本次修订重点）：
+
+1. 修订项：补上第五个字段 `items`，类型 array，`"default": []` 实现"可为空"语义；因任务未约定明细元素结构，故不进一步约束元素 schema，交由下游 B 按此原文实现。
+2. `id`：字符串且 `minLength: 1`，排除空串作为记录标识。
+3. `amount`：`multipleOf: 0.01` 表达"两位小数"；注意 JSON number 无精度概念，此为标准约束手段，若需严格十进制精度应在应用层二次校验。
+4. `currency`：`^[A-Z]{3}$` 正则限定三字母大写代码（ISO 4217 风格），未做枚举以保持通用性。
+5. `tags`：字符串数组，无 `minItems` 约束即可为空数组，`default: []` 兜底。
+6. 五个字段全部列入 `required`（"可空"= 值可为空集，非可缺省），`additionalProperties: false` 封闭结构，便于 B 做确定性校验。
+
+交付完毕，等待验收；B 仍须待本 schema 验收后方可开始（deps=[0]）。

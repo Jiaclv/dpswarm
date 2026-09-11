@@ -1,0 +1,46 @@
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/mini-ledger-record.json",
+  "title": "MiniLedgerRecord",
+  "description": "迷你记账记录",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "记录唯一标识"
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "description": "金额，精确到两位小数"
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "ISO 4217 三字母货币代码"
+    },
+    "tags": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      ],
+      "description": "标签，可空"
+    }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+**设计说明**
+1. `amount` 用 `multipleOf: 0.01` 约束两位小数，比正则更语义化；但需注意浮点精度，服务端建议同步校验十进制表示。
+2. `currency` 用 `^[A-Z]{3}$` 正则覆盖 ISO 4217 格式；如需更严可改为枚举白名单。
+3. `tags` 用 `oneOf` 明确允许 `null` 或字符串数组，数组内元素非空且去重。
+4. 四个字段均为业务必需，放入 `required`；`additionalProperties: false` 防止脏字段混入。
+5. 采用 2020-12 版 draft，并附 `$id` 便于跨文档引用与复用。

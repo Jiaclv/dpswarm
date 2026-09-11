@@ -1,0 +1,37 @@
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/schemas/mini-ledger-record.json",
+  "title": "MiniLedgerRecord",
+  "description": "迷你记账记录",
+  "type": "object",
+  "required": ["id", "amount", "currency"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "exclusiveMinimum": 0
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "tags": {
+      "type": ["array", "null"],
+      "items": { "type": "string", "minLength": 1 }
+    }
+  },
+  "additionalProperties": false
+}
+```
+
+设计说明：
+1. `id` 仅约束为非空字符串，不限定格式，兼容 UUID/雪花 ID 等生成策略。
+2. `amount` 用 `multipleOf: 0.01` 表达"两位小数"，并用 `exclusiveMinimum: 0` 排除 0 和负数（退款可用负数则移除该约束）。
+3. `currency` 用 `^[A-Z]{3}$` 正则约束三字母代码（如 CNY/USD），未内置 ISO 4217 枚举以保持通用性。
+4. `tags` 采用 `["array", "null"]` 类型实现可空语义；`additionalProperties: false` 防止冗余字段混入。
+5. 已知 draft-07 中 `multipleOf` 基于浮点运算，个别实现可能出现精度误判，严格场景建议将 `amount` 改为字符串加 pattern。

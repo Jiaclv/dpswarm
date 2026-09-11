@@ -92,12 +92,18 @@ class SealPhase(str, Enum):
 
 
 class RejectAttribution(str, Enum):
-    """验收打回归因四分支（§8 异常路径）。"""
+    """验收打回归因（§8 异常路径）。四分支 + 解析维度两分（债①-b ⑥）：
+
+    四分支（capability/context/description/contradiction）是内容归因；
+    uncertain / invalid_output 是解析维度——证据不足与 Lead 输出非法
+    不再伪装成 description（fallback 审计事件同步措辞）。"""
 
     CAPABILITY = "capability"  # 能力弱项 → 换模型升级（上限 = Lead 级别）
     CONTEXT = "context"        # context 裁错/缺料 → 修 context 重试
     DESCRIPTION = "description"  # 描述不清 → 修描述重试
     CONTRADICTION = "contradiction"  # 任务矛盾 → 退化或上报人工，不硬磕
+    UNCERTAIN = "uncertain"          # 证据不足 → 修 context 重试（补料）
+    INVALID_OUTPUT = "invalid_output"  # Lead 输出非法/不可解析 → 修描述重试
 
 
 class StopReason(str, Enum):
@@ -177,6 +183,7 @@ class ModelFacts:
     aa_dimensional: Dict[str, float] = field(default_factory=dict)  # coding/reasoning/...
     aa_source: str = "declared"  # 'aa@<date>' 外部快照 | 'declared' 声明值 | 'demo' 演示目录
     context_window: Optional[int] = 128_000
+    max_output: Optional[int] = None       # 模型最大输出上限；None = 不 clamp（§4 截断阶梯封顶用）
     input_price_per_mtok: Optional[float] = 0.0
     output_price_per_mtok: Optional[float] = 0.0
     available: bool = True

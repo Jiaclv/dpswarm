@@ -1,0 +1,42 @@
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/expense-record.json",
+  "title": "ExpenseRecord",
+  "description": "迷你记账应用的单条支出/收入记录",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "记录唯一标识"
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "minimum": 0,
+      "description": "金额，精确到两位小数，非负"
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "ISO 4217 三字母货币代码，如 CNY、USD"
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "分类标签列表，允许为空数组"
+    }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+设计说明（≤10 行）：
+1. `amount` 用 `multipleOf: 0.01` 约束两位小数，`minimum: 0` 排除负数。
+2. `currency` 用正则 `^[A-Z]{3}$` 强制大写三字母格式。
+3. `tags` 允许空数组但不允许缺失——若业务需“可整体缺省”，可从 `required` 中移除。
+4. `tags` 元素 `minLength: 1` 防止空字符串标签污染数据。
+5. `additionalProperties: false` 严格模式，便于前端校验捕获拼写错误的字段。
+6. 采用 2020-12 草案，兼容主流校验库（Ajv、Python jsonschema 等）。

@@ -1,0 +1,37 @@
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/mini-ledger-record.json",
+  "title": "MiniLedgerRecord",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "minimum": 0
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": []
+    }
+  },
+  "required": ["id", "amount", "currency"],
+  "additionalProperties": false
+}
+```
+
+设计说明：
+1. `amount` 用 `multipleOf: 0.01` 强制两位小数精度，并设 `minimum: 0` 排除负金额。
+2. `currency` 用正则 `^[A-Z]{3}$` 匹配 ISO 4217 三字母大写代码。
+3. `tags` 未列入 `required`，缺省即为"可空"；显式传 `null` 需放宽为 `"type": ["array", "null"]`（按数组可空语义处理）。
+4. `id` 限制非空字符串，作为记录唯一标识。
+5. `required` 含 id/amount/currency 三个核心字段；`additionalProperties: false` 保证结构封闭，防止冗余字段。

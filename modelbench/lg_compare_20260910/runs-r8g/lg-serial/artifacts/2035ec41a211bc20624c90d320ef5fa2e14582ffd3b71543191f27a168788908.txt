@@ -1,0 +1,23 @@
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MiniBookkeepingRecord",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string" },
+    "amount": { "type": "number", "multipleOf": 0.01 },
+    "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+    "tags": {
+      "type": ["array", "null"],
+      "items": { "type": "string" }
+    }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+1. `amount` 用 `multipleOf: 0.01` 约束为两位小数精度。  
+2. `currency` 约束为大写三字母代码。  
+3. `tags` 可为字符串数组或 `null`，数组元素必须都是字符串。  
+4. 四个字段均必填，且不允许额外字段。

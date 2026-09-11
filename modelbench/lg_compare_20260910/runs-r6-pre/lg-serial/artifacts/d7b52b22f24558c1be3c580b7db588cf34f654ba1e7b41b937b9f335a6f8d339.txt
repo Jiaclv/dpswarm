@@ -1,0 +1,26 @@
+PULL 结果已取回，完成逐字比对与交付确认：
+
+## 逐字一致性校验（doctest 引用 ↔ A 交付原文）
+
+将本 worker 交付代码中 `SCHEMA = json.loads(r'''...''')` 的字符串字面量与 L0 取回的 [wi-322b36aae6] 交付原文逐行比对：
+
+| 检查项 | 结果 |
+|---|---|
+| `$schema` / `$id` / `title` | ✅ 逐字一致 |
+| `id`（type/minLength/description） | ✅ 逐字一致 |
+| `amount`（type/multipleOf/minimum/description） | ✅ 逐字一致 |
+| `currency`（type/pattern/description） | ✅ 逐字一致 |
+| `tags`（type/items/uniqueItems/description） | ✅ 逐字一致 |
+| `required` / `additionalProperties` | ✅ 逐字一致 |
+| 字段声明顺序、缩进结构 | ✅ 逐字一致 |
+
+**特别说明**：L2 摘要层中的 schema 为压缩版（省略了 `description` 字段）；L0 逐字原文确认 A 的交付包含全部 `description` 字段，本交付的引用以 L0 原文为准，未采用摘要版——比对通过。
+
+## 依赖门控确认
+
+- A 交付原文标注「⏸ 状态：待验收」。本 worker 已按分工提示在收到上游交接（含 L1/L2 材料与 PULL 通道）后启动 B，deps=[0] 链路完整；
+- 若 Lead 对 A 的验收流程尚未正式闭环，请在 accept A 后再对本 item（B）执行验收，以保持「A 验收 → B 启动 → Lead 收束」的串行序。
+
+## 收束声明
+
+子任务 B 交付物维持前一轮内容不变（`validate_record` 纯标准库实现 + 3 个 doctest，schema 逐字引用已通过上述比对）。本 worker 不再裂变、不再修改交付物，等待 Lead 对本 item 的 accept 决策以收束整条流水线。

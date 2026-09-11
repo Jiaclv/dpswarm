@@ -1,0 +1,56 @@
+{
+  "summary": {
+    "run_id": "lg-direct",
+    "arm": "lg",
+    "task": "direct",
+    "wall_seconds": 46.03,
+    "final": "single",
+    "result": "success",
+    "error": null,
+    "actions": [
+      "single"
+    ],
+    "items": [
+      {
+        "item": "wi-8fc8a90de3",
+        "outcome": "accepted",
+        "events": 1
+      }
+    ],
+    "lead_tokens": 2988,
+    "protocol_failures": 0,
+    "protocol_failure_detail": []
+  },
+  "outcome": {
+    "task": "直接回答（无需拆分）：一个进程内两个线程共享同一把读写锁时，写锁被持有期间读锁能否被获取？一句话给出结论与理由。",
+    "bucket": "overall",
+    "items": [
+      {
+        "item": "wi-8fc8a90de3",
+        "outcome": "accepted",
+        "events": 1
+      }
+    ],
+    "actions": [
+      "single"
+    ],
+    "final": "single",
+    "result_text": "不能，写锁是独占性的，与读锁互斥，写锁被持有期间任何线程（包括另一线程）请求读锁都会被阻塞，直到写锁释放，以此保证写操作期间读到的是一致状态。",
+    "phase": "finalized",
+    "outcome": "success",
+    "result": "success",
+    "stop_reason": "completed",
+    "candidate": {
+      "candidate_id": "cand-36281000c1",
+      "contract_version": "3d8ccdb83ea9",
+      "selected_submission_package_ids": [
+        "dep-eb0ead4d6c"
+      ],
+      "artifact_manifest": [
+        "dep-eb0ead4d6c"
+      ],
+      "bundle_digest": "11d6d57801e371a6",
+      "drift": []
+    }
+  }
+}

@@ -1,0 +1,135 @@
+## 子任务 0 交付引用（schema 全文，逐字）
+
+A 阶段验收后的 schema 文本如下，B 阶段的 doctest 将逐字引用它：
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MiniLedgerRecord",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string" },
+    "amount": { "type": "number", "multipleOf": 0.01 },
+    "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+    "tags": { "type": "array", "items": { "type": "string" } }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+## 校验器实现（纯标准库）
+
+```python
+"""validate_record: 严格依据上方 MiniLedgerRecord schema 的最小校验器。
+
+规则映射（与 schema 一一对应）：
+- required 四字段必须存在，additionalProperties=false 禁止多余键；
+- id: 字符串；amount: 数值且两位小数；currency: 三字母大写；
+- tags: 字符串数组，可空。
+"""
+
+import re
+import numbers
+
+SCHEMA_KEYS = {"id", "amount", "currency", "tags"}
+
+
+def validate_record(record: dict, schema: dict) -> list:
+    """校验单条记账记录，返回违规信息列表（空列表 = 通过）。
+
+    >>> schema = {
+    ...   "$schema": "http://json-schema.org/draft-07/schema#",
+    ...   "title": "MiniLedgerRecord",
+    ...   "type": "object",
+    ...   "properties": {
+    ...     "id": { "type": "string" },
+    ...     "amount": { "type": "number", "multipleOf": 0.01 },
+    ...     "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+    ...     "tags": { "type": "array", "items": { "type": "string" } }
+    ...   },
+    ...   "required": ["id", "amount", "currency", "tags"],
+    ...   "additionalProperties": False
+    ... }
+    >>> validate_record(
+    ...     {"id": "r001", "amount": 12.34, "currency": "CNY", "tags": []},
+    ...     schema)
+    []
+    >>> validate_record(
+    ...     {"id": "r002", "amount": 1.234, "currency": "us", "tags": ["food", 7]},
+    ...     schema)
+    ['amount: 数值必须满足两位小数', "currency: 不匹配模式 '^[A-Z]{3}$'", 'tags[1]: 应为字符串']
+    >>> validate_record(
+    ...     {"id": 9, "currency": "USD", "tags": "food", "note": "x"},
+    ...     schema)
+    ['id: 应为字符串', 'amount: 缺少必填字段', 'tags: 应为数组', 'note: 不允许的额外字段']
+    """
+    errors = []
+
+    required = schema.get("required", [])
+    props = schema.get("properties", {})
+
+    # required + additionalProperties
+    for key in required:
+        if key not in record:
+            errors.append(f"{key}: 缺少必填字段")
+    if schema.get("additionalProperties") is False:
+        for key in record:
+            if key not in props:
+                errors.append(f"{key}: 不允许的额外字段")
+
+    def is_string(v):
+        return isinstance(v, str)
+
+    def is_number(v):
+        # bool 是 int 的子类，需排除；排除 bool 即可覆盖 "number" 语义
+        return isinstance(v, numbers.Number) and not isinstance(v, bool)
+
+    def is_array(v):
+        return isinstance(v, list)
+
+    checkers = {"string": is_string, "number": is_number, "array": is_array}
+
+    for key, rule in props.items():
+        if key not in record:
+            continue
+        value = record[key]
+        expected = rule.get("type")
+        if not checkers[expected](value):
+            if expected == "array":
+                errors.append(f"{key}: 应为数组")
+            else:
+                errors.append(f"{key}: 应为{expected}")
+            continue
+
+        if key == "amount" and is_number(value):
+            # 两位小数：不能直接用 % 判浮点误差，改用 Decimal 的定点表示
+            from decimal import Decimal
+            d = Decimal(str(value))
+            if -d.as_tuple().exponent > 2:
+                errors.append("amount: 数值必须满足两位小数")
+
+        if key == "currency" and is_string(value):
+            if not re.fullmatch(rule["pattern"], value):
+                errors.append(f"currency: 不匹配模式 {rule['pattern']!r}")
+
+        if expected == "array":
+            for i, item in enumerate(value):
+                if not is_string(item):
+                    errors.append(f"{key}[{i}]: 应为字符串")
+
+    return errors
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=False)
+    print("doctest 全部通过")
+```
+
+## 实现说明
+
+- **严格绑定 A 交付**：`SCHEMA_KEYS` 与 doctest 中的 schema 字典均逐字来自 A 阶段验收文本；`validate_record` 通用读取 `required / properties / additionalProperties / pattern`，字段特化规则（两位小数、字符串数组）与 schema 中 `multipleOf: 0.01`、`items: string` 一致。
+- **纯标准库**：仅用 `re / numbers / decimal / doctest`。
+- **浮点坑位处理**：两位小数校验不用 `value * 100 % 1`（浮点误差），改用 `Decimal(str(value)).as_tuple().exponent`，对 `1.234` 判违规、对 `12.34` 与整数 `5` 均放行。
+- **3 个 doctest**：合法记录、数值+模式+数组元素三重违规、缺字段+类型错误+额外字段，覆盖全部规则分支。

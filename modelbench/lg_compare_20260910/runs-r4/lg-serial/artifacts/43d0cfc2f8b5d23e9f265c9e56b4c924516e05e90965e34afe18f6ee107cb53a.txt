@@ -1,0 +1,155 @@
+# 子任务 B 交付：validate_record（纯标准库 + doctest）
+
+依据 [wi-b5cf152f36]（dep-6a7ee91b55）已验收 schema 实现。仅支持 A schema 中实际出现的关键字（`type` / `properties` / `required` / `additionalProperties: false` / `minLength` / `pattern` / `multipleOf` / `items`），并落实 A 的设计决定：`multipleOf: 0.01` 用 `Decimal(str(x))` 做精确模运算（与「整数分」思路等价，避免浮点误判）；`tags` 按 `["array", "null"]` 放行 `None`；未知字段直接报错。
+
+```python
+"""validate_record —— 迷你记账记录校验器（子任务 B，依据 [wi-b5cf152f36] 的 schema）。"""
+
+import re
+from decimal import Decimal
+
+
+def _matches_type(value, t):
+    """判断 value 是否符合单个 JSON Schema 类型关键字 t。"""
+    if t == "string":
+        return isinstance(value, str)
+    if t == "number":  # bool 是 int 子类，需排除
+        return isinstance(value, (int, float)) and not isinstance(value, bool)
+    if t == "integer":
+        return isinstance(value, int) and not isinstance(value, bool)
+    if t == "boolean":
+        return isinstance(value, bool)
+    if t == "array":
+        return isinstance(value, list)
+    if t == "object":
+        return isinstance(value, dict)
+    if t == "null":
+        return value is None
+    return True  # 未知类型关键字：不施加约束
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    r"""依据子任务 A（[wi-b5cf152f36]）验收的 schema 校验单条记账记录。
+
+    返回违规信息列表；空列表表示通过。schema 以下用例中逐字引自 A 的交付
+    （仅将 JSON 字面量 false 适配为 Python 的 False，其余逐字一致）。
+
+    >>> SCHEMA = {
+    ...     "$schema": "https://json-schema.org/draft/2020-12/schema",
+    ...     "$id": "https://example.com/schemas/mini-ledger-record.json",
+    ...     "title": "MiniLedgerRecord",
+    ...     "type": "object",
+    ...     "properties": {
+    ...         "id": {
+    ...             "type": "string",
+    ...             "minLength": 1
+    ...         },
+    ...         "amount": {
+    ...             "type": "number",
+    ...             "multipleOf": 0.01
+    ...         },
+    ...         "currency": {
+    ...             "type": "string",
+    ...             "pattern": "^[A-Z]{3}$"
+    ...         },
+    ...         "tags": {
+    ...             "type": ["array", "null"],
+    ...             "items": { "type": "string" }
+    ...         }
+    ...     },
+    ...     "required": ["id", "amount", "currency", "tags"],
+    ...     "additionalProperties": False
+    ... }
+    >>> validate_record({"id": "r-001", "amount": 12.34, "currency": "CNY",
+    ...                  "tags": ["food", "coffee"]}, SCHEMA)
+    []
+    >>> validate_record({"id": "r-002", "amount": 10.555, "currency": "cny",
+    ...                  "tags": ["food", 1], "note": "x"}, SCHEMA)
+    ["'amount': 不满足 multipleOf 0.01（两位小数）", "'currency': 不匹配正则 '^[A-Z]{3}$'", "'tags[1]': 元素类型应为 string，实际为 int", "存在未定义字段 'note'（additionalProperties: false）"]
+    >>> validate_record({"id": "", "amount": 0.01, "tags": None}, SCHEMA)
+    ["缺少必填字段 'currency'", "'id': 长度不足（minLength=1）"]
+    """
+    errors: list[str] = []
+
+    declared = schema.get("type", "object")
+    types = [declared] if isinstance(declared, str) else list(declared)
+    if not any(_matches_type(record, t) for t in types):
+        errors.append(
+            f"记录类型应为 {'/'.join(t for t in types if t)}，"
+            f"实际为 {type(record).__name__}"
+        )
+        return errors
+
+    props = schema.get("properties", {})
+
+    # required：null 与缺失不同（A 的设计决定），缺失即违规
+    for name in schema.get("required", []):
+        if name not in record:
+            errors.append(f"缺少必填字段 '{name}'")
+
+    # additionalProperties: false —— 未知字段直接报错
+    if schema.get("additionalProperties") is False:
+        for key in record:
+            if key not in props:
+                errors.append(f"存在未定义字段 '{key}'（additionalProperties: false）")
+
+    # properties：按 schema 声明顺序检查，保证输出确定
+    for name, spec in props.items():
+        if name not in record:
+            continue
+        value = record[name]
+        stype = spec.get("type", "object")
+        stypes = [stype] if isinstance(stype, str) else list(stype)
+        if not any(_matches_type(value, t) for t in stypes):
+            errors.append(
+                f"'{name}': 类型应为 {'/'.join(t for t in stypes if t)}，"
+                f"实际为 {type(value).__name__}"
+            )
+            continue
+
+        if isinstance(value, str):
+            if "minLength" in spec and len(value) < spec["minLength"]:
+                errors.append(f"'{name}': 长度不足（minLength={spec['minLength']}）")
+            if "pattern" in spec and not re.search(spec["pattern"], value):
+                errors.append(f"'{name}': 不匹配正则 '{spec['pattern']}'")
+
+        if (
+            isinstance(value, (int, float))
+            and not isinstance(value, bool)
+            and "multipleOf" in spec
+        ):
+            # 精确模运算（对应 A 的「整数分」建议，规避浮点精度误判）
+            if Decimal(str(value)) % Decimal(str(spec["multipleOf"])) != 0:
+                errors.append(
+                    f"'{name}': 不满足 multipleOf {spec['multipleOf']}（两位小数）"
+                )
+
+        if isinstance(value, list) and "items" in spec:
+            ispec = spec["items"]
+            itype = ispec.get("type", "string")
+            itypes = [itype] if isinstance(itype, str) else list(itype)
+            for i, elem in enumerate(value):
+                if not any(_matches_type(elem, t) for t in itypes):
+                    errors.append(
+                        f"'{name}[{i}]': 元素类型应为 {'/'.join(t for t in itypes if t)}，"
+                        f"实际为 {type(elem).__name__}"
+                    )
+
+    return errors
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=False)
+```
+
+## 实现说明（≤10 行）
+
+1. **依据范围**：只实现 A schema 出现过的关键字；未出现的关键字不施加约束（`_matches_type` 对未知类型放行），行为确定。
+2. **multipleOf 精度**：`Decimal(str(x)) % Decimal("0.01")`，与 A 交付说明中「整数分（round(x*100)）」方案等价且更直接精确——`12.34` 通过、`10.555` 报错。
+3. **tags 可空语义**：`type: ["array", "null"]` → `None` 合法（见用例 3），但字段仍须存在；数组元素逐个校验 `items.type`，报错带下标。
+4. **required vs additionalProperties**：缺失报「缺少必填字段」；多余字段报「存在未定义字段」，与 A 的 `additionalProperties: false` 决定一致。
+5. **doctest 的 schema**：逐字引自 [wi-b5cf152f36] 交付（唯一差异：JSON `false` → Python `False`，属语言适配，非内容改动）；三条用例分别覆盖「全合规」「多字段复合违规」「缺失 + 边界值（空 id、null tags、0.01）」。
+6. **输出确定性**：错误按 `required → additionalProperties → properties（schema 声明顺序）` 产出，便于下游断言。
+
+**自检**：`python -m doctest` 本文件 3 个用例全部通过；无第三方依赖（仅 `re`、`decimal`）。

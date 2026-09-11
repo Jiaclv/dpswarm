@@ -1,0 +1,1 @@
+实现 Python 函数 is_palindrome(s: str) -> bool：忽略大小写与非字母数字字符后判断字符串是否回文；函数 docstring 中附 3 个 doctest 用例；交付单个 ```python 代码块（≤50 行，含函数与 doctest）。零依赖，不引用其他子任务。

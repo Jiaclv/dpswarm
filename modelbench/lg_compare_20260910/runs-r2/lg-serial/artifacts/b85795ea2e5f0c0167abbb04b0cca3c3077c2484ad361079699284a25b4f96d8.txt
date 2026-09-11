@@ -1,0 +1,173 @@
+# validate_record 实现（子任务 B）
+
+依据 [wi-4fc2b3c721] 逐字 schema（L1 层），纯标准库实现，含 3 个 doctest。
+
+```python
+"""Mini Accounting Record 校验器。
+
+严格依据上游已验收 schema [wi-4fc2b3c721]（JSON Schema draft 2020-12）实现。
+仅支持该 schema 实际用到的关键字：type / minLength / multipleOf / pattern /
+items / required / additionalProperties / properties。
+"""
+
+import json
+import re
+from decimal import Decimal
+
+# JSON Schema type -> Python 类型映射
+_TYPE_MAP = {
+    "string": (str,),
+    "number": (int, float),   # bool 需排除（bool 是 int 子类）
+    "integer": (int,),
+    "boolean": (bool,),
+    "object": (dict,),
+    "array": (list,),
+    "null": (type(None),),
+}
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验 record 是否符合 schema，返回违规信息列表（空列表 = 通过）。
+
+    用例 1：逐字引用 [wi-4fc2b3c721] 的 schema 文本作为 SCHEMA，合法记录通过。
+
+    >>> SCHEMA = json.loads("""
+    ... {
+    ...   "$schema": "https://json-schema.org/draft/2020-12/schema",
+    ...   "$id": "mini-accounting-record.schema.json",
+    ...   "title": "Mini Accounting Record",
+    ...   "type": "object",
+    ...   "properties": {
+    ...     "id": {
+    ...       "type": "string",
+    ...       "minLength": 1
+    ...     },
+    ...     "amount": {
+    ...       "type": "number",
+    ...       "multipleOf": 0.01
+    ...     },
+    ...     "currency": {
+    ...       "type": "string",
+    ...       "pattern": "^[A-Z]{3}$"
+    ...     },
+    ...     "tags": {
+    ...       "type": ["array", "null"],
+    ...       "items": {
+    ...         "type": "string"
+    ...       }
+    ...     }
+    ...   },
+    ...   "required": ["id", "amount", "currency", "tags"],
+    ...   "additionalProperties": false
+    ... }
+    ... """)
+    >>> validate_record({"id": "TX001", "amount": 12.34, "currency": "USD", "tags": ["cash"]}, SCHEMA)
+    []
+
+    用例 2：tags 为 null 合法（type 含 "null"）；缺少必填字段被报告。
+
+    >>> validate_record({"amount": 5, "currency": "JPY", "tags": None}, SCHEMA)
+    ['缺少必填字段: id']
+
+    用例 3：一次暴露多处违规——minLength / multipleOf / pattern /
+    数组元素类型 / 禁止额外字段。
+
+    >>> bad = {"id": "", "amount": 1.234, "currency": "usd",
+    ...        "tags": ["a", 1], "extra": True}
+    >>> validate_record(bad, SCHEMA)
+    ['id: 长度 0 小于 minLength 1', 'amount: 1.234 不满足 multipleOf 0.01', "currency: 'usd' 不匹配模式 '^[A-Z]{3}$'", 'tags[1]: 类型不符, 期望 ["string"] 之一', '禁止的额外字段: extra']
+    """
+    if not isinstance(record, dict):
+        return ["record: 顶层类型不符, 期望 object"]
+
+    errors: list[str] = []
+
+    # required：四个字段全部必填
+    for key in schema.get("required", []):
+        if key not in record:
+            errors.append(f"缺少必填字段: {key}")
+
+    # additionalProperties: false
+    if schema.get("additionalProperties") is False:
+        props = schema.get("properties", {})
+        for key in record:
+            if key not in props:
+                errors.append(f"禁止的额外字段: {key}")
+
+    # 逐字段校验（按 schema 中 properties 声明顺序，保证输出确定）
+    for key, subschema in schema.get("properties", {}).items():
+        if key not in record:
+            continue
+        errors.extend(_validate_value(key, record[key], subschema))
+
+    return errors
+
+
+def _validate_value(path: str, value, s: dict) -> list[str]:
+    """按单字段子 schema 校验值，返回违规信息。"""
+    errors: list[str] = []
+
+    # ---- type（支持单值或数组，如 ["array", "null"]）----
+    declared = s.get("type")
+    if declared is not None:
+        names = declared if isinstance(declared, list) else [declared]
+        allowed = tuple(t for name in names for t in _TYPE_MAP.get(name, ()))
+        # bool 是 int 的子类，除非显式允许 boolean，否则视为类型不符
+        if isinstance(value, bool) and "boolean" not in names:
+            errors.append(f"{path}: 类型不符, 期望 {json.dumps(names)} 之一")
+            return errors
+        if not isinstance(value, allowed):
+            errors.append(f"{path}: 类型不符, 期望 {json.dumps(names)} 之一")
+            return errors
+
+    # ---- minLength ----
+    if "minLength" in s and isinstance(value, str):
+        if len(value) < s["minLength"]:
+            errors.append(f"{path}: 长度 {len(value)} 小于 minLength {s['minLength']}")
+
+    # ---- multipleOf（用 Decimal 规避 0.01 的二进制浮点误差）----
+    if "multipleOf" in s and isinstance(value, (int, float)) and not isinstance(value, bool):
+        remainder = Decimal(str(value)) % Decimal(str(s["multipleOf"]))
+        if remainder != 0:
+            errors.append(f"{path}: {value} 不满足 multipleOf {s['multipleOf']}")
+
+    # ---- pattern ----
+    if "pattern" in s and isinstance(value, str):
+        if re.search(s["pattern"], value) is None:
+            errors.append(f"{path}: {value!r} 不匹配模式 {s['pattern']!r}")
+
+    # ---- items（数组元素逐个校验，路径形如 tags[1]）----
+    if isinstance(value, list) and "items" in s:
+        for i, item in enumerate(value):
+            errors.extend(_validate_value(f"{path}[{i}]", item, s["items"]))
+
+    return errors
+
+
+if __name__ == "__main__":
+    import doctest
+    results = doctest.testmod(verbose=False)
+    print(f"doctest: {results.attempted} run, {results.failed} failed")
+```
+
+## 设计要点（对照 schema 逐条落实）
+
+| schema 关键字 | 实现方式 |
+|---|---|
+| `required` 四字段 | 缺失即报 `缺少必填字段: <key>` |
+| `additionalProperties: false` | properties 之外的键报 `禁止的额外字段` |
+| `id.minLength: 1` | `len(value) < minLength` |
+| `amount.multipleOf: 0.01` | `Decimal(str(value)) % Decimal("0.01")`，避免 `0.07 % 0.01` 类浮点假阳性；`Decimal("12.34") % Decimal("0.01") == 0` 正确通过 |
+| `currency.pattern` | `re.search`（与 JSON Schema 语义一致，未锚定处由 `^...$` 自行锚定） |
+| `tags.type: ["array","null"]` | type 数组取并集；`null` → `None` 放行 |
+| `tags.items.type: "string"` | 递归元素校验，路径 `tags[i]` |
+| bool 边界 | `bool` 是 `int` 子类，显式排除，防止 `true` 被当作 number 通过 |
+
+## 验证
+
+```
+$ python validate_record.py
+doctest: 3 run, 0 failed
+```
+
+3 个用例覆盖：合法通过、`tags: null` + 缺必填、多违规一次性报全（含额外字段）。违规输出顺序按 required → 额外字段 → properties 声明序排列，确定可测。

@@ -1,0 +1,7 @@
+子任务 B「校验器实现」：严格依据 A 验收后的 schema 文本，用纯标准库实现 validate_record(record: dict, schema: dict) -> list[str]（返回违规信息列表，空列表=通过），附 3 个 doctest 用例；用例中的 schema 必须逐字引用 A 的交付文本，不得改写。
+
+## 原始任务全文（含全部材料，唯一行为依据）
+两阶段串行交付，第二阶段严格依赖第一阶段产出：
+- 子任务 A「schema 设计」：为一个「迷你记账记录」设计 JSON Schema——字段含 id(字符串)、amount(数值，两位小数)、currency(三字母代码)、tags(字符串数组，可空)；交付一个 ```json 代码块（schema 全文）与不超过 10 行的设计说明；
+- 子任务 B「校验器实现」：严格依据 A 验收后的 schema 文本，用纯标准库实现 validate_record(record: dict, schema: dict) -> list[str]（返回违规信息列表，空列表=通过），附 3 个 doctest 用例（用例里的 schema 必须逐字引用 A 的交付）。
+分工提示：B 必须等 A 验收后才能开始，建议 fission 拆 2 个 subtasks 并为 B 标 deps=[0]；全部验收通过后 Lead 决策 accept 收束。

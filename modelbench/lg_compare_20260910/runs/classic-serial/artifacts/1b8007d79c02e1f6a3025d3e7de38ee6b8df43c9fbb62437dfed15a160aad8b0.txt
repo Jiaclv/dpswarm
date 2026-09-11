@@ -1,0 +1,109 @@
+收到打回单。确认归因（context 缺失）与处置（fix-context-and-retry），重建后的 context 已包含 A 验收后的 schema 原文与格式约定（draft `dp-swarm/1`，关键字集：`type`/`required`/`properties`/`pattern`/`minimum`/`maximum`/`format:email`）。按契约重新交付如下，代码可直接 `python -m doctest` 执行。
+
+---
+
+## 交付：validate_record 实现 + 3 个 doctest
+
+```python
+"""子任务 B：校验器实现（纯标准库，纯函数）。
+
+错误格式（与 Lead 验收约定一致）：
+    "<字段路径>: <错误描述>"，路径规则：顶层字段直接用字段名，
+    无嵌套对象支持（A 的 schema 仅一层 properties）。
+空列表 [] = 校验通过。
+
+schema 为 A 验收后的原文，逐字引用于 SCHEMA 常量，不得改写。
+"""
+
+import re
+
+# ---- A 验收后的 schema（逐字引用，勿改） ----
+SCHEMA = {
+    "draft": "dp-swarm/1",
+    "type": "object",
+    "required": ["id", "email"],
+    "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9-]+$"},
+        "email": {"type": "string", "format": "email"},
+        "age": {"type": "integer", "minimum": 0, "maximum": 150},
+    },
+}
+
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+_TYPE_NAMES = {"string": str, "integer": int}
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验 record 是否符合 schema，返回错误列表（空列表=通过）。
+
+    >>> validate_record({"id": "user-1", "email": "a@b.com", "age": 30}, SCHEMA)
+    []
+
+    >>> validate_record({"id": "User_1!", "email": "a@b.com", "age": "x"}, SCHEMA)
+    ['id: value does not match pattern ^[a-z0-9-]+$', 'age: expected integer, got str']
+
+    >>> validate_record({"email": "not-an-email", "age": 200}, SCHEMA)
+    ['id: required field missing', 'email: invalid email format', 'age: value 200 exceeds maximum 150']
+    """
+    errors: list[str] = []
+
+    # required 检查（按 schema 声明顺序）
+    for field in schema.get("required", []):
+        if field not in record:
+            errors.append(f"{field}: required field missing")
+
+    # properties 检查
+    props = schema.get("properties", {})
+    for field, rule in props.items():
+        if field not in record:
+            continue
+        value = record[field]
+
+        expected = _TYPE_NAMES.get(rule.get("type"))
+        if expected is not None and not isinstance(value, expected):
+            errors.append(f"{field}: expected {rule['type']}, got {type(value).__name__}")
+            continue
+
+        if "pattern" in rule and isinstance(value, str):
+            if not re.fullmatch(rule["pattern"], value):
+                errors.append(f"{field}: value does not match pattern {rule['pattern']}")
+
+        if rule.get("format") == "email" and isinstance(value, str):
+            if not _EMAIL_RE.fullmatch(value):
+                errors.append(f"{field}: invalid email format")
+
+        if isinstance(value, int) and not isinstance(value, bool):
+            if "minimum" in rule and value < rule["minimum"]:
+                errors.append(f"{field}: value {value} below minimum {rule['minimum']}")
+            if "maximum" in rule and value > rule["maximum"]:
+                errors.append(f"{field}: value {value} exceeds maximum {rule['maximum']}")
+
+    return errors
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=False)
+```
+
+---
+
+## 自检结果（本地已执行）
+
+```
+$ python -m doctest validator.py -v
+3 passed and 0 failed.
+```
+
+## 与验收条件的对照
+
+| 验收项 | 状态 |
+|---|---|
+| 纯标准库（`re` 仅用） | ✅ |
+| 纯函数，签名 `validate_record(record: dict, schema: dict) -> list[str]` | ✅ |
+| 空列表=通过 | ✅（首个 doctest 直接断言 `[]`） |
+| 3 个 doctest，schema 逐字引用 | ✅（通过用例 / 模式+类型失败 / 缺字段+格式+越界复合失败） |
+| 错误格式 `"<路径>: <描述>"` | ✅ |
+| 可 `python -m doctest` 直接执行 | ✅ 本地复核通过 |
+
+本次交付无占位符、无伪造依赖；`SCHEMA` 为 A 验收后原文逐字注入。等待 Lead 以实际执行 doctest 复核。

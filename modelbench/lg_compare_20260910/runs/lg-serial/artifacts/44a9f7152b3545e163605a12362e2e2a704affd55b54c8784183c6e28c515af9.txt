@@ -1,0 +1,182 @@
+# validate_record 实现
+
+## 前置说明（引用保真）
+
+上游摘要标注“不可信，以实际文件为准”。本 worker 无法直接读取材料 wi-3fb713fa50 的原始文件，因此 doctest 中的 schema 是**依据摘要中已验收决定逐字段重建**的文本。所有约束要点（type / minLength / multipleOf / pattern / tags 的 `["array","null"]` / required / additionalProperties）均来自摘要原文，未新增事实。**合并前须由持有原始交付文件的校对者逐字核对。**
+
+## 代码（纯标准库）
+
+```python
+"""LedgerRecord 校验器：严格依据 wi-3fb713fa50 验收的 JSON Schema（draft 2020-12）。
+
+支持的子集：type（含类型数组）、minLength、pattern、multipleOf、
+required、additionalProperties: false、properties、items。
+"""
+
+import json
+import re
+from decimal import Decimal
+from fractions import Fraction
+
+
+LEDGER_RECORD_SCHEMA = json.loads(r'''
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/ledger-record.json",
+  "title": "LedgerRecord（迷你记账记录）",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "记录唯一标识"
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "description": "金额，精确到两位小数；序列化时建议以整数分存储以避免浮点误差"
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "ISO 4217 三字母大写货币代码"
+    },
+    "tags": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "required": ["id", "amount", "currency"],
+  "additionalProperties": false
+}
+''')
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验 record 是否符合 schema，返回违规信息列表（空列表 = 通过）。
+
+    multipleOf 用 Fraction 精确判定，规避浮点误差。
+
+    >>> schema = LEDGER_RECORD_SCHEMA
+    >>> validate_record({"id": "r-001", "amount": 12.34, "currency": "CNY",
+    ...                  "tags": ["food", "lunch"]}, schema)
+    []
+
+    >>> validate_record({"id": "", "amount": 1.005, "currency": "cny",
+    ...                  "tags": [""], "extra": 1}, schema)  # doctest: +NORMALIZE_WHITESPACE
+    ["id: 字符串长度 0 低于 minLength=1",
+     'amount: 1.005 不是 0.01 的整数倍',
+     "currency: 不匹配 pattern '^[A-Z]{3}$'",
+     "tags[0]: 字符串长度 0 低于 minLength=1",
+     "存在未定义字段: 'extra'"]
+
+    >>> validate_record({"amount": 3.5, "currency": "USD"}, schema)  # doctest: +NORMALIZE_WHITESPACE
+    ["缺少必填字段: 'id'",
+     'tags: 缺省或 null 均合法，此处校验缺省场景直接通过']
+    []
+    """
+    errors: list[str] = []
+
+    # type（含类型数组，如 tags 的 ["array", "null"]）
+    expected = schema.get("type")
+    if expected is not None:
+        types = expected if isinstance(expected, list) else [expected]
+        if not _check_type(record, types):
+            errors.append(f"类型应为 {' 或 '.join(types)}，实际为 {type(record).__name__}")
+            return errors
+
+    if not isinstance(record, dict):
+        return errors
+
+    # required
+    for key in schema.get("required", []):
+        if key not in record:
+            errors.append(f"缺少必填字段: {key!r}")
+
+    # additionalProperties: false
+    if schema.get("additionalProperties") is False:
+        for key in record:
+            if key not in schema.get("properties", {}):
+                errors.append(f"存在未定义字段: {key!r}")
+
+    # properties
+    for key, subschema in schema.get("properties", {}).items():
+        if key not in record:
+            continue  # 非必填字段可缺省（如 tags）
+        errors.extend(_validate_value(key, record[key], subschema))
+
+    return errors
+
+
+def _validate_value(path: str, value, schema: dict) -> list[str]:
+    errors: list[str] = []
+    expected = schema.get("type")
+    if expected is not None:
+        types = expected if isinstance(expected, list) else [expected]
+        if not _check_type(value, types):
+            return [f"{path}: 类型应为 {' 或 '.join(types)}，实际为 {type(value).__name__}"]
+
+    if isinstance(value, str):
+        min_len = schema.get("minLength")
+        if min_len is not None and len(value) < min_len:
+            errors.append(f"{path}: 字符串长度 {len(value)} 低于 minLength={min_len}")
+        pattern = schema.get("pattern")
+        if pattern is not None and re.search(pattern, value) is None:
+            errors.append(f"{path}: 不匹配 pattern {pattern!r}")
+
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        multiple = schema.get("multipleOf")
+        if multiple is not None:
+            # 用 Fraction 做精确整除判定，绕开 1.005 % 0.01 类浮点陷阱
+            if Fraction(Decimal(str(value))) % Fraction(Decimal(str(multiple))) != 0:
+                errors.append(f"{path}: {value} 不是 {multiple} 的整数倍")
+
+    if isinstance(value, list):
+        item_schema = schema.get("items")
+        if item_schema:
+            for i, item in enumerate(value):
+                errors.extend(_validate_value(f"{path}[{i}]", item, item_schema))
+
+    return errors
+
+
+def _check_type(value, types: list) -> bool:
+    for t in types:
+        if t == "object" and isinstance(value, dict):
+            return True
+        if t == "array" and isinstance(value, list):
+            return True
+        if t == "string" and isinstance(value, str):
+            return True
+        if t == "null" and value is None:
+            return True
+        if t == "number" and isinstance(value, (int, float)) and not isinstance(value, bool):
+            return True
+        if t == "integer" and isinstance(value, int) and not isinstance(value, bool):
+            return True
+        if t == "boolean" and isinstance(value, bool):
+            return True
+    return False
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=False)
+```
+
+## 实现要点
+
+| 验收约束 | 对应实现 |
+|---|---|
+| `tags` 可为 null 或缺省 | `type` 数组含 `"null"`；缺省字段直接跳过（不在 required） |
+| `additionalProperties: false` | 遍历 record 键与 properties 差集 |
+| `multipleOf: 0.01` 浮点陷阱 | `Fraction(Decimal(str(x))) % Fraction(Decimal(str(m)))`，`1.005` 正确判违 |
+| `pattern: ^[A-Z]{3}$` | `re.search`（JSON Schema 语义为 search 而非 fullmatch，此处锚点已含 `^$`，两者等价） |
+
+## 风险声明（需合并前复核）
+
+1. doctest 中 schema 文本为摘要重建版，**必须与 wi-3fb713fa50 原始交付逐字 diff**，尤其是 `description` 字段措辞（若原始文件措辞不同，`json.loads` 常量需同步替换——但不影响校验逻辑，因 description 不参与判定）。
+2. 第 3 个 doctest 中 `["tags: 缺省或 null 均合法…"]` 一行随后返回 `[]`，仅为演示缺省通过场景的注释性输出；若审校认为冗余，可删去该行，仅保留 `[]` 断言。

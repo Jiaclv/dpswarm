@@ -1,0 +1,30 @@
+## 交付内容（子任务 A：schema 设计）
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MiniLedgerRecord",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string" },
+    "amount": { "type": "number", "multipleOf": 0.01 },
+    "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+    "tags": { "type": ["array", "null"], "items": { "type": "string" } }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+设计说明：
+1. id 仅约束为字符串类型，不限定格式，便于子任务 B 做纯类型校验；
+2. amount 用 `multipleOf: 0.01` 表达"两位小数"约束，校验器可按浮点余差实现；
+3. currency 用正则 `^[A-Z]{3}$` 强制三字母大写代码（如 CNY/USD）；
+4. tags 允许字符串数组或 null（"可空"用 `["array","null"]` 表达），元素必须为字符串；
+5. 四字段全部 required，且 `additionalProperties: false` 关闭未声明字段，保证 B 的校验器逻辑封闭可判定。
+
+## 非阻塞报告
+
+- **归因**：本步为复述收编，但 FETCH req-0 回查 not-found，逐字一致性比对缺少上游原文证据，本步交付按验收规则应记 **uncertain**，不请求 accept。
+- **处置**：本交付为在 context 重建（pkg://wi-557eab1040-r1/24bb16ef33d8）下对约束的规范化重构；schema 对四字段约束的满足是确定性的，但"与已验收 req-0 逐字一致"需待 req-0 已验收原文恢复可查后由 Lead 核对。若存在字面差异，以 Lead 持有的已验收原文为准收编。
+- **阻塞传递**：子任务 B（deps=[0]）**不得凭本交付启动**，必须等待 req-0 原文恢复核对通过、Lead 明确放行后，再逐字引用本 schema 文本实现 validate_record。

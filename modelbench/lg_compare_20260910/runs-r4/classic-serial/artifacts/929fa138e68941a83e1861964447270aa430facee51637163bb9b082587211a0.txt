@@ -1,0 +1,38 @@
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/mini-ledger-record.json",
+  "title": "MiniLedgerRecord",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "tags": {
+      "type": ["array", "null"],
+      "items": { "type": "string" }
+    }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+设计说明（≤10 行）：
+1. `amount` 用 `multipleOf: 0.01` 约束「两位小数」——这是 JSON Schema 标准做法；不要求 minimum，收入/支出均允许。
+2. `currency` 用 `^[A-Z]{3}$` 匹配 ISO 4217 三字母大写代码（如 CNY、USD）。
+3. `tags` 类型写成 `["array", "null"]` 以满足「可空」；`items` 限定元素为字符串，允许空数组。
+4. 四字段全部列入 `required`——可空≠可缺省，`tags` 必须显式给出（数组或 null）。
+5. `additionalProperties: false` 关闭未声明字段，便于子任务 B 的校验器确定性地逐字段比对。
+6. 全部约束（minLength、multipleOf、pattern）均为纯标准库可复现的简单谓词，为 B 的实现降低复杂度。
+
+（A 交付完毕，等待验收后 B 方可依此文本开工，deps=[0]。）

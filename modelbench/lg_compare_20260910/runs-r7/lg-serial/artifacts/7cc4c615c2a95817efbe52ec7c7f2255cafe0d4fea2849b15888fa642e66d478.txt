@@ -1,0 +1,34 @@
+## PULL 核对结果：逐字一致性确认（零漂移）
+
+将上一轮交付 doctest 内嵌的 `SCHEMA_TEXT` 与本次 PULL 取回的 [wi-4fd26c10e8] 原文逐行比对：
+
+- **13/13 行逐字相同**，含两空格缩进层级、行内对象内空格（`{ "type": ... }`）、第 9/12 行无尾逗号、`false` 为 JSON 字面量（非 Python `False`）。
+- L1 层 [wi-4fd26c10e8] 与 L0 原文亦一致——上游 L1 提取保真，PULL 程序闭合，**交付代码无需任何修订**。
+- req 中「子任务 0」即原文子任务 A（fission 索引 0，B 依赖 deps=[0]），逐字引用对象正确。
+
+## 一处勘误（运行说明 prose，非代码）
+
+我上一轮写 `TestResults(failed=0, attempted=5)`，**计数有误**。doctest example 实为 6 个：`import json`（1）、`SCHEMA_TEXT` 赋值（2）、`SCHEMA = json.loads(...)` 赋值（3）、三个 validate_record 用例（4/5/6）。更正为：
+
+```
+TestResults(failed=0, attempted=6)
+```
+
+三个业务用例数不变（恰 3 个，符合验收项），代码本体零改动。
+
+## 上游设计说明 1–6 对照确认（PULL 原文为据）
+
+| 上游说明 | 交付落实 | 对应用例 |
+|---|---|---|
+| 1. required 恰四字段，与 `additionalProperties: false` 自洽 | required 逐项查缺 + 未定义字段检测独立触发 | 用例 3 同时命中两类违规 |
+| 2. tags 可空：null 合法；非 null 必须数组且元素全 string，个数不限 | `type: ["array","null"]` 命中其一即过；null 跳过 items；逐元素报 `tags[i]`，无个数断言 | 用例 2（null 通过）、用例 3（`tags[0]` 违规） |
+| 3. tags 内部 `items` 是数组元素约束关键字，非记录字段 | 仅作 `sub["items"]` 读取，永不计入 additionalProperties 检测 | 用例 3 中未知字段只报 `note`，不涉 items |
+| 4. `Decimal(str(x)) % Decimal("0.01") == 0` 规避浮点误差 | `Decimal(str(value)) % Decimal(str(multiple_of))`，`json.loads("0.01")` 经 `str()` 还原为 `"0.01"` 精确十进制 | 12.34 / 0 通过，1.999 违规 |
+| 5. currency 大写三字母；id 仅 type: string 无附加条件 | `re.search("^[A-Z]{3}$")`（draft-07 为非锚定 search 语义，锚定由 schema 自带）；id 无额外检查 | 用例 1/2 通过，`cny` 违规 |
+| 6. draft-07 同版语义：type 数组、items、additionalProperties | 三关键字均按该版标准实现 | 全部用例 |
+
+## 验收状态
+
+- req-1 全项满足：纯标准库（`re`/`decimal`/`json`）✓；签名 `validate_record(record: dict, schema: dict) -> list[str]` ✓；空列表=通过 ✓；恰 3 个 doctest 用例 ✓；schema 逐字引用 A 交付（PULL 流程 + 13/13 行比对闭合）✓。
+- fission 边界：恰 2 个 subtasks（A=[0]、B=[1]），B 依赖 [0] 已验收，本轮为 B 的最终交付，**无再裂变**。
+- 交付物以上一轮代码块为唯一正本（本轮未改动），待 Lead 决策 accept 收束。

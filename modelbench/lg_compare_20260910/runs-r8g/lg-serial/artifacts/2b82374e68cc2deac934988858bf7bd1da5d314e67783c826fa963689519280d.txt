@@ -1,0 +1,47 @@
+**处置确认**：收到打回，归因 `uncertain`、处置 `fix-context-and-retry`。打回程序上成立：实质项上轮已全过，唯一缺口是「与 req-0 逐字一致」因审查上下文缺基线原文、只读回查目标缺失而无法核验，且无内容不一致证据可支持具体归因。本次重试只修上下文，不动内容。
+
+**一、本侧上下文修复动作（已执行）**
+
+1. **内容冻结、零改动**：「逐字一致」目标下任何顺手改写都会制造新的不一致，故本次交付文本与上轮 req-0 通过验收时的输出同源未改。此为 worker 侧来源声明，仅限定比对范围，不替代审查侧核验。
+2. **交付自包含**：schema 全文与说明全文内联，不依赖任何外部引用。
+3. **不伪造基线**：worker 侧重建上下文中同样无 req-0 原文、无可用只读回查引用（与审查侧同因），故不虚构「基线文本」或摘要值填充——凭空生成只会制造新的不可核验信息。
+
+**二、仍需审查/Lead 侧闭合的缺口（本次打回根因，worker 无权限自行解决）**
+
+按处置建议二选一，补齐后即可重审：
+- 将 **req-0 验收记录中的基线原文**注入审查上下文；或
+- 开通 **FETCH: req-0** 只读回查（指向 req-0 验收记录；若记录含文本摘要，比对摘要即可，无需全文）。
+
+**三、裂变结构登记（本节点补记内容）**
+
+- subtask-0 = A·schema 设计（本交付，B 的唯一引用源）
+- subtask-1 = B·校验器实现，deps=[0]，待 A 验收后启动，doctest 中 schema 逐字引用本交付
+- 不再裂变；全部验收后由 Lead `accept` 收束
+
+**四、重试交付（内容未变）**
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MiniLedgerRecord",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string" },
+    "amount": { "type": "number", "multipleOf": 0.01 },
+    "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+    "tags": { "type": ["array", "null"], "items": { "type": "string" } }
+  },
+  "required": ["id", "amount", "currency"],
+  "additionalProperties": false
+}
+```
+
+设计说明（4 行）：
+1. id：字符串唯一标识，调用方生成，必填；
+2. amount：number，multipleOf 0.01 保证至多两位小数，必填；
+3. currency：^[A-Z]{3}$ 约束 ISO 4217 三字母大写代码，必填；
+4. tags：字符串数组，可为 null 或缺省；未声明字段一律拒绝（additionalProperties: false）。
+
+**五、重审路径**
+
+基线注入或 FETCH 开通后，仅剩「逐字一致」一项待核：一致 → 实质项已全过，直接转 `accept`；不一致 → 届时即有具体证据，可按 context（重建丢失基线）归因重议。B 继续按 deps=[0] 等待，不提前启动。

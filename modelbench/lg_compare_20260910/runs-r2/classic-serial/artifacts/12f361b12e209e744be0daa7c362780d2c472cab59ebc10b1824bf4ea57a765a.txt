@@ -1,0 +1,33 @@
+无法安全重试交付：当前上下文里仍只有 `pkg://wi-64a345dd00-r1/d06d2b13ce98` 这个重建标识，没有看到 A 验收后的 schema 原始文本。
+
+由于任务硬性要求：
+
+- `doctest` 中的 schema 必须逐字引用 A 的交付文本；
+- 不得自拟、改写、格式化或“合理补全” schema；
+- `validate_record(record: dict, schema: dict) -> list[str]` 的行为依赖该 schema 的具体字段、类型、约束和违规措辞；
+
+所以我不能在不看到原始 schema 文本的情况下给出最终实现，否则会重复之前的阻塞风险。
+
+请补充以下内容后我即可完成最终交付：
+
+1. **A 验收后的 schema 原始文本**  
+   请直接粘贴原始字符串，例如：
+   ```text
+   <A 验收后的 schema 原文>
+   ```
+
+2. **三项接口澄清**
+   - doctest 中是否采用 `json.loads("""...""")` 将 A 的文本 schema 转为 `dict`，再传给 `validate_record`；
+   - 违规信息是否必须使用固定模板，若未指定，我是否可使用稳定格式如：
+     `"field: expected <expected>, got <actual>"`
+   - 嵌套对象/数组是否需要递归校验，若需要，具体规则和违规路径格式是什么。
+
+3. **类型边界确认**
+   - `bool` 是否视为 `int`？  
+   - 若 schema 要求 `integer`，是否应把 `True` / `False` 判为违规，以避免 `isinstance(True, int)` 为真导致的误判。
+
+在收到 A 的 schema 原文与上述澄清前，我应继续保持阻塞；收到后可直接交付：
+
+- 最终 `validate_record(record: dict, schema: dict) -> list[str]` 实现；
+- 3 个 doctest；
+- schema 文本逐字引用，不改写。

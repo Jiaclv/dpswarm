@@ -1,0 +1,115 @@
+收到打回，归因 context、处置 fix-context-and-retry。已按处置要求重新拉取重建后的 context（pkg://wi-61087c8427-r1/7d404ca93a58），以 wi-2d181deaf1（子任务 A）验收原文为唯一行为依据，逐字内联，不再自行改写。三处偏差的修正动作：
+
+1. `title` 恢复为 `MiniExpenseRecord`；
+2. `amount` 恢复上游的 `"exclusiveMinimum": 0`，校验器据此拒绝 0 与负数；
+3. `tags` 恢复标准写法 `"type": ["array", "null"]`，删除自造的 `nullable` 关键字；实现侧相应补齐类型数组分派（旧 `_TYPE_MAP` 只支持字符串类型、遇数组即 KeyError 的缺陷已修复），null 语义按「type 含 null 即放行、其余子规则跳过」处理。
+
+## 上游验收 schema（wi-2d181deaf1 原文，逐字）
+
+```json
+{
+  "title": "MiniExpenseRecord",
+  "type": "object",
+  "properties": {
+    "id": {"type": "string"},
+    "amount": {"type": "number", "exclusiveMinimum": 0, "multipleOf": 0.01},
+    "currency": {"type": "string", "pattern": "^[A-Z]{3}$"},
+    "tags": {"type": ["array", "null"], "items": {"type": "string"}}
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+## 交付：validate_record（纯标准库，doctest 内联 schema 与上文逐字一致）
+
+```python
+import json
+import re
+
+_TYPE_CHECKS = {
+    "string": lambda v: isinstance(v, str),
+    "number": lambda v: isinstance(v, (int, float)) and not isinstance(v, bool),
+    "integer": lambda v: isinstance(v, int) and not isinstance(v, bool),
+    "boolean": lambda v: isinstance(v, bool),
+    "object": lambda v: isinstance(v, dict),
+    "array": lambda v: isinstance(v, list),
+    "null": lambda v: v is None,
+}
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """按 schema 校验记账记录，返回违规信息列表（空列表 = 通过）。
+
+    >>> schema = json.loads('''{
+    ...   "title": "MiniExpenseRecord",
+    ...   "type": "object",
+    ...   "properties": {
+    ...     "id": {"type": "string"},
+    ...     "amount": {"type": "number", "exclusiveMinimum": 0, "multipleOf": 0.01},
+    ...     "currency": {"type": "string", "pattern": "^[A-Z]{3}$"},
+    ...     "tags": {"type": ["array", "null"], "items": {"type": "string"}}
+    ...   },
+    ...   "required": ["id", "amount", "currency", "tags"],
+    ...   "additionalProperties": false
+    ... }''')
+    >>> validate_record({"id": "e1", "amount": 12.50, "currency": "CNY", "tags": ["food", "travel"]}, schema)
+    []
+    >>> validate_record({"id": "e2", "amount": 0, "currency": "CNY", "tags": None}, schema)
+    ['amount: must be > 0 (exclusiveMinimum), got 0']
+    >>> validate_record({"id": "e3", "amount": 3.141, "currency": "cn", "tags": "food"}, schema)
+    ['amount: 3.141 is not a multiple of 0.01', "currency: 'cn' does not match pattern '^[A-Z]{3}$'", 'tags: expected array or null, got str']
+    """
+    errors: list[str] = []
+    props = schema.get("properties", {})
+    for key in schema.get("required", []):
+        if key not in record:
+            errors.append(f"{key}: required field is missing")
+    if schema.get("additionalProperties") is False:
+        for key in record:
+            if key not in props:
+                errors.append(f"{key}: not an allowed property")
+    for key, sub in props.items():
+        if key in record:
+            _check_field(key, record[key], sub, errors)
+    return errors
+
+
+def _check_field(name: str, value, sub: dict, errors: list) -> None:
+    t = sub.get("type")
+    if t is not None:
+        allowed = list(t) if isinstance(t, list) else [t]  # 支持联合类型数组
+        if not any(_TYPE_CHECKS[a](value) for a in allowed):
+            errors.append(
+                f"{name}: expected {' or '.join(allowed)}, got {type(value).__name__}"
+            )
+            return
+    if value is None:  # type 含 null 时，null 值通过后不再检查其余子规则
+        return
+    if "exclusiveMinimum" in sub and isinstance(value, (int, float)) and not isinstance(value, bool):
+        if value <= sub["exclusiveMinimum"]:
+            errors.append(
+                f"{name}: must be > {sub['exclusiveMinimum']} (exclusiveMinimum), got {value}"
+            )
+    if "multipleOf" in sub and isinstance(value, (int, float)) and not isinstance(value, bool):
+        q = value / sub["multipleOf"]
+        if abs(q - round(q)) > 1e-9:
+            errors.append(f"{name}: {value} is not a multiple of {sub['multipleOf']}")
+    if "pattern" in sub and isinstance(value, str) and not re.search(sub["pattern"], value):
+        errors.append(f"{name}: {value!r} does not match pattern {sub['pattern']!r}")
+    if "items" in sub and isinstance(value, list):
+        for i, item in enumerate(value):
+            _check_field(f"{name}[{i}]", item, sub["items"], errors)
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=False)
+```
+
+## 重验说明
+
+- 依赖对齐：doctest 中的 schema 经 `json.loads` 内联，与上方 ```json 块及 wi-2d181deaf1 验收文本逐字一致（含 `MiniExpenseRecord`、`exclusiveMinimum: 0`、`type: ["array", "null"]`、`false`），diff 为空。
+- 行为对齐上游语义：`amount: 0` 被 `exclusiveMinimum` 拒绝（用例 2）；`tags: None` 放行（用例 2 无 tags 报错）；类型数组走联合分派，不再 KeyError（用例 3 tags 误传字符串得到类型报错而非崩溃）；两位小数由 `multipleOf: 0.01` 落实（用例 3 拒绝 3.141）。
+- 3 个 doctest 全部通过（`doctest.testmod()` 0 failures）；纯标准库，仅用 `json` 与 `re`。
+- 未新增子任务、未继续裂变，请 Lead 依验收规则复验。

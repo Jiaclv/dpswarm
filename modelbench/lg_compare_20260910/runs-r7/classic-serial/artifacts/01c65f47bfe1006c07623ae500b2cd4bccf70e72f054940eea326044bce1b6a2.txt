@@ -1,0 +1,49 @@
+**基线复核（逐项对照任务条款）**
+
+| 字段 | 条款要求 | Schema 落点 | 结论 |
+|---|---|---|---|
+| id | 字符串 | `type: string`，minLength≥1 | ✓ |
+| amount | 数值，两位小数 | `type: number` + `multipleOf: 0.01` | ✓ |
+| currency | 三字母代码 | `pattern: ^[A-Z]{3}$` | ✓ |
+| tags | 字符串数组，可空 | `type: ["array","null"]`，items 为 string | ✓ |
+
+四个条款全部覆盖，无缺项，予以终版化：
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MiniBookkeepingRecord",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "tags": {
+      "type": ["array", "null"],
+      "items": { "type": "string" }
+    }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+**设计说明（8 行）**
+
+1. 选用 draft-07：`type` 数组原生表达 null，且与纯标准库自实现校验器兼容性最广。
+2. `id` 设 minLength≥1，拒绝空字符串标识符。
+3. `amount` 用 `multipleOf: 0.01` 表达「至多两位小数」：整数、一位小数均为 0.01 的倍数，自然通过。
+4. FP 提示（供 wi-B 校验器）：判定 multipleOf 请用 `Decimal(str(x)) % Decimal("0.01") == 0`，避免二进制浮点误判。
+5. `currency` 以 `^[A-Z]{3}$` 锚定 ISO 4217 大写三字母代码。
+6. `tags` 用 `["array", "null"]` 实现「可空」：null 视为合规；为数组时元素必须全为字符串。
+7. 四字段全部 required 且 `additionalProperties: false`：封闭模型，使 B 的违规分支可确定性枚举。
+8. 刻意未设 `minimum`：为退款/负向调整保留负数语义，不超出任务条款过度约束。

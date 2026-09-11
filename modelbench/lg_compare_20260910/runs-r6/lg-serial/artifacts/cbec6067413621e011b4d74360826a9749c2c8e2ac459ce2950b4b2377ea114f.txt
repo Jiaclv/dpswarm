@@ -1,0 +1,109 @@
+## 重试交付：fix-description-and-retry 执行结果
+
+**归因确认（description）**：接受打回归因。失败属执行方能力问题——（1）产出截断导致 validate_record 函数体缺失、doctest 不足 3 个；（2）SCHEMA_TEXT 未逐字引用上游 wi-3ef26a8a60，擅自增删约束。本次修复：
+- ✅ 代码完整输出，validate_record 函数体与返回语句齐全，3 个 doctest 完整；
+- ✅ SCHEMA_TEXT 逐字对齐上游已验收交付 wi-3ef26a8a60：补回 `$schema` 与 `title`，`id` 恢复 `minLength: 1`，删除擅自添加的 `currency.minLength: 3`，`tags.type` 恢复为 `["array", "null"]`，删除擅自添加的 `tags.items.minLength: 1`，`required` 恢复为四字段（含 `'tags'`）。
+
+### 交付物：validate_record（纯标准库，完整可运行）
+
+```python
+"""迷你记账记录校验器：validate_record(record, schema) -> list[str]
+
+schema 文本逐字引用子任务 A（wi-3ef26a8a60）验收交付。
+"""
+import json
+
+# 逐字引用 wi-3ef26a8a60 交付的 schema 全文（未做任何增删改）
+SCHEMA_TEXT = """{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Mini Ledger Record",
+  "type": "object",
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "amount": {"type": "number"},
+    "currency": {"type": "string"},
+    "tags": {"type": ["array", "null"], "items": {"type": "string"}}
+  },
+  "required": ["id", "amount", "currency", "tags"]
+}"""
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验 record 是否符合 schema，返回违规信息列表（空列表 = 通过）。
+
+    >>> validate_record({"id": "a1", "amount": 12.34, "currency": "CNY",
+    ...                  "tags": ["food", "travel"]}, json.loads(SCHEMA_TEXT))
+    []
+    >>> validate_record({"id": "a1", "amount": 12.34,
+    ...                  "currency": "CNY"}, json.loads(SCHEMA_TEXT))
+    ['tags: required field missing']
+    >>> validate_record({"id": "", "amount": "12.34", "currency": "CNY",
+    ...                  "tags": ["food", 7]}, json.loads(SCHEMA_TEXT))
+    ['id: minLength 1 violated', 'amount: expected number, got str', 'tags[1]: expected string, got int']
+    """
+    errors: list[str] = []
+    # 先查 required（按 schema 声明顺序，保证输出确定性）
+    for key in schema.get("required", []):
+        if key not in record:
+            errors.append(f"{key}: required field missing")
+    # 再逐字段按 properties 声明顺序校验
+    for key, sub in schema.get("properties", {}).items():
+        if key in record:
+            errors.extend(_validate_value(key, record[key], sub))
+    return errors
+
+
+def _validate_value(path: str, value, sub: dict) -> list[str]:
+    errors: list[str] = []
+    expected = sub.get("type")
+    if expected is not None:
+        allowed = expected if isinstance(expected, list) else [expected]
+        if not any(_type_ok(value, t) for t in allowed):
+            errors.append(
+                f"{path}: expected {' or '.join(allowed)}, got {type(value).__name__}"
+            )
+            return errors  # 类型不符时不再深入检查
+    if "minLength" in sub and isinstance(value, str):
+        if len(value) < sub["minLength"]:
+            errors.append(f"{path}: minLength {sub['minLength']} violated")
+    if "items" in sub and isinstance(value, list):
+        for i, item in enumerate(value):
+            errors.extend(_validate_value(f"{path}[{i}]", item, sub["items"]))
+    if "properties" in sub and isinstance(value, dict):
+        for k, s in sub["properties"].items():
+            if k in value:
+                errors.extend(_validate_value(f"{path}.{k}", value[k], s))
+    return errors
+
+
+def _type_ok(value, t: str) -> bool:
+    checks = {
+        "string": lambda v: isinstance(v, str),
+        "number": lambda v: isinstance(v, (int, float)) and not isinstance(v, bool),
+        "integer": lambda v: isinstance(v, int) and not isinstance(v, bool),
+        "boolean": lambda v: isinstance(v, bool),
+        "array": lambda v: isinstance(v, list),
+        "object": lambda v: isinstance(v, dict),
+        "null": lambda v: v is None,
+    }
+    return checks[t](value)
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=False)
+```
+
+### 逐项核对（对照打回理由）
+
+| 打回点 | 修复确认 |
+|---|---|
+| 代码截断、validate_record 缺失 | 函数体、`_validate_value`、`_type_ok`、`return errors` 全部完整；3 个 doctest 齐备且可运行 |
+| 缺 `$schema`、`title` | 已按上游原文补回 |
+| `id` 缺 `minLength: 1` | 已恢复 |
+| `currency` 多出 `minLength: 3` | 已删除，恢复为仅 `{"type": "string"}` |
+| `tags.type` 被篡改为 `"array"` | 已恢复为 `["array", "null"]` |
+| `tags.items` 多出 `minLength: 1` | 已删除 |
+| `required` 缺 `'tags'` | 已恢复为四字段 |
+
+**自检声明**：以上 schema 文本已与 wi-3ef26a8a60 上游交付逐字一致（本轮仅按打回清单做保真还原，未引入任何上游不存在的约束）；代码完整无截断，三个 doctest 覆盖「全部通过 / 缺 required / 类型与 minLength 违规」三条路径。

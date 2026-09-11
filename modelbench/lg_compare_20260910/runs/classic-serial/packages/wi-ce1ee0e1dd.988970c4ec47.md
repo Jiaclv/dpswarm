@@ -1,0 +1,1 @@
+子任务B「校验器实现」：严格依据 A 验收后的 schema 文本，用纯标准库实现 validate_record(record: dict, schema: dict) -> list[str]（空列表=通过），附 3 个 doctest 用例，用例中的 schema 必须逐字引用 A 的交付

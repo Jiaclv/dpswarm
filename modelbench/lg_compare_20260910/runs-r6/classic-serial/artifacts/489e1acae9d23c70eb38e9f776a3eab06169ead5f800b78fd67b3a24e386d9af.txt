@@ -1,0 +1,29 @@
+## 子任务 A：schema 设计交付
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MiniBookkeepingRecord",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "amount": { "type": "number", "multipleOf": 0.01 },
+    "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+    "tags": {
+      "type": ["array", "null"],
+      "items": { "type": "string" },
+      "uniqueItems": true
+    }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+**设计说明（≤10 行）**
+1. `amount` 用 `multipleOf: 0.01` 约束两位小数；校验器 B 需注意浮点精度，建议以字符串定点或整数分实现等价判断。
+2. `currency` 用正则 `^[A-Z]{3}$` 强制三字母大写代码（ISO 4217 风格），未硬编码币种清单以便扩展。
+3. `tags` 类型声明为 `["array", "null"]`，同时满足「数组」与「可空」；元素限字符串，且 `uniqueItems` 去重。
+4. 四个字段全部列入 `required`，tags 可空但不允许缺失，保证结构稳定。
+5. `additionalProperties: false` 拒绝未知字段，便于 B 做逐字段精确校验。
+6. 选 draft 2020-12；B 的校验器只需实现本 schema 用到的关键字，不要求完整 JSON Schema 支持。

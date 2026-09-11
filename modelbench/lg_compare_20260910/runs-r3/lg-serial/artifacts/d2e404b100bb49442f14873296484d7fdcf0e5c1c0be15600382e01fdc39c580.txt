@@ -1,0 +1,40 @@
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/bookkeeping-record.json",
+  "title": "BookkeepingRecord",
+  "description": "迷你记账记录",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "记录唯一标识"
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "minimum": 0,
+      "description": "金额，精确到两位小数"
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "ISO 4217 三字母货币代码"
+    },
+    "tags": {
+      "type": ["array", "null"],
+      "items": { "type": "string" },
+      "description": "标签列表，可为 null"
+    }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+设计说明：
+1. `id`/`amount`/`currency`/`tags` 均为必填；标签的“可空”用 `type: ["array", "null"]` 表达，避免省略键带来的歧义。
+2. `amount` 通过 `multipleOf: 0.01` 约束两位小数精度，并加 `minimum: 0` 防止负金额（如需支出/收入区分，建议另用 type 字段）。
+3. `currency` 用正则 `^[A-Z]{3}$` 限定三字母大写代码，符合 ISO 4217 惯例。
+4. `tags` 元素要求为字符串，但未限制数量与唯一性，可按需追加 `maxItems`/`uniqueItems`。
+5. `additionalProperties: false` 关闭未知字段，保证数据结构严格受控。

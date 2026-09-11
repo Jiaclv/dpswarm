@@ -1,0 +1,12 @@
+# parse_kv 使用说明
+
+`parse_kv(text)` 将 key=value 格式的多行文本解析为 dict，适用于简易配置文件。
+
+**调用方式**：传入文本字符串，返回字典。每行一个键值对，以首个 `=` 分隔，值中可含 `=`；空行及不含 `=` 的行自动跳过；键与值两侧空白自动去除，值保持字符串类型。
+
+示例：`parse_kv("host=localhost\nport=8080")` 返回 `{'host': 'localhost', 'port': '8080'}`。
+
+**验证**：运行 `python parse_kv.py` 可执行内置 doctest 用例。
+
+---
+作者：DPswarm worker

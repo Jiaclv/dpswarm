@@ -1,0 +1,26 @@
+```python
+def to_roman(n: int) -> str:
+    """
+    将 1 到 3999 的整数转换为罗马数字。
+
+    >>> to_roman(1)
+    'I'
+    >>> to_roman(1994)
+    'MCMXCIV'
+    >>> to_roman(3999)
+    'MMMCMXCIX'
+    """
+    if not 1 <= n <= 3999:
+        raise ValueError("n 必须在 1 到 3999 之间")
+
+    values = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1]
+    symbols = ["M", "CM", "D", "CD", "C", "XC", "L", "XL", "X", "IX", "V", "IV", "I"]
+
+    result = []
+    for value, symbol in zip(values, symbols):
+        count, n = divmod(n, value)
+        result.append(symbol * count)
+    return "".join(result)
+```
+
+说明：采用贪心法，从最大面值（1000）到最小（1）依次整除取余。数值表与符号表一一对应，包含 4/9 的减法形式（CM、XC、IX 等），保证 1–3999 范围内转换唯一正确。

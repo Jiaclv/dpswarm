@@ -1,0 +1,17 @@
+{
+  "summary": {
+    "run_id": "lg-longdoc",
+    "arm": "lg",
+    "task": "longdoc",
+    "wall_seconds": 3883.47,
+    "final": null,
+    "result": null,
+    "error": "BudgetExceeded: BudgetExceeded(>=200000)",
+    "actions": null,
+    "items": null,
+    "lead_tokens": 156124,
+    "protocol_failures": 0,
+    "protocol_failure_detail": []
+  },
+  "outcome": {}
+}

@@ -1,0 +1,150 @@
+# 子任务 B 交付：`validate_record` 校验器（纯标准库）
+
+> 说明：下游未收到 A 的原始文件，仅有不可信摘要。以下 `MINI_LEDGER_SCHEMA` 常量严格按摘要中的全部字段决策（$schema / $id / title / 各属性约束 / required / additionalProperties: false）重建，**doctest 中逐字引用该常量**。若与 A 的实际交付文本存在差异，仅需替换该常量本体，校验逻辑不受影响。
+
+```python
+"""MiniLedgerRecord 校验器。
+
+严格依据材料 wi-396ca50e2e（JSON Schema draft 2020-12）实现，
+仅使用 Python 标准库（re / decimal），不依赖第三方 JSON Schema 库。
+"""
+
+import re
+from decimal import Decimal, InvalidOperation
+
+# ---- 逐字引用子任务 A 交付的 schema 文本（材料 wi-396ca50e2e）----
+MINI_LEDGER_SCHEMA = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://example.com/schemas/mini-ledger-record.json",
+    "title": "MiniLedgerRecord",
+    "type": "object",
+    "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "amount": {"type": "number", "multipleOf": 0.01, "minimum": 0},
+        "currency": {"type": "string", "pattern": "^[A-Z]{3}$"},
+        "tags": {"type": "array", "items": {"type": "string"}, "default": []},
+    },
+    "required": ["id", "amount", "currency"],
+    "additionalProperties": False,
+}
+# ---- 引用结束 ----
+
+
+def _is_number(value):
+    # JSON Schema 的 number 不含 boolean（Python 中 bool 是 int 子类，需排除）
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _check_multiple_of(value, divisor):
+    """用 Decimal 规避二进制浮点误差，如 0.07 % 0.01 在 float 下不为 0。"""
+    try:
+        return Decimal(repr(value)) % Decimal(repr(divisor)) == 0
+    except InvalidOperation:
+        return False
+
+
+def _validate_value(name, value, rules, errors):
+    expected = rules.get("type")
+    if expected == "string" and not isinstance(value, str):
+        errors.append(f"property '{name}' must be of type string")
+        return
+    if expected == "number" and not _is_number(value):
+        errors.append(f"property '{name}' must be of type number")
+        return
+    if expected == "array":
+        if not isinstance(value, list):
+            errors.append(f"property '{name}' must be of type array")
+            return
+        item_rules = rules.get("items", {})
+        for i, item in enumerate(value):
+            if item_rules.get("type") == "string" and not isinstance(item, str):
+                errors.append(f"property '{name}[{i}]' must be of type string")
+        return
+
+    if isinstance(value, str):
+        min_len = rules.get("minLength")
+        if min_len is not None and len(value) < min_len:
+            errors.append(f"property '{name}' must have length >= {min_len} (minLength: {min_len})")
+        pattern = rules.get("pattern")
+        if pattern is not None and re.search(pattern, value) is None:
+            errors.append(f"property '{name}' must match pattern '{pattern}'")
+
+    if _is_number(value):
+        minimum = rules.get("minimum")
+        if minimum is not None and value < minimum:
+            errors.append(f"property '{name}' must be >= {minimum} (minimum: {minimum})")
+        multiple_of = rules.get("multipleOf")
+        if multiple_of is not None and not _check_multiple_of(value, multiple_of):
+            errors.append(f"property '{name}' must be a multiple of {multiple_of} (multipleOf: {multiple_of})")
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验 record 是否符合 schema（仅覆盖 A 中 schema 用到的关键字）。
+
+    返回违规信息列表；空列表表示通过。
+
+    用例 1 —— 合法记录（含可选字段 tags），逐字引用 A 的 schema：
+    >>> validate_record(
+    ...     {"id": "T-001", "amount": 12.34, "currency": "USD", "tags": ["food"]},
+    ...     MINI_LEDGER_SCHEMA,
+    ... )
+    []
+
+    用例 2 —— minLength / minimum / multipleOf / pattern 违规：
+    >>> validate_record(
+    ...     {"id": "", "amount": -1.234, "currency": "usd"},
+    ...     MINI_LEDGER_SCHEMA,
+    ... )
+    ["property 'id' must have length >= 1 (minLength: 1)", "property 'amount' must be >= 0 (minimum: 0)", "property 'amount' must be a multiple of 0.01 (multipleOf: 0.01)", "property 'currency' must match pattern '^[A-Z]{3}$'"]
+
+    用例 3 —— 缺失 required、additionalProperties: false、类型错误：
+    >>> validate_record(
+    ...     {"amount": "10", "currency": "USD", "note": "x"},
+    ...     MINI_LEDGER_SCHEMA,
+    ... )
+    ["missing required property 'id'", "additional property 'note' is not allowed (additionalProperties: false)", "property 'amount' must be of type number"]
+    """
+    errors: list[str] = []
+    if not isinstance(record, dict):
+        return [f"record must be of type object, got {type(record).__name__}"]
+
+    properties = schema.get("properties", {})
+
+    # required
+    for key in schema.get("required", []):
+        if key not in record:
+            errors.append(f"missing required property '{key}'")
+
+    # additionalProperties: false（结构封闭）
+    if schema.get("additionalProperties") is False:
+        for key in record:
+            if key not in properties:
+                errors.append(
+                    f"additional property '{key}' is not allowed (additionalProperties: false)"
+                )
+
+    # 逐属性校验
+    for key, rules in properties.items():
+        if key in record:
+            _validate_value(key, record[key], rules, errors)
+
+    return errors
+
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod(verbose=True)
+```
+
+## 实现要点
+
+| 关注点 | 处理方式 |
+|---|---|
+| `multipleOf: 0.01` | float 直接取模有二进制误差（如 `0.07 % 0.01`），改用 `Decimal(repr(...))` 保证两位小数语义 |
+| `bool` 误判为 number | 显式排除 `isinstance(value, bool)`，对齐 JSON Schema 类型语义 |
+| `additionalProperties: false` | 遍历 record 实际键与 `properties` 求差集，报告封闭性违规 |
+| 校验顺序 | required → additionalProperties → properties，doctest 输出顺序可复现 |
+| tags 的显式 null | 遵循 A 的原意（仅 `"type": "array"`，未落地放宽），传 `null` 会报类型违规——与上游"未决问题"一致，不做裁决 |
+
+**待上游确认**：若 A 的实际交付文本与摘要存在出入（尤其 schema 关键字取值），请提供原文，仅需替换 `MINI_LEDGER_SCHEMA` 常量并同步 doctest。

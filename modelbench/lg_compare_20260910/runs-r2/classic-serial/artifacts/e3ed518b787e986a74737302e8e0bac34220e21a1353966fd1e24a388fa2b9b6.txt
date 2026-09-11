@@ -1,0 +1,37 @@
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/mini-ledger-record.json",
+  "title": "MiniLedgerRecord",
+  "description": "迷你记账记录",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "tags": {
+      "type": ["array", "null"],
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+设计说明（≤10 行）：
+1. `amount` 用 `multipleOf: 0.01` 约束两位小数（IEEE 754 下对十进制精度有固有限制，校验端建议按十进制解析）。
+2. `currency` 用 `^[A-Z]{3}$` 锚定三字母大写代码，对应 ISO 4217 风格。
+3. `tags` 允许 `null`（type 数组写法），非空时元素须为非空字符串且不重复。
+4. 四个字段均 `required`；`tags` 可为 `null` 但不可缺失，语义上区分「无标签」与「未提供」。
+5. `additionalProperties: false` 封闭对象，防止下游写入未定义字段；schema 含 `$id`，可被 `$ref` 逐字引用。

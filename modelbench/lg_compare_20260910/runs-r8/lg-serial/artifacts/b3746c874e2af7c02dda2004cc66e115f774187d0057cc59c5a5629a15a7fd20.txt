@@ -1,0 +1,46 @@
+## 子任务 A 交付：迷你记账记录 JSON Schema
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/mini-ledger-record.json",
+  "title": "MiniLedgerRecord",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "minimum": 0
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "tags": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      ]
+    }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+**设计说明（≤10 行）：**
+1. `amount` 用 `multipleOf: 0.01` 约束两位小数，并设 `minimum: 0` 排除负金额。
+2. `currency` 用 `^[A-Z]{3}$` 正则确保三字母大写 ISO 4217 代码。
+3. `tags` 通过 `oneOf` 同时接受 `null` 与字符串数组，满足“可空”要求。
+4. 四个字段均列入 `required`，`additionalProperties: false` 拒绝未知字段，保证 B 阶段校验逻辑简单确定。
+5. `id` 追加 `minLength: 1`，避免空字符串充当合法主键。
+6. 固定 `$id` 与 draft 2020-12，便于 B 逐字引用与后续复用。
+
+（注：`multipleOf: 0.01` 的浮点表示有精度风险，B 实现 `validate_record` 时建议用 `round(amount / 0.01) 的商是否为整数` 或字符串小数位判断来规避。）

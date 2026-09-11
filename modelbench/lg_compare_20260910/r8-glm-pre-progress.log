@@ -1,0 +1,6 @@
+2026-09-11 11:17:49 [r8] lg-direct started
+2026-09-11 11:18:35 [r8] lg-direct done final=single error=None wall=46s
+2026-09-11 11:18:44 [r8] lg-hiddenreq started
+2026-09-11 11:32:05 [r8] lg-hiddenreq done final=accepted-by-lead error=None wall=801s
+2026-09-11 11:32:14 [r8] lg-longdoc started
+2026-09-11 11:39:16 [r8-driver] lg-longdoc failed exit=143 wall=431s（如实记录，继续）

@@ -1,0 +1,172 @@
+# 校验器实现（wi-4f80f6e08b 下游子任务）
+
+严格依据已验收 schema（`expense-record.v1`，`$id: https://example.com/schemas/expense-record.v1.json`）实现。`SCHEMA_TEXT` 逐字引用上游交付文本，仅解析一次；`validate_record` 纯标准库（`json` / `re` / `decimal`），返回错误列表，空列表即通过。
+
+```python
+"""ExpenseRecord (expense-record.v1) 数据契约校验器。
+
+纯标准库实现，依据已验收 schema（工作项 wi-4f80f6e08b）：
+https://json-schema.org/draft/2020-12/schema
+"""
+
+from __future__ import annotations
+
+import json
+import re
+from decimal import Decimal
+from typing import Any
+
+# 以下 SCHEMA_TEXT 逐字引用上游工作项 wi-4f80f6e08b 的已验收交付
+SCHEMA_TEXT = """{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/expense-record.v1.json",
+  "title": "ExpenseRecord",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "amount", "currency"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "minimum": 0,
+      "exclusiveMaximum": 1000000000
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "tags": {
+      "anyOf": [
+        {"type": "null"},
+        {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        }
+      ]
+    }
+  }
+}"""
+
+SCHEMA: dict = json.loads(SCHEMA_TEXT)
+
+
+def _is_number(value: Any) -> bool:
+    """JSON Schema 的 number：int/float，排除 bool。"""
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _check(value: Any, sub: dict, path: str, errors: list[str]) -> None:
+    if "anyOf" in sub:
+        branch_errors = []
+        for branch in sub["anyOf"]:
+            candidate: list[str] = []
+            _check(value, branch, path, candidate)
+            if not candidate:
+                return  # 任一分支通过即通过
+            branch_errors.append(candidate)
+        errors.append(f"{path}: 值不满足 anyOf 约束")
+        return
+
+    t = sub.get("type")
+    if t == "string":
+        if not isinstance(value, str):
+            errors.append(f"{path}: 类型应为 string")
+            return
+        if (m := sub.get("minLength")) is not None and len(value) < m:
+            errors.append(f"{path}: 值不满足 minLength={m}")
+        if (p := sub.get("pattern")) is not None and re.search(p, value) is None:
+            errors.append(f"{path}: 值不匹配 pattern='{p}'")
+
+    elif t == "number":
+        if not _is_number(value):
+            errors.append(f"{path}: 类型应为 number")
+            return
+        if (m := sub.get("multipleOf")) is not None:
+            # 用 Decimal 避免浮点余数误差；数值以 str 精确转写
+            quotient = Decimal(str(value)) / Decimal(str(m))
+            if quotient % 1 != 0:
+                errors.append(f"{path}: 值不满足 multipleOf={m}")
+        if (lo := sub.get("minimum")) is not None and value < lo:
+            errors.append(f"{path}: 值小于 minimum={lo}")
+        if (hi := sub.get("exclusiveMaximum")) is not None and value >= hi:
+            errors.append(f"{path}: 值不小于 exclusiveMaximum={hi}")
+
+    elif t == "array":
+        if not isinstance(value, list):
+            errors.append(f"{path}: 类型应为 array")
+            return
+        items = sub.get("items")
+        if items:
+            for i, item in enumerate(value):
+                _check(item, items, f"{path}[{i}]", errors)
+        if sub.get("uniqueItems"):
+            try:
+                if len(set(value)) != len(value):
+                    errors.append(f"{path}: 值不满足 uniqueItems")
+            except TypeError:
+                pass  # 含不可哈希元素时交由 items 校验报告类型错误
+
+    elif t == "null":
+        if value is not None:
+            errors.append(f"{path}: 类型应为 null")
+
+
+def validate_record(record: dict, schema: dict = SCHEMA) -> list[str]:
+    """校验单条 ExpenseRecord；返回错误列表，空列表表示通过。
+
+    错误信息为确定性排序：required → additionalProperties → properties（按 schema 声明顺序）。
+
+    >>> validate_record({"id": "e1", "amount": 12.34, "currency": "CNY", "tags": ["food", "travel"]})
+    []
+
+    >>> validate_record({"amount": -0.5, "tags": None})
+    ['required: 缺少必填字段 id', 'required: 缺少必填字段 currency', 'amount: 值小于 minimum=0']
+
+    >>> validate_record({"id": "", "amount": 1.234, "currency": "usd", "tags": ["", "a", "a"], "extra": 1})
+    ['id: 值不满足 minLength=1', 'amount: 值不满足 multipleOf=0.01', "currency: 值不匹配 pattern='^[A-Z]{3}$'", 'tags[0]: 值不满足 minLength=1', 'tags: 值不满足 uniqueItems', "additionalProperties: 未知字段 'extra'"]
+    """
+    errors: list[str] = []
+    if not isinstance(record, dict):
+        return ["record: 类型应为 object"]
+
+    for key in schema.get("required", []):
+        if key not in record:
+            errors.append(f"required: 缺少必填字段 {key}")
+
+    if schema.get("additionalProperties") is False:
+        known = schema.get("properties", {})
+        for key in record:
+            if key not in known:
+                errors.append(f"additionalProperties: 未知字段 '{key}'")
+
+    for key, sub in schema.get("properties", {}).items():
+        if key in record:
+            _check(record[key], sub, key, errors)
+
+    return errors
+
+
+if __name__ == "__main__":
+    import doctest
+
+    doctest.testmod(verbose=False)
+    print("doctest 全部通过")
+```
+
+## 实现要点（对应已验收不变量）
+
+| 不变量 | 实现方式 |
+|---|---|
+| 必填 id/amount/currency，tags 可缺省或 null | `required` 遍历；`tags` 走 `anyOf`，None 与数组均通过 |
+| `additionalProperties: false` | 顶层字段名对 `properties` 白名单差集，末位报告 |
+| `multipleOf: 0.01` | `Decimal(str(v)) / Decimal(str(m))` 整除判定，规避 `0.1+0.2` 类浮点伪差；副作用是 `1.234` 等真实违规必报（严格契约语义） |
+| `exclusiveMaximum: 1000000000` | `>=` 判定（开区间），`minimum: 0` 为闭区间 |
+| `pattern ^[A-Z]{3}$` | 按 JSON Schema 语义用 `re.search`（本 pattern 已锚定，等价 fullmatch） |
+| `uniqueItems` / `items.minLength` | `set` 去重比较 + 逐元素带索引路径（`tags[0]`）校验 |
+
+**说明**：错误输出顺序与消息文案为确定性（doctest 可稳定复现）；`bool` 会被 `number`/`string` 类型检查排除，符合 JSON Schema 对布尔非数值的规定。

@@ -1,0 +1,98 @@
+收到打回。归因：上次产出在 doctest 的 SCHEMA 定义处被截断（unparseable）。本次修正交付方式：压缩篇幅、自包含单文件、避免超长嵌套换行，重试如下。
+
+---
+
+## 子任务 A：schema 设计
+
+```json
+{
+  "type": "object",
+  "required": ["id", "amount", "currency", "tags"],
+  "properties": {
+    "id": {"type": "string"},
+    "amount": {"type": "number", "multipleOf": 0.01},
+    "currency": {"type": "string", "minLength": 3, "maxLength": 3},
+    "tags": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}
+```
+
+设计说明（≤10 行）：
+1. id/currency 为 string；amount 为 number，用 multipleOf=0.01 约束两位小数。
+2. currency 用 minLength/maxLength=3 约束三字母代码长度。
+3. tags 为 string 数组，不设 minItems，故允许空数组。
+4. 四字段均列入 required；additionalProperties=false 拒绝额外字段。
+5. 校验器按上述关键字逐条实现，错误逐条收集，不做短路。
+
+## 子任务 B：校验器实现
+
+```python
+"""迷你记账记录校验器（纯标准库）。schema 逐字引用子任务 A 的交付。"""
+from decimal import Decimal
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验 record 是否符合 schema，返回违规信息列表（空列表=通过）。
+
+    >>> SCHEMA = {"type": "object", "required": ["id", "amount", "currency", "tags"], "properties": {"id": {"type": "string"}, "amount": {"type": "number", "multipleOf": 0.01}, "currency": {"type": "string", "minLength": 3, "maxLength": 3}, "tags": {"type": "array", "items": {"type": "string"}}}, "additionalProperties": False}
+    >>> validate_record({"id": "r001", "amount": 19.99, "currency": "CNY", "tags": ["food", "lunch"]}, SCHEMA)
+    []
+    >>> validate_record({"id": 7, "amount": 19.999, "currency": "CN", "tags": ["food", 3]}, SCHEMA)
+    ['id: 应为 string 类型', 'amount: 数值 19.999 不满足 multipleOf=0.01', 'currency: 长度应至少为 3', 'tags[1]: 应为 string 类型']
+    >>> validate_record({"id": "r002", "amount": 5.0, "currency": "USD", "tags": [], "note": "x"}, SCHEMA)
+    ['note: 不允许的额外字段']
+    """
+    if not isinstance(record, dict):
+        return ["record: 应为 object 类型"]
+    errors: list[str] = []
+    for key in schema.get("required", []):
+        if key not in record:
+            errors.append(f"{key}: 缺少必填字段")
+    props = schema.get("properties", {})
+    for key, value in record.items():
+        if key not in props:
+            if schema.get("additionalProperties") is False:
+                errors.append(f"{key}: 不允许的额外字段")
+            continue
+        errors.extend(_check(key, value, props[key]))
+    return errors
+
+
+def _check(path: str, value, spec: dict) -> list[str]:
+    t = spec.get("type")
+    if t == "string":
+        if not isinstance(value, str):
+            return [f"{path}: 应为 string 类型"]
+        errs = []
+        if "minLength" in spec and len(value) < spec["minLength"]:
+            errs.append(f"{path}: 长度应至少为 {spec['minLength']}")
+        if "maxLength" in spec and len(value) > spec["maxLength"]:
+            errs.append(f"{path}: 长度应至多为 {spec['maxLength']}")
+        return errs
+    if t == "number":
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return [f"{path}: 应为 number 类型"]
+        m = spec.get("multipleOf")
+        if m is not None and Decimal(str(value)) % Decimal(str(m)) != 0:
+            return [f"{path}: 数值 {value} 不满足 multipleOf={m}"]
+        return []
+    if t == "array":
+        if not isinstance(value, list):
+            return [f"{path}: 应为 array 类型"]
+        items = spec.get("items", {})
+        errs = []
+        for i, item in enumerate(value):
+            errs.extend(_check(f"{path}[{i}]", item, items))
+        return errs
+    return []
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=False)
+```
+
+---
+
+交付自检：A 的 ```json 块与 B 中 SCHEMA 字面量逐字一致（键、值、顺序相同）；3 个 doctest 分别覆盖全部通过 / 多类型与精度与长度违规 / 空数组+额外字段；3 个用例中 19.999 用 `Decimal(str(...))` 规避了浮点余数误判。本次无超长嵌套结构，可完整解析。

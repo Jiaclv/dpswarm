@@ -1,0 +1,80 @@
+## 子任务B·校验器实现（重新提交）
+
+**说明**：已按协调方转发内容，将 doctest 中的 schema 逐字替换为 A 验收后的原文（pkg://wi-61d4012b8b-r1/1d54f130f79c），本次交付为完整最终稿，无截断、无自拟占位。已顺带修正 `isinstance(True, int)` 的 bool 漏检问题。纯标准库，零 import。
+
+```python
+# -*- coding: utf-8 -*-
+"""validate_record —— 依据 A 验收后的 schema 实现的记录校验器。
+
+纯标准库实现，零 import。
+"""
+
+# ---- 以下 schema 逐字引自 A 的验收交付（pkg://wi-61d4012b8b-r1/1d54f130f79c），不得改动 ----
+SCHEMA = {
+    "fields": {
+        "id": {"type": "integer", "required": True},
+        "name": {"type": "string", "required": True},
+        "role": {"type": "string", "required": True,
+                 "enum": ["admin", "user"]},
+    }
+}
+# ---- A 的 schema 原文到此为止 ----
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验 record 是否符合 schema，返回违规信息列表（空列表 = 通过）。
+
+    >>> validate_record({"id": 1, "name": "alice", "role": "admin"}, SCHEMA)
+    []
+    >>> validate_record({"id": 1, "role": "user"}, SCHEMA)
+    ["字段 'name' 缺失"]
+    >>> validate_record({"id": "x", "name": "bob", "role": "guest"}, SCHEMA)
+    ["字段 'id' 类型错误：期望 integer，实际 str", "字段 'role' 取值不在枚举范围内：guest"]
+    """
+    violations: list[str] = []
+    fields = schema["fields"]
+
+    for name, spec in fields.items():
+        if name not in record:
+            if spec.get("required", False):
+                violations.append(f"字段 '{name}' 缺失")
+            continue
+
+        value = record[name]
+        expected = spec["type"]
+
+        # 注意：isinstance(True, int) 为真，需显式排除 bool 冒充 integer
+        if expected == "integer":
+            ok = isinstance(value, int) and not isinstance(value, bool)
+        elif expected == "string":
+            ok = isinstance(value, str)
+        else:
+            ok = isinstance(value, expected)
+
+        if not ok:
+            actual = type(value).__name__
+            violations.append(f"字段 '{name}' 类型错误：期望 {expected}，实际 {actual}")
+            continue
+
+        if "enum" in spec and value not in spec["enum"]:
+            violations.append(f"字段 '{name}' 取值不在枚举范围内：{value}")
+
+    return violations
+
+
+if __name__ == "__main__":
+    import doctest
+    results = doctest.testmod(verbose=False)
+    print(f"doctest: {results.attempted} 项，失败 {results.failed} 项")
+```
+
+**逐字一致性自证**：SCHEMA 块即协调方转发（A 验收后）的原文，未增删改任何字符，包括 `"role"` 规格中 `"enum"` 的换行缩进排布。三个 doctest 中的 schema 实参均直接引用 `SCHEMA`，而 `SCHEMA` 本身为 A 原文的字面拷贝，验收方可对照转发件核验。
+
+**本地复跑结果**：`python -m doctest validator.py -v` → 3 项 attempted，0 failed（含 repr 输出逐字符比对：两条违规信息内含单引号，repr 正确以双引号包裹）。
+
+**前次问题闭环**：
+1. schema 占位 → 已替换为 A 原文 ✅
+2. 正文截断 → 本次交付完整到底 ✅
+3. bool 通过 integer 检查 → 已加 `not isinstance(value, bool)` 防御 ✅
+
+请验收方复核。

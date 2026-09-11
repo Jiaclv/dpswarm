@@ -1,0 +1,118 @@
+# 子任务 B 交付：`validate_record` 实现
+
+> **依赖声明（deps=[0]）**：下方 `MINI_LEDGER_SCHEMA` 常量为 A 交付的 ```json 代码块**逐字副本**（仅将 JSON 文本 `json.loads` 为 Python dict 字面量，键序与字面均保持一致，无任何改写）。若 A 在验收中被退回修订，B 需同步重写该常量并重跑 doctest。
+
+```python
+# validate_record.py —— 纯标准库实现，无第三方依赖
+import re
+from decimal import Decimal
+
+# ---------- 以下 dict 与 A 验收后的 ```json 代码块逐字对应（勿改动） ----------
+MINI_LEDGER_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "id": {"type": "string"},
+        "amount": {"type": "number", "multipleOf": 0.01},
+        "currency": {"type": "string", "pattern": "^[A-Z]{3}$"},
+        "tags": {"type": "array", "items": {"type": "string"}}
+    },
+    "required": ["id", "amount", "currency", "tags"],
+    "additionalProperties": False
+}
+# ---------- 以上为 A 的交付文本 ----------
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """按 schema 校验单条记账记录，返回违规信息列表（空列表 = 通过）。
+
+    支持关键字：type / properties / required / additionalProperties /
+    items / pattern / multipleOf。
+
+    >>> validate_record(
+    ...     {"id": "TX001", "amount": 12.34, "currency": "USD",
+    ...      "tags": ["food", "lunch"]},
+    ...     MINI_LEDGER_SCHEMA)
+    []
+
+    >>> validate_record(
+    ...     {"id": 42, "amount": 12.345, "currency": "US",
+    ...      "tags": ["food", 7]},
+    ...     MINI_LEDGER_SCHEMA)
+    ['amount: 数值 12.345 不是 0.01 的整数倍（要求两位小数）', 'currency: 应匹配模式 ^[A-Z]{3}$', 'id: 应为 string，实际为 int', 'tags[1]: 应为 string，实际为 int']
+
+    >>> validate_record(
+    ...     {"id": "TX002", "amount": 5.0, "currency": "JPY"},
+    ...     MINI_LEDGER_SCHEMA)
+    ['缺少必填字段: tags']
+    """
+    errors: list[str] = []
+
+    if not isinstance(record, dict):
+        return [f"记录: 应为 object，实际为 {type(record).__name__}"]
+
+    # required
+    for key in schema.get("required", []):
+        if key not in record:
+            errors.append(f"缺少必填字段: {key}")
+
+    # additionalProperties
+    if schema.get("additionalProperties") is False:
+        for key in record:
+            if key not in schema.get("properties", {}):
+                errors.append(f"多余字段: {key}")
+
+    # properties
+    for key, rule in schema.get("properties", {}).items():
+        if key not in record:
+            continue
+        value = record[key]
+        expected_type = rule.get("type")
+        if not _check_type(value, expected_type):
+            errors.append(
+                f"{key}: 应为 {expected_type}，实际为 {type(value).__name__}")
+            continue
+        if expected_type == "string" and "pattern" in rule:
+            if not re.fullmatch(rule["pattern"], value):
+                errors.append(f"{key}: 应匹配模式 {rule['pattern']}")
+        if expected_type == "number" and "multipleOf" in rule:
+            step = Decimal(str(rule["multipleOf"]))
+            if Decimal(str(value)) % step != 0:
+                errors.append(
+                    f"{key}: 数值 {value} 不是 {step} 的整数倍（要求两位小数）")
+        if expected_type == "array" and "items" in rule:
+            item_rule = rule["items"]
+            for i, item in enumerate(value):
+                if not _check_type(item, item_rule.get("type")):
+                    errors.append(
+                        f"{key}[{i}]: 应为 {item_rule.get('type')}，"
+                        f"实际为 {type(item).__name__}")
+    return sorted(errors)
+
+
+def _check_type(value, expected: str) -> bool:
+    """type 关键字判断；number 不含 bool（bool 是 int 子类的陷阱）。"""
+    if expected == "string":
+        return isinstance(value, str)
+    if expected == "number":
+        return isinstance(value, (int, float)) and not isinstance(value, bool)
+    if expected == "array":
+        return isinstance(value, list)
+    if expected == "object":
+        return isinstance(value, dict)
+    return True
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=False)
+```
+
+## 实现说明（≤10 行）
+
+1. 纯标准库：仅 `re` 与 `decimal.Decimal`——金额校验不能用 `%` 浮点余数（`12.345 % 0.01` 因浮点误差可能误判），故经 `Decimal(str(v))` 精确判断两位小数。
+2. 违规信息含字段路径（含数组下标 `tags[1]`），便于上游定位；结果排序保证 doctest 稳定。
+3. `bool` 在 Python 中是 `int` 子类，`type: number` 判定时显式排除，避免 `"amount": true` 漏检。
+4. `additionalProperties: False` 对应 A 设计中「不允许未知字段」的约束，多余字段报错但不中断整体校验（错误一次性收集）。
+5. doctest 第 1 例验证合法记录（tags 非空）；第 2 例一次触发类型/模式/两位小数/数组元素四类违规；第 3 例验证缺 `tags`（对应 A 设计「可空但必填」语义——缺失即违规，可为空数组）。
+
+**验收自检**：`python validate_record.py` doctest 3 项全部通过。若 Lead 对 A 的 schema 做任何字面修改，请退回本子任务并附新文本，我将仅替换 `MINI_LEDGER_SCHEMA` 常量后重新验收。

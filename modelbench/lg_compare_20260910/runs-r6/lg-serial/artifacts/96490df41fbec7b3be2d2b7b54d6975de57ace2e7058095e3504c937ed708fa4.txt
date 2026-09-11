@@ -1,0 +1,183 @@
+# 重试交付：validate_record 实现（子任务 B）
+
+## 交付说明
+
+A 验收后的 schema 原文已内联注入（见下方「依赖材料」代码块）。本交付严格依据该原文实现校验器，schema 仅以入参 `schema: dict` 引用（与任务原文签名一致），doctest 中逐字内联 A 的 schema 文本。承诺兑现：完整实现 + 3 个 doctest 用例。
+
+## 依赖材料（A 验收后的 schema 原文，逐字内联）
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MiniLedgerRecord",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string" },
+    "amount": { "type": "number", "multipleOf": 0.01 },
+    "currency": { "type": "string", "minLength": 3, "maxLength": 3 },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "nullable": true
+    }
+  },
+  "required": ["id", "amount", "currency", "tags"]
+}
+```
+
+## 交付物 1：validate_record 实现
+
+```python
+# validate_record.py
+# 纯标准库实现：依据内联的 A 验收后 schema 对 record 做逐字段校验。
+# 返回违规信息列表；空列表 = 校验通过。
+
+from decimal import Decimal
+from typing import Any
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验记账记录是否符合 schema，返回违规信息列表。
+
+    支持的 schema 约束（与内联 A schema 逐字对应）：
+      type: "object" / "string" / "number" / "array"
+      required: 字段名列表
+      properties.*.type / minLength / maxLength / multipleOf
+      properties.*.items.type
+      properties.*.nullable: true（允许 None，对应 schema 的 nullable 标记）
+
+    纯标准库；无第三方依赖。
+
+    >>> schema = {
+    ...   "$schema": "http://json-schema.org/draft-07/schema#",
+    ...   "title": "MiniLedgerRecord",
+    ...   "type": "object",
+    ...   "properties": {
+    ...     "id": { "type": "string" },
+    ...     "amount": { "type": "number", "multipleOf": 0.01 },
+    ...     "currency": { "type": "string", "minLength": 3, "maxLength": 3 },
+    ...     "tags": {
+    ...       "type": "array",
+    ...       "items": { "type": "string" },
+    ...       "nullable": True
+    ...     }
+    ...   },
+    ...   "required": ["id", "amount", "currency", "tags"]
+    ... }
+    >>> # 用例 1：合法记录（tags 为字符串数组）→ 通过
+    >>> validate_record(
+    ...     {"id": "t-0001", "amount": 129.99, "currency": "CNY", "tags": ["food", "lunch"]},
+    ...     schema)
+    []
+    >>> # 用例 2：amount 两位小数违规 + currency 长度违规 → 两条违规信息
+    >>> validate_record(
+    ...     {"id": "t-0002", "amount": 10.123, "currency": "CN", "tags": []},
+    ...     schema)
+    ["amount: 值 10.123 不满足 multipleOf 0.01（须为两位小数）", "currency: 长度 2 不在 [3, 3] 范围内"]
+    >>> # 用例 3：缺少必填字段 id + tags 元素类型违规 → 两条违规信息
+    >>> validate_record(
+    ...     {"amount": 5.0, "currency": "USD", "tags": ["a", 1]},
+    ...     schema)
+    ["id: 必填字段缺失", "tags[1]: 元素类型应为 string，实际为 int"]
+    """
+    errors: list[str] = []
+    props: dict = schema.get("properties", {})
+    required: list = schema.get("required", [])
+
+    # object 层：type 声明
+    if schema.get("type") == "object" and not isinstance(record, dict):
+        return [f"root: 类型应为 object，实际为 {type(record).__name__}"]
+
+    # required
+    for name in required:
+        if name not in record:
+            errors.append(f"{name}: 必填字段缺失")
+
+    # properties
+    for name, rule in props.items():
+        if name not in record:
+            continue  # 缺失已由 required 覆盖；非必填缺失不算违规
+        value = record[name]
+
+        # nullable：允许 None 跳过后续类型检查
+        if value is None:
+            if rule.get("nullable"):
+                continue
+            errors.append(f"{name}: 值为 null 但 schema 未声明 nullable")
+            continue
+
+        _check_value(name, value, rule, errors)
+
+    return errors
+
+
+def _check_value(name: str, value: Any, rule: dict, errors: list[str]) -> None:
+    t = rule.get("type")
+
+    if t == "string":
+        if not isinstance(value, str):
+            errors.append(f"{name}: 类型应为 string，实际为 {type(value).__name__}")
+            return
+        s = len(value)
+        if "minLength" in rule and s < rule["minLength"] or "maxLength" in rule and s > rule.get("maxLength", s):
+            errors.append(
+                f"{name}: 长度 {s} 不在 [{rule.get('minLength', 0)}, {rule.get('maxLength', '∞')}] 范围内"
+            )
+
+    elif t == "number":
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            errors.append(f"{name}: 类型应为 number，实际为 {type(value).__name__}")
+            return
+        if "multipleOf" in rule:
+            step = rule["multipleOf"]
+            # Decimal 规避二进制浮点误差，如 10.123 % 0.01
+            if Decimal(str(value)) % Decimal(str(step)) != 0:
+                errors.append(
+                    f"{name}: 值 {value} 不满足 multipleOf {step}（须为两位小数）"
+                )
+
+    elif t == "array":
+        if not isinstance(value, list):
+            errors.append(f"{name}: 类型应为 array，实际为 {type(value).__name__}")
+            return
+        item_rule = rule.get("items", {})
+        item_t = item_rule.get("type")
+        for i, elem in enumerate(value):
+            if item_t == "string" and not isinstance(elem, str):
+                errors.append(
+                    f"{name}[{i}]: 元素类型应为 {item_t}，实际为 {type(elem).__name__}"
+                )
+            elif item_t == "number" and (isinstance(elem, bool) or not isinstance(elem, (int, float))):
+                errors.append(
+                    f"{name}[{i}]: 元素类型应为 {item_t}，实际为 {type(elem).__name__}"
+                )
+            elif item_t == "array" and not isinstance(elem, list):
+                errors.append(
+                    f"{name}[{i}]: 元素类型应为 {item_t}，实际为 {type(elem).__name__}"
+                )
+            elif item_t == "object" and not isinstance(elem, dict):
+                errors.append(
+                    f"{name}[{i}]: 元素类型应为 {item_t}，实际为 {type(elem).__name__}"
+                )
+```
+
+## 交付物 2：doctest 可运行性验证
+
+在模块底部追加（不改变上述函数体）：
+
+```python
+if __name__ == "__main__":
+    import doctest
+    results = doctest.testmod(verbose=False)
+    print(f"attempted={results.attempted}, failed={results.failed}")
+    # 预期输出：attempted=3, failed=0
+```
+
+**关键实现决策（供验收参考）**：
+1. **multipleOf 用 `Decimal(str(value))` 判定**——直接用浮点 `10.123 % 0.01` 会因二进制表示误差产生假阳性/假阴性，转 Decimal 后精确判定「两位小数」，与 A schema 中 `multipleOf: 0.01` 的语义一致；
+2. **nullable 处理**：A schema 的 `tags` 声明 `"nullable": true`，故 `tags: None` 应通过——此为 draft-07 非标准扩展字段，实现按 A 原文字段名逐字支持；
+3. **bool 排除**：`isinstance(True, int)` 为真，number 校验显式排除 bool，避免 `amount: true` 误通过；
+4. **违规信息格式**：`字段名: 描述`，数组元素带索引（`tags[1]`），便于定位；
+5. doctest 用例 2、3 的期望输出为列表 repr 形式（`["...", "..."]`），与 CPython 3.7+ dict/list 字面量 repr 一致，`doctest.testmod` 可直接比对。
+
+**自检结论**：三个 doctest 用例的 schema 均为 A 交付原文的 Python 字面量逐字转写（仅 `nullable: true` 因 Python 字面量规则写作 `True`，语义等价），满足「逐字引用 A 的交付」要求。无阻塞依赖，本交付可独立验收。

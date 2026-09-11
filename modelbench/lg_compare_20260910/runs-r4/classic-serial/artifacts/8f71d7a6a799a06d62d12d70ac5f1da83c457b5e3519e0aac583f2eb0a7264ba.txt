@@ -1,0 +1,42 @@
+## 子任务 A 交付：迷你记账记录 JSON Schema
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/mini-ledger-record.json",
+  "title": "MiniLedgerRecord",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "记录唯一标识，非空字符串"
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "description": "金额，数值，最多保留两位小数"
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "ISO 4217 三字母货币代码，大写"
+    },
+    "tags": {
+      "type": ["array", "null"],
+      "items": { "type": "string" },
+      "description": "标签字符串数组，可为 null"
+    }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+**设计说明（≤10 行）：**
+
+1. `amount` 用 `multipleOf: 0.01` 约束两位小数——这是 JSON Schema 标准做法；注意浮点精度问题，子任务 B 实现校验器时需用 Decimal 或整数分处理。
+2. `currency` 用 `pattern: ^[A-Z]{3}$` 保证大写三字母代码（ISO 4217）。
+3. `tags` 用 `"type": ["array", "null"]` 支持可空语义，元素限定为字符串。
+4. 四个字段全部 `required`，`additionalProperties: false` 拒绝未知字段，保证 B 阶段校验器逻辑封闭、无歧义。
+5. 该 schema 词法自包含，可直接被 B 逐字引用做 doctest。

@@ -1,0 +1,171 @@
+# 子任务 B 交付：MiniLedgerRecord 校验器（纯标准库）
+
+## 实现说明（对齐 A 的不变量）
+
+| Schema 约束 | 实现方式 |
+|---|---|
+| `type: object` / `additionalProperties: false` | dict 检查 + 未知字段报错（严格性不变量） |
+| `required: ["id","amount","currency"]` | 缺失即报错；`tags` 不强制（可显式 `null` 或数组） |
+| `amount: multipleOf 0.01` | 用 `decimal.Decimal(str(v))` 做模运算，规避浮点误差（如 `0.07 % 0.01` 的经典陷阱） |
+| `number` 类型检查 | 排除 `bool`（Python 中 `bool` 是 `int` 的子类，按 JSON Schema 语义不算 number） |
+| `pattern` | `re.search`（draft-07 语义为"未锚定搜索"，A 的 pattern 自带 `^...$` 锚点） |
+| 未决问题 | A 已注明 `minimum: 0` 的放宽机制未定义，故**不实现**任何放宽，与 A 交付文本严格一致 |
+
+错误顺序确定：必填缺失 → 按 `record` 键序逐字段检查（类型错则跳过该字段的值约束，避免噪音级联）。
+
+## 代码（`validator.py`）
+
+```python
+"""MiniLedgerRecord 校验器（子任务 B）。
+
+严格依据子任务 A 验收工件 wi-e337e8133d 的 JSON Schema（draft-07）实现。
+仅用 Python 标准库；返回违规信息列表，空列表 = 通过。
+"""
+
+from __future__ import annotations
+
+import re
+from decimal import Decimal, InvalidOperation
+
+
+def _is_number(value) -> bool:
+    """JSON Schema 语义的 number：int/float 且排除 bool。"""
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _check_type(value, expected) -> bool:
+    types = expected if isinstance(expected, list) else [expected]
+    checks = {
+        "string": lambda v: isinstance(v, str),
+        "number": _is_number,
+        "integer": lambda v: isinstance(v, int) and not isinstance(v, bool),
+        "boolean": lambda v: isinstance(v, bool),
+        "array": lambda v: isinstance(v, list),
+        "object": lambda v: isinstance(v, dict),
+        "null": lambda v: v is None,
+    }
+    return any(t in checks and checks[t](value) for t in types)
+
+
+def _validate_field(path: str, value, rules: dict, errors: list[str]) -> None:
+    if "type" in rules and not _check_type(value, rules["type"]):
+        expected = rules["type"]
+        expected = "/".join(expected) if isinstance(expected, list) else expected
+        errors.append(f"{path}: 类型不符，期望 {expected}")
+        return  # 类型错误时不再检查值约束，避免噪音
+    if isinstance(value, str):
+        if "minLength" in rules and len(value) < rules["minLength"]:
+            errors.append(
+                f"{path}: 字符串长度 {len(value)} 小于 minLength {rules['minLength']}"
+            )
+        if "pattern" in rules and not re.search(rules["pattern"], value):
+            errors.append(f"{path}: 字符串不匹配模式 '{rules['pattern']}'")
+    if _is_number(value):
+        if "minimum" in rules and value < rules["minimum"]:
+            errors.append(f"{path}: 数值 {value} 低于最小值 {rules['minimum']}")
+        if "multipleOf" in rules:
+            try:
+                remainder = Decimal(str(value)) % Decimal(str(rules["multipleOf"]))
+            except (InvalidOperation, ZeroDivisionError):
+                remainder = Decimal(0)
+            if remainder != 0:
+                errors.append(
+                    f"{path}: 数值 {value} 不是 {rules['multipleOf']} 的整数倍"
+                )
+    if isinstance(value, list) and isinstance(rules.get("items"), dict):
+        for i, item in enumerate(value):
+            _validate_field(f"{path}[{i}]", item, rules["items"], errors)
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验 record 是否符合 MiniLedgerRecord schema，返回违规信息列表（空列表 = 通过）。
+
+    用例中的 SCHEMA 逐字引用子任务 A 交付工件 wi-e337e8133d 的 schema 文本：
+
+    >>> import json
+    >>> SCHEMA = json.loads(r'''
+    ... {
+    ...   "$schema": "http://json-schema.org/draft-07/schema#",
+    ...   "title": "MiniLedgerRecord",
+    ...   "type": "object",
+    ...   "required": ["id", "amount", "currency"],
+    ...   "properties": {
+    ...     "id": {
+    ...       "type": "string",
+    ...       "minLength": 1,
+    ...       "description": "记录唯一标识"
+    ...     },
+    ...     "amount": {
+    ...       "type": "number",
+    ...       "multipleOf": 0.01,
+    ...       "minimum": 0,
+    ...       "description": "金额，保留两位小数"
+    ...     },
+    ...     "currency": {
+    ...       "type": "string",
+    ...       "pattern": "^[A-Z]{3}$",
+    ...       "description": "ISO 4217 三字母货币代码"
+    ...     },
+    ...     "tags": {
+    ...       "type": ["array", "null"],
+    ...       "items": { "type": "string" },
+    ...       "default": null,
+    ...       "description": "标签数组，可为空"
+    ...     }
+    ...   },
+    ...   "additionalProperties": false
+    ... }
+    ... ''')
+
+    合法记录（tags 为数组）→ 通过：
+    >>> validate_record({"id": "T001", "amount": 12.34, "currency": "CNY",
+    ...                  "tags": ["餐饮", "报销"]}, SCHEMA)
+    []
+
+    多重违规（id 过短 / amount 负且非两位小数 / currency 小写 / 未知字段）：
+    >>> validate_record({"id": "", "amount": -1.234, "currency": "cny",
+    ...                  "note": "多余字段"}, SCHEMA)
+    ['id: 字符串长度 0 小于 minLength 1', 'amount: 数值 -1.234 低于最小值 0', 'amount: 数值 -1.234 不是 0.01 的整数倍', "currency: 字符串不匹配模式 '^[A-Z]{3}$'", 'note: 不允许的未知字段（additionalProperties=false）']
+
+    tags 显式 null 合法（A 的设计决定）；数组元素类型错误需逐项报出：
+    >>> validate_record({"id": "T002", "amount": 0.0, "currency": "USD",
+    ...                  "tags": None}, SCHEMA)
+    []
+    >>> validate_record({"id": "T003", "amount": 99.99, "currency": "USD",
+    ...                  "tags": ["ok", 123]}, SCHEMA)
+    ['tags[1]: 类型不符，期望 string']
+    """
+    errors: list[str] = []
+    if not isinstance(record, dict):
+        return ["root: 类型不符，期望 object"]
+
+    properties = schema.get("properties", {})
+
+    for field in schema.get("required", []):
+        if field not in record:
+            errors.append(f"root: 缺少必填字段 '{field}'")
+
+    strict = schema.get("additionalProperties", True) is False
+    for key, value in record.items():
+        if key not in properties:
+            if strict:
+                errors.append(f"{key}: 不允许的未知字段（additionalProperties=false）")
+            continue
+        _validate_field(key, value, properties[key], errors)
+
+    return errors
+
+
+if __name__ == "__main__":
+    import doctest
+
+    results = doctest.testmod(verbose=False)
+    print(f"doctest: {results.attempted} 例，{results.failed} 失败")
+```
+
+## 关键实现细节
+
+1. **multipleOf 浮点安全**：`Decimal(str(0.07)) % Decimal("0.01")` 得精确零；直接用 float 模运算会因 `0.07000000000000001` 误报。
+2. **bool 排除**：`{"amount": true}` 不会误判为合法 number。
+3. **错误级联控制**：字段类型错误时跳过该字段后续约束检查，避免一次类型错引发多条噪音。
+4. **与 A 的差异声明**：无。唯一未决项（`minimum: 0` 的收入/支出放宽）在 A 中已标注"机制未定义"，本实现不引入 A 文本之外的任何行为。

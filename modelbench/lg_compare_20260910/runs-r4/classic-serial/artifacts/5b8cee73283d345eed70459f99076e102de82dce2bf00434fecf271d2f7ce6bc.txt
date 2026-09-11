@@ -1,0 +1,43 @@
+## 子任务 A 交付：迷你记账记录 JSON Schema
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/mini-ledger-record.json",
+  "title": "MiniLedgerRecord",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "tags": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+## 设计说明（10 行内）
+
+1. `id`：必填字符串，`minLength: 1` 拒绝空串，语义上作为记录唯一键。
+2. `amount`：`multipleOf: 0.01` 限定两位小数；注意浮点实现需以十进制方式比较（对子任务 B 的提示：用 `Decimal` 或字符串解析校验）。
+3. `currency`：正则 `^[A-Z]{3}$` 强制大写三字母 ISO 4217 形式。
+4. `tags`：`type: ["array", "null"]` 允许显式 null；元素为非空字符串，防止空 tag 污染数据。
+5. 四个字段全部列入 `required`——`tags`「可空」但字段本身不可缺省，避免歧义。
+6. `additionalProperties: false` 关闭隐式扩展，保证 B 的校验器可精确穷举违规路径。
+7. 选用 draft 2020-12；`$schema`/`$id` 仅为规范性与引用标识，不影响 B 的逐字引用语义。

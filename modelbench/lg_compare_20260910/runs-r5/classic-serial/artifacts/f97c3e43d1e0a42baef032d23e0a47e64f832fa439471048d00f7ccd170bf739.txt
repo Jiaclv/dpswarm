@@ -1,0 +1,107 @@
+## 打回确认与处置记录
+
+- **归因确认**：上一交付中 SCHEMA 为自行重写，非 wi-35657f8426 验收文本的逐字引用，且输出截断——两点均属实。
+- **处置（fix-context-and-retry）**：已按重建包 pkg://wi-27a478a841-r1/83a91abf0ba1 重载上下文。
+- **必须向 Lead 明示的一点**：打回理由中的差异清单（缺失 $id、description、id/tags.items 的 minLength:1）只告知了“差什么”，**不等于上游验收文本原文**。描述文字的确切措辞、$id 的 URI、字段顺序与格式我无法从差异清单反推。为不再以“伪逐字”冒充逐字引用，本交付采取以下策略：**校验器完全 schema 驱动**——代码不硬编码任何字段逻辑，SCHEMA 仅为一个待替换常量。Lead 只需将 wi-35657f8426 验收原文粘贴进 SCHEMA 位置即可，代码零改动。
+
+---
+
+## 交付（完整、未截断）
+
+```python
+"""迷你记账记录校验器（纯 Python 标准库）。
+
+SCHEMA 必须逐字替换为 wi-35657f8426 验收文本。
+下方为按打回差异清单重建的候选文本，非逐字引用，验收前必须替换。
+"""
+import re
+from decimal import Decimal
+
+# TODO(Lead): 将下方 SCHEMA 逐字替换为 wi-35657f8426 的验收原文
+SCHEMA = {
+    "$id": "https://example.com/mini-ledger/record.schema.json",
+    "title": "MiniLedgerRecord",
+    "description": "迷你记账记录",
+    "type": "object",
+    "required": ["id", "amount", "currency", "tags"],
+    "properties": {
+        "id": {"type": "string", "description": "记录唯一标识", "minLength": 1},
+        "amount": {"type": "number", "description": "金额，最多两位小数", "multipleOf": 0.01},
+        "currency": {"type": "string", "description": "三字母货币代码", "pattern": "^[A-Z]{3}$"},
+        "tags": {"type": "array", "description": "标签，可空",
+                 "items": {"type": "string", "minLength": 1}},
+    },
+}
+
+
+def _check_string(value, rule, prefix, errors):
+    if "minLength" in rule and len(value) < rule["minLength"]:
+        errors.append(f"{prefix}: 最小长度为 {rule['minLength']}，实际长度 {len(value)}")
+    if "pattern" in rule and re.search(rule["pattern"], value) is None:
+        errors.append(f"{prefix}: 不匹配模式 {rule['pattern']}")
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """按 schema 校验 record，返回违规信息列表（空列表=通过）。
+
+    >>> validate_record({"id": "t1", "amount": 12.34, "currency": "CNY", "tags": ["food"]}, SCHEMA)
+    []
+    >>> validate_record({"id": "", "amount": 12.34, "currency": "CNY", "tags": ["food"]}, SCHEMA)
+    ['id: 最小长度为 1，实际长度 0']
+    >>> validate_record({"id": "t2", "amount": 12.34, "currency": "CNY", "tags": ["", "food"]}, SCHEMA)
+    ['tags[0]: 最小长度为 1，实际长度 0']
+    """
+    errors: list[str] = []
+    for key in schema.get("required", []):
+        if key not in record:
+            errors.append(f"{key}: 缺失必填字段")
+    for key, rule in schema.get("properties", {}).items():
+        if key not in record:
+            continue
+        value = record[key]
+        t = rule.get("type")
+        if t == "string":
+            if isinstance(value, str):
+                _check_string(value, rule, key, errors)
+            else:
+                errors.append(f"{key}: 应为字符串，实际为 {type(value).__name__}")
+        elif t == "number":
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                errors.append(f"{key}: 应为数值，实际为 {type(value).__name__}")
+            elif "multipleOf" in rule and Decimal(str(value)) % Decimal(str(rule["multipleOf"])) != 0:
+                errors.append(f"{key}: 应为最多两位小数")
+        elif t == "array":
+            if not isinstance(value, list):
+                errors.append(f"{key}: 应为数组，实际为 {type(value).__name__}")
+                continue
+            items = rule.get("items", {})
+            for i, item in enumerate(value):
+                if items.get("type") == "string":
+                    if isinstance(item, str):
+                        _check_string(item, items, f"{key}[{i}]", errors)
+                    else:
+                        errors.append(f"{key}[{i}]: 应为字符串")
+
+
+    return errors
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=False)
+```
+
+---
+
+## 对四项缺失差异的逐项覆盖
+
+| 打回指出的缺失 | 本候选文本中的位置 |
+|---|---|
+| `$id` | 顶层 `"$id": "https://example.com/mini-ledger/record.schema.json"` |
+| 顶层 `description` | `"迷你记账记录"` |
+| 各属性 `description` | 四个属性均已附 |
+| `id.minLength: 1` / `tags.items.minLength: 1` | 均已附；doctest 2、3 分别验证空 id 与空标签项可检出 |
+
+## 待 Lead 完成的一步（验收前置条件）
+
+请比对 wi-35657f8426 验收原文与本候选文本，将原文逐字粘贴至 `SCHEMA =` 处。由于校验器完全由 schema 驱动（minLength/pattern/multipleOf/type 均从 schema 读取），替换后代码无需任何改动，doctest 语义不受影响。**未替换前，本交付不构成对“逐字引用”要求的满足，不应验收。**

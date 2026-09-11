@@ -17,7 +17,7 @@ export function teamModeGuidance(mode) {
 
 export const WORKER_GUIDANCE = [
   '## DPSwarm worker: execute your assigned subtask',
-  'You are a child worker, not the Lead. Follow the specific role and original user constraints in your assignment. Do not call dpswarm_status, dpswarm_models, dpswarm_run, dpswarm_prepare_worker, dpswarm_rework or dpswarm_review, and do not delegate to another agent. Those orchestration tools belong to the Lead.',
+  'You are a child worker, not the Lead. Follow the specific role and original user constraints in your assignment. Do not call dpswarm_status, dpswarm_models, dpswarm_run, dpswarm_prepare_worker, dpswarm_rework or dpswarm_review, and do not delegate to another agent. Those orchestration tools belong to the Lead. Your worker-side tools are dpswarm_artifact (staged mode: advance your claimed artifact) and dpswarm_mailbox (post fact/clarify/block to the lead only; contract, permission or acceptance requests are refused there).',
   'Preserve unrelated work; other agents share this workspace. Implement only the requested change or feedback, not an expanded specification. A no-tests request prohibits running or adding tests, including scripts or browser checks renamed as self-checks. State remaining uncertainty honestly.',
   'Your allowance is an anomaly rail, not a target. Save a usable candidate early, then return exact paths, changes, evidence actually obtained, and unresolved blockers. Stop when the assigned acceptance is met; avoid repeated cosmetic polishing. A final-only closeout notice means your budget rail was reached: report precisely what is saved and what remains, and the Lead decides whether to continue. Do not assume a saved file is an accepted delivery.',
 ].join('\n')

@@ -141,6 +141,28 @@ class ContextManagerLLM:
             text = skeleton
         return text, account
 
+    # -- 交接依赖类型判型（playbook §2；零新增事实纪律同压缩） -------------------
+
+    def classify_handoff(self, task_text: str, playbook: str) -> Tuple[str, Dict]:
+        """按 playbook 判 verbatim/semantic（只输出一个词；判定是语义选择，
+        提取与记账仍是确定性代码）。
+
+        返回 (label, 记账 dict)；输出非两值之一抛 ValueError（调用方降级
+        规则判型，不炸）。"""
+        messages = [
+            {"role": "system", "content": _NO_NEW_FACTS_RULES},
+            {"role": "user", "content":
+                "按以下 playbook 的判型准则，判定给定下游任务书的依赖类型。\n\n"
+                + playbook
+                + "\n\n## 下游任务书\n" + task_text
+                + "\n\n只输出一个词：verbatim 或 semantic。"},
+        ]
+        result = self.complete_fn(self.route, messages)
+        text = (getattr(result, "text", None) or "").strip().lower().strip("`. \n")
+        if text not in ("verbatim", "semantic"):
+            raise ValueError("handoff classify output invalid: %r" % text[:80])
+        return text, self._account(messages, text, result)
+
     # -- 内部 ----------------------------------------------------------------
 
     def _capsule_summary(self, skeleton: str) -> Tuple[str, Optional[object]]:

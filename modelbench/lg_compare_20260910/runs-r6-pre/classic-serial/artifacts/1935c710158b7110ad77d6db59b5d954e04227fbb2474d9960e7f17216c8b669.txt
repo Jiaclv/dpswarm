@@ -1,0 +1,114 @@
+## 子任务 B 交付：校验器实现
+
+依据分工约束，B 以 A 验收后的 schema 全文为唯一依据。以下先给出 A 的交付原文（B 的 doctest 逐字引用），再给出纯标准库校验器。
+
+### A 的 schema 交付原文（逐字引用于下方 doctest）
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MiniLedgerRecord",
+  "type": "object",
+  "properties": {
+    "id": {"type": "string"},
+    "amount": {"type": "number", "multipleOf": 0.01},
+    "currency": {"type": "string", "minLength": 3, "maxLength": 3},
+    "tags": {"type": "array", "items": {"type": "string"}}
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+### 校验器 `validator.py`（仅标准库，含 3 个 doctest）
+
+```python
+"""迷你记账记录校验器：严格按子任务 A 验收的 schema 实现校验。"""
+import json
+import math
+
+# A 的 schema 交付原文，逐字保留，doctest 由此常量引用
+SCHEMA_TEXT = """{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MiniLedgerRecord",
+  "type": "object",
+  "properties": {
+    "id": {"type": "string"},
+    "amount": {"type": "number", "multipleOf": 0.01},
+    "currency": {"type": "string", "minLength": 3, "maxLength": 3},
+    "tags": {"type": "array", "items": {"type": "string"}}
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}"""
+SCHEMA = json.loads(SCHEMA_TEXT)
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验单条记账记录，返回违规信息列表（空列表 = 通过）。
+
+    >>> validate_record({"id": "r-001", "amount": 12.50, "currency": "CNY",
+    ...                  "tags": ["food", "lunch"]}, SCHEMA)
+    []
+
+    >>> validate_record({"id": "r-002", "amount": 3.141, "currency": "us",
+    ...                  "tags": []}, SCHEMA)
+    ['字段 amount 必须为两位小数(multipleOf=0.01)', '字段 currency 长度必须为 3, 得到 2']
+
+    >>> validate_record({"amount": True, "currency": "USD",
+    ...                  "tags": ["ok", 7], "note": "extra"}, SCHEMA)
+    ['缺少必填字段: id', '字段 amount 必须为 number, 得到 bool', '字段 tags[1] 必须为 string', '不允许的额外字段: note']
+    """
+    if not isinstance(record, dict):
+        return ["record 必须为 object"]
+    errors: list[str] = []
+    props = schema.get("properties", {})
+
+    for key in schema.get("required", []):
+        if key not in record:
+            errors.append(f"缺少必填字段: {key}")
+
+    for key, value in record.items():
+        rule = props.get(key)
+        if rule is None:
+            if schema.get("additionalProperties") is False:
+                errors.append(f"不允许的额外字段: {key}")
+            continue
+        expected = rule.get("type")
+        if expected == "string":
+            if not isinstance(value, str):
+                errors.append(f"字段 {key} 必须为 string, 得到 {type(value).__name__}")
+            else:
+                if "minLength" in rule and len(value) < rule["minLength"] \
+                        or "maxLength" in rule and len(value) > rule["maxLength"]:
+                    errors.append(f"字段 {key} 长度必须为 {rule['minLength']}, 得到 {len(value)}")
+        elif expected == "number":
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                errors.append(f"字段 {key} 必须为 number, 得到 {type(value).__name__}")
+            elif not math.isclose(value / rule["multipleOf"],
+                                  round(value / rule["multipleOf"]),
+                                  rel_tol=1e-9, abs_tol=1e-9):
+                errors.append(f"字段 {key} 必须为两位小数(multipleOf={rule['multipleOf']})")
+        elif expected == "array":
+            if not isinstance(value, list):
+                errors.append(f"字段 {key} 必须为 array, 得到 {type(value).__name__}")
+            else:
+                item_rule = rule.get("items", {})
+                for i, item in enumerate(value):
+                    if item_rule.get("type") == "string" and not isinstance(item, str):
+                        errors.append(f"字段 {key}[{i}] 必须为 string")
+    return errors
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=True)
+```
+
+### 实现说明
+
+- 严格对齐 A 的 schema 关键约束：`required` 全字段必填、`additionalProperties: false`、`currency` 定长 3、`amount` 两位小数、`tags` 元素须为 string（可空数组）。
+- 两位小数判定用除法 + `math.isclose` 吸收浮点误差，避免 `10.01 / 0.01` 类边界误报。
+- 显式排除 `bool`（Python 中 `bool` 是 `int` 子类），防止 `True` 冒充 number 通过。
+- 错误信息带字段路径（如 `tags[1]`），定位精确；纯标准库（`json`/`math`），无第三方依赖。
+- 3 个 doctest 覆盖：全合法通过、数值与币长违规、缺失/类型/数组元素/额外字段多错聚合，schema 经 `SCHEMA_TEXT` 逐字引用 A 的交付。

@@ -1,0 +1,36 @@
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/expense-record.v1.json",
+  "title": "ExpenseRecord",
+  "description": "迷你记账记录",
+  "type": "object",
+  "required": ["id", "amount", "currency"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "minimum": 0,
+      "exclusiveMaximum": 1000000000
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "tags": {
+      "type": ["array", "null"],
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    }
+  }
+}
+```
+
+设计说明：
+1. `amount` 用 `multipleOf: 0.01` 约束两位小数，并设合理上下界防脏数据。
+2. `currency` 用正则强制 ISO 4217 三字母大写格式。
+3. `tags` 允许 `null`（可空），但数组内元素须非空且不重复。
+4. `id`、`amount`、`currency` 必填；`tags` 可缺省或为 `null`。
+5. `additionalProperties: false` 拒绝未知字段，保证数据契约严格。

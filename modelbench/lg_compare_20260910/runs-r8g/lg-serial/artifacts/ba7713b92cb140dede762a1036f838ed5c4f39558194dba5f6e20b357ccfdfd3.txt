@@ -1,0 +1,26 @@
+PULL 取回原文与此前 L1 层 [wi-717fd6d69f] 及我实现中嵌入的 `SCHEMA` 文本**逐字一致**（`$schema`/`$id`/properties 各关键字、`additionalProperties: false` 等均无差异），交接依据成立。借此对交付做最终核验：
+
+## 逐字一致性核验
+- 三处比对对象：① PULL 原文（本轮）② L1 原子事实层 ③ 交付代码 doctest 内的 `SCHEMA` 文本。
+- 比对结果：逐字相同，包括 `"type": ["array", "null"]`、`"items": { "type": "string" }` 的紧凑写法与各 description 中文字段。满足「用例里的 schema 必须逐字引用 A 的交付」。
+
+## doctest 期望输出复核（对照逐字 schema）
+
+| 用例 | 输入 | 期望输出 | 校验路径 |
+|---|---|---|---|
+| 合法 | `{"id": "r-001", "amount": 12.5, "currency": "CNY", "tags": ["午餐", "报销"]}` | `[]` | 必填齐、12.5 为 0.01 整数倍、CNY 匹配 `^[A-Z]{3}$`、无重复标签 |
+| 违规组 1 | `{"id": "", "amount": 0.123, "tags": None}` | 3 条 | currency 缺失；id 空串触 `minLength`；`Decimal("0.123") % Decimal("0.01") = 0.003 ≠ 0` 触 `multipleOf`；`tags: null` 因类型数组 `["array", "null"]` 合法 |
+| 违规组 2 | `{"id": "r-003", "amount": 1, "currency": "cny", "note": "备注", "tags": ["a", "a"]}` | 3 条 | `additionalProperties: false` 报 `note`；`cny` 不匹配 pattern；重复 `"a"` 触 `uniqueItems`；amount=1 经 Decimal 判断合法 |
+
+三条路径的违规信息顺序（required → additionalProperties → 按 properties 声明序）与代码逻辑一致，期望输出可稳定复现。
+
+## 交付结论
+
+子任务 B 的交付物即上一轮的 `validator.py`，本轮 PULL 未发现任何需回改之处：
+
+- `validate_record(record: dict, schema: dict) -> list[str]`，纯标准库（`re`、`decimal`、`json`）；
+- 校验逻辑完全由传入 schema 驱动，不硬编码字段假设，与 A 的不变量一一对应（`minLength`、`pattern`、`minimum`、`multipleOf`、`items`、`uniqueItems`、`additionalProperties`、类型数组与必填）；
+- `multipleOf` 走 Decimal 精确比较，规避二进制浮点误差；
+- 附 3 个 doctest，schema 逐字引用 wi-717fd6d69f。
+
+B 阶段交付就绪，等待验收；按分工约定，验收通过后即收束，不再裂变。

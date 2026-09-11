@@ -1,0 +1,42 @@
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/mini-ledger-record.json",
+  "title": "迷你记账记录",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "记录唯一标识"
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "minimum": 0,
+      "description": "金额，最多两位小数"
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "ISO 4217 三字母货币代码"
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "default": [],
+      "description": "标签，可为空数组"
+    }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+**设计说明（≤10 行）：**
+
+1. `amount` 用 `multipleOf: 0.01` 表达"两位小数"——JSON 数字本身不保留末尾零（`10.5` 与 `10.50` 相同），故只能约束"至多两位小数"；附带 `minimum: 0` 排除负账目。
+2. `currency` 用正则 `^[A-Z]{3}$` 强制三字母大写代码，未内嵌 ISO 4217 枚举以保持 schema 轻量。
+3. `tags` 允许空数组（可空），且每个元素为非空字符串，防止空标签污染。
+4. 四字段均为 `required`，`tags` 默认 `[]`；`additionalProperties: false` 拒绝未知字段，利于下游校验器 B 做确定性校验。
+5. 采用 draft 2020-12，字段名与类型明确，可直接作为子任务 B 手写校验器的逐字引用基准。

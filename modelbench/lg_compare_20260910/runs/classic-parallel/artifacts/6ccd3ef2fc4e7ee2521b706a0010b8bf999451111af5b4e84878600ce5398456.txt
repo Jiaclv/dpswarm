@@ -1,0 +1,40 @@
+```python
+def base_convert(s: str, from_base: int, to_base: int) -> str:
+    """
+    在 2-36 进制之间任意转换数字字符串表示。
+
+    >>> base_convert("ff", 16, 10)
+    '255'
+    >>> base_convert("1010", 2, 16)
+    'a'
+    >>> base_convert("-101", 2, 8)
+    '-5'
+    """
+    digits = "0123456789abcdefghijklmnopqrstuvwxyz"
+    neg = s.startswith("-")
+    if neg:
+        s = s[1:]
+    s = s.lower()
+    if not s or from_base < 2 or from_base > 36 or to_base < 2 or to_base > 36:
+        raise ValueError("invalid input")
+
+    n = 0
+    for ch in s:
+        v = digits.find(ch)
+        if v < 0 or v >= from_base:
+            raise ValueError(f"invalid digit {ch!r} for base {from_base}")
+        n = n * from_base + v
+
+    if n == 0:
+        return "0"
+    out = []
+    while n:
+        n, r = divmod(n, to_base)
+        out.append(digits[r])
+    return ("-" if neg else "") + "".join(reversed(out))
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=True)
+```

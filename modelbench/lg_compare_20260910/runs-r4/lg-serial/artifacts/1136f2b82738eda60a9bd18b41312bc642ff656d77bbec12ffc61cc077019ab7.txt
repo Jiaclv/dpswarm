@@ -1,0 +1,36 @@
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MiniLedgerRecord",
+  "type": "object",
+  "required": ["id", "amount", "currency", "tags"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "nullable": true
+    }
+  },
+  "additionalProperties": false
+}
+```
+
+设计说明（≤10 行）：
+1. 四字段全部列为 `required`，tags 虽可空但键必须存在，空值语义由消费方处理。
+2. `amount` 用 `multipleOf: 0.01` 约束两位小数；注意 JSON 浮点精度陷阱，B 实现时建议按字符串化小数位校验。
+3. `currency` 用正则 `^[A-Z]{3}$` 强制 ISO-4217 三字母大写。
+4. `tags` 为字符串数组，可空（null 允许）；B 需同时放行 `null` 与字符串数组两种形态。
+5. `additionalProperties: false` 拒绝多余字段，保证记录结构严格。
+6. `id` 加 `minLength: 1` 排除空串。

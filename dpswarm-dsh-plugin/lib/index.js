@@ -6,6 +6,7 @@ import { resolveHostRoot, hostModuleUrl } from './host-modules.js'
 import { runtimePaths } from './paths.js'
 import { FixedTeamController, fixedProfile } from './fixed-team.js'
 import { WriteScopeRegistry, installWriteScope } from './write-scope.js'
+import { KvMailboxStorage } from './mailbox.js'
 import { compactBudgetStatus } from './worker-diagnostics.js'
 import { CMRuntime } from './cm-runtime.js'
 import { installBudget } from './budget.js'
@@ -109,7 +110,8 @@ export function apply(ctx, config) {
   ctx.effect(() => installWriteScope(ctx, writeScope), 'dpswarm: enforce parallel worker write scopes')
   ctx.inject(['tools', 'subagents', 'llm'], runtime => {
     const modelRegistry = new HostModelRegistry(() => runtime.llm)
-    controller = new FixedTeamController({ config: resolved, subagents: runtime.subagents, cm, budget, modelRegistry, writeScope,
+    const mailboxStorage = new KvMailboxStorage(ctx)
+    controller = new FixedTeamController({ config: resolved, subagents: runtime.subagents, cm, budget, modelRegistry, writeScope, mailboxStorage,
       resolveSession: id => ctx.get?.('sessions', false)?.get(id) || ctx.sessions?.get(id) })
     const dispatcher = new TeamDispatcher({ controller, requirement })
     const advice = installBudgetAdvice(runtime, resolved)
@@ -138,9 +140,12 @@ export function apply(ctx, config) {
     runtime.tools.register(defineTool({ name: 'dpswarm_report', description: 'Read the unabridged worker report for a delivered item from the audit ledger, paged by character range. Run/rework views show only a bounded excerpt; this is the in-session read path for the complete text. Read-only and never changes state.',
       parameters: { item_id: { type: 'string', required: true }, offset: { type: 'integer', description: 'Character offset, default 0' }, limit: { type: 'integer', description: 'Characters to return, default 4000, max 40000' } }, output,
       execute: async (args, exec) => toolJSON(await controller.report(args, exec)) }))
-    runtime.tools.register(defineTool({ name: 'dpswarm_artifact', description: 'Staged-mode workers only: advance the artifact your claim owns (to: claimed | draft | ready | adjusting | frozen | done; optional note). The control plane validates transitions; the read gate mirrors accepted states. All other dpswarm_* tools stay Lead-only.',
+    runtime.tools.register(defineTool({ name: 'dpswarm_artifact', description: 'Staged-mode workers only: advance the artifact your claim owns (to: claimed | draft | ready | adjusting | frozen | done; optional note). The control plane validates transitions; the read gate mirrors accepted states. dpswarm_mailbox is the only other worker-callable dpswarm_* tool; everything else stays Lead-only.',
       parameters: { to: { type: 'string', required: true }, note: { type: 'string' } }, output,
       execute: async (args, exec) => toolJSON(await controller.artifactState(args, exec)) }))
+    runtime.tools.register(defineTool({ name: 'dpswarm_mailbox', description: 'Bounded persistent Lead↔worker mailbox for the current fixed-team run. Post kind fact (a quiet context update), clarify (a question that wakes the worker with its next continuation) or block (a blocker notice) to a registered member, or read pending mail. Every kind other than fact|clarify|block is rejected: contract changes, permission expansion and delivery approval never travel here — use dpswarm_run / dpswarm_rework / dpswarm_review. Workers may call it for their own mail (they address only the lead). Pending mail survives restart; per-member queue is capped (64) and messages are capped (64 KiB).',
+      parameters: { action: { type: 'string', required: true, description: 'post | read' }, to: { type: 'string', description: 'Target member: a worker subtask/artifact id, a role name (implementer | tester | reviewer), or lead (workers only)' }, kind: { type: 'string', description: 'fact | clarify | block' }, content: { type: 'string', description: 'Message text (nonempty)' }, refs: { type: 'array', items: { type: 'string' }, description: 'Up to 16 short references (artifact ids, item ids, paths)' }, message_id: { type: 'string', description: 'Caller-chosen unique id; reposting the same id deduplicates instead of queueing twice' } }, output,
+      execute: async (args, exec) => toolJSON(await controller.mailbox(args, exec)) }))
     ctx.effect(warm, 'dpswarm: enabled-session startup')
     ctx.effect(() => () => controller.shutdown(), 'dpswarm: cancel on disposal')
   })

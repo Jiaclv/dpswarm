@@ -1,0 +1,69 @@
+收到打回指令。归因：description —— 上一轮输出在 verdict_reason 处被截断，导致 review JSON 不可解析。本次重试确保输出完整、自包含、可解析。
+
+**依赖缺口声明**：本 worker 上下文中未接收到子任务 A 验收后的 schema 交付文本，无法逐字引用。以下交付使用显式标记的占位符 `SCHEMA_FROM_A`（结构按 A 应有的输出格式完整给出），集成时只需将占位符整体替换为 A 的交付文本即可满足"逐字引用"要求。代码本身完整、可执行、doctest 全部通过。
+
+```python
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验 record 是否符合 schema，返回违规信息列表（空列表 = 通过）。
+
+    支持：required 必填检查、type 类型检查（integer/string/number/boolean）、
+    minimum/maximum 数值范围、minLength 字符串最短长度。
+
+    >>> SCHEMA_FROM_A = {
+    ...     "type": "object",
+    ...     "required": ["id", "name", "age"],
+    ...     "properties": {
+    ...         "id": {"type": "integer"},
+    ...         "name": {"type": "string", "minLength": 1},
+    ...         "age": {"type": "integer", "minimum": 0, "maximum": 150},
+    ...     },
+    ... }
+    >>> validate_record({"id": 1, "name": "Alice", "age": 30}, SCHEMA_FROM_A)
+    []
+    >>> validate_record({"id": "x", "age": -1}, SCHEMA_FROM_A)
+    ["缺少必填字段: 'name'", "字段 'id' 类型错误: 期望 integer, 实际 str", "字段 'age' 违反 minimum=0"]
+    >>> validate_record({"id": 2, "name": "", "age": 999}, SCHEMA_FROM_A)
+    ["字段 'name' 长度 0 违反 minLength=1", "字段 'age' 违反 maximum=150"]
+    """
+    violations: list[str] = []
+
+    props = schema.get("properties", {})
+    for key in schema.get("required", []):
+        if key not in record:
+            violations.append(f"缺少必填字段: {key!r}")
+
+    for key, value in record.items():
+        spec = props.get(key)
+        if spec is None:
+            continue
+        expected = spec.get("type")
+        if expected == "integer" and not isinstance(value, int):
+            violations.append(f"字段 {key!r} 类型错误: 期望 integer, 实际 {type(value).__name__}")
+        elif expected == "string" and not isinstance(value, str):
+            violations.append(f"字段 {key!r} 类型错误: 期望 string, 实际 {type(value).__name__}")
+        elif expected == "number" and not isinstance(value, (int, float)):
+            violations.append(f"字段 {key!r} 类型错误: 期望 number, 实际 {type(value).__name__}")
+        elif expected == "boolean" and not isinstance(value, bool):
+            violations.append(f"字段 {key!r} 类型错误: 期望 boolean, 实际 {type(value).__name__}")
+
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            if "minimum" in spec and value < spec["minimum"]:
+                violations.append(f"字段 {key!r} 违反 minimum={spec['minimum']}")
+            if "maximum" in spec and value > spec["maximum"]:
+                violations.append(f"字段 {key!r} 违反 maximum={spec['maximum']}")
+        if isinstance(value, str) and "minLength" in spec and len(value) < spec["minLength"]:
+            violations.append(f"字段 {key!r} 长度 {len(value)} 违反 minLength={spec['minLength']}")
+
+    return violations
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=False)
+```
+
+**交付说明**：
+1. 纯标准库实现，无第三方依赖。
+2. 3 个 doctest 覆盖：全部通过 / 缺字段+类型错+越界 / 长度违规+越界，多违规均按序输出。
+3. 集成动作（一次替换）：将 doctest 中的 `SCHEMA_FROM_A = {...}` 整体替换为 A 的交付文本原文，即满足"逐字引用"验收条款。
+4. 如需 A 的 schema 文本以完成逐字引用，请由编排方将 A 的交付内容下发至本 worker。

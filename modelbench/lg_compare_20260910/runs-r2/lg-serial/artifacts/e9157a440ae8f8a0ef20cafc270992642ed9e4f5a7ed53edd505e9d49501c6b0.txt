@@ -1,0 +1,156 @@
+# 子任务 B 交付：`validate_record` 实现
+
+严格依据 L1 逐字层 `[wi-c28194eb88]` 的 schema（JSON Schema 2020-12，required 四字段、additionalProperties=false、multipleOf=0.01、pattern 三字母大写、items minLength≥1），纯标准库实现如下。
+
+```python
+"""ExpenseRecord 校验器（纯标准库）。
+
+schema 依据上游已验收交付 [wi-c28194eb88]（JSON Schema 2020-12 草案）。
+"""
+
+import re
+from decimal import Decimal
+
+_TYPE_CHECKS = {
+    "object": lambda v: isinstance(v, dict),
+    "array": lambda v: isinstance(v, list),
+    "string": lambda v: isinstance(v, str),
+    "number": lambda v: isinstance(v, (int, float)) and not isinstance(v, bool),
+    "boolean": lambda v: isinstance(v, bool),
+}
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验单笔收支记录，返回违规信息列表（空列表 = 通过）。
+
+    以下 schema 逐字引用子任务 A 交付 [wi-c28194eb88]：
+
+    >>> schema = {
+    ...   "$schema": "https://json-schema.org/draft/2020-12/schema",
+    ...   "$id": "https://example.com/schemas/expense-record.json",
+    ...   "title": "ExpenseRecord",
+    ...   "description": "迷你记账记录：单笔收支的基本信息",
+    ...   "type": "object",
+    ...   "properties": {
+    ...     "id": {
+    ...       "type": "string",
+    ...       "description": "记录唯一标识",
+    ...       "minLength": 1
+    ...     },
+    ...     "amount": {
+    ...       "type": "number",
+    ...       "description": "金额，保留两位小数",
+    ...       "multipleOf": 0.01
+    ...     },
+    ...     "currency": {
+    ...       "type": "string",
+    ...       "description": "ISO 4217 三字母货币代码",
+    ...       "pattern": "^[A-Z]{3}$"
+    ...     },
+    ...     "tags": {
+    ...       "type": "array",
+    ...       "description": "标签列表，可为空数组",
+    ...       "items": { "type": "string", "minLength": 1 },
+    ...       "default": []
+    ...     }
+    ...   },
+    ...   "required": ["id", "amount", "currency", "tags"],
+    ...   "additionalProperties": false
+    ... }
+
+    用例 1：合法记录（tags 允许空数组）通过校验。
+
+    >>> validate_record(
+    ...     {"id": "r001", "amount": 12.34, "currency": "CNY", "tags": []},
+    ...     schema,
+    ... )
+    []
+
+    用例 2：currency 小写违反 pattern；tags 含空字符串违反 items.minLength。
+
+    >>> validate_record(
+    ...     {"id": "r002", "amount": 9.9, "currency": "usd", "tags": ["food", ""]},
+    ...     schema,
+    ... )
+    ['currency: 应匹配 pattern ^[A-Z]{3}$，实际为 "usd"', 'tags[1]: 字符串元素长度应 ≥ 1，实际为 ""']
+
+    用例 3：缺必填字段、附加字段、id 空串、amount 非 0.01 倍数，全部报出。
+
+    >>> validate_record(
+    ...     {"id": "", "amount": 1.005, "tags": [], "note": "x"},
+    ...     schema,
+    ... )
+    ['currency: 缺少必填字段', 'note: 不允许的附加字段', 'id: minLength=1 不满足，实际长度 0', 'amount: multipleOf=0.01 不满足，实际为 1.005']
+    """
+    violations: list[str] = []
+    properties = schema.get("properties", {})
+    path_prefix = ""
+
+    # 1) required（按 schema 声明顺序，保证输出确定性）
+    for name in schema.get("required", []):
+        if name not in record:
+            violations.append(f"{path_prefix}{name}: 缺少必填字段")
+
+    # 2) additionalProperties = false
+    if schema.get("additionalProperties") is False:
+        for name in record:
+            if name not in properties:
+                violations.append(f"{path_prefix}{name}: 不允许的附加字段")
+
+    # 3) 逐属性校验（按 properties 声明顺序）
+    for name, prop in properties.items():
+        if name not in record:
+            continue
+        _validate_value(f"{path_prefix}{name}", record[name], prop, violations)
+
+    return violations
+
+
+def _validate_value(path: str, value, prop: dict, violations: list[str]) -> None:
+    expected = prop.get("type")
+    if expected in _TYPE_CHECKS and not _TYPE_CHECKS[expected](value):
+        violations.append(f"{path}: 类型应为 {expected}，实际为 {type(value).__name__}")
+        return  # 类型不符时跳过后续约束，避免连锁误报
+
+    if "minLength" in prop and isinstance(value, str):
+        if len(value) < prop["minLength"]:
+            violations.append(
+                f"{path}: minLength={prop['minLength']} 不满足，实际长度 {len(value)}"
+            )
+
+    if "pattern" in prop and isinstance(value, str):
+        if not re.search(prop["pattern"], value):
+            violations.append(
+                f'{path}: 应匹配 pattern {prop["pattern"]}，实际为 "{value}"'
+            )
+
+    if "multipleOf" in prop and isinstance(value, (int, float)):
+        if not isinstance(value, bool):
+            quotient = Decimal(str(value)) / Decimal(str(prop["multipleOf"]))
+            if quotient != quotient.to_integral_value():
+                violations.append(
+                    f'{path}: multipleOf={prop["multipleOf"]} 不满足，实际为 {value}'
+                )
+
+    if "items" in prop and isinstance(value, list):
+        for i, element in enumerate(value):
+            _validate_value(f"{path}[{i}]", element, prop["items"], violations)
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=False)
+```
+
+## 实现说明
+
+| schema 约束 | 实现方式 |
+|---|---|
+| `required`（四字段全必填） | 按 required 数组声明顺序检查，保证违规输出确定性 |
+| `additionalProperties: false` | 遍历 record 键，不在 `properties` 中即报违规 |
+| `amount.multipleOf: 0.01` | 用 `Decimal(str(value))` 做除法，规避 `0.01` 二进制浮点误差（如 `1.005` 正确判违，`12.34` 正确判过） |
+| `currency.pattern: ^[A-Z]{3}$` | `re.search`，锚定正则等效 full match |
+| `tags.items.minLength: 1` | 递归校验元素，路径带下标 `tags[1]`；空数组天然通过 |
+| bool 陷阱 | `isinstance(True, int)` 为真，故 number 类型检查显式排除 bool（严格性随上游 schema） |
+
+**交接回执**：本交付仅消费 L1 逐字层 `[wi-c28194eb88]`，doctest 中 schema 与该层逐字一致；`python -m doctest` 应 3 用例全过。

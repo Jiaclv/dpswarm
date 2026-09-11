@@ -1,0 +1,42 @@
+## 状态：阻塞（BLOCKED）——等待子任务 A 交付物
+
+**原因**：本任务明确要求 doctest 中的 schema「必须逐字引用 A 的交付文本，不得改写」。我当前未收到 A 的验收后 schema 文本。任何由我补写或推断的 schema 都会违反该约束，并可能在 A 后续修订时导致校验器与 schema 语义不一致。因此不产出最终代码，避免制造隐性偏差。
+
+**请提供**：子任务 A 验收后的 schema 文本（原始交付文本，含字段定义、类型、必填性、约束规则等）。
+
+---
+
+### 为加速后续交付，先给出可复用的实现骨架（待 A 文本到位后实例化）
+
+```python
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """依据 schema 校验 record，返回违规信息列表（空列表 = 通过）。
+
+    依赖 A 的 schema 结构约定：
+      - 字段定义键名、类型词表、必填标记、约束字段
+      - （以上均以 A 交付文本为准，占位待填）
+
+    doctest 用例将逐字内嵌 A 的 schema 文本，形如：
+      >>> schema_a = <A 的交付文本，逐字引用>
+      >>> validate_record(<合法样例>, schema_a)
+      []
+      >>> validate_record(<缺失必填字段样例>, schema_a)
+      ["<违规信息>"]
+      >>> validate_record(<类型错误样例>, schema_a)
+      ["<违规信息>"]
+    """
+    violations: list[str] = []
+    # 1. 必填字段检查（遍历 A schema 的 required 定义）
+    # 2. 类型检查（bool 与 int 须区分：isinstance(True, int) 为 True 的坑）
+    # 3. 值约束检查（enum/range/pattern 等，视 A schema 支持而定）
+    # 4. 未知字段处理（依 A schema 约定：报错 or 忽略）
+    return violations
+```
+
+### 需与 A 方对齐的接口问题（建议随交付文本一并澄清）
+
+1. **schema 的机器可读形态**：A 交付的是「文本」——是指自然语言描述、JSON 文本，还是 Python dict 字面量？`validate_record` 的 `schema: dict` 参数需要结构化形态；若 A 交付的是文本，需确认是否附带对应的 dict 表示，或由谁负责转换。
+2. **违规信息的措辞规范**：是否需要特定格式（如 `"字段 xxx: ..."`)，以便上层聚合或测试断言。
+3. **嵌套结构的支持范围**：A 的 schema 是否包含嵌套对象/数组，决定校验器是否需要递归。
+
+收到 A 的验收后文本及上述澄清后，我将交付：完整 `validate_record` 实现 + 3 个 doctest（schema 逐字内嵌）+ 运行 `doctest` 模块的验证结果。

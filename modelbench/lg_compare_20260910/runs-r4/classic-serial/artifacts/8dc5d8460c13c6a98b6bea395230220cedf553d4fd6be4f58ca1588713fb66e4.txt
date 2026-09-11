@@ -1,0 +1,82 @@
+## 重试前置检查：修复动作未落地，先报缺口再交付可预置部分
+
+**结论先行**：本次重派的 prompt 中**仍然没有附带 A 验收 schema 的原文**。打回理由明确将归因定为「上游材料未注入的上下文缺失」，修复方式是「将 A 验收 schema 原文随 prompt 注入」——但注入并未发生。打回意见同时禁止「带缺口声明的阻塞式交付」，而我在没有 A 原文的情况下无论怎么写，都不可能满足「doctest 中 schema 逐字引用 A 验收文本」——如果我再从打回理由反推一个 schema 并声称是逐字引用，就是在**重复上一次被拒的核心缺陷（伪造逐字引用）**。
+
+因此本轮我做两件事：(1) 明确请求下一轮 dispatch 附上 A 的 ```json 块原文；(2) 交付**与 schema 字面量解耦的全部可确定工作**，注入后仅需替换 `SCHEMA_A` 一个字面量即可原样运行——且这次我逐一回应了上一轮的全部技术打回点，验证器本体已覆盖 union type / minLength / required / additionalProperties，不再有「仅换字面量、本体需改动」的谎言。
+
+### validate_record 实现（针对上一轮全部技术缺陷已修正）
+
+```python
+import re
+from decimal import Decimal
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验 record 是否符合 schema，返回违规信息列表（空列表=通过）。
+    支持本轮已确认的 A 约束：type 联合类型（含 null）、minLength、
+    required、additionalProperties:false、pattern、multipleOf(Decimal)。
+    """
+    errors: list[str] = []
+    props = schema.get("properties", {})
+    for key in schema.get("required", []):
+        if key not in record:
+            errors.append(f"缺少必填字段: {key}")
+    if schema.get("additionalProperties") is False:
+        for key in record:
+            if key not in props:
+                errors.append(f"多余字段: {key}")
+    for key, sub in props.items():
+        if key in record:
+            errors.extend(_check(key, record[key], sub))
+    return errors
+
+
+def _check(key, value, sub):
+    errs: list[str] = []
+    declared = sub.get("type")
+    allowed = declared if isinstance(declared, list) else [declared]  # 联合类型
+    if not any(_matches(value, t) for t in allowed):
+        return [f"{key}: 类型须为 {allowed}"]
+    if value is None:
+        return errs
+    if isinstance(value, str):
+        if len(value) < sub.get("minLength", 0):
+            errs.append(f"{key}: 长度须≥{sub['minLength']}")
+        if "pattern" in sub and not re.search(sub["pattern"], value):
+            errs.append(f"{key}: 不匹配 {sub['pattern']}")
+    if isinstance(value, list):
+        item_schema = sub.get("items", {})
+        for i, item in enumerate(value):
+            errs.extend(f"{key}[{i}]: {m}" for m in _check(f"{key}[{i}]", item, item_schema))
+    if "multipleOf" in sub and isinstance(value, (int, float)) and not isinstance(value, bool):
+        # 依 A 设计说明：Decimal 校验，不用浮点容差
+        if Decimal(str(value)) % Decimal(str(sub["multipleOf"])) != 0:
+            errs.append(f"{key}: 须为 {sub['multipleOf']} 的整数倍")
+    return errs
+
+
+def _matches(value, t):
+    return {"string": lambda v: isinstance(v, str),
+            "number": lambda v: isinstance(v, (int, float)) and not isinstance(v, bool),
+            "array": lambda v: isinstance(v, list),
+            "null": lambda v: v is None,
+            "object": lambda v: isinstance(v, dict)}.get(t, lambda v: False)(value)
+```
+
+### Doctest（3 个，结构就绪，待 A 原文注入后逐字替换 SCHEMA_A）
+
+```
+>>> SCHEMA_A = "<待注入：A 验收 ```json 块原文，逐字粘贴，不重构不省略 $schema/$id/title>"
+>>> validate_record({"id": "r1", "amount": 12.34, "currency": "CNY", "tags": ["food"]}, SCHEMA_A)
+[]
+>>> validate_record({"id": "", "amount": 0.1, "currency": "c1", "tags": None, "extra": 1}, SCHEMA_A)  # 覆盖空串 id / 非两位小数 / 小写货币 / tags:null 合法 / 多余字段
+[...预期违规列表，依注入原文核验...]
+>>> validate_record({"id": "r3", "amount": 1.5, "currency": "USD", "tags": [""]}, SCHEMA_A)  # 覆盖空字符串 tag 违规
+[...同上...]
+```
+
+### 请求（fix-context 待执行项）
+
+下一轮重派请随 prompt 附入：**A 验收交付的 ```json 代码块原文（全文逐字）**。收到后我在同一轮内完成：SCHEMA_A 逐字替换、3 个 doctest 预期输出按原文实跑核定、交付完整单文件可运行版本。在此之前我不会以任何重构版本冒充「逐字引用」。
+
+状态：partial-prepared，blocked-on [A 原文注入]。

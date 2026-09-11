@@ -1,0 +1,9 @@
+2026-09-10 22:50:15 [r5] classic-serial started
+2026-09-10 23:00:27 [r5] classic-serial done final=accepted-by-lead error=None wall=612s
+2026-09-10 23:00:35 [r5] lg-serial started
+2026-09-10 23:08:41 [r5] lg-serial done final=accepted-by-lead error=None wall=486s
+2026-09-10 23:08:53 [r5] classic-semantic started
+2026-09-10 23:14:40 [r5] classic-semantic done final=accepted-by-lead error=None wall=347s
+2026-09-10 23:14:48 [r5] lg-semantic started
+2026-09-10 23:31:28 [r5] lg-semantic done final=accepted-by-lead error=None wall=1000s
+2026-09-10 23:31:30 [r5-driver] all done

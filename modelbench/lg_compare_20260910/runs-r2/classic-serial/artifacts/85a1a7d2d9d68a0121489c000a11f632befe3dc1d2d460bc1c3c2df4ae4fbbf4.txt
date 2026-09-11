@@ -1,0 +1,51 @@
+**复核结论：解除条件未满足，维持“不作为验收提交”。**
+
+1. **条件(3)对照**：打回理由要求解除前提为“编排方将 schema 原文整段以内联文本写入 prompt，禁止再以 URI/哈希/指针替代”。本轮任务全文实际到达的仍是 `（context 已重建：pkg://wi-73c1e7df69-r1/966fb6129b8a）`——指针形式，无任何内联原文。条件不成立。
+2. **可见性确认**：我方在此明确确认——子任务 0 验收后的 schema 原文在本人可读上下文中**不可见**。逐字引用为硬性验收项，凭指针或记忆写出的任何 schema 文本均构成伪造；拒绝伪造是防污染边界，非消极。
+3. **通知失真复发**：“context 已重建”与实际载荷再次不符，打回理由(3)要求的纠正未生效。编排方唯一待办不变：**内联原文，保留原始键序/空白/换行，不以指针替代**。
+
+**截断对策（响应打回理由(1)）**：本条起，交付尾部一律附结束哨兵 `[EOS:wi-73c1e7df69]`；完整性以哨兵可见为准，未见哨兵即按传输截断处理，不归因 worker 完成度误判。本条**不含 doctest 交付物**（原文缺位，不产出），故不产生“声明与载荷不符”问题；以下骨架为非验收交付，补齐上轮未到达的 required/enum/minLength 逻辑：
+
+```python
+# wi-73c1e7df69 validate_record 骨架 v3（非验收；纯标准库）
+# 唯一替换点：SCHEMA_SRC —— 原文到位后整段逐字替换（保留键序/空白/换行）
+SCHEMA_SRC = "<<<VERBATIM_SCHEMA_FROM_SUBTASK0>>>"
+
+def _type_ok(v, t):
+    if t == "boolean": return isinstance(v, bool)        # bool 先判，防 int 误收
+    if t == "integer": return isinstance(v, int) and not isinstance(v, bool)
+    if t == "number":  return isinstance(v, (int, float)) and not isinstance(v, bool)
+    if t == "string":  return isinstance(v, str)
+    if t == "array":   return isinstance(v, list)
+    if t == "object":  return isinstance(v, dict)
+    if t == "null":    return v is None
+    return False
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    # docstring 与 3 个 doctest：待 SCHEMA_SRC 逐字替换后回填，本条不含
+    errs: list[str] = []
+    for k in schema.get("required", ()):
+        if k not in record:
+            errs.append(f"required: {k}")
+    props = schema.get("properties", {})
+    for k, v in record.items():
+        sub = props.get(k)
+        if sub is None:
+            continue                # 未声明键是否报错：待按原文 additionalProperties 裁剪
+        if "type" in sub and not _type_ok(v, sub["type"]):
+            errs.append(f"type: {k}")
+            continue
+        if "enum" in sub and v not in sub["enum"]:
+            errs.append(f"enum: {k}")
+        if "minLength" in sub and isinstance(v, str) and len(v) < sub["minLength"]:
+            errs.append(f"minLength: {k}")
+    return errs
+```
+
+**恢复路径就绪度**：单点替换位已定位。原文内联到达并经我确认可见后，执行：SCHEMA_SRC 单点逐字替换 → `json.loads` 载入 → 按原文实际键集裁剪支持面 → 回填 3 个 doctest → 附哨兵重交验收。骨架经复核健全，届时为一轮内可完成的机械操作。
+
+**兜底申请**：若本条仍截断（哨兵不可见），下轮改分段交付（段1=骨架、段2=doctest 模板），请编排方预先准许分段并逐段确认哨兵。
+
+在原文内联到达前，不再重交验收载荷。
+
+[EOS:wi-73c1e7df69]

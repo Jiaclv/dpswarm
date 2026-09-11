@@ -1,0 +1,56 @@
+{
+  "summary": {
+    "run_id": "lg-direct",
+    "arm": "lg",
+    "task": "direct",
+    "wall_seconds": 29.05,
+    "final": "single",
+    "result": "success",
+    "error": null,
+    "actions": [
+      "single"
+    ],
+    "items": [
+      {
+        "item": "wi-767e0eb492",
+        "outcome": "accepted",
+        "events": 1
+      }
+    ],
+    "lead_tokens": 2080,
+    "protocol_failures": 0,
+    "protocol_failure_detail": []
+  },
+  "outcome": {
+    "task": "直接回答（无需拆分）：一个进程内两个线程共享同一把读写锁时，写锁被持有期间读锁能否被获取？一句话给出结论与理由。",
+    "bucket": "overall",
+    "items": [
+      {
+        "item": "wi-767e0eb492",
+        "outcome": "accepted",
+        "events": 1
+      }
+    ],
+    "actions": [
+      "single"
+    ],
+    "final": "single",
+    "result_text": "不能：写锁被持有期间读锁无法被获取，因为读写锁要求读写互斥——只要有写者持有锁，其他任何读者（以及写者）的加锁请求都会被阻塞，直到写者释放锁后读者才能继续。",
+    "phase": "finalized",
+    "outcome": "success",
+    "result": "success",
+    "stop_reason": "completed",
+    "candidate": {
+      "candidate_id": "cand-4ae3b5fa82",
+      "contract_version": "3d8ccdb83ea9",
+      "selected_submission_package_ids": [
+        "dep-082f4db53e"
+      ],
+      "artifact_manifest": [
+        "dep-082f4db53e"
+      ],
+      "bundle_digest": "18d55788e6d1ef04",
+      "drift": []
+    }
+  }
+}

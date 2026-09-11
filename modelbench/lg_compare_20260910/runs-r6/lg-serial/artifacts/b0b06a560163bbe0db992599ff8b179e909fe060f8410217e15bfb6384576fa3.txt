@@ -1,0 +1,95 @@
+## 子任务 B 工作报告（worker → Lead）
+
+**状态：⏸ 受阻待依赖（deps=[0] 未满足）**
+
+任务规格明确要求：「用例里的 schema 必须**逐字引用 A 的交付**」且 B 必须等 A 验收后才能开始。当前我未收到 A 验收后的 schema 文本，因此 **doctest 用例无法定稿**。为压缩串行等待时间，我已先行交付**与具体 schema 无关的通用校验器主体**（schema 是函数入参，实现逻辑不依赖 A 的原文），doctest 留出逐字引用插槽，A 交付一到即可在 5 分钟内收束本子任务。
+
+---
+
+### 已就绪部分：`validate_record` 主体（纯标准库）
+
+```python
+import re
+from decimal import Decimal
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """按 JSON Schema 子集校验 record，返回违规信息列表（空列表 = 通过）。
+
+    支持关键字：type（含可空联合类型）、properties、required、
+    pattern、minLength、minimum/maximum、multipleOf（两位小数）、items。
+
+    >>> validate_record(VALID_RECORD, MINI_LEDGER_SCHEMA)   # 占位：待 A 验收后逐字替换
+    []
+    >>> validate_record(BAD_CURRENCY_RECORD, MINI_LEDGER_SCHEMA)
+    ['record.currency: 不匹配模式 ...']                       # 占位：以 A 的 schema 定稿后回填
+    >>> validate_record(BAD_AMOUNT_RECORD, MINI_LEDGER_SCHEMA)
+    [...]                                                     # 占位：以 A 的 schema 定稿后回填
+    """
+    errors: list[str] = []
+    if not isinstance(record, dict):
+        return [f"record: 期望 object, 实际为 {type(record).__name__}"]
+    _check(record, schema, "record", errors)
+    return errors
+
+
+_TYPES = {
+    "string": lambda v: isinstance(v, str),
+    "boolean": lambda v: isinstance(v, bool),
+    "number": lambda v: isinstance(v, (int, float)) and not isinstance(v, bool),
+    "integer": lambda v: isinstance(v, int) and not isinstance(v, bool),
+    "array": lambda v: isinstance(v, list),
+    "object": lambda v: isinstance(v, dict),
+    "null": lambda v: v is None,
+}
+
+
+def _check(value, schema: dict, path: str, errors: list[str]) -> None:
+    declared = schema.get("type")
+    if declared is not None:
+        names = declared if isinstance(declared, list) else [declared]
+        if not any(_TYPES[n](value) for n in names):
+            errors.append(
+                f"{path}: 类型不符, 期望 {'/'.join(names)}, 实际为 {type(value).__name__}"
+            )
+            return
+    if value is None:
+        return
+    if isinstance(value, str):
+        if "pattern" in schema and not re.search(schema["pattern"], value):
+            errors.append(f"{path}: 不匹配模式 {schema['pattern']!r}")
+        if "minLength" in schema and len(value) < schema["minLength"]:
+            errors.append(f"{path}: 长度 {len(value)} < minLength {schema['minLength']}")
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        if "minimum" in schema and value < schema["minimum"]:
+            errors.append(f"{path}: {value} < minimum {schema['minimum']}")
+        if "maximum" in schema and value > schema["maximum"]:
+            errors.append(f"{path}: {value} > maximum {schema['maximum']}")
+        if "multipleOf" in schema:
+            q = Decimal(str(value)) / Decimal(str(schema["multipleOf"]))
+            if q != q.to_integral_value():
+                errors.append(
+                    f"{path}: {value} 不是 {schema['multipleOf']} 的整数倍(小数位超限)"
+                )
+    if isinstance(value, list) and "items" in schema:
+        for i, item in enumerate(value):
+            _check(item, schema["items"], f"{path}[{i}]", errors)
+    if isinstance(value, dict):
+        for req in schema.get("required", []):
+            if req not in value:
+                errors.append(f"{path}: 缺少必填字段 {req!r}")
+        for key, sub in schema.get("properties", {}).items():
+            if key in value:
+                _check(value[key], sub, f"{path}.{key}", errors)
+```
+
+### 待定稿部分（需 A 的验收文本）
+
+三个 doctest 用例的骨架已备好，仅差 schema 插槽：
+1. **通过用例**：`{"id": "r1", "amount": 12.34, "currency": "CNY", "tags": ["food"]}` → 期望 `[]`
+2. **currency 违例**：`currency: "c1"`（非三字母）→ 期望命中 pattern 违规
+3. **amount/tags 违例**：`amount: 1.234`（非两位小数）+ `tags: "food"`（非数组）→ 期望命中对应两条违规
+
+### 请 Lead 协调
+
+> **请求：转发子任务 A 验收后的 schema ```json 全文**。收到后我将逐字填入 `MINI_LEDGER_SCHEMA` 常量与 doctest，跑 `doctest` 确认 3/3 通过，随即回报 accept-ready。在此之前本子任务不关闭，不再向下裂变。

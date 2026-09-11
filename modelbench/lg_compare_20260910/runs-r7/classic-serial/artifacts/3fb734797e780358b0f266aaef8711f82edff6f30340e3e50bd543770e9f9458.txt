@@ -1,0 +1,138 @@
+# 子任务 B 交付：`validate_record`（依赖已验收的子任务 A）
+
+**前置确认**：以下实现严格依据子任务 A 验收通过的 schema 文本（在下方代码块中原样引用，doctest 内亦逐字内联该文本）。
+
+## 子任务 A 验收交付（唯一行为依据，逐字引用）
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MiniLedgerRecord",
+  "type": "object",
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "amount": {"type": "number", "multipleOf": 0.01},
+    "currency": {"type": "string", "pattern": "^[A-Z]{3}$"},
+    "tags": {"type": "array", "items": {"type": "string"}, "nullable": true}
+  }
+}
+```
+
+## 实现（纯标准库，`validator.py`）
+
+```python
+"""迷你记账记录校验器：纯标准库实现，schema 关键字仅支持子任务 A 交付中所用集合。"""
+import re
+from decimal import Decimal
+from typing import Any
+
+_TYPE_MAP = {
+    "object": lambda v: isinstance(v, dict),
+    "array": lambda v: isinstance(v, list),
+    "string": lambda v: isinstance(v, str),
+    "number": lambda v: isinstance(v, (int, float)) and not isinstance(v, bool),
+    "boolean": lambda v: isinstance(v, bool),
+    "null": lambda v: v is None,
+}
+
+
+def _typename(value: Any) -> str:
+    if isinstance(value, bool):
+        return "boolean"
+    if isinstance(value, (int, float)):
+        return "number"
+    if isinstance(value, str):
+        return "string"
+    if isinstance(value, list):
+        return "array"
+    if isinstance(value, dict):
+        return "object"
+    if value is None:
+        return "null"
+    return type(value).__name__
+
+
+def _validate(value: Any, schema: dict, path: str, errors: list[str]) -> None:
+    if schema.get("nullable") and value is None:  # A 中 tags 声明 nullable
+        return
+    t = schema.get("type")
+    if t and not _TYPE_MAP[t](value):
+        errors.append(f"{path}: 期望类型 {t}，实际为 {_typename(value)}")
+        return
+    if isinstance(value, dict):
+        for key in schema.get("required", []):
+            if key not in value:
+                errors.append(f"{path}: 缺少必填字段 '{key}'")
+        props = schema.get("properties", {})
+        if schema.get("additionalProperties") is False:
+            for key in value:
+                if key not in props:
+                    errors.append(f"{path}: 不允许的额外字段 '{key}'")
+        for key, sub in props.items():  # dict 保序：错误顺序确定
+            if key in value:
+                _validate(value[key], sub, f"{path}.{key}", errors)
+    if isinstance(value, str):
+        if "minLength" in schema and len(value) < schema["minLength"]:
+            errors.append(f"{path}: 长度 {len(value)} 小于 minLength {schema['minLength']}")
+        if "pattern" in schema and re.search(schema["pattern"], value) is None:
+            errors.append(f"{path}: 值 {value!r} 不匹配模式 {schema['pattern']!r}")
+    if isinstance(value, list):
+        item_schema = schema.get("items", {})
+        for i, item in enumerate(value):
+            _validate(item, item_schema, f"{path}[{i}]", errors)
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        if "multipleOf" in schema:
+            m = Decimal(str(schema["multipleOf"]))
+            if Decimal(str(value)) % m != 0:  # Decimal 精确判断两位小数
+                errors.append(f"{path}: 值 {value} 不是 {schema['multipleOf']} 的整数倍")
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验记账记录是否符合子任务 A 的 schema；返回违规列表，空列表即通过。
+
+    schema 文本逐字取自子任务 A 的交付代码块。
+
+    >>> import json
+    >>> schema = json.loads(""" \\
+    ... {
+    ...   "$schema": "http://json-schema.org/draft-07/schema#",
+    ...   "title": "MiniLedgerRecord",
+    ...   "type": "object",
+    ...   "required": ["id", "amount", "currency", "tags"],
+    ...   "additionalProperties": false,
+    ...   "properties": {
+    ...     "id": {"type": "string", "minLength": 1},
+    ...     "amount": {"type": "number", "multipleOf": 0.01},
+    ...     "currency": {"type": "string", "pattern": "^[A-Z]{3}$"},
+    ...     "tags": {"type": "array", "items": {"type": "string"}, "nullable": true}
+    ...   }
+    ... }
+    ... """)
+    >>> validate_record({"id": "r-001", "amount": 129.99, "currency": "CNY", "tags": ["food", "travel"]}, schema)
+    []
+    >>> validate_record({"id": 7, "amount": 1.234, "currency": "usd", "tags": []}, schema)
+    ['$.id: 期望类型 string，实际为 number', '$.amount: 值 1.234 不是 0.01 的整数倍', "$.currency: 值 'usd' 不匹配模式 '^[A-Z]{3}$'"]
+    >>> validate_record({"id": "r-002", "amount": 10.5, "currency": "USD", "tags": None, "note": "x"}, schema)
+    ["$: 不允许的额外字段 'note'"]
+
+    （第 3 例同时覆盖：tags 为 null 时经 nullable 放行、amount 整数倍校验对 10.5 放行、additionalProperties 拒绝多余字段。）
+    """
+    errors: list[str] = []
+    _validate(record, schema, "$", errors)
+    return errors
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=False)
+```
+
+## 交付说明（要点）
+
+1. **依赖关系**：仅在 A 验收后开工；schema 全文未做任何增删改，doctest 内三处逐字内联同一文本，可 `diff` 核对。
+2. **关键字覆盖**：实现范围恰好为 A 所用关键字（`type`/`required`/`properties`/`additionalProperties`/`minLength`/`pattern`/`items`/`multipleOf`/`nullable`），未引入 schema 未承诺的行为。
+3. **两位小数**：用 `decimal.Decimal` 做整数倍判断，规避 `float` 二进制误差（如 `0.1+0.2` 类陷阱）。
+4. **确定性**：`dict` 保序遍历，同一输入的错误列表顺序稳定，便于 doctest 与验收比对。
+5. **收束**：本 subtask 完成即达 deps=[0] 链路终点，无进一步裂变需求，交 Lead 验收决策。

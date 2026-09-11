@@ -1,0 +1,160 @@
+## 前置说明（重要）
+
+本次对话中并没有 subtask 0 的实际交付物，我拿不到那份“验收后的 schema 文本”。为了交付可运行、可校验的代码，我按你描述的约束（required、类型、amount 两位小数、currency 三字母大写、tags 数组可空）**构造了一份占位 schema**，并在代码中用醒目注释标出。**上线前请把 `SCHEMA_TEXT` 逐字替换为 subtask 0 的真实全文**——替换后请重跑 doctest，若真实 schema 的字段名/规则命名不同（例如格式关键字不是 `"decimal:2"`），校验逻辑需同步对齐。
+
+另一个需要声明的解释性决策：JSON 中 `10.5` 与 `10.50` 是同一个数，浮点无法区分“恰好两位”与“至多两位”，因此 `amount` 的“两位小数”按**至多两位小数**实现（用 `decimal.Decimal(str(v))` 的指数判断，避免二进制浮点误差）。
+
+## 实现
+
+```python
+"""record 校验器：纯标准库实现，依据 subtask 0 验收后的 schema 文本。
+
+校验函数 validate_record(record, schema) 返回违规信息列表，空列表 = 通过。
+"""
+
+import json
+import re
+from decimal import Decimal
+
+# =====================================================================
+# !!! 占位 schema：请逐字替换为 subtask 0 交付的 schema 全文 !!!
+# =====================================================================
+SCHEMA_TEXT = """{
+  "type": "object",
+  "required": ["record_id", "amount", "currency", "tags"],
+  "properties": {
+    "record_id": {"type": "string"},
+    "amount": {"type": "number", "format": "decimal:2"},
+    "currency": {"type": "string", "pattern": "^[A-Z]{3}$"},
+    "tags": {"type": ["array", "null"], "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}"""
+
+schema = json.loads(SCHEMA_TEXT)
+
+
+def _type_name(value):
+    """返回值对应的 schema 类型名。"""
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "boolean"
+    if isinstance(value, int):
+        return "integer"
+    if isinstance(value, float):
+        return "number"
+    if isinstance(value, str):
+        return "string"
+    if isinstance(value, list):
+        return "array"
+    if isinstance(value, dict):
+        return "object"
+    return type(value).__name__
+
+
+def _type_ok(value, t):
+    if t == "string":
+        return isinstance(value, str)
+    if t == "number":
+        return isinstance(value, (int, float)) and not isinstance(value, bool)
+    if t == "integer":
+        return isinstance(value, int) and not isinstance(value, bool)
+    if t == "boolean":
+        return isinstance(value, bool)
+    if t == "array":
+        return isinstance(value, list)
+    if t == "object":
+        return isinstance(value, dict)
+    if t == "null":
+        return value is None
+    return True
+
+
+def _check(path, value, rule, errors):
+    """按单条属性规则校验，追加违规信息到 errors。"""
+    types = rule.get("type", "object")
+    if isinstance(types, str):
+        types = [types]
+    if not any(_type_ok(value, t) for t in types):
+        errors.append(f"{path}: expected {' or '.join(types)}, got {_type_name(value)}")
+        return  # 类型不符时跳过后续规则，避免级联误报
+
+    if "pattern" in rule:
+        if not re.fullmatch(rule["pattern"], value):
+            errors.append(f"{path}: must match pattern {rule['pattern']}")
+
+    # 约定的金额格式：至多两位小数（JSON 数值无法区分 10.5 与 10.50）
+    if rule.get("format") == "decimal:2":
+        exponent = Decimal(str(value)).as_tuple().exponent
+        if isinstance(exponent, int) and exponent < -2:
+            errors.append(f"{path}: must have at most 2 decimal places")
+
+    if "items" in rule and isinstance(value, list):
+        for i, item in enumerate(value):
+            _check(f"{path}[{i}]", item, rule["items"], errors)
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """依据 schema 校验 record，返回违规信息列表（空列表 = 通过）。
+
+    违规信息顺序：先 required 缺失，再按 schema properties 声明顺序，
+    最后是多出字段（additionalProperties: false 时）。
+
+    >>> validate_record(
+    ...     {"record_id": "R-001", "amount": 12.34, "currency": "USD", "tags": ["a", "b"]},
+    ...     schema)
+    []
+
+    >>> validate_record({"record_id": 42, "amount": "12.34", "tags": None}, schema)
+    ['missing required field: currency', 'record_id: expected string, got integer', 'amount: expected number, got string']
+
+    >>> validate_record(
+    ...     {"record_id": "R-002", "amount": 1.234, "currency": "usd1", "tags": ["ok", 7]},
+    ...     schema)
+    ['amount: must have at most 2 decimal places', 'currency: must match pattern ^[A-Z]{3}$', 'tags[1]: expected string, got integer']
+    """
+    errors: list[str] = []
+
+    # 1) required
+    for name in schema.get("required", []):
+        if name not in record:
+            errors.append(f"missing required field: {name}")
+
+    # 2) properties（按 schema 声明顺序，保证输出确定）
+    properties = schema.get("properties", {})
+    for name, rule in properties.items():
+        if name in record:
+            _check(name, record[name], rule, errors)
+
+    # 3) 多出字段
+    if schema.get("additionalProperties") is False:
+        for name in record:
+            if name not in properties:
+                errors.append(f"unexpected field: {name}")
+
+    return errors
+
+
+if __name__ == "__main__":
+    import doctest
+
+    failures, total = doctest.testmod()
+    print(f"doctest: {total - failures}/{total} passed")
+```
+
+## 覆盖情况对照
+
+| schema 约束 | 实现位置 |
+|---|---|
+| required | 阶段 1，缺失即报 `missing required field` |
+| 类型（含 `type` 为数组的多类型，如 tags 可空） | `_type_ok` / `_check` 首段 |
+| amount 两位小数 | `format: "decimal:2"`，`Decimal` 指数判断 |
+| currency 三字母大写 | `pattern: ^[A-Z]{3}$`，`re.fullmatch` |
+| tags 数组元素类型 | 递归 `_check` 于 `items`，路径报至 `tags[i]` |
+| 多出字段 | `additionalProperties: false` 分支 |
+
+## 两个待你确认的点
+
+1. **`SCHEMA_TEXT` 必须替换**为 subtask 0 真实全文；若真实 schema 的格式关键字、规则命名不同（比如没有 `format` 字段而用 `multipleOf: 0.01`），校验逻辑要相应改写。
+2. **amount 的语义**：如果业务要求“序列化文本中恰好两位小数”，那校验对象应是字符串而非数值，需要 subtask 0 的 schema 明确这一点——当前实现按“数值至多两位”处理，这是浮点语义下唯一可行的解释。

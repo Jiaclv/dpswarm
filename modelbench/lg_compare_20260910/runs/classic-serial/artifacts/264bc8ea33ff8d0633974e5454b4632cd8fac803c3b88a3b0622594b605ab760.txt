@@ -1,0 +1,102 @@
+## 状态：再次阻塞 —— 但阻塞范围已收窄到唯一一项，其余交付物已全部完成
+
+### 1. 重试前置条件核验：未满足
+
+处置指令为 fix-context-and-retry，声称「A 的 schema 原文已注入 B 的上下文」。实际核验结果：我的工作上下文中**只有指针 `pkg://wi-ce1ee0e1dd-r1/49a4c3104720`，没有 schema 原文内容本身**。我作为执行者没有从包地址取回内容的通道，「已重建」的断言与我的实际输入不符。
+
+因此我仍然**不能**产出「逐字引用 A schema」的 doctest——如果我编造一份 schema 并声称逐字引用，就是原样重犯上一轮被正确打回的错误，且这次是在明知的情况下重犯。
+
+### 2. 不依赖 schema 原文的交付物（本次全部完成）
+
+子任务中唯一不依赖 schema 字面文本的部分是 `validate_record` 实现。它已按预承诺规范完成，**A 的 schema 一旦真正到位，无需改动实现，只填 doctest 即可验收**。
+
+```python
+import re
+
+_TYPE_CHECKS = {
+    "object":  lambda v: isinstance(v, dict),
+    "array":   lambda v: isinstance(v, list),
+    "string":  lambda v: isinstance(v, str),
+    "integer": lambda v: isinstance(v, int) and not isinstance(v, bool),
+    "number":  lambda v: isinstance(v, (int, float)) and not isinstance(v, bool),
+    "boolean": lambda v: isinstance(v, bool),
+    "null":    lambda v: v is None,
+}
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验 record 是否符合 schema。返回错误列表，空列表 = 通过。
+
+    错误格式固定为 "<字段路径>: <原因>"，路径用点号分隔，
+    数组元素用索引（如 items.0.name）。根路径记为 "record"。
+    校验顺序固定：先缺字段 → 后类型 → 后额外约束。
+    """
+    errors: list[str] = []
+    _collect_missing(record, schema, "record", errors)   # 第一遍：缺字段
+    _check_node(record, schema, "record", errors)        # 第二遍：类型+约束
+    return errors
+
+
+def _collect_missing(value, schema, path, errors):
+    if schema.get("type") == "object" and isinstance(value, dict):
+        for key in schema.get("required", []):
+            if key not in value:
+                errors.append(f"{path}.{key}: 缺失必填字段")
+        for key, sub in schema.get("properties", {}).items():
+            if key in value:
+                _collect_missing(value[key], sub, f"{path}.{key}", errors)
+    elif schema.get("type") == "array" and isinstance(value, list):
+        item_schema = schema.get("items", {})
+        for i, item in enumerate(value):
+            _collect_missing(item, item_schema, f"{path}.{i}", errors)
+
+
+def _check_node(value, schema, path, errors):
+    t = schema.get("type")
+    if t is not None:
+        check = _TYPE_CHECKS.get(t)
+        if check is None or not check(value):
+            errors.append(f"{path}: 类型应为 {t}，实际为 {type(value).__name__}")
+            return  # 类型不符时不再深入，避免雪崩式误报
+    if "enum" in schema and value not in schema["enum"]:
+        errors.append(f"{path}: 值不在枚举 {schema['enum']} 内")
+    if t == "string":
+        if "minLength" in schema and len(value) < schema["minLength"]:
+            errors.append(f"{path}: 长度应 ≥ {schema['minLength']}")
+        if "maxLength" in schema and len(value) > schema["maxLength"]:
+            errors.append(f"{path}: 长度应 ≤ {schema['maxLength']}")
+        if "pattern" in schema and not re.search(schema["pattern"], value):
+            errors.append(f"{path}: 不匹配模式 {schema['pattern']}")
+    if t in ("integer", "number"):
+        if "minimum" in schema and value < schema["minimum"]:
+            errors.append(f"{path}: 应 ≥ {schema['minimum']}")
+        if "maximum" in schema and value > schema["maximum"]:
+            errors.append(f"{path}: 应 ≤ {schema['maximum']}")
+    if t == "object":
+        for key, sub in schema.get("properties", {}).items():
+            if key in value:
+                _check_node(value[key], sub, f"{path}.{key}", errors)
+    if t == "array" and "items" in schema:
+        for i, item in enumerate(value):
+            _check_node(item, schema["items"], f"{path}.{i}", errors)
+```
+
+### 3. doctest：3 个用例的槽位已就绪，等待唯一缺失输入
+
+```python
+# ==== 待填充：以下 3 个 doctest 的 schema 必须逐字粘贴 A 的交付原文 ====
+
+# >>> schema_a = {{SCHEMA_A_原文_逐字粘贴处}}
+# >>> validate_record(<符合用例1的record>, schema_a)
+# []
+# >>> validate_record(<缺字段用例的record>, schema_a)
+# ['record.<字段>: 缺失必填字段']
+# >>> validate_record(<类型/约束违规用例的record>, schema_a)
+# ['record.<字段>: <原因>']
+```
+
+（预期输出行将按 A 原文实际结构回填；本地另跑了非 A 的样例 schema 做冒烟自测，实现逻辑已验证可用，但该样例**不**作为交付 doctest，以免混淆「逐字引用」边界。）
+
+### 4. 给编排方的精确请求
+
+请把 `pkg://wi-ce1ee0e1dd-r1/49a4c3104720` 指向的 schema 以**字面文本**粘贴进派发 prompt（而非只给包地址）。原文到位后，我在下一轮即可交付完整成果，无需再次打回。除这一项外，子任务 B 无其他阻塞。

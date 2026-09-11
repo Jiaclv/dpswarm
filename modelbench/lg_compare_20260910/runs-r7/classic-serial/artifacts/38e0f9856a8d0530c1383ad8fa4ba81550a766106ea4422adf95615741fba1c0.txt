@@ -1,0 +1,35 @@
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MiniExpenseRecord",
+  "type": "object",
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "exclusiveMinimum": 0
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "tags": {
+      "type": ["array", "null"],
+      "items": { "type": "string" }
+    }
+  }
+}
+```
+
+设计说明：
+1. 四个字段全部 required，且 additionalProperties=false，保证记录结构严格可控，便于子任务 B 做穷尽校验。
+2. amount 用 multipleOf: 0.01 强制两位小数精度，并要求为正数（记账金额不应为 0 或负数，如需支持支出/收入可放宽）。
+3. currency 用 pattern "^[A-Z]{3}$" 约束三字母 ISO 4217 大写代码。
+4. tags 类型声明为 ["array", "null"] 覆盖“可空”语义：可传 null 或字符串数组（可为空数组），数组元素必须是字符串。
+5. 该 schema 结构简单、字段语义可逐一映射为独立检查规则，适合子任务 B 用纯标准库逐字段实现校验器并通过逐字引用做 doctest。

@@ -1,0 +1,50 @@
+## 状态：BLOCKED（阻塞上报，不交付）
+
+**归因：context**。归因处置要求「将 A 验收后的 schema 原文补入上下文后重派」，但本次重派消息中 context 仅附引用句柄（`pkg://wi-59274cdb29-r1/e33b8893c1e7`），**A 验收后的 schema 全文仍未以可读文本出现在我实际收到的上下文中**。我无法逐字引用一段我从未见过的文本；若再次以自拟 schema 填充，即是重蹈打回理由①的同一违规。因此按上轮打回意见明确的正确做法：**阻塞并上报，等待编排方将 A 原文以内联方式贴入重派消息。**
+
+为缩短下一轮交付周期，现将**除 schema 字面量外全部就绪**的实现与用例框架先行备妥（注意：以下为待填充草稿，非交付物，请勿视为重蹈①——占位标记仅用于指示唯一待注入点）：
+
+```python
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验 record 是否符合 schema，返回违规列表（空列表=通过）。
+
+    违规排列顺序：先 required 缺失（按 schema['required'] 声明顺序），
+    后逐 property（按 schema['properties'] 键序）。文档声明与实现一致。
+    """
+    violations: list[str] = []
+    # ① required 缺失，按声明顺序
+    for name in schema.get("required", []):
+        if name not in record:
+            violations.append(f"missing required field: {name}")
+    # ② 逐 property，按 schema['properties'] 键序
+    for name, prop in schema.get("properties", {}).items():
+        if name not in record:
+            continue
+        value = record[name]
+        if "type" in prop:
+            checks = {
+                "string": lambda v: isinstance(v, str),
+                "integer": lambda v: isinstance(v, int) and not isinstance(v, bool),
+                "number": lambda v: isinstance(v, (int, float)) and not isinstance(v, bool),
+                "boolean": lambda v: isinstance(v, bool),
+            }
+            if not checks.get(prop["type"], lambda v: True)(value):
+                violations.append(f"{name}: expected type {prop['type']}")
+                continue
+        if isinstance(value, (int, float)) and not isinstance(value, bool) \
+                and "minimum" in prop and value < prop["minimum"]:
+            violations.append(f"{name}: {value} < minimum {prop['minimum']}")
+        if isinstance(value, str) and "maxLength" in prop \
+                and len(value) > prop["maxLength"]:
+            violations.append(
+                f"{name}: length {len(value)} > maxLength {prop['maxLength']}")
+    return violations
+```
+
+用例框架要点（待 A 原文注入后即成稿）：
+
+- 3 个 doctest 的 schema 位置统一使用标记 `SCHEMA_FROM_TASK_A_VERBATIM`，届时**逐字粘贴 A 交付文本，零改写**；
+- 每个用例期望输出均为**单行列表 repr**（修正打回理由④）；
+- 用例设计将覆盖：全通过（期望 `[]`）、required 缺失 + property 违规**并存**（验证 required 在前的排列，修正打回理由③）、property 类型/边界违规。
+
+**请求编排方**：请在重派消息中把 A 验收后的 schema 全文以内联文本贴入（而非仅给引用句柄）。收到后我将在同一轮内完成注入、逐条自跑 doctest 验证（修正打回理由②的不可运行问题），再行交付。

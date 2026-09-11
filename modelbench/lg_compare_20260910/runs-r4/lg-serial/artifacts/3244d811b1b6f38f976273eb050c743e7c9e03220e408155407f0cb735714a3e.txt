@@ -1,0 +1,156 @@
+# 子任务 B 交付：`validate_record` 手写校验器
+
+## 交付说明
+
+- 依据：仅实现 L1 层 [wi-ac104bf324] schema 中**实际出现**的关键字（`type` / `required` / `additionalProperties` / `minLength` / `minimum` / `multipleOf` / `pattern` / `items` / `default` 不参与校验），不做通用 JSON Schema 解释器，保证确定性。
+- 逐字引用方式：A 的 schema 逐字保真存于模块常量 `SCHEMA`，3 个 doctest 用例均以 `SCHEMA` 为 schema 实参传入，未做任何字面改动。
+- 纯标准库：`re`、`decimal`（用 `Decimal` 做 `multipleOf` 判定，规避 `19.99 % 0.01` 类浮点误差）。
+- 按分工提示，本交付对应 `deps=[0]`，仅在 A 验收后生效。
+
+```python
+# validator_b.py — 子任务 B：迷你记账记录校验器（纯标准库）
+# SCHEMA 逐字引用子任务 A 交付 [wi-ac104bf324]，未改动任何字面内容。
+SCHEMA = {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/mini-ledger-record.json",
+  "title": "迷你记账记录",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "记录唯一标识"
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "minimum": 0,
+      "description": "金额，最多两位小数"
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "ISO 4217 三字母货币代码"
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "default": [],
+      "description": "标签，可为空数组"
+    }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": False  # JSON 的 false 对应 Python 的 False
+}
+
+import re
+from decimal import Decimal
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验单条迷你记账记录，返回违规信息列表（空列表 = 通过）。
+
+    仅实现 SCHEMA 中出现的关键字，违规消息按
+    required → additionalProperties → 各属性定义顺序 产出。
+
+    用例 1：完全合法的记录（含金额两位小数、非空 tags）→ 通过
+    >>> validate_record(
+    ...     {"id": "t1", "amount": 19.99, "currency": "CNY", "tags": ["food", "lunch"]},
+    ...     SCHEMA)
+    []
+
+    用例 2：多字段违规（id 空串、amount 为负、currency 小写、
+    缺 tags、多出未知字段 extra）→ 一次性报告全部违规
+    >>> validate_record(
+    ...     {"id": "", "amount": -1.2, "currency": "cny", "extra": 1},
+    ...     SCHEMA)
+    ['缺少必填字段: tags', '未知字段: extra', 'id: 长度小于 minLength 1', 'amount: 小于 minimum 0', "currency: 不匹配 pattern '^[A-Z]{3}$'"]
+
+    用例 3：合法记录但 tags 内含空串元素 → 仅报元素级违规
+    >>> validate_record(
+    ...     {"id": "t3", "amount": 0, "currency": "USD", "tags": ["ok", ""]},
+    ...     SCHEMA)
+    ['tags[1]: 长度小于 minLength 1']
+    """
+    errors: list[str] = []
+    if schema.get("type") == "object" and not isinstance(record, dict):
+        return ["根节点: 期望 object"]
+
+    # required：四字段全必填（按 schema 声明顺序）
+    for key in schema.get("required", []):
+        if key not in record:
+            errors.append(f"缺少必填字段: {key}")
+
+    # additionalProperties: false → 拒绝未知字段
+    if schema.get("additionalProperties") is False:
+        allowed = schema.get("properties", {})
+        for key in record:
+            if key not in allowed:
+                errors.append(f"未知字段: {key}")
+
+    # 逐属性校验（按 properties 声明顺序）
+    for key, sub in schema.get("properties", {}).items():
+        if key not in record:
+            continue
+        errors.extend(_validate_value(key, record[key], sub))
+    return errors
+
+
+def _validate_value(path: str, value, sub: dict) -> list[str]:
+    """按单个属性 schema 校验值，返回该属性的违规信息列表。"""
+    errors: list[str] = []
+    t = sub.get("type")
+    if t == "string":
+        if not isinstance(value, str):
+            errors.append(f"{path}: 期望 string")
+            return errors
+        min_len = sub.get("minLength")
+        if min_len is not None and len(value) < min_len:
+            errors.append(f"{path}: 长度小于 minLength {min_len}")
+        pat = sub.get("pattern")
+        if pat is not None and re.search(pat, value) is None:
+            errors.append(f"{path}: 不匹配 pattern {pat!r}")
+    elif t == "number":
+        # bool 是 int 子类，需显式排除
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            errors.append(f"{path}: 期望 number")
+            return errors
+        minimum = sub.get("minimum")
+        if minimum is not None and value < minimum:
+            errors.append(f"{path}: 小于 minimum {minimum}")
+        multiple = sub.get("multipleOf")
+        if multiple is not None:
+            # Decimal 判定，规避二进制浮点余数误差（如 19.99 % 0.01）
+            if Decimal(str(value)) % Decimal(str(multiple)) != 0:
+                errors.append(f"{path}: 不是 multipleOf {multiple} 的整数倍")
+    elif t == "array":
+        if not isinstance(value, list):
+            errors.append(f"{path}: 期望 array")
+            return errors
+        items = sub.get("items")
+        if items is not None:
+            for i, item in enumerate(value):
+                errors.extend(_validate_value(f"{path}[{i}]", item, items))
+    return errors
+
+
+if __name__ == "__main__":
+    import doctest
+    results = doctest.testmod(verbose=False)
+    print(f"doctest: {results.attempted} ran, {results.failed} failed")
+```
+
+## 运行结果
+
+```
+$ python validator_b.py
+doctest: 3 ran, 0 failed
+```
+
+## 设计要点（≤10 行）
+
+1. 关键字按 A 交付逐一硬编码支持，未支持关键字静默忽略——因 schema 已验收冻结，无未支持关键字，行为完全确定。
+2. `multipleOf` 用 `Decimal(str(x)) % Decimal('0.01')` 判定，`19.99`、`0`、`-1.2`（整倍数）均正确通过/拒绝，规避 `0.30000000000000004` 类浮点陷阱。
+3. `bool` 显式排除出 `number`（Python 中 `True` 是 `int` 子类），避免 `"amount": true` 被误判为数值。
+4. 违规消息带字段路径（`tags[1]`），元素级违规可定位；校验不短路，单次调用报告全部违规。
+5. 三个 doctest 分别覆盖：全合法路径、五类违规一次性聚合、数组元素级违规。

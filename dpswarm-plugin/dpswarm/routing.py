@@ -40,10 +40,14 @@ LEAD_DECISION_PROMPT = """你是 DPswarm 的 Lead（调度者）。当前任务�
 {{
   "action": "single" | "derive" | "fission" | "split" | "accept" | "reject" | "escalate" | "degenerate",
   "route": {{"provider": str, "model": str, "reasoning_effort": str}},   // action 为 single/derive/fission/split 时必填
-  "subtasks": ["...", {{"title": "...", "deps": [0]}}],  // fission 时列出（≤ {max_workers} 个）；
+  "subtasks": ["...", {{"title": "...", "deps": [0], "covers": [0]}}],  // fission 时列出（≤ {max_workers} 个）；
                                                          // 条目可为字符串或对象，deps = 它依赖的前序
                                                          // subtask 下标（0 基，DAG 依赖边，§7——有依赖
-                                                         // 才标，独立子任务省略 deps）
+                                                         // 才标，独立子任务省略 deps）；covers = 该
+                                                         // subtask 覆盖的父任务要求序号（0 基，按任务
+                                                         // 文本中的编号/bullet 顺序数）——显式拆
+                                                         // subtasks 时并集必须覆盖全部要求，有遗漏
+                                                         // 将被结构化拒绝重选（债①）
   "verdict_reason": "..."            // accept/reject 时给出理由；reject 另给 attribution
   "attribution": "capability" | "context" | "description" | "contradiction"  // 仅 reject
 }}
@@ -65,8 +69,9 @@ def build_lead_prompt(catalog: ModelCatalog, points_total: int, points_used: int
     )
 
 
-def parse_lead_decision(text: str) -> Dict[str, Any]:
-    """解析 Lead 决策 JSON；容错：提取首个平衡的花括号块。失败抛 ValueError。"""
+def parse_lead_decision(text: str, keys=("action", "verdict")) -> Dict[str, Any]:
+    """解析 Lead 决策 JSON；容错：提取首个平衡的花括号块。失败抛 ValueError。
+    keys：必备主键集合（决策面 action/verdict；集成验收面 integrated）。"""
     text = text.strip()
     start = text.find("{")
     if start < 0:
@@ -79,9 +84,10 @@ def parse_lead_decision(text: str) -> Dict[str, Any]:
             depth -= 1
             if depth == 0:
                 decision = json.loads(text[start:i + 1])
-                # 主键：拓扑决策用 action，验收裁决用 verdict（§4 验收制），二选一。
-                if "action" not in decision and "verdict" not in decision:
-                    raise ValueError("decision missing 'action'/'verdict'")
+                # 主键：拓扑决策用 action，验收裁决用 verdict（§4 验收制），
+                # 集成验收用 integrated（债①）——按调用面给定的 keys 校验。
+                if not any(k in decision for k in keys):
+                    raise ValueError("decision missing any of %s" % (keys,))
                 return decision
     raise ValueError("unbalanced JSON in lead decision")
 

@@ -1,0 +1,161 @@
+# 打回整改 · 子任务 B 重新交付（处置：fix-description-and-retry）
+
+## 整改说明（对照打回理由逐条修复）
+
+1. **补全 validate_record 函数体**：`properties` / `required` / `additionalProperties` 各分支及 `return` 全部实现，代码可独立运行，3 个 doctest 均可执行（`python validator.py` 或 `python -m doctest validator.py -v` 验证通过）。
+2. **schema 恢复为上游 [wi-14b1346acc] 逐字原文**：恢复 `$id` 与全部 `description`；`currency` 恢复为 `pattern: "^[A-Z]{3}$"`；`tags` 恢复为 `type: ["array", "null"]`；`required` 恢复为 `["id", "amount", "currency"]`（不含 `tags`）。
+3. **doctest 期望输出全部基于逐字引用的 A 版 schema**：用例 2 走 `pattern` 判罚路径（大写三字母约束），用例 3 覆盖 `tags: null` 合法分支与 `tags` 可缺省语义。
+
+## 交付：validator.py（完整全文）
+
+```python
+"""validator.py — 迷你记账记录校验器（纯标准库实现）。
+
+SCHEMA_TEXT 逐字引用子任务 A（wi-14b1346acc）验收通过的 schema 全文，
+未做任何增删改。仅依赖 json / re / decimal / doctest，均为标准库。
+"""
+import json
+import re
+from decimal import Decimal
+
+# ↓↓↓ 以下为 A 的交付原文，逐字保留 ↓↓↓
+SCHEMA_TEXT = """{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/mini-ledger-record.json",
+  "title": "迷你记账记录",
+  "description": "迷你记账记录：id、amount、currency 必填；tags 可缺省，出现时可为字符串数组或 null。",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "记录唯一标识，非空字符串。"
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "description": "金额，数值，最多两位小数。"
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "三字母货币代码，必须为三个大写字母。"
+    },
+    "tags": {
+      "type": ["array", "null"],
+      "items": { "type": "string" },
+      "description": "标签字符串数组，可为 null。"
+    }
+  },
+  "required": ["id", "amount", "currency"],
+  "additionalProperties": false
+}"""
+# ↑↑↑ A 的交付原文结束 ↑↑↑
+
+SCHEMA = json.loads(SCHEMA_TEXT)
+
+
+def _type_ok(value, expected):
+    if expected == "object":
+        return isinstance(value, dict)
+    if expected == "array":
+        return isinstance(value, list)
+    if expected == "string":
+        return isinstance(value, str)
+    if expected == "number":
+        return isinstance(value, (int, float)) and not isinstance(value, bool)
+    if expected == "integer":
+        return isinstance(value, int) and not isinstance(value, bool)
+    if expected == "boolean":
+        return isinstance(value, bool)
+    if expected == "null":
+        return value is None
+    return True
+
+
+def _validate(value, schema, path):
+    errors: list[str] = []
+    p = f"{path}: " if path else ""
+
+    # type（支持单值或列表，如 tags 的 ["array", "null"]）
+    expected = schema.get("type")
+    if expected is not None:
+        types = expected if isinstance(expected, list) else [expected]
+        if not any(_type_ok(value, t) for t in types):
+            errors.append(f"{p}类型错误：期望 {' 或 '.join(types)}")
+            return errors  # 类型不符时不再深入检查
+
+    # object 分支
+    if isinstance(value, dict):
+        for name in schema.get("required", []):
+            if name not in value:
+                errors.append(f"缺少必填字段 '{name}'")
+        props = schema.get("properties", {})
+        if schema.get("additionalProperties") is False:
+            for name in value:
+                if name not in props:
+                    errors.append(f"出现多余字段 '{name}'（additionalProperties=false）")
+        for name, sub in props.items():
+            if name in value:
+                errors.extend(_validate(value[name], sub, name))
+
+    # array 分支（items 逐元素校验）
+    elif isinstance(value, list):
+        items = schema.get("items")
+        if isinstance(items, dict):
+            for i, item in enumerate(value):
+                errors.extend(_validate(item, items, f"{path}[{i}]" if path else f"[{i}]"))
+
+    # string 约束
+    if isinstance(value, str):
+        if "pattern" in schema and not re.search(schema["pattern"], value):
+            errors.append(f"{p}不匹配模式 '{schema['pattern']}'")
+        if "minLength" in schema and len(value) < schema["minLength"]:
+            errors.append(f"{p}长度不得小于 {schema['minLength']}")
+        if "maxLength" in schema and len(value) > schema["maxLength"]:
+            errors.append(f"{p}长度不得大于 {schema['maxLength']}")
+
+    # number 约束（用 Decimal 避免浮点取模误差）
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        if "multipleOf" in schema:
+            if Decimal(str(value)) % Decimal(str(schema["multipleOf"])) != 0:
+                m = schema["multipleOf"]
+                errors.append(f"{p}必须是 {m} 的整数倍（最多两位小数）")
+
+    return errors
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验 record 是否符合 schema，返回违规信息列表（空列表=通过）。
+
+    支持：type / required / properties / additionalProperties /
+    items / pattern / minLength / maxLength / multipleOf。
+
+    >>> validate_record({"id": "tx-001", "amount": 12.34, "currency": "CNY", "tags": ["food", "lunch"]}, SCHEMA)
+    []
+    >>> validate_record({"id": "tx-002", "amount": 5.0, "currency": "usd"}, SCHEMA)
+    ["currency: 不匹配模式 '^[A-Z]{3}$'"]
+    >>> validate_record({"amount": 1.234, "currency": "JPY", "tags": None}, SCHEMA)
+    ["缺少必填字段 'id'", "amount: 必须是 0.01 的整数倍（最多两位小数）"]
+    """
+    return _validate(record, schema, "")
+
+
+if __name__ == "__main__":
+    import doctest
+    results = doctest.testmod()
+    print(f"doctest: {results.attempted} 项，失败 {results.failed} 项")
+```
+
+## 实现要点（不超过 10 行）
+
+1. `SCHEMA_TEXT` 为 A 的交付原文逐字嵌入，模块加载时 `json.loads` 供 doctest 复用。
+2. 递归实现 `_validate`，统一支持嵌套 `properties` 与数组 `items`，错误信息带路径前缀。
+3. `type` 支持 `["array", "null"]` 列表形式，`tags: null` 判定为合法（用例 3 验证）。
+4. `required` 恰为 `['id','amount','currency']`，`tags` 缺省不报错（用例 2 验证）。
+5. `currency` 走 `re.search('^[A-Z]{3}$')`，小写 `usd` 被判罚（用例 2 验证）。
+6. `multipleOf` 用 `Decimal(str(value)) % Decimal(str(m))` 精确判定两位小数，规避浮点误差。
+7. 错误输出顺序确定：先 `required`，再 `additionalProperties`，后按 `properties` 声明序遍历。
+8. 类型不符时短路返回，不产生级联误报。
+9. 纯标准库：仅 `json` / `re` / `decimal` / `doctest`。
+10. `python validator.py` 可直接运行 3 个 doctest 自验。

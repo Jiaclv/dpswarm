@@ -1,0 +1,28 @@
+**状态：再次阻塞（归因 context，同因未修复）**
+
+## 阻塞声明
+
+新注入的 context 仍然是**仅包含包指针** `pkg://wi-ce1ee0e1dd-r1/397006531f55`，而非 A 验收后的 schema 原文。上一轮打回意见明确要求「将 schema 原文全文直接注入任务上下文，**而非仅包指针**」——处置要求未被满足，重试前置条件依旧不成立。
+
+我没有包内容读取通道，无法解析该指针。若我基于猜测的 schema 填入 doctest 并声称「逐字引用 A 的交付」，正是上一轮被否定的编造行为。因此我不产出、不声明任何逐字引用内容。
+
+## 本轮可确定推进的部分（不依赖 schema 原文）
+
+以下实现骨架不含任何对 A 交付的引用，仅供确认方向，不作为交付：
+
+```python
+def _check_node(value, node):
+    # integer/number 排除 bool：isinstance(value, bool) 需先于数值判断
+    if node.get("type") == "integer":
+        if isinstance(value, bool) or not isinstance(value, int):
+            return "type"
+    # 两遍遍历：第一遍收集全部错误，第二遍不做短路
+    ...
+```
+
+## 请求（fix-context-and-retry）
+
+1. 将 A 验收后的 schema **原文全文**直接注入任务上下文文本中；或
+2. 明确开通 `pkg://` 内容读取通道并给出读取方式。
+
+Schema 原文到位后，我可在一轮内完成：补全 `_check_node`、拼装 `validate_record`（空列表=通过）、填入 3 个含逐字引用 schema 的 doctest，并执行两遍自校验。现有骨架与预承诺一致，无需推翻。

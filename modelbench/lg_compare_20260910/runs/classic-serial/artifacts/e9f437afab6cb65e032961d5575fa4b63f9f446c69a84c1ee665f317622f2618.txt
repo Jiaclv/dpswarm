@@ -1,0 +1,36 @@
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/mini-ledger-record.json",
+  "title": "MiniLedgerRecord",
+  "type": "object",
+  "required": ["id", "amount", "currency"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    }
+  },
+  "additionalProperties": false
+}
+```
+
+设计说明：
+1. `amount` 用 `multipleOf: 0.01` 约束两位小数；注意二进制浮点边界，严格场景建议反序列化层再校验。
+2. `currency` 用 `^[A-Z]{3}$` 匹配 ISO 4217 格式；如需穷举可用 `enum` 列出。
+3. `tags` 非必填即可为空，显式 `default: []`，元素为非空字符串防止空标签。
+4. `id` 仅约束非空，格式（如 UUID）留给上层。
+5. `additionalProperties: false` 保证记录结构封闭，便于校验与演进。

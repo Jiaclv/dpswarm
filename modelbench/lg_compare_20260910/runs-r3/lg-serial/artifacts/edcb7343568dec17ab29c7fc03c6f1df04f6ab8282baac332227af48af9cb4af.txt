@@ -1,0 +1,150 @@
+# 校验器实现（依赖 [wi-f812885965] 已验收 schema）
+
+```python
+# validate_record.py — 纯标准库实现
+# schema 逐字引用子任务 A 交付 [wi-f812885965]
+import re
+from decimal import Decimal
+
+# —— 子任务 A 交付的 schema，逐字引用（[wi-f812885965]）——
+SCHEMA = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://example.com/schemas/bookkeeping-record.json",
+    "title": "BookkeepingRecord",
+    "description": "迷你记账记录",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "string",
+            "description": "记录唯一标识"
+        },
+        "amount": {
+            "type": "number",
+            "multipleOf": 0.01,
+            "minimum": 0,
+            "description": "金额，精确到两位小数"
+        },
+        "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$",
+            "description": "ISO 4217 三字母货币代码"
+        },
+        "tags": {
+            "type": ["array", "null"],
+            "items": { "type": "string" },
+            "description": "标签列表，可为 null"
+        }
+    },
+    "required": ["id", "amount", "currency", "tags"],
+    "additionalProperties": False
+}
+
+
+def _type_name(value):
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "boolean"
+    if isinstance(value, (int, float)):
+        return "number"
+    if isinstance(value, str):
+        return "string"
+    if isinstance(value, list):
+        return "array"
+    if isinstance(value, dict):
+        return "object"
+    return type(value).__name__
+
+
+def _type_ok(value, expected):
+    names = expected if isinstance(expected, list) else [expected]
+    return _type_name(value) in names
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验一条记账记录是否符合 A 交付的 BookkeepingRecord schema。
+
+    返回错误信息列表；空列表表示通过。
+
+    用例 1 —— 合法记录（tags 为列表）：
+
+    >>> validate_record({"id": "r1", "amount": 12.34, "currency": "CNY", "tags": ["food"]}, SCHEMA)
+    []
+
+    用例 2 —— 负金额 + 小写货币码 + tags 为 null（null 是合法类型）：
+
+    >>> validate_record({"id": "r2", "amount": -1, "currency": "cny", "tags": None}, SCHEMA)
+    ['amount: 值 -1 低于 minimum 0', 'currency: 不匹配 pattern ^[A-Z]{3}$']
+
+    用例 3 —— 额外字段 + 金额超两位小数：
+
+    >>> validate_record({"id": "r3", "amount": 0.145, "currency": "USD", "tags": [], "note": "x"}, SCHEMA)
+    ['additionalProperties: 不允许的额外字段 note', 'amount: 值 0.145 不满足 multipleOf 0.01']
+    """
+    errors: list[str] = []
+
+    # 1. 根类型
+    if not _type_ok(record, schema.get("type", "object")):
+        return [f"$: 期望类型 {schema.get('type')}，实际 {_type_name(record)}"]
+
+    # 2. required
+    for key in schema.get("required", []):
+        if key not in record:
+            errors.append(f"required: 缺少必填字段 {key}")
+
+    # 3. additionalProperties: false
+    props = schema.get("properties", {})
+    if schema.get("additionalProperties") is False:
+        for key in record:
+            if key not in props:
+                errors.append(f"additionalProperties: 不允许的额外字段 {key}")
+
+    # 4. 逐属性校验（按 schema 中 properties 的声明顺序）
+    for key, sub in props.items():
+        if key not in record:
+            continue
+        value = record[key]
+
+        if not _type_ok(value, sub.get("type", "object")):
+            errors.append(f"{key}: 期望类型 {sub.get('type')}，实际 {_type_name(value)}")
+            continue
+
+        if "minimum" in sub and value < sub["minimum"]:
+            errors.append(f"{key}: 值 {value} 低于 minimum {sub['minimum']}")
+
+        if "multipleOf" in sub:
+            # 用 Decimal(str(...)) 规避二进制浮点误差，如 0.07 / 0.01
+            if Decimal(str(value)) % Decimal(str(sub["multipleOf"])) != 0:
+                errors.append(f"{key}: 值 {value} 不满足 multipleOf {sub['multipleOf']}")
+
+        if "pattern" in sub and re.search(sub["pattern"], value) is None:
+            errors.append(f"{key}: 不匹配 pattern {sub['pattern']}")
+
+        if sub.get("type") == "array" and "items" in sub:
+            item_type = sub["items"].get("type", "object")
+            for i, item in enumerate(value):
+                if not _type_ok(item, item_type):
+                    errors.append(f"{key}[{i}]: 期望类型 {item_type}，实际 {_type_name(item)}")
+
+    return errors
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=True)
+```
+
+## 实现说明
+
+| schema 约束 | 实现要点 |
+|---|---|
+| `type: ["array", "null"]`（tags） | `_type_ok` 支持类型联合，null 按字面接受 |
+| `multipleOf: 0.01` | `Decimal(str(value)) % Decimal(str(0.01))`，避免 `0.07 / 0.01` 的浮点伪余数误报 |
+| `minimum: 0` | 直接数值比较；`amount` 为负时报错 |
+| `pattern: ^[A-Z]{3}$` | `re.search` 锚定正则 |
+| `required` 四字段 | 缺失即报错，不中断后续检查 |
+| `additionalProperties: false` | 未知字段逐一报错 |
+
+- **校验顺序固定**：根类型 → required → additionalProperties → 按 `properties` 声明顺序逐项，保证 doctest 输出确定。
+- **浮点防御**：`bool` 被排除出 `number`（`isinstance(True, int)` 陷阱），金额判定走 `Decimal` 字符串路径。
+- **零依赖**：仅 `re` 与 `decimal`，均为标准库。

@@ -1,0 +1,41 @@
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/mini-ledger-record.json",
+  "title": "MiniLedgerRecord",
+  "description": "迷你记账记录：一条最小化的收支/消费记录",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "记录唯一标识，非空字符串"
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "description": "金额，精确到两位小数（multipleOf 0.01）"
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "ISO 4217 三字母货币代码，大写"
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "标签数组；允许空数组（可空）"
+    }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+设计说明（≤10 行）：
+1. `amount` 用 `multipleOf: 0.01` 表达“两位小数”约束，比 `pattern` 更语义化；注意 JSON 数值本身无小数位概念。
+2. `currency` 用 `^[A-Z]{3}$` 正则强制三字母大写，对应 ISO 4217。
+3. `tags` 允许空数组即“可空”；元素约束非空字符串，防止空标签污染。
+4. 四个字段均列入 `required`，可空≠可缺失，语义更严格。
+5. `additionalProperties: false` 拒绝未知字段，便于子任务 B 的校验器逐字对齐。
+6. 选用 draft 2020-12，B 的手写校验器只需实现本文档用到的关键字：type/enum 无、required、multipleOf、pattern、minLength、items、additionalProperties。

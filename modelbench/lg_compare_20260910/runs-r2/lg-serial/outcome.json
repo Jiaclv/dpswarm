@@ -1,0 +1,144 @@
+{
+  "summary": {
+    "run_id": "lg-serial",
+    "arm": "lg",
+    "task": "serial",
+    "wall_seconds": 1260.64,
+    "final": null,
+    "error": null,
+    "actions": [
+      "fission",
+      "fission",
+      "fission",
+      "fission",
+      "admission-rejected:route-unavailable",
+      "fission",
+      "fission"
+    ],
+    "items": [
+      {
+        "item": "wi-e6a2d1d480",
+        "outcome": "accepted",
+        "submission": "```json\n{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"title\": \"MiniLedgerRecord\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"id\": {\n      \"type\": \"string\",\n      \"minLength\": 1,\n  "
+      },
+      {
+        "item": "wi-ccac0aa048",
+        "outcome": "escalated",
+        "submission": "# 子任务B 交付：`validate_record` 校验器\n\n依据 [wi-e6a2d1d480] 的 schema 逐字文本实现，纯标准库（`re` + `decimal`），3 个 doctest 用例全部引用模块级常量 `MINI_LEDGER_SCHEMA`（与 A 交付逐字一致）。\n\n```python\n\"\"\"MiniLedgerRecord 校验器。\n\n依据 [wi-e6a2d1d"
+      },
+      {
+        "item": "wi-c28194eb88",
+        "outcome": "accepted",
+        "submission": "# 迷你记账记录 JSON Schema\n\n```json\n{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"$id\": \"https://example.com/schemas/expense-record.json\",\n  \"title\": \"ExpenseRecord\",\n  \"description\": \"迷"
+      },
+      {
+        "item": "wi-5ba9cf76ac",
+        "outcome": "escalated",
+        "submission": "# 子任务 B 交付：`validate_record` 实现\n\n严格依据 L1 逐字层 `[wi-c28194eb88]` 的 schema（JSON Schema 2020-12，required 四字段、additionalProperties=false、multipleOf=0.01、pattern 三字母大写、items minLength≥1），纯标准库实现如下。\n\n```pytho"
+      },
+      {
+        "item": "wi-4fc2b3c721",
+        "outcome": "accepted",
+        "submission": "```json\n{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"$id\": \"https://example.com/schemas/mini-ledger-record.json\",\n  \"title\": \"MiniLedgerRecord\",\n  \"type\": \"object\",\n  \"required\": "
+      },
+      {
+        "item": "wi-35e3d60b6c",
+        "outcome": "escalated",
+        "submission": "# validate_record 实现（子任务 B）\n\n依据 [wi-4fc2b3c721] 逐字 schema（L1 层），纯标准库实现，含 3 个 doctest。\n\n```python\n\"\"\"Mini Accounting Record 校验器。\n\n严格依据上游已验收 schema [wi-4fc2b3c721]（JSON Schema draft 2020-12）实现。\n仅支持该 sch"
+      },
+      {
+        "item": "wi-fb44ba1124",
+        "outcome": "accepted",
+        "submission": "```json\n{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"$id\": \"https://example.com/schemas/expense-record.json\",\n  \"title\": \"ExpenseRecord\",\n  \"description\": \"迷你记账记录\",\n  \"type\": \"obj"
+      },
+      {
+        "item": "wi-c85d0314e7",
+        "outcome": "escalated",
+        "submission": "# 校验器实现：`validate_record`\n\n依据子任务 0 已验收的 ExpenseRecord schema（材料 [wi-fb44ba1124]），纯标准库实现，schema 文本逐字内嵌于 `EXPENSE_RECORD_SCHEMA` 常量。\n\n```python\n# validator.py\n\"\"\"ExpenseRecord 校验器（纯标准库）。\n\n支持的关键字：type（含类"
+      },
+      {
+        "item": "wi-db59989477",
+        "outcome": "accepted",
+        "submission": "```json\n{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"$id\": \"https://example.com/schemas/ledger-entry.json\",\n  \"title\": \"LedgerEntry\",\n  \"description\": \"迷你记账的单条记录\",\n  \"type\": \"obje"
+      },
+      {
+        "item": "wi-f16018af3d",
+        "outcome": "escalated",
+        "submission": "# `validate_record.py` — 纯标准库校验器\n\n严格依据 [wi-db59989477] 验收后的 schema 文本实现，仅支持该 schema 声明中出现的关键字（`type` 含类型联合、`required`、`properties`、`minLength`、`multipleOf`、`pattern`、`items`、`uniqueItems`、`additionalP"
+      }
+    ],
+    "lead_tokens": 40489,
+    "protocol_failures": 1,
+    "protocol_failure_detail": [
+      {
+        "kind": "review",
+        "snippet": "{\"verdict\": \"accept\", \"verdict_reason\": \"schema 完整覆盖四个字段：id(字符串+非空)、amount(number+multipleOf 0.01 实现两位小数)、currency(pattern ^[A-Z]{3}$ 匹配三字母代码)、tags(类型并集 [\\\"arra"
+      }
+    ]
+  },
+  "outcome": {
+    "task": "两阶段串行交付，第二阶段严格依赖第一阶段产出：\n- 子任务 A「schema 设计」：为一个「迷你记账记录」设计 JSON Schema——字段含 id(字符串)、amount(数值，两位小数)、currency(三字母代码)、tags(字符串数组，可空)；交付一个 ```json 代码块（schema 全文）与不超过 10 行的设计说明；\n- 子任务 B「校验器实现」：严格依据 A 验收后的 schema 文本，用纯标准库实现 validate_record(record: dict, schema: dict) -> list[str]（返回违规信息列表，空列表=通过），附 3 个 doctest 用例（用例里的 schema 必须逐字引用 A 的交付）。\n分工提示：B 必须等 A 验收后才能开始，建议 fission 拆 2 个 subtasks 并为 B 标 deps=[0]；全部验收通过后 Lead 决策 accept 收束。",
+    "bucket": "coding",
+    "items": [
+      {
+        "item": "wi-e6a2d1d480",
+        "outcome": "accepted",
+        "submission": "```json\n{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"title\": \"MiniLedgerRecord\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"id\": {\n      \"type\": \"string\",\n      \"minLength\": 1,\n  "
+      },
+      {
+        "item": "wi-ccac0aa048",
+        "outcome": "escalated",
+        "submission": "# 子任务B 交付：`validate_record` 校验器\n\n依据 [wi-e6a2d1d480] 的 schema 逐字文本实现，纯标准库（`re` + `decimal`），3 个 doctest 用例全部引用模块级常量 `MINI_LEDGER_SCHEMA`（与 A 交付逐字一致）。\n\n```python\n\"\"\"MiniLedgerRecord 校验器。\n\n依据 [wi-e6a2d1d"
+      },
+      {
+        "item": "wi-c28194eb88",
+        "outcome": "accepted",
+        "submission": "# 迷你记账记录 JSON Schema\n\n```json\n{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"$id\": \"https://example.com/schemas/expense-record.json\",\n  \"title\": \"ExpenseRecord\",\n  \"description\": \"迷"
+      },
+      {
+        "item": "wi-5ba9cf76ac",
+        "outcome": "escalated",
+        "submission": "# 子任务 B 交付：`validate_record` 实现\n\n严格依据 L1 逐字层 `[wi-c28194eb88]` 的 schema（JSON Schema 2020-12，required 四字段、additionalProperties=false、multipleOf=0.01、pattern 三字母大写、items minLength≥1），纯标准库实现如下。\n\n```pytho"
+      },
+      {
+        "item": "wi-4fc2b3c721",
+        "outcome": "accepted",
+        "submission": "```json\n{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"$id\": \"https://example.com/schemas/mini-ledger-record.json\",\n  \"title\": \"MiniLedgerRecord\",\n  \"type\": \"object\",\n  \"required\": "
+      },
+      {
+        "item": "wi-35e3d60b6c",
+        "outcome": "escalated",
+        "submission": "# validate_record 实现（子任务 B）\n\n依据 [wi-4fc2b3c721] 逐字 schema（L1 层），纯标准库实现，含 3 个 doctest。\n\n```python\n\"\"\"Mini Accounting Record 校验器。\n\n严格依据上游已验收 schema [wi-4fc2b3c721]（JSON Schema draft 2020-12）实现。\n仅支持该 sch"
+      },
+      {
+        "item": "wi-fb44ba1124",
+        "outcome": "accepted",
+        "submission": "```json\n{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"$id\": \"https://example.com/schemas/expense-record.json\",\n  \"title\": \"ExpenseRecord\",\n  \"description\": \"迷你记账记录\",\n  \"type\": \"obj"
+      },
+      {
+        "item": "wi-c85d0314e7",
+        "outcome": "escalated",
+        "submission": "# 校验器实现：`validate_record`\n\n依据子任务 0 已验收的 ExpenseRecord schema（材料 [wi-fb44ba1124]），纯标准库实现，schema 文本逐字内嵌于 `EXPENSE_RECORD_SCHEMA` 常量。\n\n```python\n# validator.py\n\"\"\"ExpenseRecord 校验器（纯标准库）。\n\n支持的关键字：type（含类"
+      },
+      {
+        "item": "wi-db59989477",
+        "outcome": "accepted",
+        "submission": "```json\n{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"$id\": \"https://example.com/schemas/ledger-entry.json\",\n  \"title\": \"LedgerEntry\",\n  \"description\": \"迷你记账的单条记录\",\n  \"type\": \"obje"
+      },
+      {
+        "item": "wi-f16018af3d",
+        "outcome": "escalated",
+        "submission": "# `validate_record.py` — 纯标准库校验器\n\n严格依据 [wi-db59989477] 验收后的 schema 文本实现，仅支持该 schema 声明中出现的关键字（`type` 含类型联合、`required`、`properties`、`minLength`、`multipleOf`、`pattern`、`items`、`uniqueItems`、`additionalP"
+      }
+    ],
+    "actions": [
+      "fission",
+      "fission",
+      "fission",
+      "fission",
+      "admission-rejected:route-unavailable",
+      "fission",
+      "fission"
+    ]
+  }
+}

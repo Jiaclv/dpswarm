@@ -1,0 +1,167 @@
+# 子任务B 交付：`validate_record` 校验器
+
+依据 [wi-e6a2d1d480] 的 schema 逐字文本实现，纯标准库（`re` + `decimal`），3 个 doctest 用例全部引用模块级常量 `MINI_LEDGER_SCHEMA`（与 A 交付逐字一致）。
+
+```python
+"""MiniLedgerRecord 校验器。
+
+依据 [wi-e6a2d1d480] 的 JSON Schema（draft 2020-12）实现，
+仅使用 Python 标准库。
+"""
+
+import re
+from decimal import Decimal
+
+# 逐字引用 [wi-e6a2d1d480] 的交付 schema（dep-5db80be39d）
+MINI_LEDGER_SCHEMA = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "MiniLedgerRecord",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "记录唯一标识"
+        },
+        "amount": {
+            "type": "number",
+            "multipleOf": 0.01,
+            "description": "金额，精确到两位小数"
+        },
+        "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$",
+            "description": "ISO 4217 三字母货币代码"
+        },
+        "tags": {
+            "type": ["array", "null"],
+            "items": { "type": "string" },
+            "description": "标签数组，可为 null"
+        }
+    },
+    "required": ["id", "amount", "currency", "tags"],
+    "additionalProperties": False
+}
+
+_JSON_TYPE_NAMES = {
+    dict: "object",
+    list: "array",
+    str: "string",
+    bool: "boolean",
+    int: "number",
+    float: "number",
+    type(None): "null",
+}
+
+
+def _json_type(value):
+    """返回值的 JSON 类型名。注意 bool 优先于 number 判定。"""
+    if isinstance(value, bool):
+        return "boolean"
+    return _JSON_TYPE_NAMES[type(value)]
+
+
+def _type_ok(value, allowed):
+    """allowed 为 JSON 类型名或类型名列表。number 接受 int/float（排除 bool）。"""
+    if isinstance(allowed, str):
+        allowed = [allowed]
+    t = _json_type(value)
+    if "number" in allowed and t == "boolean":
+        return False  # JSON 中 boolean 不是 number
+    return t in allowed
+
+
+def _check_multiple_of(key, value, multiple, errors):
+    # 上游摘要建议：以字符串/定点数规避浮点误差 —— 此处用 repr + Decimal 实现
+    d_val = Decimal(repr(value))
+    d_mul = Decimal(repr(multiple))
+    if d_val % d_mul != 0:
+        errors.append(f"{key}: {value!r} is not a multiple of {multiple!r}")
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验 record 是否符合 schema（MiniLedgerRecord 子集），返回违规信息列表。
+
+    支持的关键字：type / minLength / multipleOf / pattern / items /
+    required / additionalProperties:false。
+
+    >>> validate_record(
+    ...     {"id": "t1", "amount": 10.25, "currency": "USD", "tags": ["cash", "food"]},
+    ...     MINI_LEDGER_SCHEMA)
+    []
+
+    >>> validate_record(
+    ...     {"id": "", "amount": 0.003, "currency": "usd", "tags": None},
+    ...     MINI_LEDGER_SCHEMA)
+    ['id: string shorter than minLength 1', "amount: 0.003 is not a multiple of 0.01", "currency: 'usd' does not match pattern '^[A-Z]{3}$'"]
+
+    >>> validate_record(
+    ...     {"id": "t3", "amount": 1.0, "currency": "CNY", "tags": ["ok", 1], "note": "x"},
+    ...     MINI_LEDGER_SCHEMA)
+    ['note: additional property not allowed', 'tags[1]: expected string, got int']
+
+    空 list 表示通过。
+    """
+    errors: list[str] = []
+    if not isinstance(record, dict):
+        return [f"root: expected object, got {_json_type(record)}"]
+
+    props = schema.get("properties", {})
+
+    # 1) required
+    for key in schema.get("required", []):
+        if key not in record:
+            errors.append(f"{key}: missing required property")
+
+    # 2) additionalProperties: false
+    if schema.get("additionalProperties") is False:
+        for key in record:
+            if key not in props:
+                errors.append(f"{key}: additional property not allowed")
+
+    # 3) 逐字段校验（按 record 的插入顺序，保证输出确定性）
+    for key, value in record.items():
+        sub = props.get(key)
+        if sub is None:
+            continue
+
+        if "type" in sub and not _type_ok(value, sub["type"]):
+            allowed = sub["type"]
+            allowed_str = " or ".join(allowed) if isinstance(allowed, list) else allowed
+            errors.append(f"{key}: expected {allowed_str}, got {_json_type(value)}")
+            continue  # 类型错误时跳过后续依赖类型的断言
+
+        if "minLength" in sub and len(value) < sub["minLength"]:
+            errors.append(f"{key}: string shorter than minLength {sub['minLength']}")
+
+        if "multipleOf" in sub:
+            _check_multiple_of(key, value, sub["multipleOf"], errors)
+
+        if "pattern" in sub and not re.search(sub["pattern"], value):
+            errors.append(f"{key}: {value!r} does not match pattern {sub['pattern']!r}")
+
+        if "items" in sub:
+            for i, item in enumerate(value):
+                if not _type_ok(item, sub["items"].get("type", [])):
+                    errors.append(
+                        f"{key}[{i}]: expected {sub['items']['type']}, got {_json_type(item)}"
+                    )
+
+    return errors
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=False)
+```
+
+## 实现说明
+
+- **multipleOf 浮点陷阱**：schema 中 `multipleOf: 0.01` 是浮点字面量。直接 `value % 0.01` 会因二进制浮点产生误判（如 `0.03 % 0.01 != 0`）。按上游摘要中"字符串或定点数规避浮点误差"的建议，采用 `Decimal(repr(x))` 定点取模，`0.003` 被正确拒绝、`10.25` 被正确接受。
+- **JSON 类型语义**：`_json_type` 单独处理 `bool`（Python 中 `bool` 是 `int` 子类，但 JSON Schema 里 boolean ≠ number）。
+- **类型失败短路**：字段类型不符时跳过后续断言，避免产生噪音级联错误（如对 `None` 做 regex）。
+- **确定性输出**：遍历顺序跟随 `dict` 插入序，doctest 可稳定复现。
+- **doctest 用例覆盖**：① 全通过（含 `tags` 数组）；② `minLength` + `multipleOf` + `pattern` 三重违规（`tags: null` 合法，验证可空类型）；③ `items` 元素类型违规 + `additionalProperties: false` 拒绝未声明字段。
+- **遵循上游未决项**：`amount` 内部以 `Decimal` 定点数处理，未引入新的实现决定；schema 文本逐字未动。
+
+回查指令备查：`PULL: wi-e6a2d1d480`（如需经 §5.4 兜底通道核对 L0 原文）。

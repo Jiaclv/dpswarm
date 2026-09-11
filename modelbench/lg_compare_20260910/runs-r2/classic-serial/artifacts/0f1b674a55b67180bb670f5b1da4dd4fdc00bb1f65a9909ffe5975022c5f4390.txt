@@ -1,0 +1,43 @@
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/expense-record.json",
+  "title": "ExpenseRecord",
+  "description": "迷你记账记录",
+  "type": "object",
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "记录唯一标识"
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "minimum": 0,
+      "description": "金额，最多两位小数"
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "三字母货币代码（ISO 4217）"
+    },
+    "tags": {
+      "type": ["array", "null"],
+      "items": { "type": "string" },
+      "uniqueItems": true,
+      "description": "标签数组，可为 null"
+    }
+  }
+}
+```
+
+**设计说明**
+
+- amount 用 `multipleOf: 0.01` 限制小数位；注意 JSON number 不保留末尾零（1.5 即 1.50），部分校验器存在浮点精度问题，若需严格两位格式应改用字符串 + pattern
+- 可空采用 `type: ["array", "null"]` 写法，符合 draft 2020-12 与 OpenAPI 3.1，避免非标准的 `nullable` 关键字
+- currency 用 `^[A-Z]{3}$` 校验格式，语义对应 ISO 4217；全集枚举体积过大，故仅约束形状
+- tags 追加 `uniqueItems: true` 防重复；null 与空数组的语义区分（无标签 vs 未打标签）由业务层约定
+- `required` 覆盖全部字段并设 `additionalProperties: false`，严格拒绝未知字段，便于版本演进时显式扩Schema

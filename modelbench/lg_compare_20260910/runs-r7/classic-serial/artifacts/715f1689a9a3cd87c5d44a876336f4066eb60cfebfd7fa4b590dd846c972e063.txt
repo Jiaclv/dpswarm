@@ -1,0 +1,174 @@
+**状态：CONDITIONAL（依赖项部分满足，见 §0）**
+
+## §0 依赖声明（验收前必读）
+
+本子任务是 B（deps=[0]）。按流程 B 必须引用 **A 验收后的终版 schema 逐字文本**，但当前任务包只含原始任务全文，**未附 A 的实际交付**。我不伪造上游产物，处置如下：
+
+- 依据任务全文中 A 的规格（字段、类型、约束），**重建一份锚本**（§1），doctest 中的 schema 与该锚本逐字对应；
+- **合并门禁**：拿到 A 终版后先 `diff`，若有出入，以 A 终版为准——只替换锚本字面量与 doctest 中的 `SCHEMA`，**校验器代码无需改动**（实现是通用的，不硬编码任何字段名，仅依赖锚本所用的关键词集合）；
+- 若 A 终版使用了锚本之外的关键词，需回炉扩展校验器，本交付作废重提。
+
+## §1 锚本（A 交付的重建文本，待与 A 终版 diff）
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MiniLedgerRecord",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "amount": { "type": "number", "multipleOf": 0.01 },
+    "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+    "tags": { "type": "array", "items": { "type": "string" }, "minItems": 0 }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+（`multipleOf: 0.01` 即"两位小数"；`minItems: 0` 即"可空"；仅有的布尔字面量 `false` 在 Python 侧按语法写作 `False`，键值内容不变。）
+
+## §2 交付：`ledger_validator.py`
+
+```python
+"""Validator for the mini-ledger record schema (subtask B, deps=[0]).
+
+Standard library only. Supports exactly the keyword set used by the
+accepted schema: type, properties, required, additionalProperties,
+minLength, pattern, multipleOf, items, minItems.
+Requires Python >= 3.9.
+"""
+import re
+from decimal import Decimal
+
+_JSON_TYPE_NAMES = {
+    type(None): "null",
+    bool: "boolean",   # must precede int: bool is a subclass of int
+    int: "integer",
+    float: "number",
+    str: "string",
+    list: "array",
+    dict: "object",
+}
+
+
+def _json_type(value):
+    for t, name in _JSON_TYPE_NAMES.items():
+        if isinstance(value, t):
+            return name
+    return type(value).__name__
+
+
+def _type_matches(value, expected):
+    actual = _json_type(value)
+    if expected == "number":
+        return actual in ("integer", "number")
+    return actual == expected
+
+
+def _validate_value(path, value, subschema):
+    errors = []
+    expected = subschema.get("type")
+    if expected is not None and not _type_matches(value, expected):
+        errors.append(f"{path}: expected {expected}, got {_json_type(value)}")
+        return errors  # skip remaining constraints on a type mismatch
+
+    if "minLength" in subschema and len(value) < subschema["minLength"]:
+        errors.append(f"{path}: string length {len(value)} is less than {subschema['minLength']}")
+
+    if "pattern" in subschema and re.search(subschema["pattern"], value) is None:
+        errors.append(f"{path}: {value!r} does not match pattern {subschema['pattern']!r}")
+
+    if "multipleOf" in subschema:
+        quant = Decimal(str(subschema["multipleOf"]))
+        num = Decimal(str(value))
+        if quant == 0 or (num / quant) % 1 != 0:
+            errors.append(f"{path}: {value!r} is not a multiple of {subschema['multipleOf']!r}")
+
+    if "minItems" in subschema and len(value) < subschema["minItems"]:
+        errors.append(f"{path}: array length {len(value)} is less than {subschema['minItems']}")
+
+    if "items" in subschema:
+        for i, item in enumerate(value):
+            errors.extend(_validate_value(f"{path}[{i}]", item, subschema["items"]))
+
+    return errors
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """Validate a mini-ledger record against the schema; [] means pass.
+
+    The SCHEMA literal below is a verbatim transcription of the accepted
+    JSON Schema (only ``false`` -> ``False`` per Python syntax).
+
+    >>> SCHEMA = {
+    ...     "$schema": "http://json-schema.org/draft-07/schema#",
+    ...     "title": "MiniLedgerRecord",
+    ...     "type": "object",
+    ...     "properties": {
+    ...         "id": {"type": "string", "minLength": 1},
+    ...         "amount": {"type": "number", "multipleOf": 0.01},
+    ...         "currency": {"type": "string", "pattern": "^[A-Z]{3}$"},
+    ...         "tags": {"type": "array", "items": {"type": "string"}, "minItems": 0}
+    ...     },
+    ...     "required": ["id", "amount", "currency", "tags"],
+    ...     "additionalProperties": False
+    ... }
+    >>> validate_record(
+    ...     {"id": "TX-001", "amount": 12.34, "currency": "CNY", "tags": []},
+    ...     SCHEMA,
+    ... )
+    []
+    >>> validate_record(
+    ...     {"id": "TX-002", "amount": 9.999, "currency": "cny1", "tags": [1, "food"]},
+    ...     SCHEMA,
+    ... )
+    ['amount: 9.999 is not a multiple of 0.01', "currency: 'cny1' does not match pattern '^[A-Z]{3}$'", 'tags[0]: expected string, got integer']
+    >>> validate_record(
+    ...     {"id": "TX-003", "amount": 5.0, "note": "lunch"},
+    ...     SCHEMA,
+    ... )
+    ['currency: required field is missing', 'tags: required field is missing', 'note: additional field is not allowed']
+    """
+    errors: list[str] = []
+    properties = schema.get("properties", {})
+
+    for name in schema.get("required", []):
+        if name not in record:
+            errors.append(f"{name}: required field is missing")
+
+    if schema.get("additionalProperties") is False:
+        for key in record:
+            if key not in properties:
+                errors.append(f"{key}: additional field is not allowed")
+
+    for name, subschema in properties.items():
+        if name in record:
+            errors.extend(_validate_value(name, record[name], subschema))
+
+    return errors
+
+
+if __name__ == "__main__":
+    import doctest
+
+    results = doctest.testmod()
+    raise SystemExit(1 if results.failed else 0)
+```
+
+## §3 确定性说明（doctest 为何稳定）
+
+- **违规顺序固定**：先 `required`（按 required 列表序）→ 再 `additionalProperties`（按 record 键序）→ 再 `properties`（按 schema 键序，数组内按索引）。类型不匹配时跳过该字段其余约束，避免连锁噪音。
+- **浮点陷阱已规避**：`multipleOf` 用 `Decimal(str(x))` 精确整除判断，`9.999` 判违、`12.34`/`5.0`/`3` 判过，不受二进制浮点误差影响。
+- 运行：`python ledger_validator.py`（退出码 0=通过）或 `python -m doctest ledger_validator.py -v`。
+
+## §4 验收对照
+
+| 验收点 | 状态 |
+|---|---|
+| 纯标准库（`re`、`decimal`、`doctest`） | ✅ |
+| 签名与语义：`validate_record(dict, dict) -> list[str]`，空列表=通过 | ✅ |
+| 恰好 3 个 doctest，schema 逐字对应锚本 | ✅ |
+| **与 A 终版逐字 diff** | ⏳ 待上游提供 A 终版文本 |
+
+若 Lead 手头有 A 的终版 schema 文本，请回贴；diff 无出入即可转 ACCEPT 并收束，不再裂变。

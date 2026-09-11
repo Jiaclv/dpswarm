@@ -1,0 +1,37 @@
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mini-accounting-record.schema.json",
+  "title": "Mini Accounting Record",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "tags": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+说明：
+1. 四个字段均必填，且禁止额外字段。
+2. `id` 是非空字符串。
+3. `amount` 是数值，通过 `multipleOf: 0.01` 约束到两位小数精度。
+4. `currency` 必须是三字母代码，这里按常见 ISO 风格使用大写 A-Z。
+5. `tags` 可为 `null`；非空时必须是字符串数组，允许空数组。

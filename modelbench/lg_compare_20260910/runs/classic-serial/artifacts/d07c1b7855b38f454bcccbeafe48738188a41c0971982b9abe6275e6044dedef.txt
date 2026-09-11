@@ -1,0 +1,44 @@
+## 子任务 A：迷你记账记录 JSON Schema
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/expense-record.json",
+  "title": "ExpenseRecord",
+  "description": "迷你记账记录",
+  "type": "object",
+  "required": ["id", "amount", "currency"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "记录唯一标识"
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "description": "金额，精确到两位小数"
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "ISO 4217 三字母货币代码"
+    },
+    "tags": {
+      "type": ["array", "null"],
+      "items": { "type": "string", "minLength": 1 },
+      "description": "标签数组，可为空"
+    }
+  }
+}
+```
+
+### 设计说明（10 行内）
+
+1. `id` 设 `minLength: 1`，仅约束非空，具体格式（UUID/雪花）留给上层。
+2. `amount` 用 `multipleOf: 0.01` 表达两位小数约束，避免浮点格式化歧义。
+3. `currency` 用 `^[A-Z]{3}$` 正则校验 ISO 4217 形式，语义合法性由应用层保证。
+4. `tags` 类型为 `["array", "null"]`，明确允许空值；`items.minLength: 1` 拒绝空字符串标签。
+5. 必填项为 `id/amount/currency`，`tags` 非必填但传入时可为 null。
+6. `additionalProperties: false` 关闭未声明字段，防止脏数据混入。

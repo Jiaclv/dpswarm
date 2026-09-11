@@ -1,0 +1,143 @@
+# 校验器实现（纯标准库）
+
+依据子任务 0 已验收 schema 的关键词集（`type` / `required` / `additionalProperties` / `properties` / `minLength` / `pattern` / `multipleOf` / `items`），做**最小封闭实现**——不引入 jsonschema 第三方库，`multipleOf` 用 `Decimal` 规避浮点误差（如 `1.005 % 0.01`）。
+
+```python
+# validator.py
+"""LedgerRecord 校验器：严格按子任务 0 验收的 schema 文本做结构校验。
+
+currency 的 ISO 4217 有效值校验不在本层（外委应用层），本层仅保证 ^[A-Z]{3}$。
+"""
+
+import re
+from decimal import Decimal
+
+# ---- 子任务 0 交付的 schema，逐字引用，不改一字 ----
+SCHEMA = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://example.com/schemas/ledger-record.json",
+    "title": "LedgerRecord",
+    "description": "迷你记账的单条记录",
+    "type": "object",
+    "required": ["id", "amount", "currency"],
+    "additionalProperties": False,
+    "properties": {
+        "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "记录唯一标识",
+        },
+        "amount": {
+            "type": "number",
+            "multipleOf": 0.01,
+            "description": "金额，精确到两位小数",
+        },
+        "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$",
+            "description": "ISO 4217 三字母货币代码（结构校验，有效值由应用层负责）",
+        },
+        "tags": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1},
+            "default": [],
+            "description": "标签，可缺省，可为空数组",
+        },
+    },
+}
+
+
+def _check_value(path: str, value, spec: dict, errors: list[str]) -> None:
+    """按单个 property 的 spec 校验值，错误追加进 errors。"""
+    t = spec.get("type")
+    if t == "string" and not isinstance(value, str):
+        errors.append(f"{path}: 类型应为 string，实际为 {type(value).__name__}")
+        return
+    if t == "number":
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            errors.append(f"{path}: 类型应为 number，实际为 {type(value).__name__}")
+            return
+        multiple_of = spec.get("multipleOf")
+        if multiple_of is not None:
+            # 用 Decimal 规避浮点误差：1.005 % 0.01 在 float 下不可靠
+            if Decimal(str(value)) % Decimal(str(multiple_of)) != 0:
+                errors.append(
+                    f"{path}: multipleOf {multiple_of} 不满足（值 {value}）"
+                )
+        return
+    if t == "array":
+        if not isinstance(value, list):
+            errors.append(f"{path}: 类型应为 array，实际为 {type(value).__name__}")
+            return
+        items_spec = spec.get("items")
+        if items_spec:
+            for i, item in enumerate(value):
+                _check_value(f"{path}[{i}]", item, items_spec, errors)
+        return
+    # string 类型的约束
+    min_len = spec.get("minLength")
+    if min_len is not None and len(value) < min_len:
+        errors.append(f"{path}: minLength {min_len} 不满足（实际长度 {len(value)}）")
+    pattern = spec.get("pattern")
+    if pattern is not None and re.search(pattern, value) is None:
+        errors.append(f"{path}: 不匹配 pattern {pattern!r}")
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验单条记账记录，返回错误列表；空列表表示通过。
+
+    只实现 schema 中出现的关键词，按固定顺序输出：缺必填 → 冗余字段 → 逐字段。
+
+    >>> validate_record({"id": "r1", "amount": 12.34, "currency": "CNY", "tags": []}, SCHEMA)
+    []
+
+    >>> validate_record({"id": "", "amount": 1.005, "currency": "cny", "tags": ["ok", ""]}, SCHEMA)
+    ['id: minLength 1 不满足（实际长度 0）', 'amount: multipleOf 0.01 不满足（值 1.005）', 'currency: 不匹配 pattern \\'^[A-Z]{3}$\\'', 'tags[1]: minLength 1 不满足（实际长度 0）']
+
+    >>> validate_record({"id": "r2", "amount": 5.0, "currency": "USD", "note": "x"}, SCHEMA)
+    ['note: additionalProperties 为 false，禁止冗余字段']
+
+    >>> validate_record({"amount": 1.0}, SCHEMA)
+    ['id: 必填字段缺失', 'currency: 必填字段缺失']
+    """
+    errors: list[str] = []
+
+    if schema.get("type") == "object" and not isinstance(record, dict):
+        return [f"顶层类型应为 object，实际为 {type(record).__name__}"]
+
+    # 1) required
+    for key in schema.get("required", []):
+        if key not in record:
+            errors.append(f"{key}: 必填字段缺失")
+
+    # 2) additionalProperties: false
+    properties = schema.get("properties", {})
+    if schema.get("additionalProperties") is False:
+        for key in record:
+            if key not in properties:
+                errors.append(f"{key}: additionalProperties 为 false，禁止冗余字段")
+
+    # 3) 逐字段校验（跳过缺省字段；tags 未列入 required，允许缺省）
+    for key, spec in properties.items():
+        if key in record:
+            _check_value(key, record[key], spec, errors)
+
+    return errors
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=False)
+```
+
+## 实现要点
+
+| Schema 决定 | 实现方式 |
+|---|---|
+| `multipleOf 0.01` | `Decimal(str(v)) % Decimal(str(0.01))`，避免 `1.005` 浮点表示误差误判 |
+| `additionalProperties: false` | 先于逐字段校验报告冗余字段，保证输出顺序确定 |
+| `tags` 未列入 required | 缺省直接跳过；空数组 `[]` 自然通过（无 items 可违规） |
+| `currency` 仅 `^[A-Z]{3}$` | 只做 `re.search` 结构匹配，ISO 4217 有效性按外委决定留给应用层 |
+| 空列表 = 通过 | 所有分支只 append，不抛异常，便于批量校验聚合 |
+
+**边界说明**：`1.005` 在 IEEE 754 下实为 `1.00499999...`，但 `Decimal(str(1.005))` 会按字面量 `"1.005"` 处理，与人类语义一致——校验器按"用户写的是什么"判，而非二进制表示。若上游将来新增关键词（如 `enum`、`minimum`），需扩展 `_check_value`，当前实现是封闭集，遇到未知关键词会**静默忽略**（如 `description`、`default`，这是正确行为）。

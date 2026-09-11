@@ -1,0 +1,126 @@
+收到打回意见，归因确认：context 中引用了未经验收的 schema 变体，且交付体截断。现按 `fix-context-and-retry` 重新锚定上游 [wi-6733fb9fa1] 已验收文本（逐字），重交子任务 B。
+
+---
+
+## 子任务 B 交付：validate_record 校验器
+
+### 引用依据声明
+
+以下 doctest 中的 schema **逐字**引用子任务 A（上游交付 [wi-6733fb9fa1]）的验收文本，关键锚点已与打回意见逐字段核验：`$schema` 为 draft-07、`title` 为 `MiniLedgerRecord`、`id` 含 `minLength: 1`、`amount` 含 `minimum: 0`、`tags` 类型为 `["array", "null"]`。
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MiniLedgerRecord",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "amount": { "type": "number", "minimum": 0, "multipleOf": 0.01 },
+    "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+    "tags": { "type": ["array", "null"], "items": { "type": "string" } }
+  },
+  "required": ["id", "amount", "currency"],
+  "additionalProperties": false
+}
+```
+
+### 实现体（完整、可运行，纯标准库）
+
+```python
+import re
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """依据 schema 校验 record，返回违规信息列表（空列表 = 通过）。
+
+    >>> schema = {
+    ...     "$schema": "http://json-schema.org/draft-07/schema#",
+    ...     "title": "MiniLedgerRecord",
+    ...     "type": "object",
+    ...     "properties": {
+    ...         "id": {"type": "string", "minLength": 1},
+    ...         "amount": {"type": "number", "minimum": 0, "multipleOf": 0.01},
+    ...         "currency": {"type": "string", "pattern": "^[A-Z]{3}$"},
+    ...         "tags": {"type": ["array", "null"], "items": {"type": "string"}}
+    ...     },
+    ...     "required": ["id", "amount", "currency"],
+    ...     "additionalProperties": False
+    ... }
+    >>> validate_record({"id": "r1", "amount": 12.50, "currency": "USD", "tags": None}, schema)
+    []
+    >>> validate_record({"id": "", "amount": -1, "currency": "usd", "tags": [1]}, schema)
+    ['id: string length 0 is less than minLength 1', 'amount: -1 is less than minimum 0', 'currency: does not match pattern ^[A-Z]{3}$', 'tags[0]: item is not a string']
+    >>> validate_record({"amount": 5, "note": "hi"}, schema)
+    ['missing required field: id', 'missing required field: currency', 'unexpected field: note']
+    """
+    errors: list[str] = []
+
+    # 1) 必填字段
+    for prop in schema.get("required", []):
+        if prop not in record:
+            errors.append(f"missing required field: {prop}")
+
+    properties = schema.get("properties", {})
+    for key, value in record.items():
+        spec = properties.get(key)
+        if spec is None:
+            if schema.get("additionalProperties") is False:
+                errors.append(f"unexpected field: {key}")
+            continue
+
+        declared = spec.get("type")
+        type_list = declared if isinstance(declared, list) else [declared]
+
+        if value is None:
+            if "null" not in type_list:
+                errors.append(f"{key}: null is not allowed")
+            continue
+
+        if "string" in type_list:
+            if not isinstance(value, str):
+                errors.append(f"{key}: expected string, got {type(value).__name__}")
+                continue
+            if "minLength" in spec and len(value) < spec["minLength"]:
+                errors.append(
+                    f"{key}: string length {len(value)} is less than minLength {spec['minLength']}"
+                )
+            if "pattern" in spec and re.search(spec["pattern"], value) is None:
+                errors.append(f"{key}: does not match pattern {spec['pattern']}")
+
+        elif "number" in type_list:
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                errors.append(f"{key}: expected number, got {type(value).__name__}")
+                continue
+            if "minimum" in spec and value < spec["minimum"]:
+                errors.append(f"{key}: {value} is less than minimum {spec['minimum']}")
+            if "multipleOf" in spec:
+                quotient = value / spec["multipleOf"]
+                if abs(quotient - round(quotient)) > 1e-9:
+                    errors.append(f"{key}: {value} is not a multiple of {spec['multipleOf']}")
+
+        elif "array" in type_list:
+            if not isinstance(value, list):
+                errors.append(f"{key}: expected array, got {type(value).__name__}")
+                continue
+            item_spec = spec.get("items", {})
+            for i, item in enumerate(value):
+                if item_spec.get("type") == "string" and not isinstance(item, str):
+                    errors.append(f"{key}[{i}]: item is not a string")
+
+    return errors
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=False)
+```
+
+### 修正清单（对照打回意见）
+
+| 打回问题 | 处置 |
+|---|---|
+| schema 与上游验收文本不一致 | 已按核验锚点重新逐字引用（draft-07 / MiniLedgerRecord / minLength / minimum / 可空 tags） |
+| 实现体在 `errors =` 处截断 | 已补全完整函数体，含 3 个 doctest 且可通过 `doctest.testmod` |
+| 返回类型 `list` ≠ `list[str]` | 注解已改为 `list[str]`，内部 `errors` 同步标注 |
+
+交付状态：等待验收。

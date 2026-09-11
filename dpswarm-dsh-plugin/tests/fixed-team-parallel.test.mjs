@@ -70,7 +70,7 @@ function fixture() {
     session.events.push({ seq: 0, type: 'turn/end', data: { reason }, time: Date.now() })
     const marker = h.markerFor?.[id]
     const child = { id, request, provider, session, localAgent: { session },
-      result: Promise.resolve({ output: [{ type: 'text', text: fail ? 'Partial candidate.' : marker ? `partial progress saved\n\n[DPSWARM_WAITING: ${marker}]` : `done:${id}` }],
+      result: Promise.resolve({ output: [{ type: 'text', text: fail ? 'Partial candidate.' : marker ? `partial progress saved\n\n[DPSWARM_WAITING: ${marker}]` : (h.outputFor?.[id] ?? `done:${id}`) }],
         stopReason: fail ? 'error' : 'completed' }),
       async dispose() {} }
     children.push(child)
@@ -405,4 +405,111 @@ test('staged phase handoff: a wave opening a new phase carries the prior deliver
   assert.match(h.children[1].request.prompt[0].text, /【layout】/)
   assert.match(h.children[1].request.prompt[0].text, /done:child-0/, 'the digest carries the prior delivery excerpt')
   assert.doesNotMatch(h.children[0].request.prompt[0].text, /前序相位交付摘要/, 'the first phase gets no digest')
+})
+
+// ---- 0.10.0：三层交接包 / verbatim 直贴契约 / 验收可见性（Python 五轮实验回移）----
+
+test('staged phase handoff is a three-layer package: L2 digest, L1 verbatim facts, L0 read-gate reference', async () => {
+  const h = fixture()
+  h.cfg.teamModeOverrides[0].mode = 'staged'
+  h.outputFor = { 'child-0': '契约 v1.0.0\n```json\n{"type":"object"}\n```' }
+  const result = await h.dispatcher.run({ task: 'Build.', acceptance: 'Done.', staged: {
+    phases: [{ id: 'contracts', task: 'Write the contract.' }, { id: 'build', task: 'Build per the contract.' }],
+    artifacts: [
+      { id: 'layout', title: '布局契约', task: 'Define the layout.', write_globs: ['src/layout/**'], phase: 'contracts' },
+      { id: 'bike', title: '自行车', task: 'Build it per the contract.', write_globs: ['src/bike/**'], phase: 'build', deps: ['layout'] },
+    ],
+  } }, h.exec)
+  assert.equal(result.failed.length, 0)
+  const prompt = h.children[1].request.prompt[0].text
+  assert.match(prompt, /## 上游交付交接（三层：L2 摘要导航 \/ L1 逐字依据 \/ L0 原文回查）（handoff_profile=semantic）/)
+  assert.ok(prompt.indexOf('### L2 摘要层') < prompt.indexOf('### L1 原子事实层'), 'semantic keeps the digest first')
+  assert.ok(prompt.indexOf('### L1 原子事实层') < prompt.indexOf('### L0 原文层'), 'L0 reference closes the package')
+  assert.match(prompt, /### L2 摘要层（前序相位交付摘要）（摘要仅供导航，逐字内容以 L1\/原文为准）/)
+  assert.match(prompt, /【layout】契约 v1\.0\.0/, 'L2 keeps the bounded per-delivery digest')
+  assert.ok(prompt.includes('```json\n{"type":"object"}\n```'), 'L1 carries the fenced block verbatim')
+  assert.match(prompt, /### L0 原文层[\s\S]*【layout】「布局契约」文件路径：src\/layout\/\*\*；逐字原文：直接读取上述路径取回（ready 产物读门放行/)
+  assert.doesNotMatch(prompt, /不可信摘要/, 'the untrusted-summary wording is retired')
+  assert.doesNotMatch(prompt, /禁止凭记忆复述/, 'semantic profile carries no direct-paste contract')
+  assert.doesNotMatch(h.children[0].request.prompt[0].text, /上游交付交接/, 'the first phase gets no handoff')
+  const events = (await h.journal.read('root')).events.filter(e => e.type === 'dpswarm/handoff-profile')
+  assert.equal(events.length, 1, 'one classification audit per handed-off artifact')
+  assert.equal(events[0].data.artifact_id, 'bike')
+  assert.deepEqual({ profile: events[0].data.profile, decider: events[0].data.decider }, { profile: 'semantic', decider: 'rule' })
+  assert.deepEqual(events[0].data.upstreams, ['layout'])
+})
+
+test('staged phase handoff: a verbatim-dependency artifact gets L1 first plus the direct-paste contract', async () => {
+  const h = fixture()
+  h.cfg.teamModeOverrides[0].mode = 'staged'
+  h.outputFor = { 'child-0': '契约\n```json\n{"type":"object"}\n```' }
+  const result = await h.dispatcher.run({ task: 'Build.', acceptance: 'Done.', staged: {
+    phases: [{ id: 'contracts', task: 'Write the contract.' }, { id: 'build', task: 'Build per the contract.' }],
+    artifacts: [
+      { id: 'layout', title: '布局契约', task: 'Define the layout schema.', write_globs: ['src/layout/**'], phase: 'contracts' },
+      { id: 'bike', title: '自行车', task: '逐字引用 layout 的 schema 契约实现校验器。', write_globs: ['src/bike/**'], phase: 'build', deps: ['layout'] },
+    ],
+  } }, h.exec)
+  assert.equal(result.failed.length, 0)
+  const prompt = h.children[1].request.prompt[0].text
+  assert.match(prompt, /handoff_profile=verbatim/)
+  assert.ok(prompt.indexOf('### L1 原子事实层') < prompt.indexOf('### L2 摘要层'), 'verbatim promotes L1 above the digest')
+  assert.match(prompt, /\*\*逐字内容禁止凭记忆复述\*\*：交付中需要逐字引用上游内容时，必须先读取上游产物原文/)
+  assert.match(prompt, /再逐字直贴；L1 层仅供定位预览。/)
+  const events = (await h.journal.read('root')).events.filter(e => e.type === 'dpswarm/handoff-profile')
+  assert.deepEqual(events.map(e => [e.data.artifact_id, e.data.profile, e.data.decider]), [['bike', 'verbatim', 'rule']])
+})
+
+test('reviewer prompt carries upstream ready deliveries for artifacts with deps; missing material is explicit', async () => {
+  const h = fixture()
+  h.cfg.teamModeOverrides[0].mode = 'staged'
+  h.cfg.reviewerMode = 'model'; h.cfg.reviewerProvider = 'fixture'; h.cfg.reviewerModel = 'reviewer'
+  h.outputFor = { 'child-0': '布局契约交付：锚点 v1.0.0' }
+  h.readyOnStart = { 'child-1': 'layout' }   // layout flips ready while bike runs
+  const staged = {
+    phases: [{ id: 'contracts', task: 'Write the contract.' }, { id: 'build', task: 'Build per the contract.' }],
+    artifacts: [
+      { id: 'layout', title: '布局契约', task: 'Define the layout.', write_globs: ['src/layout/**'], phase: 'contracts' },
+      { id: 'bike', title: '自行车', task: 'Build it per the contract.', write_globs: ['src/bike/**'], phase: 'build', deps: ['layout'] },
+    ],
+  }
+  const result = await h.dispatcher.run({ task: 'Build.', acceptance: 'Done.', staged }, h.exec)
+  assert.equal(result.deliveries.length, 4, 'layout, bike, tester, reviewer')
+  const reviewerPrompt = h.children[3].request.prompt[0].text
+  assert.match(reviewerPrompt, /## 验收可见性（上游依赖交付；跨产物依赖约束必须对照上游交付逐字核验；缺材料不可验收通过。）/)
+  assert.match(reviewerPrompt, /### 产物「自行车」（bike）的上游依赖核验材料/)
+  assert.match(reviewerPrompt, /【layout】「布局契约」（状态 ready；路径：src\/layout\/\*\*；交付全文：dpswarm_report\("item-0"\) 分页读取）逐字交付：\n布局契约交付：锚点 v1\.0\.0/)
+  // A second run without the ready flip marks the upstream material as missing.
+  const h2 = fixture()
+  h2.cfg.teamModeOverrides[0].mode = 'staged'
+  h2.cfg.reviewerMode = 'model'; h2.cfg.reviewerProvider = 'fixture'; h2.cfg.reviewerModel = 'reviewer'
+  const result2 = await h2.dispatcher.run({ task: 'Build.', acceptance: 'Done.', staged }, h2.exec)
+  assert.equal(result2.failed.length, 0)
+  const reviewerPrompt2 = h2.children[3].request.prompt[0].text
+  assert.match(reviewerPrompt2, /【layout】「布局契约」（状态 claimed；路径：src\/layout\/\*\*；交付全文：dpswarm_report\("item-0"\) 分页读取）交付内容不可见——缺材料不可验收通过/)
+  assert.ok(!reviewerPrompt2.includes('done:child-0\n'), 'a non-ready upstream delivery body never leaks into the verdict material')
+})
+
+test('acceptance visibility rides the run result and dpswarm_review for dep-carrying artifacts', async () => {
+  const h = fixture()
+  h.cfg.teamModeOverrides[0].mode = 'staged'
+  h.outputFor = { 'child-0': '布局契约交付：锚点 v1.0.0' }
+  h.readyOnStart = { 'child-1': 'layout' }
+  const result = await h.dispatcher.run({ task: 'Build.', acceptance: 'Done.', staged: {
+    phases: [{ id: 'contracts', task: 'Write the contract.' }, { id: 'build', task: 'Build per the contract.' }],
+    artifacts: [
+      { id: 'layout', title: '布局契约', task: 'Define the layout.', write_globs: ['src/layout/**'], phase: 'contracts' },
+      { id: 'bike', title: '自行车', task: 'Build it per the contract.', write_globs: ['src/bike/**'], phase: 'build', deps: ['layout'] },
+    ],
+  } }, h.exec)
+  assert.match(result.acceptance_visibility, /## 验收可见性/)
+  assert.match(result.acceptance_visibility, /逐字交付：\n布局契约交付：锚点 v1\.0\.0/)
+  assert.match(result.next, /缺材料不可验收通过/, 'the Lead guidance states the missing-material rule')
+  const bike = result.deliveries.find(d => d.subtask === 'bike')
+  const reviewed = await h.dispatcher.review({ item_id: bike.item_id, verdict: 'accept' }, h.exec)
+  assert.match(reviewed.upstream_evidence, /### 产物「自行车」（bike）的上游依赖核验材料/)
+  assert.match(reviewed.upstream_evidence, /逐字交付：\n布局契约交付：锚点 v1\.0\.0/, 'review result co-locates the upstream evidence from the audit ledger')
+  const layout = result.deliveries.find(d => d.subtask === 'layout')
+  const layoutReview = await h.dispatcher.review({ item_id: layout.item_id, verdict: 'accept' }, h.exec)
+  assert.equal(layoutReview.upstream_evidence, undefined, 'no deps → no upstream evidence attached')
 })

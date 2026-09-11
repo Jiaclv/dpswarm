@@ -1,0 +1,42 @@
+## 子任务 A：迷你记账记录 JSON Schema
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/mini-ledger-record.json",
+  "title": "MiniLedgerRecord",
+  "description": "迷你记账记录：一条极简的流水账条目",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "记录唯一标识"
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "description": "金额，精确到两位小数"
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "ISO 4217 三字母货币代码，如 CNY/USD"
+    },
+    "tags": {
+      "type": ["array", "null"],
+      "items": { "type": "string" },
+      "description": "标签列表，可为 null"
+    }
+  },
+  "required": ["id", "amount", "currency"],
+  "additionalProperties": false
+}
+```
+
+**设计说明**（≤10 行）：
+1. `amount` 用 `multipleOf: 0.01` 强制两位小数精度（如 10.123 违规）。
+2. `currency` 用正则 `^[A-Z]{3}$` 约束为大写三字母代码，符合 ISO 4217。
+3. `tags` 声明为 `["array", "null"]` 类型，允许整字段为 null，但元素仍须为字符串。
+4. `required` 只含 id/amount/currency；tags 缺省视为未提供（与显式 null 区分）。
+5. `additionalProperties: false` 拒绝未知字段，保证记录结构封闭、利于校验器实现。
+6. 选用 draft 2020-12，字段语义均可用基础关键词表达，便于子任务 B 用纯标准库逐条复刻校验逻辑。

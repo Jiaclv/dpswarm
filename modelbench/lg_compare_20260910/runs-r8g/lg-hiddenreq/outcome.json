@@ -1,0 +1,69 @@
+{
+  "summary": {
+    "run_id": "lg-hiddenreq",
+    "arm": "lg",
+    "task": "hiddenreq",
+    "wall_seconds": 620.32,
+    "final": "accepted-by-lead",
+    "result": "success",
+    "error": null,
+    "actions": [
+      "fission",
+      "settled-autoclose"
+    ],
+    "items": [
+      {
+        "item": "wi-81c3a7f7ee",
+        "outcome": "accepted",
+        "submission": "# 交付 1：parse_kv 实现（含 2 个 doctest）\n\n```python\ndef parse_kv(text: str) -> dict:\n    \"\"\"将 key=value 形式的文本解析为 dict。\n\n    规则：按行解析；忽略空行；去除首尾空白；\n    值中可包含 '='，仅按第一个 '=' 分割。\n\n    >>> parse_kv(\"host=127.0.0.1\\"
+      },
+      {
+        "item": "wi-b2c95ebd6a",
+        "outcome": "accepted",
+        "submission": "## parse_kv 使用说明\n\n`parse_kv(text: str) -> dict` 将 key=value 形式的文本解析为字典，适合轻量配置文件读取。\n\n规则：按行解析，忽略空行与 `#` 开头的注释行；键值两侧空白自动剥离；仅按第一个 `=` 分割，值中可含 `=`；所有值保留为字符串，不做类型转换。\n\n示例：\n\n```python\nconfig = parse_kv(\"host="
+      }
+    ],
+    "lead_tokens": 28789,
+    "protocol_failures": 0,
+    "protocol_failure_detail": []
+  },
+  "outcome": {
+    "task": "两步任务：\n1. 实现配置解析函数 parse_kv（key=value 文本 → dict）并附 2 个 doctest 用例\n2. 编写使用说明文档（≤200 字）\n附注：交付末尾请附上作者署名行。\n分工提示：fission 拆且只拆 2 个 subtasks（1 与 2），2 标 deps=[0]；全部验收通过后 Lead 决策 accept 收束。",
+    "bucket": "coding",
+    "items": [
+      {
+        "item": "wi-81c3a7f7ee",
+        "outcome": "accepted",
+        "submission": "# 交付 1：parse_kv 实现（含 2 个 doctest）\n\n```python\ndef parse_kv(text: str) -> dict:\n    \"\"\"将 key=value 形式的文本解析为 dict。\n\n    规则：按行解析；忽略空行；去除首尾空白；\n    值中可包含 '='，仅按第一个 '=' 分割。\n\n    >>> parse_kv(\"host=127.0.0.1\\"
+      },
+      {
+        "item": "wi-b2c95ebd6a",
+        "outcome": "accepted",
+        "submission": "## parse_kv 使用说明\n\n`parse_kv(text: str) -> dict` 将 key=value 形式的文本解析为字典，适合轻量配置文件读取。\n\n规则：按行解析，忽略空行与 `#` 开头的注释行；键值两侧空白自动剥离；仅按第一个 `=` 分割，值中可含 `=`；所有值保留为字符串，不做类型转换。\n\n示例：\n\n```python\nconfig = parse_kv(\"host="
+      }
+    ],
+    "actions": [
+      "fission",
+      "settled-autoclose"
+    ],
+    "final": "accepted-by-lead",
+    "phase": "finalized",
+    "outcome": "success",
+    "result": "success",
+    "stop_reason": "completed",
+    "candidate": {
+      "candidate_id": "cand-94e1af8ee6",
+      "contract_version": "ec5699e57f46",
+      "selected_submission_package_ids": [
+        "dep-c7fbaf83fc",
+        "dep-c981e15180"
+      ],
+      "artifact_manifest": [
+        "dep-c7fbaf83fc",
+        "dep-c981e15180"
+      ],
+      "bundle_digest": "52746f903ba5065d",
+      "drift": []
+    }
+  }
+}

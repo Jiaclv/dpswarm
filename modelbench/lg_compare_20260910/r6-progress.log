@@ -1,0 +1,9 @@
+2026-09-11 01:46:41 [r6] classic-serial started
+2026-09-11 02:16:32 [r6-driver] classic-serial timeout-partial（>30min，已杀；残留由 compare.py 幂等清理）
+2026-09-11 02:16:42 [r6] lg-serial started
+2026-09-11 02:46:32 [r6-driver] lg-serial timeout-partial（>30min，已杀；残留由 compare.py 幂等清理）
+2026-09-11 02:46:41 [r6] classic-semantic started
+2026-09-11 03:16:02 [r6] classic-semantic done final=accepted-by-lead error=None wall=1761s
+2026-09-11 03:16:14 [r6] lg-semantic started
+2026-09-11 03:22:47 [r6] lg-semantic done final=accepted-by-lead error=None wall=394s
+2026-09-11 03:22:50 [r6-driver] all done

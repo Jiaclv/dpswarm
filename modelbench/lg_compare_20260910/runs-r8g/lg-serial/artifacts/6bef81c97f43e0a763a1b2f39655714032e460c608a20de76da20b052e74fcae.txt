@@ -1,0 +1,36 @@
+补登记重试（归因 invalid_output，处置 fix-description-and-retry）。本轮输出收敛为：单个 ```json 代码块 + ≤10 行说明 + 裂变结构记录，避免再触发解析失败。
+
+## A · 交付物
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Mini Bookkeeping Record",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string" },
+    "amount": { "type": "number", "multipleOf": 0.01 },
+    "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+    "tags": { "type": ["array", "null"], "items": { "type": "string" } }
+  },
+  "required": ["id", "amount", "currency", "tags"]
+}
+```
+
+## 设计说明（7 行，≤10）
+
+1. 顶层 type=object，四个字段 id / amount / currency / tags 均为必填（required）。
+2. id：纯字符串，业务唯一性由调用方保证，schema 层不加约束。
+3. amount：type=number，multipleOf=0.01 将数值限制在两位小数（JSON 数字不保留尾随零，故用倍数约束而非格式约束）。
+4. currency：type=string，pattern ^[A-Z]{3}$ 限定三字母大写代码（ISO 4217 风格）。
+5. tags：type=["array","null"]，即「字符串数组、可空」；数组元素 items 均为字符串。
+6. 仅使用 draft 2020-12 基础关键字（type / required / pattern / multipleOf / items），B 用纯标准库可逐条映射实现。
+7. 上述 JSON 块为 B 的唯一引用源，B 的 doctest 中 schema 必须与其逐字一致。
+
+## 裂变结构记录
+
+- subtask 0：A·schema 设计（本节点，补登记）——交付物即上文 schema 全文与设计说明。
+- subtask 1：B·校验器实现——deps=[0]，严格依据 subtask 0 验收文本实现 validate_record(record: dict, schema: dict) -> list[str]，附 3 个 doctest，用例中 schema 与本节点交付逐字一致。
+- 裂变拆分共计 2 个 subtasks（A、B），不得再继续裂变；全部验收通过后由 Lead 决策 accept 收束。
+
+本节点为 req-0 已通过内容的等价重发，仅补齐裂变结构记录；请复审。

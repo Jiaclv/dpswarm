@@ -1,0 +1,140 @@
+# 交付
+
+## 子任务 A：schema 设计（先行交付）
+
+**schema 全文：**
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MiniLedgerRecord",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string" },
+    "amount": { "type": "number", "multipleOf": 0.01 },
+    "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+    "tags": { "type": "array", "items": { "type": "string" } }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+**设计说明（≤10 行）：**
+
+1. 顶层 `type: object`，四字段全部 `required`，缺失即违规。
+2. `id` 仅为字符串，不做格式约束，由上游生成。
+3. `amount` 用 `multipleOf: 0.01` 表达"两位小数"，校验器以 `Decimal` 判定避免浮点误差。
+4. `currency` 用 `^[A-Z]{3}$` 锚定三字母大写 ISO 4217 代码。
+5. `tags` 为字符串数组且允许 `[]`（空数组天然合法，故不加 `minItems`）。
+6. `additionalProperties: false` 封闭对象，防止脏字段混入。
+7. 选 draft 2020-12 为最新主流 dialect，`$schema` 显式声明。
+
+---
+
+## 子任务 B：校验器实现（deps=[0]，严格依据上述 schema）
+
+```python
+"""迷你记账记录校验器：纯标准库实现，schema 逐字引用子任务 A 的交付文本。"""
+
+import re
+from decimal import Decimal
+
+# ↓↓↓ 逐字引用子任务 A 交付的 ```json 代码块内容 ↓↓↓
+SCHEMA = {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MiniLedgerRecord",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string" },
+    "amount": { "type": "number", "multipleOf": 0.01 },
+    "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+    "tags": { "type": "array", "items": { "type": "string" } }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": False
+}
+# ↑↓↓ 逐字引用结束（True→False 仅为 Python 字面量等价替换）↓↓↑
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """依据 schema 校验 record，返回违规信息列表（空列表 = 通过）。
+
+    >>> validate_record({"id": "r-001", "amount": 12.34, "currency": "CNY", "tags": ["food", "交通"]}, SCHEMA)
+    []
+
+    >>> validate_record({"id": "r-002", "amount": 5.0, "currency": "usd", "tags": None}, SCHEMA)
+    ['currency: 不匹配模式 ^[A-Z]{3}$', 'tags: 类型应为 array']
+
+    >>> validate_record({"id": "r-003", "amount": 1.234, "currency": "USD", "tags": [], "note": "x"}, SCHEMA)
+    ['amount: 数值需为两位小数(multipleOf 0.01)', '存在未定义字段: note']
+    """
+    errors: list[str] = []
+    if schema.get("type") != "object":
+        errors.append("schema 顶层 type 应为 object（超出本校验器实现范围）")
+        return errors
+
+    props = schema.get("properties", {})
+
+    # 1) required：缺失必填字段
+    for name in schema.get("required", []):
+        if name not in record:
+            errors.append(f"缺少必填字段: {name}")
+
+    # 2) properties：按 schema 声明顺序逐字段校验
+    for name, spec in props.items():
+        if name not in record:
+            continue
+        errors.extend(_validate_value(name, record[name], spec))
+
+    # 3) additionalProperties: false
+    if schema.get("additionalProperties") is False:
+        for key in record:
+            if key not in props:
+                errors.append(f"存在未定义字段: {key}")
+
+    return errors
+
+
+def _validate_value(path: str, value, spec: dict) -> list[str]:
+    """按单个 property 的 schema 片段校验值，返回违规信息。"""
+    errors: list[str] = []
+    t = spec.get("type")
+
+    if t == "string":
+        if not isinstance(value, str):
+            return [f"{path}: 类型应为 string"]
+        pattern = spec.get("pattern")
+        if pattern and not re.search(pattern, value):
+            errors.append(f"{path}: 不匹配模式 {pattern}")
+
+    elif t == "number":
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return [f"{path}: 类型应为 number"]
+        multiple_of = spec.get("multipleOf")
+        if multiple_of is not None:
+            if Decimal(str(value)) % Decimal(str(multiple_of)) != 0:
+                errors.append(f"{path}: 数值需为两位小数(multipleOf {multiple_of})")
+
+    elif t == "array":
+        if not isinstance(value, list):
+            return [f"{path}: 类型应为 array"]
+        items_spec = spec.get("items", {})
+        for i, item in enumerate(value):
+            errors.extend(_validate_value(f"{path}[{i}]", item, items_spec))
+
+    return errors
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=False)
+    print("doctest 全部通过")
+```
+
+**说明：**
+
+- `SCHEMA` 逐字保留 A 的字段顺序、键名与取值（仅 JSON 的 `true`/`false` 按语法映射为 Python 的 `True`/`False`，语义完全一致），满足"逐字引用"要求。
+- `multipleOf` 判定用 `Decimal(str(value))`，规避 `0.1 + 0.2` 类浮点陷阱；`bool` 显式排除（`bool` 是 `int` 子类）。
+- 违规信息顺序确定：required → properties（按 schema 声明序）→ additionalProperties，保证 doctest 可复现。
+- 3 个 doctest 分别覆盖：全合规通过、类型/模式违规、小数位+封闭性违规。

@@ -83,8 +83,13 @@ class ContextAssembler:
     # -- 装配 ---------------------------------------------------------------
 
     def assemble(self, brief: AssemblerBrief, target_route: ModelRoute,
-                 heterogeneous: bool) -> ContextPackage:
+                 heterogeneous: bool,
+                 compress_fn: Optional[CompressFn] = None) -> ContextPackage:
         """确定性骨架装配（§5.2/§5.3/§5.4）。
+
+        compress_fn 支持按次传入（借鉴项②：per-call 作用域，替代共享属性
+        注入/还原——并发下无串号窗口，压缩调用（含 LLM）不再被锁串行化）；
+        不传则用构造期注入的实例级默认。
 
         步骤：
         1. 选材：select 关键词驱动 memory.retrieve + artifacts 匹配；
@@ -119,9 +124,10 @@ class ContextAssembler:
         near_threshold = raw_est >= int(brief.token_budget * NEAR_THRESHOLD_RATIO)
         trigger_compress = needs_trim and (heterogeneous or near_threshold)
         summary_text = ""
-        if trigger_compress and self.compress_fn is not None:
+        fn = compress_fn if compress_fn is not None else self.compress_fn
+        if trigger_compress and fn is not None:
             materials = [f"[{m.ref}]\n{m.content}" for m in matched]
-            summary_text = self.compress_fn(materials, brief) or ""
+            summary_text = fn(materials, brief) or ""
             if not isinstance(summary_text, str):
                 raise ValueError("CONTEXT_COMPRESSION_INVALID: compressor must return text")
             # Never truncate a semantic summary: removing its conclusion may

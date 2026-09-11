@@ -1,0 +1,110 @@
+# 子任务 B 交付：validate_record 校验器实现
+
+> 归因确认：上次打回为复核输出被截断（invalid_output/unparseable）。本次重试输出完整、结构固定，全部内容在单个回复内闭合，无尾随截断风险。
+
+## 依赖锚点：子任务 A 验收后的 schema 交付（逐字引用，唯一行为依据）
+
+```json
+{
+  "type": "object",
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {"type": "string"},
+    "amount": {"type": "number", "multipleOf": 0.01},
+    "currency": {"type": "string", "minLength": 3, "maxLength": 3},
+    "tags": {"type": "array", "items": {"type": "string"}, "nullable": true}
+  }
+}
+```
+
+A 的设计说明（验收版，10 行内）：
+1. `id`/`amount`/`currency`/`tags` 全部必填；
+2. `amount` 用 `multipleOf: 0.01` 约束两位小数；
+3. `currency` 用 `minLength/maxLength = 3` 约束三字母代码；
+4. `tags` 为字符串数组，`nullable: true` 表示允许整字段为 null；
+5. `additionalProperties: false` 拒绝未知字段。
+
+## 子任务 B 实现（纯标准库，0 第三方依赖）
+
+```python
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验一条迷你记账记录是否符合 schema，返回违规信息列表（空列表=通过）。
+
+    schema 逐字引用子任务 A 验收交付：
+
+    >>> schema = {
+    ...     "type": "object",
+    ...     "required": ["id", "amount", "currency", "tags"],
+    ...     "additionalProperties": False,
+    ...     "properties": {
+    ...         "id": {"type": "string"},
+    ...         "amount": {"type": "number", "multipleOf": 0.01},
+    ...         "currency": {"type": "string", "minLength": 3, "maxLength": 3},
+    ...         "tags": {"type": "array", "items": {"type": "string"}, "nullable": True},
+    ...     },
+    ... }
+    >>> validate_record({"id": "r-001", "amount": 12.30, "currency": "CNY", "tags": ["food"]}, schema)
+    []
+    >>> validate_record({"id": 42, "amount": 1.234, "currency": "US", "tags": [1], "note": "x"}, schema)
+    ['id: 期望 string，实际 int', 'amount: 期望两位小数，实际 1.234', 'currency: 期望长度 3，实际 2', 'tags[0]: 期望 string，实际 int', '未知字段: note']
+    >>> validate_record({"id": "r-003", "amount": 0, "currency": "USD", "tags": None}, schema)
+    []
+    """
+    errors: list[str] = []
+
+    for key in schema.get("required", []):
+        if key not in record:
+            errors.append(f"{key}: 缺失必填字段")
+
+    props = schema.get("properties", {})
+    for key, rule in props.items():
+        if key not in record:
+            continue
+        value = record[key]
+        if value is None and rule.get("nullable", False):
+            continue
+        expected = rule.get("type")
+        if expected == "string":
+            if not isinstance(value, str) or isinstance(value, bool) is False and False:
+                pass
+            if not isinstance(value, str):
+                errors.append(f"{key}: 期望 string，实际 {type(value).__name__}")
+                continue
+            lo, hi = rule.get("minLength"), rule.get("maxLength")
+            if (lo is not None and len(value) < lo) or (hi is not None and len(value) > hi):
+                errors.append(f"{key}: 期望长度 {lo}，实际 {len(value)}")
+        elif expected == "number":
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                errors.append(f"{key}: 期望 number，实际 {type(value).__name__}")
+            elif round(value, 2) != value:
+                errors.append(f"{key}: 期望两位小数，实际 {value!r}")
+        elif expected == "array":
+            if not isinstance(value, list):
+                errors.append(f"{key}: 期望 array，实际 {type(value).__name__}")
+                continue
+            item_type = rule.get("items", {}).get("type")
+            for i, item in enumerate(value):
+                if item_type == "string" and not isinstance(item, str):
+                    errors.append(f"{key}[{i}]: 期望 string，实际 {type(item).__name__}")
+
+    if schema.get("additionalProperties") is False:
+        for key in record:
+            if key not in props:
+                errors.append(f"未知字段: {key}")
+
+    return errors
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=False)
+```
+
+## 自检清单
+
+- ✅ 签名 `validate_record(record: dict, schema: dict) -> list[str]`，空列表=通过；
+- ✅ 纯标准库（除 doctest 的 `doctest` 模块外零 import）；
+- ✅ 恰好 3 个 doctest：通过 / 多项违规 / `tags: None` 可空通过；
+- ✅ doctest 内 schema 与 A 的 ```json 交付逐字等价（`false`/`true` 按 Python 字面量转换）；
+- ✅ 未再裂变，B 在 A 验收后交付，交付后交 Lead 决策 accept 收束。

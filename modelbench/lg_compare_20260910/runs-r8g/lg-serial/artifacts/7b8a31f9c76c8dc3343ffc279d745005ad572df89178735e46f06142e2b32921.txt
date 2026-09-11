@@ -1,0 +1,13 @@
+```json
+{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"MiniBookkeepingRecord","type":"object","properties":{"id":{"type":"string","minLength":1},"amount":{"type":"number","multipleOf":0.01},"currency":{"type":"string","pattern":"^[A-Z]{3}$"},"tags":{"type":["array","null"],"items":{"type":"string"}}},"required":["id","amount","currency","tags"],"additionalProperties":false}
+```
+
+设计说明：
+1. `id`：非空字符串，作为记录唯一标识；
+2. `amount`：数值，`multipleOf: 0.01` 强制两位小数精度；
+3. `currency`：正则 `^[A-Z]{3}$` 约束为 ISO-4217 三字母大写代码；
+4. `tags`：字符串数组且 `type` 含 `null`，即标签可为 null（可空语义）；
+5. `required` 含全部四字段（tags 必填但值可为 null）；
+6. `additionalProperties: false` 拒绝未定义字段，保证结构封闭。
+
+（req-0 已验收，本轮为原样重发供 B 依赖引用，设计无任何变更。）

@@ -1,0 +1,30 @@
+```python
+def base_convert(s: str, from_base: int, to_base: int) -> str:
+    """将字符串 s 从 from_base 进制转换为 to_base 进制（2-36）。
+
+    >>> base_convert("ff", 16, 10)
+    '255'
+    >>> base_convert("255", 10, 2)
+    '11111111'
+    >>> base_convert("z", 36, 36)
+    'z'
+    """
+    if not (2 <= from_base <= 36) or not (2 <= to_base <= 36):
+        raise ValueError("进制必须在 2-36 之间")
+    digits = "0123456789abcdefghijklmnopqrstuvwxyz"
+    n = int(s, from_base)
+    if n == 0:
+        return "0"
+    neg = n < 0
+    n = abs(n)
+    out = []
+    while n:
+        n, r = divmod(n, to_base)
+        out.append(digits[r])
+    return ("-" if neg else "") + "".join(reversed(out))
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()
+```

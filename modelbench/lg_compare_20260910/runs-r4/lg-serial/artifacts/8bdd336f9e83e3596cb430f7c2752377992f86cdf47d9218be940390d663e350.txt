@@ -1,0 +1,36 @@
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Mini Expense Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "amount", "currency", "tags"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "tags": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}
+```
+
+设计说明：
+1. `amount` 用 `number`，`multipleOf: 0.01` 表示精确到两位小数。
+2. JSON 数值格式不会保留尾部零，例如 `1.5` 等价于 `1.50`。
+3. `currency` 限制为大写三字母代码。
+4. `tags` 允许字符串数组或 `null`，数组项必须是字符串。
+5. 四个字段均为必填，且不允许额外字段。

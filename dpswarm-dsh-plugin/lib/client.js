@@ -982,8 +982,33 @@ window.__ModuleLoader__.load({
     function apply(ctx) {
       settingsScope = ctx.settingsScope.bind({ namespace: 'dpswarm' })
       settingsMirror = ctx.settingsScope.describe()
-      settingsApi = ctx.connection.isLoopback ? ctx.connection.api.settings : null
-      llmApi = ctx.connection.api.llm
+      // DSH 0.1.5 replaces connection.api with typed Remote methods. Preserve
+      // the old response envelope here so save acknowledgement/conflict checks
+      // and the model picker use the same code on both host generations.
+      // Each Remote namespace is its own cordis service (`remote.settings`,
+      // `remote.session`): `ctx.remote.settings` is only readable with that
+      // exact name injected, which no host generation guarantees, so read the
+      // services directly — absent means "this host has no typed Remote", and
+      // re-reading per call follows a namespace that remounts.
+      const remoteSettings = () => {
+        const remote = ctx.get('remote.settings')
+        return typeof remote?.mutate === 'function' && typeof remote.describe === 'function' ? remote : undefined
+      }
+      const remoteSession = () => ctx.get('remote.session')
+      const legacy = ctx.connection.api
+      settingsApi = ctx.connection.isLoopback
+        ? remoteSettings()
+          ? {
+            mutate: async ({ ns, ops, expectedRevision }) => ({ result: await remoteSettings().mutate(ns, ops, expectedRevision) }),
+            describe: async () => ({ result: await remoteSettings().describe() }),
+          }
+          : legacy?.settings
+        : null
+      llmApi = typeof remoteSession()?.modelCatalog === 'function'
+        // modelCatalog has no cancellation parameter; the picker still ignores
+        // stale responses and enforces its own timeout.
+        ? { models: async () => ({ result: await remoteSession().modelCatalog() }) }
+        : legacy?.llm
       if (new URLSearchParams(location.search).get('dpswarm-settings') === '1') {
         const clean = new URL(location.href); clean.searchParams.delete('dpswarm-settings')
         history.replaceState(history.state, '', clean.href)

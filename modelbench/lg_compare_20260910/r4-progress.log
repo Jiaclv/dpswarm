@@ -1,0 +1,9 @@
+2026-09-10 19:12:13 [r4] classic-serial started
+2026-09-10 19:54:53 [r4] classic-serial done final=None error=None wall=2560s
+2026-09-10 19:55:01 [r4] lg-serial started
+2026-09-10 20:29:52 [r4] lg-serial done final=None error=None wall=2092s
+2026-09-10 20:30:01 [r4] classic-semantic started
+2026-09-10 20:47:29 [r4] classic-semantic done final=None error=None wall=1048s
+2026-09-10 20:47:37 [r4] lg-semantic started
+2026-09-10 21:08:14 [r4] lg-semantic done final=None error=None wall=1237s
+2026-09-10 21:08:16 [r4-driver] all done

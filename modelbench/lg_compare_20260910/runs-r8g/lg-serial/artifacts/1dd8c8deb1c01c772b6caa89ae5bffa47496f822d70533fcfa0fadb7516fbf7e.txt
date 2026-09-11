@@ -1,0 +1,113 @@
+PULL 结果已核验：取回的 [wi-79f17fd98a] 原文与本人交付中 `SCHEMA_TEXT` 三引号内嵌内容**逐字节一致**（含键序、无空格紧凑格式），逐字依据成立，deps=[0] 依赖闭环确认。
+
+在复核中发现交付存在一处瑕疵需修订：doctest ① 的 record 使用了 `["food", None and "travel"][:1]` 这种取巧构造，虽然求值正确，但可读性差且易被误读为 tags 含 null 的用例，不符合「全合法记录」用例的清晰性要求。现提交**唯一修订版**（仅改 doctest ① 的 record 为字面量，其余内容不变）：
+
+```python
+"""迷你记账记录校验器：validate_record(record, schema) -> list[str]
+
+schema 契约逐字内嵌自上游 wi-79f17fd98a（未改动任何键值或格式）。
+空列表 = 校验通过；非空列表 = 违规信息（信息中含字段名，便于定位）。
+"""
+import json
+import re
+from decimal import Decimal
+
+# ↓↓↓ A 的 schema 全文，三引号字符串逐字内嵌，禁止改写 ↓↓↓
+SCHEMA_TEXT = """{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"MiniBookkeepingRecord","type":"object","properties":{"id":{"type":"string","minLength":1},"amount":{"type":"number","multipleOf":0.01},"currency":{"type":"string","pattern":"^[A-Z]{3}$"},"tags":{"type":["array","null"],"items":{"type":"string"}}},"required":["id","amount","currency","tags"],"additionalProperties":false}"""
+# ↑↑↑ 逐字内嵌结束 ↑↑↑
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验 record 是否符合 schema，返回违规信息列表（空列表=通过）。
+
+    >>> import json
+    >>> schema = json.loads(SCHEMA_TEXT)
+    >>> validate_record({"id": "rec-001", "amount": 12.30, "currency": "CNY", "tags": ["food", "travel"]}, schema)
+    []
+    >>> "amount" in "; ".join(validate_record({"id": "rec-002", "amount": 3.141, "currency": "CNY", "tags": []}, schema))
+    True
+    >>> "currency" in "; ".join(validate_record({"id": "rec-003", "amount": 9.99, "currency": "cny", "tags": None}, schema))
+    True
+    """
+    errors: list[str] = []
+    properties = schema.get("properties", {})
+
+    # 1) required：缺失必填字段
+    for key in schema.get("required", []):
+        if key not in record:
+            errors.append(f"missing required field: {key}")
+
+    # 2) additionalProperties=false：拒绝未定义字段
+    if schema.get("additionalProperties") is False:
+        for key in record:
+            if key not in properties:
+                errors.append(f"additional property not allowed: {key}")
+
+    for key, value in record.items():
+        if key not in properties:
+            continue
+        sub = properties[key]
+        declared = sub.get("type")
+        allowed = declared if isinstance(declared, list) else [declared]
+
+        # 3) 类型检查（bool 不得冒充 number/string/array）
+        if isinstance(value, bool):
+            type_ok = False
+        elif "null" in allowed and value is None:
+            type_ok = True
+        elif "string" in allowed and isinstance(value, str):
+            type_ok = True
+        elif "number" in allowed and isinstance(value, (int, float)):
+            type_ok = True
+        elif "array" in allowed and isinstance(value, list):
+            type_ok = True
+        else:
+            type_ok = False
+        if not type_ok:
+            errors.append(f"type mismatch for {key}: expected {allowed}, got {type(value).__name__}")
+            continue
+
+        # 4) id：minLength 1（空串违规）
+        if key == "id" and isinstance(value, str) and len(value) < sub.get("minLength", 0):
+            errors.append("id must not be an empty string")
+
+        # 5) amount：数值且两位小数（multipleOf 0.01，Decimal 避免浮点误差）
+        if key == "amount" and "multipleOf" in sub:
+            step = Decimal(str(sub["multipleOf"]))
+            if Decimal(str(value)) % step != 0:
+                errors.append(
+                    f"amount must be a number with at most 2 decimal places (multipleOf {sub['multipleOf']}), got {value}"
+                )
+
+        # 6) currency：^[A-Z]{3}$
+        if key == "currency" and "pattern" in sub:
+            if not re.fullmatch(sub["pattern"], value):
+                errors.append(
+                    f"currency must match pattern {sub['pattern']} (3 uppercase letters), got {value!r}"
+                )
+
+        # 7) tags：字符串数组或 null；元素必须全为字符串
+        if key == "tags" and isinstance(value, list):
+            for i, item in enumerate(value):
+                if not isinstance(item, str) or isinstance(item, bool):
+                    errors.append(f"tags[{i}] must be a string, got {type(item).__name__}")
+
+    return errors
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=False)
+```
+
+## 修订说明与自验清单
+
+1. **唯一变更**：doctest ① record 改为字面量 `{"id": "rec-001", "amount": 12.30, "currency": "CNY", "tags": ["food", "travel"]}`，其余零改动。
+2. **逐字依据**：`SCHEMA_TEXT` 与 PULL 取回的 wi-79f17fd98a 原文逐字节一致，未改写任何键值或格式。
+3. **doctest ①** 全合法（id 非空、12.30 为两位小数、CNY 大写三字母、tags 字符串数组）→ 期望 `[]`。
+4. **doctest ②** `amount=3.141`：`Decimal("3.141") % Decimal("0.01") == Decimal("0.001") ≠ 0` → 违规信息含 `amount`。
+5. **doctest ③** `currency="cny"`（小写）→ `fullmatch("^[A-Z]{3}$", "cny")` 失败 → 违规信息含 `currency`。
+6. 约束映射齐全：required 缺失 / additionalProperties / 类型不符 / id 空串 / amount 非两位小数 / currency 不匹配 / tags 非字符串数组且非 null，七类违规均有专属信息且含字段名。
+7. 纯标准库（`json` / `re` / `decimal` / `doctest`），无第三方依赖。
+
+**验收请求（最终版）**：deps=[0] 已满足，上游契约逐字闭环。请 Lead 验收本 item；通过后按分工约束执行 accept 收束，不再继续裂变。

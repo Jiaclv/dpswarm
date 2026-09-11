@@ -1,0 +1,167 @@
+[preflight] ok: glm/glm-5.3-flash stop=completed usage=108
+2026-09-11 12:35:05 [r8g] lg-serial started
+2026-09-11 13:37:09 [r8g] lg-serial done final=None error=None wall=3725s
+[run lg-serial] final=None error=None wall=3725s lead_tokens=124240 protocol_failures=6
+
+==== 对照摘要 ====
+{"run_id": "lg-serial", "final": null, "error": null, "wall_seconds": 3724.76, "tokens_total": 194517, "tokens_by_role": {"lead-decision": 25868, "worker": 57167, "lead-review": 91852, "cm": 13110, "lead-integration": 6520}, "review_calls": 17, "review_overlap": false, "worker_calls": 16, "worker_overlap": false, "protocol_failures": 6, "truncated_calls": 0, "ladder_escalations": 0}
+{"run_id": "classic-semantic", "final": null, "error": null, "wall_seconds": 2185.18, "tokens_total": 67001, "tokens_by_role": {"lead-decision": 13433, "worker": 13249, "lead-review": 40319, "lead-integration": 0}, "review_calls": 7, "review_overlap": false, "worker_calls": 7, "worker_overlap": false, "protocol_failures": 0, "truncated_calls": 0, "ladder_escalations": 0}
+{"run_id": "lg-semantic", "final": "accepted-by-lead", "error": null, "wall_seconds": 942.51, "tokens_total": 59410, "tokens_by_role": {"lead-decision": 2433, "worker": 2330, "lead-review": 16628, "cm": 5283, "lead-integration": 32736}, "review_calls": 2, "review_overlap": false, "worker_calls": 2, "worker_overlap": false, "protocol_failures": 0, "truncated_calls": 1, "ladder_escalations": 1}
+{"run_id": "lg-longdoc", "final": null, "error": "BudgetExceeded: BudgetExceeded(>=200000)", "wall_seconds": 3883.47, "tokens_total": 204803, "tokens_by_role": {"lead-decision": 9804, "worker": 48679, "lead-review": 146320}, "review_calls": 14, "review_overlap": false, "worker_calls": 10, "worker_overlap": false, "protocol_failures": 0, "truncated_calls": 1, "ladder_escalations": 1}
+{"run_id": "lg-hiddenreq", "final": "accepted-by-lead", "error": null, "wall_seconds": 620.32, "tokens_total": 38216, "tokens_by_role": {"lead-decision": 2590, "worker": 2267, "lead-review": 14146, "cm": 7160, "lead-integration": 12053}, "review_calls": 2, "review_overlap": false, "worker_calls": 2, "worker_overlap": false, "protocol_failures": 0, "truncated_calls": 0, "ladder_escalations": 0}
+{"run_id": "lg-direct", "final": "single", "error": null, "wall_seconds": 44.18, "tokens_total": 2856, "tokens_by_role": {"lead-decision": 956, "worker": 324, "lead-integration": 1576}, "review_calls": 0, "review_overlap": null, "worker_calls": 1, "worker_overlap": null, "protocol_failures": 0, "truncated_calls": 0, "ladder_escalations": 0}
+==== 交接证据 ====
+{
+  "lg-serial": {
+    "run_id": "lg-serial",
+    "downstream": [
+      {
+        "item": "wi-b59d7653dd",
+        "package_file": "wi-b59d7653dd.fb383294b08e.md",
+        "promoted": true,
+        "has_summary_section": true,
+        "has_trust_note": true,
+        "has_atomic_layer": true,
+        "terminal": "escalated"
+      },
+      {
+        "item": "wi-dfdbd600b0",
+        "package_file": null,
+        "promoted": false,
+        "has_summary_section": false,
+        "has_trust_note": false,
+        "has_atomic_layer": false,
+        "terminal": null
+      },
+      {
+        "item": "wi-6ebd1532a0",
+        "package_file": null,
+        "promoted": false,
+        "has_summary_section": false,
+        "has_trust_note": false,
+        "has_atomic_layer": false,
+        "terminal": null
+      },
+      {
+        "item": "wi-d6860cf80c",
+        "package_file": "wi-d6860cf80c.4e344e397f3f.md",
+        "promoted": true,
+        "has_summary_section": true,
+        "has_trust_note": true,
+        "has_atomic_layer": true,
+        "terminal": "escalated"
+      },
+      {
+        "item": "wi-f7f2b0a29a",
+        "package_file": null,
+        "promoted": false,
+        "has_summary_section": false,
+        "has_trust_note": false,
+        "has_atomic_layer": false,
+        "terminal": null
+      }
+    ],
+    "downstream_acceptance": "0/5"
+  },
+  "classic-semantic": {
+    "run_id": "classic-semantic",
+    "downstream": [
+      {
+        "item": "wi-8839bd01d0",
+        "package_file": "wi-8839bd01d0.6cca998cf7b6.md",
+        "promoted": true,
+        "has_summary_section": false,
+        "has_trust_note": false,
+        "has_atomic_layer": false,
+        "terminal": "accepted"
+      },
+      {
+        "item": "wi-10c36ccffd",
+        "package_file": "wi-10c36ccffd.279c53179e10.md",
+        "promoted": true,
+        "has_summary_section": false,
+        "has_trust_note": false,
+        "has_atomic_layer": false,
+        "terminal": "accepted"
+      },
+      {
+        "item": "wi-ed2210e0c8",
+        "package_file": "wi-ed2210e0c8.f135ef63dc26.md",
+        "promoted": true,
+        "has_summary_section": false,
+        "has_trust_note": false,
+        "has_atomic_layer": false,
+        "terminal": "accepted"
+      }
+    ],
+    "downstream_acceptance": "3/3"
+  },
+  "lg-semantic": {
+    "run_id": "lg-semantic",
+    "downstream": [
+      {
+        "item": "wi-e883ac6069",
+        "package_file": "wi-e883ac6069.6465a1fb47c7.md",
+        "promoted": true,
+        "has_summary_section": true,
+        "has_trust_note": true,
+        "has_atomic_layer": false,
+        "terminal": "accepted"
+      }
+    ],
+    "downstream_acceptance": "1/1"
+  },
+  "lg-longdoc": {
+    "run_id": "lg-longdoc",
+    "downstream": [
+      {
+        "item": "wi-2966f532aa",
+        "package_file": null,
+        "promoted": false,
+        "has_summary_section": false,
+        "has_trust_note": false,
+        "has_atomic_layer": false,
+        "terminal": null
+      },
+      {
+        "item": "wi-a5a8edf885",
+        "package_file": null,
+        "promoted": false,
+        "has_summary_section": false,
+        "has_trust_note": false,
+        "has_atomic_layer": false,
+        "terminal": null
+      },
+      {
+        "item": "wi-0436bc5349",
+        "package_file": null,
+        "promoted": false,
+        "has_summary_section": false,
+        "has_trust_note": false,
+        "has_atomic_layer": false,
+        "terminal": null
+      }
+    ],
+    "downstream_acceptance": "0/3"
+  },
+  "lg-hiddenreq": {
+    "run_id": "lg-hiddenreq",
+    "downstream": [
+      {
+        "item": "wi-b2c95ebd6a",
+        "package_file": "wi-b2c95ebd6a.a9352538c3b6.md",
+        "promoted": true,
+        "has_summary_section": true,
+        "has_trust_note": true,
+        "has_atomic_layer": true,
+        "terminal": "accepted"
+      }
+    ],
+    "downstream_acceptance": "1/1"
+  },
+  "lg-direct": {
+    "run_id": "lg-direct",
+    "downstream": [],
+    "downstream_acceptance": "0/0"
+  }
+}

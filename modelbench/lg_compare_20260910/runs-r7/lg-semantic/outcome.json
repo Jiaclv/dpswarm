@@ -1,0 +1,73 @@
+{
+  "summary": {
+    "run_id": "lg-semantic",
+    "arm": "lg",
+    "task": "semantic",
+    "wall_seconds": 501.15,
+    "final": "accepted-by-lead",
+    "result": "success",
+    "error": null,
+    "actions": [
+      "fission",
+      "coverage-rejected:missing=[0]",
+      "fission",
+      "settled-autoclose"
+    ],
+    "items": [
+      {
+        "item": "wi-a552e9d5b6",
+        "outcome": "accepted",
+        "submission": "# 子任务 A 交付：反馈分析核心结论\n\n1. **新版本稳定性与功耗问题突出**：更新后出现高频闪退（集中于打开聊天记录场景），并伴随发热、耗电加剧，虽最新补丁有所缓解但仍需跟进。〔证据：1、5；佐证：8、10〕\n\n2. **夜间模式体验存在缺陷**：对比度过低导致可读性差，且自动切换时间不准确，影响夜间使用。〔证据：2、6〕\n\n3. **客服服务质量下滑**：工单响应周期明显拉长，机器人答非所"
+      },
+      {
+        "item": "wi-b1d037beb3",
+        "outcome": "accepted",
+        "submission": "# 管理层简报：用户反馈分析要点\n\n**背景**：基于最近一周 12 条用户反馈的分析，提炼出以下三条核心结论。\n\n## 三条核心结论\n\n1. **新版本稳定性与功耗问题突出**：更新后 App 频繁闪退（主要集中在查看聊天记录时），并伴随发热和耗电加快。最新补丁已有一定缓解，但问题尚未彻底解决。\n2. **夜间模式体验不佳**：界面明暗对比度过低，用户在夜间看不清内容；自动切换的生效时间也不准确"
+      }
+    ],
+    "lead_tokens": 23201,
+    "protocol_failures": 0,
+    "protocol_failure_detail": []
+  },
+  "outcome": {
+    "task": "两阶段串行交付，第二阶段依赖第一阶段的分析结论（语义依赖，不要求逐字引用）：\n- 子任务 A「反馈分析」：以下是某 App 最近一周的 12 条用户反馈：\n  1. 更新后闪退频繁，一天三次以上\n  2. 夜间模式对比度太低看不清\n  3. 客服工单三天没人回\n  4. 耗电明显变快，待机一晚上掉 20%\n  5. 闪退主要出现在打开聊天记录时\n  6. 夜间模式自动切换时间不对\n  7. 客服机器人答非所问，转人工难\n  8. 更新后发热严重\n  9. 希望增加字体大小调节\n  10. 闪退问题在最新补丁后好转\n  11. 电池健康度显示不准确\n  12. 客服响应速度比上月慢了\n  归纳出 3 条核心结论，每条附 1-2 条反馈编号作为证据；交付 markdown（结论用有序列表，不超过 300 字）；\n- 子任务 B「管理层简报」：基于 A 验收后的 3 条结论，写一份 ≤400 字的管理层简报（覆盖全部 3 条结论、语义一致即可，不要求逐字引用 A 的原文），语气面向非技术管理层，结尾给出一个优先级建议。\n分工提示：B 必须等 A 验收后开始，fission 拆且只拆 2 个 subtasks（A 与 B），为 B 标 deps=[0]；全部验收通过后 Lead 决策 accept 收束，不得再继续裂变。",
+    "bucket": "reasoning",
+    "items": [
+      {
+        "item": "wi-a552e9d5b6",
+        "outcome": "accepted",
+        "submission": "# 子任务 A 交付：反馈分析核心结论\n\n1. **新版本稳定性与功耗问题突出**：更新后出现高频闪退（集中于打开聊天记录场景），并伴随发热、耗电加剧，虽最新补丁有所缓解但仍需跟进。〔证据：1、5；佐证：8、10〕\n\n2. **夜间模式体验存在缺陷**：对比度过低导致可读性差，且自动切换时间不准确，影响夜间使用。〔证据：2、6〕\n\n3. **客服服务质量下滑**：工单响应周期明显拉长，机器人答非所"
+      },
+      {
+        "item": "wi-b1d037beb3",
+        "outcome": "accepted",
+        "submission": "# 管理层简报：用户反馈分析要点\n\n**背景**：基于最近一周 12 条用户反馈的分析，提炼出以下三条核心结论。\n\n## 三条核心结论\n\n1. **新版本稳定性与功耗问题突出**：更新后 App 频繁闪退（主要集中在查看聊天记录时），并伴随发热和耗电加快。最新补丁已有一定缓解，但问题尚未彻底解决。\n2. **夜间模式体验不佳**：界面明暗对比度过低，用户在夜间看不清内容；自动切换的生效时间也不准确"
+      }
+    ],
+    "actions": [
+      "fission",
+      "coverage-rejected:missing=[0]",
+      "fission",
+      "settled-autoclose"
+    ],
+    "final": "accepted-by-lead",
+    "phase": "finalized",
+    "outcome": "success",
+    "result": "success",
+    "stop_reason": "completed",
+    "candidate": {
+      "candidate_id": "cand-2f2514bef0",
+      "contract_version": "1f5084d7aab3",
+      "selected_submission_package_ids": [
+        "dep-c1363c8900",
+        "dep-a6864e65dd"
+      ],
+      "artifact_manifest": [
+        "dep-c1363c8900",
+        "dep-a6864e65dd"
+      ],
+      "bundle_digest": "340d8b9dec055c2a",
+      "drift": []
+    }
+  }
+}

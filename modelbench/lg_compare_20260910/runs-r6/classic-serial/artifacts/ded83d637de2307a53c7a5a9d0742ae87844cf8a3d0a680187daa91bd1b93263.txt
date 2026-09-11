@@ -1,0 +1,107 @@
+**[重试交付 · 确认归因：capability（输出截断）· 处置：fix-description-and-retry · 第 3 版]**
+
+上版缺陷确认无误：函数体止于 `allowed = spec.get('`，括号未闭合，判定逻辑与 return 整体缺失。本版处置：函数整体重写、一次成文、压缩外围说明以规避截断；正文末附完整性锚点供逐行核对。
+
+## 完整交付物（纯标准库）
+
+```python
+import re
+from decimal import Decimal
+
+_TYPE_CHECKS = {
+    "string": lambda v: isinstance(v, str),
+    "number": lambda v: isinstance(v, (int, float)) and not isinstance(v, bool),
+    "integer": lambda v: isinstance(v, int) and not isinstance(v, bool),
+    "boolean": lambda v: isinstance(v, bool),
+    "array": lambda v: isinstance(v, list),
+    "object": lambda v: isinstance(v, dict),
+    "null": lambda v: v is None,
+}
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验记账记录是否符合 schema，返回违规信息列表；空列表 = 通过。
+
+    schema 判定依据与 wi-cc8152c306 已验收交付的 json schema 块逐字一致
+    （id: string/minLength；amount: number/multipleOf 0.01；
+    currency: string/pattern ^[A-Z]{3}$；tags: [array, null]/items string，可空）。
+
+    >>> schema = {
+    ...     "type": "object",
+    ...     "properties": {
+    ...         "id": {"type": "string", "minLength": 1},
+    ...         "amount": {"type": "number", "multipleOf": 0.01},
+    ...         "currency": {"type": "string", "pattern": "^[A-Z]{3}$"},
+    ...         "tags": {"type": ["array", "null"], "items": {"type": "string"}}
+    ...     },
+    ...     "required": ["id", "amount", "currency", "tags"]
+    ... }
+    >>> validate_record({"id": "r-001", "amount": 12.5, "currency": "CNY", "tags": ["food", "lunch"]}, schema)
+    []
+    >>> validate_record({"id": "r-002", "amount": 3.141, "currency": "USD", "tags": None}, schema)
+    ['amount: 值 3.141 不是 0.01 的整数倍']
+    >>> validate_record({"id": "r-003", "amount": 9.99, "currency": "usd", "tags": ["food", 7]}, schema)
+    ['currency: 值 usd 不匹配模式 ^[A-Z]{3}$', 'tags: 第 2 个元素(7)不是 string']
+    """
+    problems: list[str] = []
+
+    for field in schema.get("required", []):
+        if field not in record:
+            problems.append(f"{field}: 缺少必填字段")
+
+    for field, spec in schema.get("properties", {}).items():
+        if field not in record:
+            continue
+        value = record[field]
+
+        # 1) type 判定（字符串形式或 [array, null] 列表形式）
+        raw_type = spec.get("type")
+        type_names = [raw_type] if isinstance(raw_type, str) else list(raw_type or [])
+        checks = [_TYPE_CHECKS[t] for t in type_names if t in _TYPE_CHECKS]
+        if checks and not any(check(value) for check in checks):
+            problems.append(f"{field}: 值 {value} 不是 {type_names} 类型")
+            continue
+
+        # 2) minLength：仅对字符串生效
+        if isinstance(value, str) and "minLength" in spec and len(value) < spec["minLength"]:
+            problems.append(f"{field}: 长度 {len(value)} 小于 minLength {spec['minLength']}")
+
+        # 3) multipleOf：Decimal(str(x)) 判定，规避浮点误差（3.141 % 0.01 = 0.001 → 违规）
+        if "multipleOf" in spec and isinstance(value, (int, float)) and not isinstance(value, bool):
+            if Decimal(str(value)) % Decimal(str(spec["multipleOf"])) != 0:
+                problems.append(f"{field}: 值 {value} 不是 {spec['multipleOf']} 的整数倍")
+
+        # 4) pattern：按 JSON Schema 语义做搜索式正则匹配
+        if isinstance(value, str) and "pattern" in spec and re.search(spec["pattern"], value) is None:
+            problems.append(f"{field}: 值 {value} 不匹配模式 {spec['pattern']}")
+
+        # 5) items：数组元素逐个判定类型（tags 为 null 时因非 list 自动跳过）
+        if isinstance(value, list) and "items" in spec:
+            item_type = spec["items"].get("type")
+            item_check = _TYPE_CHECKS.get(item_type)
+            if item_check:
+                for i, item in enumerate(value):
+                    if not item_check(item):
+                        problems.append(f"{field}: 第 {i + 1} 个元素({item})不是 {item_type}")
+
+    return problems
+```
+
+## 完整性锚点（供逐行核对，不依赖口头声明）
+
+- 首行 `import re`，末行 `return problems`，代码块以闭合围栏结束；
+- 括号/引号/缩进全部闭合，无 `...` 占位、无省略段落；函数体共 6 段（必填字段 + 5 项逐键判定 + return）；
+- docstring 内含且仅含 3 个 `validate_record(...)` doctest 用例 + 1 段 schema 字面量赋值。
+
+## doctest 逐用例推演（与 docstring 预期输出逐字一致）
+
+1. 合规记录（12.5 = 1250×0.01，CNY 合规，tags 全字符串）→ `[]`
+2. amount=3.141：Decimal('3.141') % Decimal('0.01') = 0.001 ≠ 0 → `['amount: 值 3.141 不是 0.01 的整数倍']`（tags=None 命中 null 合法）
+3. 'usd' 未匹配 `^[A-Z]{3}$` 且 tags[1]=7 非 string → `['currency: 值 usd 不匹配模式 ^[A-Z]{3}$', 'tags: 第 2 个元素(7)不是 string']`（按 properties 顺序 currency 先于 tags）
+
+## 合规确认
+
+- schema 字面量逐字复制 wi-cc8152c306 交付，未改动 schema 本身；
+- 未裂分任务，单一交付物；
+- 仅 import `re` 与 `decimal.Decimal`，纯标准库；
+- 判定依据（minLength / multipleOf / pattern / items / type 含 [array, null] 列表形式）均直接读取传入 schema 的对应键，与 schema 块逐字对应。

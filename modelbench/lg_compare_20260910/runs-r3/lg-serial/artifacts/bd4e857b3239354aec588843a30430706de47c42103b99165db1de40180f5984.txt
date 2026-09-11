@@ -1,0 +1,39 @@
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MiniLedgerRecord",
+  "description": "迷你记账记录：单笔收支条目",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "记录唯一标识符，不可为空"
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "minimum": 0,
+      "description": "金额，最多保留两位小数"
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "ISO 4217 三字母货币代码"
+    },
+    "tags": {
+      "type": ["array", "null"],
+      "items": { "type": "string" },
+      "description": "标签数组，可为 null"
+    }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}
+```
+
+**设计说明：**
+1. `amount` 用 `multipleOf: 0.01` 约束两位小数精度；如业务允许负数（支出），可去掉 `minimum`。
+2. `currency` 用正则 `^[A-Z]{3}$` 保证三字母大写格式，语义上对应 ISO 4217。
+3. `tags` 采用 `["array", "null"]` 联合类型实现可空语义，而非缺省省略——字段必须存在但值可为 null，避免“缺失”与“空”歧义。
+4. 全部字段列入 `required`，并关闭 `additionalProperties`，保证记录结构严格一致，便于下游校验与聚合。

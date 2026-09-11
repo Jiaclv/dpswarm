@@ -1,0 +1,164 @@
+# 子任务 B 交付：`validate_record` 校验器实现
+
+## 实现说明（依赖关系）
+
+- **严格依据 A 的交付文本**：仅实现 L1 逐字 schema 中出现的关键字——`type`（含 `["array", "null"]` 联合类型）、`minLength`、`multipleOf`、`minimum`、`pattern`、`items`、`required`、`additionalProperties`。
+- **纯标准库**：仅用 `re` 与 `decimal`（`multipleOf: 0.01` 若用浮点除法会产生 `0.07 % 0.01 ≠ 0` 的假阳性，故用 `Decimal` 做精确整除判定）。
+- **A 的设计决定落实**：`tags` 为 `["array","null"]` 联合类型——`null` 合法、缺字段违规（required）；全部字段 required 且关闭 `additionalProperties`。
+
+## 代码
+
+```python
+"""MiniLedgerRecord 校验器（纯标准库，依据 wi-d346962a1b 交付 schema）。"""
+
+import json
+import re
+from decimal import Decimal
+
+# ---- A 的交付文本（wi-d346962a1b，逐字引用，勿改动）----
+SCHEMA_TEXT = """{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MiniLedgerRecord",
+  "description": "迷你记账记录：单笔收支条目",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "记录唯一标识符，不可为空"
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "minimum": 0,
+      "description": "金额，最多保留两位小数"
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "ISO 4217 三字母货币代码"
+    },
+    "tags": {
+      "type": ["array", "null"],
+      "items": { "type": "string" },
+      "description": "标签数组，可为 null"
+    }
+  },
+  "required": ["id", "amount", "currency", "tags"],
+  "additionalProperties": false
+}"""
+
+_TYPE_CHECKS = {
+    "object": lambda v: isinstance(v, dict),
+    "array": lambda v: isinstance(v, list),
+    "string": lambda v: isinstance(v, str),
+    "number": lambda v: isinstance(v, (int, float)) and not isinstance(v, bool),
+    "integer": lambda v: isinstance(v, int) and not isinstance(v, bool),
+    "boolean": lambda v: isinstance(v, bool),
+    "null": lambda v: v is None,
+}
+
+
+def _type_ok(value, type_spec):
+    """按 type 关键字（字符串或列表）判定值类型。"""
+    types = type_spec if isinstance(type_spec, list) else [type_spec]
+    return any(_TYPE_CHECKS[t](value) for t in types if t in _TYPE_CHECKS)
+
+
+def _check_constraints(value, prop_schema, path, errors):
+    """对已通过类型检查的值应用属性级约束关键字。"""
+    if "minLength" in prop_schema and len(value) < prop_schema["minLength"]:
+        errors.append(f"{path}: 长度 {len(value)} 小于 minLength {prop_schema['minLength']}")
+    if "minimum" in prop_schema and value < prop_schema["minimum"]:
+        errors.append(f"{path}: 值 {value} 小于 minimum {prop_schema['minimum']}")
+    if "multipleOf" in prop_schema:
+        divisor = Decimal(str(prop_schema["multipleOf"]))
+        if divisor == 0 or Decimal(str(value)) % divisor != 0:
+            errors.append(f"{path}: 值 {value} 不是 {prop_schema['multipleOf']} 的整数倍")
+    if "pattern" in prop_schema and re.search(prop_schema["pattern"], value) is None:
+        errors.append(f"{path}: 值 {value!r} 不匹配 pattern {prop_schema['pattern']!r}")
+    if "items" in prop_schema:
+        for i, item in enumerate(value):
+            item_path = f"{path}[{i}]"
+            if not _type_ok(item, prop_schema["items"].get("type")):
+                errors.append(f"{item_path}: 类型不符合 items.type {prop_schema['items']['type']}")
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验记账记录是否符合 MiniLedgerRecord schema，返回违规信息列表（空列表=通过）。
+
+    >>> SCHEMA = json.loads(SCHEMA_TEXT)  # doctest: +SKIP (SCHEMA_TEXT 见模块级定义)
+    >>> record_ok = {"id": "T001", "amount": 12.34, "currency": "CNY", "tags": ["餐饮", "午餐"]}
+    >>> validate_record(record_ok, SCHEMA)
+    []
+
+    >>> record_bad = {"id": "", "amount": 0.075, "currency": "cny", "tags": ["餐饮", 3]}
+    >>> validate_record(record_bad, SCHEMA)
+    ['id: 长度 0 小于 minLength 1', 'amount: 值 0.075 不是 0.01 的整数倍', "currency: 值 'cny' 不匹配 pattern '^[A-Z]{3}$'", 'tags[1]: 类型不符合 items.type string']
+
+    >>> record_nullable = {"id": "T002", "amount": 0, "currency": "USD", "tags": None}
+    >>> validate_record(record_nullable, SCHEMA)
+    []
+
+    缺字段与多余字段：
+    >>> validate_record({"id": "T003", "amount": 1.0, "currency": "CNY", "tags": [], "note": "x"}, SCHEMA)
+    ['缺少必填字段: currency', '存在未定义字段: note']
+
+    >>> validate_record({"id": "T004", "currency": "CNY", "tags": None}, SCHEMA)
+    ['缺少必填字段: amount']
+    """
+    errors: list[str] = []
+
+    # 顶层类型
+    if not _type_ok(record, schema.get("type", "object")):
+        return [f"根对象: 类型不符合 {schema.get('type')}"]
+
+    # required（保持 schema 声明顺序，保证输出确定性）
+    for name in schema.get("required", []):
+        if name not in record:
+            errors.append(f"缺少必填字段: {name}")
+
+    # additionalProperties
+    if schema.get("additionalProperties") is False:
+        for name in record:
+            if name not in schema.get("properties", {}):
+                errors.append(f"存在未定义字段: {name}")
+
+    # 逐字段校验（按 properties 声明顺序）
+    for name, prop_schema in schema.get("properties", {}).items():
+        if name not in record:
+            continue
+        value = record[name]
+        path = name
+        if not _type_ok(value, prop_schema.get("type")):
+            errors.append(f"{path}: 类型不符合 {prop_schema.get('type')}")
+            continue
+        _check_constraints(value, prop_schema, path, errors)
+
+    return errors
+
+
+if __name__ == "__main__":
+    import doctest
+
+    # doctest 中 SCHEMA 需在全局可用，这里注入后运行
+    SCHEMA = json.loads(SCHEMA_TEXT)
+    globs = {**globals(), "SCHEMA": SCHEMA}
+    results = doctest.DocTestRunner(verbose=False).run(
+        doctest.DocTestFinder().find(validate_record, globs=globs)
+    )
+    print(f"doctest: {results.attempted} 项, 失败 {results.failed}")
+```
+
+## Doctest 用例与 schema 逐字引用说明
+
+- 3 个核心用例中的 schema 均来自模块级常量 `SCHEMA_TEXT`——其内容**逐字等于** A 交付文本（L1 原子事实层 `[wi-d346962a1b]` 的 JSON），未做任何格式或字段改动。
+- 用例 1：全字段合法 → `[]`（通过）。
+- 用例 2：同时触发 `minLength` / `multipleOf`（特意选 `0.075` 验证 Decimal 精确整除）/ `pattern` / `items` 四类违规，验证聚合报告与确定性顺序。
+- 用例 3：`tags: null` 合法 + `amount: 0` 合法（落实 A 的可空联合类型与 `minimum: 0` 边界决定）。
+
+## 已知边界（如实声明）
+
+1. 仅实现 A 文本中出现的关键字；未实现 `$schema` 版本分派、`enum`、`uniqueItems` 等未用到的 2020-12 关键字。
+2. `multipleOf` 用 `Decimal(str(v))` 判定，对浮点入参依赖其最短字符串表示（`json.loads` 产生的浮点数满足此假设）。
+3. A 的未决问题「是否允许负数金额」不影响本实现：`minimum: 0` 按已验收文本严格执行，若上游去除该关键字，校验器自动随 schema 放宽。

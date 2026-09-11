@@ -1,0 +1,62 @@
+## 打回响应：缺少关键依赖，无法完成“逐字引用”
+
+### 问题定位
+
+本任务要求“**严格依据子任务 0 验收后的 schema 文本逐字引用**”，但当前任务包中**未附带子任务 0 的 schema 文本**。逐字引用无法凭空构造——若我自行杜撰一份 schema，将直接违反任务约束，且与上游验收产物不一致，必然在后续集成时失败。
+
+### 请求
+
+请提供子任务 0 验收通过的 schema 文本原文（或其产物路径），我将在收到后立即交付。
+
+### 为不阻塞流水线，先行交付：schema 就位的实现模板
+
+以下实现为纯标准库、接口已定型，收到 schema 后仅需替换 `SCHEMA_TEXT` 常量即可交付。若你们的 schema 约定与此假设不同，请以实际文本为准纠正我。
+
+```python
+"""validate_record — 依据 schema 校验单条记录，返回错误列表（空列表=通过）。"""
+
+# TODO: 此处逐字粘贴子任务 0 验收后的 schema 文本
+SCHEMA_TEXT = """\
+{
+  "type": "object",
+  "properties": {
+    "id":   {"type": "integer"},
+    "name": {"type": "string"}
+  },
+  "required": ["id", "name"]
+}
+"""
+
+import json
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验 record 是否符合 schema，返回错误信息列表；空列表表示通过。
+
+    当前按“type + required”最小约定实现；收到正式 schema 后按其逐字语义调整。
+
+    >>> validate_record({"id": 1, "name": "a"}, json.loads(SCHEMA_TEXT))
+    []
+    >>> validate_record({"id": "x", "name": "a"}, json.loads(SCHEMA_TEXT))
+    ["field 'id': expected integer, got str"]
+    >>> validate_record({"id": 1}, json.loads(SCHEMA_TEXT))
+    ["missing required field 'name'"]
+    """
+    errors: list[str] = []
+    for field in schema.get("required", []):
+        if field not in record:
+            errors.append(f"missing required field '{field}'")
+    for field, rule in schema.get("properties", {}).items():
+        if field in record and rule.get("type") == "string" and not isinstance(record[field], str):
+            errors.append(f"field '{field}': expected string, got {type(record[field]).__name__}")
+        elif field in record and rule.get("type") == "integer" and not isinstance(record[field], int):
+            errors.append(f"field '{field}': expected integer, got {type(record[field]).__name__}")
+    return errors
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=False)
+```
+
+**状态：BLOCKED — 等待子任务 0 的 schema 文本。** 请补充后重派；收到后我将替换占位 schema、核对 doctest 与真实 schema 语义一致，并作为最终交付物提交。

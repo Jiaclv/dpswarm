@@ -1,0 +1,99 @@
+# 交付（打回重试 · 归因 context · 处置 fix-context-and-retry）
+
+## 0. 对打回理由的处置说明
+
+- **状态标注自相矛盾**：已更正。本轮依据修复后的 context（`pkg://wi-aec703dfe0-r1/c2c8a1e2de58`）开展，其中子任务 A 的 schema 交付文本**已处于已验收状态**，依赖约束 `[deps=0]` 本轮闭环。
+- **缺实质产出**：已更正。本轮附完整函数实现、3 个 doctest、以及交付文件中逐字内嵌的 SCHEMA 字面量本体，不再以「维持不变」指涉。
+- **逐字引用可核验**：SCHEMA 字面量直接内嵌于下方代码块，验收方可对 `pkg://wi-aec703dfe0-r1/c2c8a1e2de58` 中 A 的交付文本做逐字 diff。
+
+## 1. 交付文件本体（validator.py 全文）
+
+```python
+"""迷你记账记录校验器（纯标准库实现）。
+
+SCHEMA 逐字引用自子任务 A 已验收交付文本
+（context: pkg://wi-aec703dfe0-r1/c2c8a1e2de58）。
+"""
+import re
+
+# ---- 以下 SCHEMA 为子任务 A 已验收交付的逐字内嵌，未作任何改动 ----
+SCHEMA = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "迷你记账记录",
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["id", "amount", "currency", "tags"],
+    "properties": {
+        "id": {"type": "string"},
+        "amount": {"type": "number", "multipleOf": 0.01},
+        "currency": {"type": "string", "pattern": "^[A-Z]{3}$"},
+        "tags": {"type": ["array", "null"], "items": {"type": "string"}}
+    }
+}
+# ---- 逐字内嵌结束 ----
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """校验单条迷你记账记录，返回违规信息列表；空列表表示通过。
+
+    >>> validate_record({"id": "r-001", "amount": 12.34, "currency": "CNY", "tags": ["早餐", "通勤"]}, SCHEMA)
+    []
+    >>> validate_record({"id": "r-002", "amount": 1.999, "currency": "usd", "tags": [1, "打车"]}, SCHEMA)
+    ['字段「amount」必须为两位小数', '字段「currency」必须为三字母大写代码（^[A-Z]{3}$）', '字段「tags」的第 1 个元素不是字符串']
+    >>> validate_record({"id": 7, "amount": "12.00", "currency": "JPY", "tags": None}, SCHEMA)
+    ['字段「id」不是字符串', '字段「amount」不是数值']
+    """
+    errors: list[str] = []
+    props = schema["properties"]
+
+    for name in schema.get("required", []):
+        if name not in record:
+            errors.append(f"缺少必填字段「{name}」")
+    for name in record:
+        if name not in props:
+            errors.append(f"未知字段「{name}」")
+
+    def is_number(v):
+        return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+    v = record.get("id")
+    if v is not None and not isinstance(v, str):
+        errors.append("字段「id」不是字符串")
+
+    v = record.get("amount")
+    if v is not None and not is_number(v):
+        errors.append("字段「amount」不是数值")
+    elif is_number(v) and round(v, 2) != v:
+        errors.append("字段「amount」必须为两位小数")
+
+    v = record.get("currency")
+    if v is not None and not (isinstance(v, str) and re.fullmatch(r"[A-Z]{3}", v)):
+        errors.append("字段「currency」必须为三字母大写代码（^[A-Z]{3}$）")
+
+    v = record.get("tags")
+    if v is not None:
+        if not isinstance(v, list):
+            errors.append("字段「tags」不是字符串数组")
+        else:
+            for i, item in enumerate(v, 1):
+                if not isinstance(item, str):
+                    errors.append(f"字段「tags」的第 {i} 个元素不是字符串")
+
+    return errors
+```
+
+## 2. 约束自查
+
+| 约束 | 状态 | 核验方式 |
+|---|---|---|
+| 纯标准库 | ✅ | 仅 `import re`，无任何第三方依赖 |
+| 签名 `validate_record(record: dict, schema: dict) -> list[str]` | ✅ | 逐字符合，空列表=通过 |
+| doctest 恰好 3 个 | ✅ | 用例 1 全通过；用例 2 复合违规（小数位/币种/元素类型）；用例 3 类型违规且 `tags=None` 走可空分支 |
+| SCHEMA 逐字引用 | ✅ | 以字面量内嵌于交付文件本体，可对 context 中 A 的已验收文本做逐字 diff |
+| 违规语义与 schema 对应 | ✅ | `multipleOf: 0.01` → 两位小数检查；`pattern: ^[A-Z]{3}$` → 币种检查；`type: ["array","null"]` → tags 可空分支 |
+
+一处实现说明：`multipleOf: 0.01` 在二进制浮点下直接取模不可靠，故以 `round(v, 2) == v` 等价实现「两位小数」语义，且显式排除 `bool`（`bool` 是 `int` 子类）。
+
+## 3. 收束状态
+
+子任务 A 已验收（见修复后 context），子任务 B 本轮交付如上。按任务规则，两 subtask 均闭环后由 Lead 决策 accept 收束，不再裂变。**状态：待验收（本轮为可核验的完整代码交付，请予验收）。**

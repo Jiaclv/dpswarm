@@ -1,0 +1,44 @@
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/schemas/mini-ledger-record.json",
+  "title": "MiniLedgerRecord",
+  "description": "迷你记账记录：一条最小可用的账目条目",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "记录唯一标识，非空字符串"
+    },
+    "amount": {
+      "type": "number",
+      "multipleOf": 0.01,
+      "minimum": 0,
+      "description": "金额，最多保留两位小数"
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "ISO 4217 三字母货币代码，大写"
+    },
+    "tags": {
+      "type": ["array", "null"],
+      "items": { "type": "string" },
+      "uniqueItems": true,
+      "default": null,
+      "description": "标签列表，元素为字符串，可整体为 null"
+    }
+  },
+  "required": ["id", "amount", "currency"],
+  "additionalProperties": false
+}
+```
+
+设计说明（≤10 行）：
+1. 依据 draft-07，字段约束均可被标准校验器（如 jsonschema、手工实现）直接支持。
+2. `amount` 用 `multipleOf: 0.01` 限定两位小数，`minimum: 0` 排除负金额。
+3. `currency` 用 `pattern: ^[A-Z]{3}$` 同时强制三字母与大写，贴近 ISO 4217。
+4. `tags` 类型为 `["array", "null"]` 实现“可空”；`uniqueItems` 防重复标签。
+5. 必填项为 `id/amount/currency`，`tags` 可缺省（缺省与 null 均视为无标签）。
+6. `additionalProperties: false` 拒绝未知字段，便于 B 阶段校验器实现精确的违规报告。

@@ -1,0 +1,15 @@
+blocked：无法在不违反硬约束的情况下完成本次 B 阶段交付。
+
+缺少关键上游材料：节点 `wi-3ef26a8a60` 验收后的 schema 全文没有出现在当前任务内容中。  
+题目要求 doctest 中的 schema 必须“逐字引用”该节点交付文本，且禁止改写或省略字段；仅凭字段描述重建 schema 会构成改写，不能接受。
+
+请补充 `wi-3ef26a8a60` 的原始 schema 代码块，例如：
+
+```json
+{
+  "...": "wi-3ef26a8a60 的 schema 全文"
+}
+```
+
+收到原文后，我将单点完成 B：  
+用纯标准库实现 `validate_record(record: dict, schema: dict) -> list[str]`，覆盖 `id`、`amount`、`currency`、`tags`，并附 3 个 doctest，其中 schema 逐字嵌入该交付文本。

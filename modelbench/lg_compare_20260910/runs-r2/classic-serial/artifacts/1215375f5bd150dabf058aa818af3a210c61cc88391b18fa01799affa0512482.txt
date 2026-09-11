@@ -1,0 +1,117 @@
+**⚠️ 前置说明**：本条上下文中并未附带"子任务 0 验收后的 schema 文本"，无法做到逐字引用。以下实现采用 JSON Schema 子集语义（这是最常见的约定），并在代码顶部预留 `SCHEMA` 常量位——待你把子任务 0 的文本贴入后，校验语义如有出入（如自定义关键字），只需调整 `_VALIDATORS` 分发表，主体逻辑不动。
+
+```python
+"""record 校验器 —— 纯标准库实现，空列表表示通过。"""
+
+import re
+
+
+# ── TODO: 此处替换为子任务 0 验收后的 schema 文本（逐字粘贴）──
+SCHEMA = {
+    "type": "object",
+    "required": ["id", "name", "age"],
+    "properties": {
+        "id": {"type": "integer", "minimum": 1},
+        "name": {"type": "string", "minLength": 1},
+        "age": {"type": "integer", "minimum": 0, "maximum": 150},
+    },
+}
+
+
+def _type_ok(value, expected: str) -> bool:
+    checks = {
+        "object": lambda v: isinstance(v, dict),
+        "array": lambda v: isinstance(v, list),
+        "string": lambda v: isinstance(v, str),
+        "integer": lambda v: isinstance(v, int) and not isinstance(v, bool),
+        "number": lambda v: isinstance(v, (int, float)) and not isinstance(v, bool),
+        "boolean": lambda v: isinstance(v, bool),
+        "null": lambda v: v is None,
+    }
+    return expected in checks and checks[expected](value)
+
+
+def _check(value, rules: dict, path: str, errors: list[str]) -> None:
+    label = path or "<root>"
+
+    if "type" in rules and not _type_ok(value, rules["type"]):
+        actual = type(value).__name__
+        errors.append(f"{label}: 期望 {rules['type']}，实际为 {actual}")
+        return  # 类型不符时不做后续检查，避免连锁误报
+
+    if "enum" in rules and value not in rules["enum"]:
+        errors.append(f"{label}: {value!r} 不在枚举 {rules['enum']!r} 中")
+
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        if "minimum" in rules and value < rules["minimum"]:
+            errors.append(f"{label}: {value} 低于下限 {rules['minimum']}")
+        if "maximum" in rules and value > rules["maximum"]:
+            errors.append(f"{label}: {value} 超出上限 {rules['maximum']}")
+
+    if isinstance(value, str):
+        if "minLength" in rules and len(value) < rules["minLength"]:
+            errors.append(f"{label}: 长度 {len(value)} 低于 minLength={rules['minLength']}")
+        if "maxLength" in rules and len(value) > rules["maxLength"]:
+            errors.append(f"{label}: 长度 {len(value)} 超出 maxLength={rules['maxLength']}")
+        if "pattern" in rules and not re.search(rules["pattern"], value):
+            errors.append(f"{label}: {value!r} 不匹配 pattern {rules['pattern']!r}")
+
+    if isinstance(value, dict) and "properties" in rules:
+        for key, sub in rules["properties"].items():
+            if key in value:
+                _check(value[key], sub, f"{path}.{key}" if path else key, errors)
+
+    if isinstance(value, list) and "items" in rules:
+        for i, item in enumerate(value):
+            _check(item, rules["items"], f"{path}[{i}]", errors)
+
+
+def validate_record(record: dict, schema: dict) -> list[str]:
+    """
+    校验 record 是否符合 schema，返回错误信息列表；空列表 = 通过。
+
+    >>> schema = {
+    ...     "type": "object",
+    ...     "required": ["id", "age"],
+    ...     "properties": {
+    ...         "id": {"type": "integer", "minimum": 1},
+    ...         "age": {"type": "integer", "minimum": 0, "maximum": 150},
+    ...     },
+    ... }
+
+    合法记录 → 空列表：
+    >>> validate_record({"id": 7, "age": 30}, schema)
+    []
+
+    类型错误（且不触发后续检查）：
+    >>> validate_record({"id": "7", "age": 30}, schema)
+    ['id: 期望 integer，实际为 str']
+
+    越界 + 缺失必填字段同时报出：
+    >>> validate_record({"id": 0, "age": 999}, schema)  # doctest: +NORMALIZE_WHITESPACE
+    ['id: 0 低于下限 1', 'age: 999 超出上限 150', 'age: 缺失必填字段 name']
+    """
+    errors: list[str] = []
+    if schema.get("type") == "object":
+        for key in schema.get("required", []):
+            if key not in record:
+                errors.append(f"{key}: 缺失必填字段")
+    _check(record, schema, "", errors)
+    return errors
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod(verbose=False)
+```
+
+**实现要点**
+
+| 决策 | 理由 |
+|---|---|
+| 类型不符后 `return` | 避免对错误类型继续做 `minimum`/`pattern` 检查产生连锁误报 |
+| `bool` 排除出 `integer`/`number` | `isinstance(True, int)` 为 `True`，是 JSON 校验的经典陷阱 |
+| `required` 在根层优先检查 | 缺字段和越界错误并列报出，一次运行暴露全部问题 |
+| 路径标注（`a.b[0]` 风格） | 嵌套结构报错时可定位，便于上游 DPswarm 任务回传修正 |
+
+**待办**：请把子任务 0 验收后的 schema 文本贴出，我将逐字替换 `SCHEMA` 常量，并核对是否需要增删关键字（例如 `additionalProperties`、`format` 等）后重跑 doctest。

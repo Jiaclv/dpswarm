@@ -1,3 +1,33 @@
+# 0.11.0 有界持久 mailbox（Lead↔worker 直系通道）验证（2026-09-11）
+
+**测试环境披露（重要）**：本轮回归在本机遇到宿主版本漂移——全局安装的 `@deepseek-ai/dsh` 已升级到 `0.1.5-rc.1`（dsh-session `0.1.5-rc.2`），其 Session 头要求 `version 3` 并更改了 settings `installSection` API，而插件测试夹具（与仓库内 `deepseek-harness-master` 源码，`SESSION_FORMAT_VERSION = 0`）仍按 v0 构建。改动前基线实为 **303 通过 / 83 失败**（仓库根 `node --test dpswarm-dsh-plugin/tests/*.test.mjs`，386 项），失败全部集中在 cm / lead-route / budget-host / mechanism-911 的宿主 API 族（40× "session header version must be 3, got 0"、41× settings/registry API 变更、1× python 非 ASCII 路径、1× installSection），与本轮改动无关；0.10.0 记录的 381/381 生成于宿主升级之前。改动后同环境 **318 通过 / 83 失败**：原 303 全绿保持、新增 15 项 mailbox 测试全绿、失败集逐名 diff 与改动前完全一致（零回归）。要回到全绿需把宿主固定回与夹具匹配的版本或按 v3 头重写夹具（独立工程，未在本轮范围内）。
+
+语义来源：宿主 `packages/experimental/agent-team/src/mailbox.ts` 的有界模式（`maxPendingMessagesPerMember` 默认 64 超限 `TEAM_MAILBOX_FULL`、`maxMessageBytes` 64KiB 成帧检查）与宿主 agent 收件箱双投递语义（`core/agent/src/runtime-types.ts`：`inject` 只注入不唤醒、`followup` 排队并唤醒；`packages/subagent` 的 `startContinuable`/`followup` 持久子会话通道）。v1 只做 Lead↔worker 直系通道（平级 worker 互发不在稳定 API 内）。改动：
+
+- **新 `lib/mailbox.js`**：`TeamMailbox`（准入/有界/持久化/投递路由，按根会话链式串行化 + KV 单调用原子）+ `KvMailboxStorage`（宿主 `ctx.storage` KV 适配，prefer `json` backend，懒开 `dpswarm_mailbox` 单元；hub 缺席时 `available()=false` 降级关闭）。三类消息 kind 封闭（fact/clarify/block），控制性意图词表额外以 `DPSWARM_MAILBOX_CONTROL_REJECTED` 拒绝并指向 dpswarm_run/rework/review；超限 `DPSWARM_MAILBOX_FULL`/`DPSWARM_MESSAGE_TOO_LARGE`；去重按 message_id 幂等（重发返回原条目，不重复排队/审计）；每条消息 `{message_id, run_id, from, to, kind, refs, ts}` 持久化；`register()` 换 run_id 接管时旧 run 未投递消息按 `DPSWARM_MAILBOX_RUN_SUPERSEDED` 拒绝留痕。审计词汇 `dpswarm/mailbox-queued|delivered|rejected`（delivered 带 `via: inject|followup|acknowledge` 与 `carrier: live-channel|wake-prompt|rework-prompt|lead-read`）；审计失败按 worker 诊断先例收进结果字段不阻断机制。
+- **`lib/fixed-team.js` 接线**（不碰产物 ready 唤醒语义，mailbox 为叠加层）：run 起点注册成员表（lead + 子任务 id/角色名 + tester + 独立 reviewer）；staged 唤醒循环（`drain(carrier='wake-prompt')`）与返工延续 prompt（`carrier='rework-prompt'`）承载目标成员 pending；`[DPSWARM_WAITING]` 解析点（首轮 + 唤醒后再等待）自动落 worker→lead 的 `block` 消息（确定性 message_id `wait-<item>-<artifact>` 幂等，失败收进 `cleanup.mailbox_error` 不阻断运行）；`dpswarm_run` 返回体新增 `mailbox.pending_for_lead`；`dpswarm_status` 新增 `mailbox` 段（只读不确认）；新增 `mailbox()` 工具方法与 `resolveTeamWorker()`（worker 会话→成员身份，rework 延续子会话合法，其消息 run_id 盖邮箱注册的 run 而非 reworkId）。
+- **`lib/index.js`**：注册 `dpswarm_mailbox` 工具（Lead/worker 双面；TEAM_REQUIRED 的 `openTools` 放行）；`lib/role-guidance.js` worker 指引声明其 worker 侧工具身份；`dpswarm_artifact` 描述同步（不再是"其余全 Lead-only"）。
+- **不碰**：写锁、返工血缘、准入、串行/parallel/staged 三档互斥、REVIEWER_PENDING 门控、产物 ready 唤醒链。
+
+与宿主的有意偏差：宿主 experimental mailbox 是成员间任意互发 + Lead 日志事务账本；本插件 v1 只有 Lead↔worker 直系（worker 互发与自我消息拒绝 `DPSWARM_MAILBOX_ROUTE_REJECTED`/`SELF_MESSAGE`），持久化走 `ctx.storage` KV 而非事务账本（跨进程权威仍在 sidecar 审计）。在场即时投递的 `inject`/`followup` 通道以 `attachChannel` 挂接（宿主 continuable 子会话语义），但当前 fixed-team 派发是一次性 SubagentRun（无在场 continuable 子会话），所以实际承载是唤醒/返工延续 prompt——语义等价（clarify/block 随延续唤醒送达、fact 静默作上下文），测试对两条路径都钉了路由正确性。
+
+新增测试 `tests/mailbox.test.mjs` 15 项：核心 11（三类消息在场通道路由 fact→inject / clarify、block→followup 且不误唤醒、无通道 pending FIFO + drain 的 via/carrier、通道失败结构化降级、64/65 有界 + 跨成员独立计数 + 释放额度、64KiB 帧上限（CJK 成帧）、FileKv 冷恢复三实例往返（含成员表与投递态持久）、message_id 幂等去重（含不重复审计）、控制词表拒绝 + kind 封闭 + 校验族、run 接管拒绝留痕、有界渲染）+ 控制器集成 4（staged 等待 worker 的 block 入 lead 收件箱且 run 返回体呈出、lead clarify 随唤醒 prompt 送达并记审计、worker 工具纪律（只能发 lead/控制词拒/未知会话拒）、返工延续承载 post-run 消息 + rework 子会话发件、storage 缺席降级不阻断含等待超时路径）。`index.test.mjs` 工具清单同步加 `dpswarm_mailbox`。未跑真实模型试点。
+
+---
+
+# 0.10.0 三层交接包 / verbatim 直贴契约 / 验收可见性验证（2026-09-11）
+
+插件回归 **381/381**（仓库根 `node --test dpswarm-dsh-plugin/tests/*.test.mjs`）、控制服务未改动（本轮纯插件侧）。`npm test`（cwd=插件目录）380/381，唯一失败是 `host-model-registry-integration` 的既有 cwd 敏感路径拼接（`resolve('dpswarm-dsh-plugin/tests/…')` 相对进程 cwd，基线同样失败），从仓库根运行即绿。语义来源：Python 编排器五轮实验验证的三项机制（`dpswarm-plugin/dpswarm/orchestrator_lg.py` 的 `_handoff_section` / L1 提取正则组 / verbatim 措辞、`orchestrator.py` 的 `_upstream_evidence` 验收可见性），本轮回移到 JS 插件。改动：
+
+- **三层交接包**（新 `lib/handoff.js` + `fixed-team.js` 相位门）：staged 新相位首波的"前序相位交付摘要（不可信摘要）"升级为三层——L2 摘要层（保留 2000 字符有界截断，措辞改"摘要仅供导航，逐字内容以 L1/原文为准"）+ L1 原子事实层（确定性逐字提取，不走 LLM：fenced 代码块 > JSON/schema 行 > 函数/类签名 > 表格行/键值对/文件路径行/版本号；未闭合围栏按 fenced 级收到 EOF；去重、按优先级丢弃、单块超剩余额度且剩余 ≥200 截断标注、输出恢复原文序；上限 semantic 4000 / verbatim 8000）+ L0 原文层（产物 id + 文件路径 + 读门回查指引——读门 `ARTIFACT_NOT_READY` 对 ready 产物放行，正是现成回查通道）。
+- **verbatim 判型与直贴契约**：产物 id/标题/任务描述命中逐字信号（逐字/引用/一致/schema/签名/verbatim/quote）→ 该产物交接标 `handoff_profile=verbatim`：L1 前置并放宽上限，头部明示"逐字内容禁止凭记忆复述，必须先读取上游产物原文再逐字直贴；L1 层仅供定位预览"。判型恒规则兜底（插件无 CM，`decider=rule`），每次注入记审计事件 `dpswarm/handoff-profile{artifact_id, profile, decider, upstreams}`；相位内依赖的唤醒延续 prompt 对 verbatim 产物同样附直贴契约（`via: 'wake'`）。
+- **验收可见性**（消灭"跨 item 约束物理上不可核验"的盲放）：带 deps 的产物在验收/review 时必须能看到上游 ready 交付——独立 Reviewer 派发 prompt、`dpswarm_run` 返回体 `acceptance_visibility`、`dpswarm_review` 返回体 `upstream_evidence`、返工轮 Reviewer 血缘复核 prompt 四处同构携带（每份 ≤4000、总量 ≤8000；超限降级 L1 逐字段 + 路径/`dpswarm_report` 引用；未 ready 记"交付内容不可见"）；提示明示"缺材料不可验收通过"。Review 门禁语义不变（advisory 共置，不新增硬门）。
+- **不碰**：写锁语义、返工血缘、准入、串行/parallel/staged 三档互斥规则、REVIEWER_PENDING 门控。
+
+与 Python 的有意偏差：无 CM（L2 恒截断摘要、无 playbook 覆盖、判型无 llm 路径）；无 PULL 兜底通道（L0 回查 = 读门 + 文件路径，截断标注相应改写）；验收超限降级从"逐字截断 + package ref"改为"L1 逐字段 + 路径引用"（插件无 submission_package 引用面）；交接触发点保持插件既有的"相位首波"（Python 按 deps 逐项注入）；相位交接上游集合保持"前序全部交付"（Python 仅 deps）。新增测试：`tests/handoff.test.mjs` 11 项单元（判型/提取优先级与丢弃序/未闭合围栏/去重与原文序/截断标注/verbatim 前置与契约/验收材料降级与缺材料行），`fixed-team-parallel.test.mjs` 4 项集成（三层结构与层序、verbatim 契约与审计、Reviewer prompt 可见性与缺材料、run/review 返回体携带证据）；0.9.0 的相位交接表征测试在 L2 层保留"前序相位交付摘要"定位词后保持绿。未跑真实模型试点。
+
+---
+
 # 0.9.7 工作区 lease 自愈与可见性验证（2026-09-10）
 
 插件回归 **366/366**、控制服务 **580/580** 通过（不含外部模型调用）。起因：02:58 真实死锁——01:56 会话 QUOTA 失败后 lease 泄漏（测试者/Reviewer 交付未结案），新会话同目录派发被 `WORKSPACE_BUSY` 拒绝；status 只看本会话所以"什么也没显示"，TEAM_REQUIRED 又拦了 Lead 的排查命令。三层修复：`acquire()` 对宿主进程已死的 lease 跨会话自动接管（run 返回体记录 `lease_takeover`）；活主 lease 的 `WORKSPACE_BUSY` 报错携带持有方 session/pid/恢复路径；`dpswarm_status` 新增 `workspace_lease` 块（含"死主将自动接管/活主将拒派发"的指引文案）。设计红线保留：活进程 lease 不自动让渡、清理不确定不自动清除。新增表征（fixed-team）：死主 lease 跨会话接管成功且记录 takeover、活主报错含 `session parent`、status 两种指引文案。事故当时的手动恢复：核对失败会话审计（全部 item 终态、清理确认、最后一笔 56 分钟前）后按显式恢复路径删除 lease 文件。未跑真实模型试点。

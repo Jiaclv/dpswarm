@@ -1,0 +1,26 @@
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MiniLedgerRecord",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string" },
+    "amount": { "type": "number", "multipleOf": 0.01 },
+    "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": []
+    }
+  },
+  "required": ["id", "amount", "currency"],
+  "additionalProperties": false
+}
+```
+
+设计说明：
+1. `id` 为必填字符串；`amount` 用 `multipleOf: 0.01` 约束两位小数精度。
+2. `currency` 用 `pattern ^[A-Z]{3}$` 强制三字母大写代码（如 CNY/USD）。
+3. `tags` 允许空数组，元素须为字符串；未列入 required，即字段整体可省略，实现“可空”语义。
+4. `additionalProperties: false` 拒绝未知字段，便于 B 阶段校验器确定性地枚举检查。
+5. 必填集为 `id/amount/currency`，与任务要求一致；B 实现时按此 required 列表校验缺失项。
