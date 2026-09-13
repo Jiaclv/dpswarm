@@ -61,14 +61,14 @@ class TencentDBMemoryService(MemoryService):
         if client is not None:
             self._client = client
         else:
+            if not endpoint:
+                raise ValueError("未注入 client 时必须提供 endpoint")
             try:
                 import httpx  # noqa: PLC0415 — 依赖守卫：构造才报错
             except ImportError:
                 raise ImportError(
                     "TencentDBMemoryService 需要 httpx：pip install httpx "
                     "（或注入 client= 使用自带传输；核心包保持零依赖）") from None
-            if not endpoint:
-                raise ValueError("未注入 client 时必须提供 endpoint")
             self._client = httpx.Client(
                 base_url=endpoint.rstrip("/") + "/v2",
                 headers={"Authorization": f"Bearer {api_key or 'dpswarm-pilot'}",

@@ -12,12 +12,29 @@
 """
 from __future__ import annotations
 
+import builtins
 import os
 
 import pytest
 
 from dpswarm.context.memory import CANDIDATE, REJECTED, MemoryService
 from dpswarm.context.memory_tencentdb import TencentDBMemoryService
+
+
+@pytest.fixture()
+def blocked_httpx_imports(monkeypatch):
+    """Exercise optional-dependency paths even when httpx is installed locally."""
+    attempted = []
+    original_import = builtins.__import__
+
+    def blocked_import(name, *args, **kwargs):
+        if name == "httpx" or name.startswith("httpx."):
+            attempted.append(name)
+            raise ImportError("httpx intentionally unavailable in this test")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", blocked_import)
+    return attempted
 
 
 class _Resp:
@@ -212,9 +229,25 @@ class TestGracefulDegradation:
         assert [x.memory_id for x in hits] == [e.memory_id]
         assert m.backend_available is True
 
-    def test_construct_requires_endpoint_or_client(self):
-        with pytest.raises(ValueError):
+    def test_construct_requires_endpoint_or_client(self, blocked_httpx_imports):
+        with pytest.raises(ValueError, match="endpoint"):
             TencentDBMemoryService()              # 无 client 且无 endpoint
+        assert blocked_httpx_imports == []
+
+    def test_endpoint_without_httpx_explains_optional_dependency(self, blocked_httpx_imports):
+        with pytest.raises(ImportError, match="pip install httpx") as error:
+            TencentDBMemoryService(endpoint="https://gateway.invalid")
+        assert "client=" in str(error.value)
+        assert blocked_httpx_imports == ["httpx"]
+
+    def test_injected_client_works_without_httpx(self, blocked_httpx_imports):
+        remote = FakeTdaiClient()
+        memory = TencentDBMemoryService(client=remote)
+        entry = memory.add_candidate("dependency-free client", "root", ["src"],
+                                     accepted_by="lead")
+        memory.promote(entry.memory_id)
+        assert memory.retrieve("root", query="client") == [entry]
+        assert blocked_httpx_imports == []
 
 
 class TestLiveGateway:

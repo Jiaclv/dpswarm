@@ -4,7 +4,7 @@ DPswarm 是研究原型，目前没有长期支持版本或安全响应时限承
 
 ## 私下报告漏洞
 
-如果仓库的 **Security → Advisories → Report a vulnerability** 入口可用，请通过该入口私下提交。若入口不可用，可创建仅写“请求安全报告渠道”的 issue，待维护者提供私下渠道；不要在公开 issue 中附漏洞细节、利用代码或敏感数据。
+本仓库已启用私密漏洞报告，请通过 [Report a vulnerability](https://github.com/Jiaclv/dpswarm/security/advisories/new) 提交。若账户无法使用该入口，可创建仅写“请求安全报告渠道”的 issue；不要在公开 issue 中附漏洞细节、利用代码或敏感数据。
 
 有帮助的信息包括：受影响组件、前提条件、最小复现、实际影响及可行的修复建议。只使用自己的测试目录与虚构凭据复现；不要提供真实 API Key、Bearer token、完整会话、私人源码或包含密钥的配置。
 
