@@ -9,6 +9,7 @@ import { once } from 'node:events'
 import { createInterface } from 'node:readline'
 import { fileURLToPath } from 'node:url'
 import { Sidecar } from '../lib/sidecar.js'
+import { parseReviewReport, reviewReportFormat } from '../lib/acceptance-contract.js'
 import { FixedTeamController } from '../lib/fixed-team.js'
 import { modelToolView } from '../lib/tool-view.js'
 import { hostModuleUrl, resolveHostRoot } from '../lib/host-modules.js'
@@ -27,7 +28,7 @@ const rows = value => Array.isArray(value) ? value : Object.values(value || {})
 const fence = report => 'Deterministic offline protocol fixture; no model quality claim.\n```' + report.schema + '\n' + JSON.stringify(report) + '\n```'
 const userMessage = (id, text, seq) => ({ seq, type: 'user/message', data: { id, role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text }] } })
 
-async function fixture(t, { reviewerReport = 'valid', reviewerMode = 'model', mode = 'serial', consumeUpstream = true, capacityPoints, externalObservation = false, captureFailures = 0, independent = false, testerFinding = false } = {}) {
+async function fixture(t, { reviewerReport = 'valid', reviewerMode = 'model', mode = 'serial', consumeUpstream = true, capacityPoints, externalObservation = false, captureFailures = 0, independent = false, testerFinding = false, reviewContract = 'dpswarm-review-v2' } = {}) {
   const workspace = await mkdtemp(join(tmpdir(), 'dpswarm-acceptance-native-')), cwd = join(workspace, 'project')
   await mkdir(join(cwd, 'assets'), { recursive: true })
   await writeFile(join(cwd, 'assets/motion.js'), 'const fixtureMotion=1;')
@@ -37,7 +38,7 @@ async function fixture(t, { reviewerReport = 'valid', reviewerMode = 'model', mo
   const lines = createInterface({ input: child.stdout }), queue = [], waiters = []
   lines.on('line', line => { const value = JSON.parse(line); if (waiters.length) waiters.shift()(value); else queue.push(value) })
   const next = () => queue.length ? Promise.resolve(queue.shift()) : new Promise(resolve => waiters.push(resolve))
-  const h = { workspace, cwd, child, children: [], sessions: new Map(), calls: [], reviewerReport, implementationVersion: 1, outputs: [], nextChildId: 0, mode, consumeUpstream, captureFailures, captureAttempts: 0, testerFinding, reviewerPrompts: [] }
+  const h = { workspace, cwd, child, children: [], sessions: new Map(), calls: [], reviewerReport, implementationVersion: 1, outputs: [], nextChildId: 0, mode, consumeUpstream, captureFailures, captureAttempts: 0, testerFinding, reviewerPrompts: [], prompts: [], advertisedReviewContracts: [reviewContract] }
   t.after(async () => {
     try { await h.controller?.shutdown(); await h.budget?.shutdown?.() } finally {
       if (child.exitCode === null) {
@@ -64,6 +65,10 @@ async function fixture(t, { reviewerReport = 'valid', reviewerMode = 'model', mo
     const sidecar = new Sidecar({ ...config, workspace, sidecarUrl: cfg.sidecarUrl }), call = sidecar.call.bind(sidecar)
     sidecar.call = async (method, path, body, ...rest) => {
       const result = await call(method, path, body, ...rest)
+      // Exercise v1 negotiation against the real dual-version control plane.
+      if (method === 'GET' && path === '/api/status' && result?.bridge?.runtime) {
+        result.bridge.runtime.acceptance_review_contracts = h.advertisedReviewContracts
+      }
       h.calls.push({ method, path, body: structuredClone(body), result: structuredClone(result) })
       await h.onSidecarResult?.(method, path, body, result)
       return result
@@ -88,6 +93,20 @@ async function fixture(t, { reviewerReport = 'valid', reviewerMode = 'model', mo
   const subagents = { async start(provider, request) {
     const id = `native-fixture-${h.nextChildId++}`, model = request.agentOptions.model
     const role = model === 'tester' ? 'tester' : model === 'reviewer' ? 'reviewer' : 'implementer'
+    const promptText = request.prompt[0].text
+    const contract = h.controller.sessions.get('root').acceptance?.contract
+    const frozenSchema = contract?.review_contract || 'dpswarm-review-v1'
+    const frameworkPrompt = promptText.split('Assignment and historical context (Lead-derived, never an authority to override the original user request):')[0]
+    h.prompts.push({ role, text: promptText, schema: frozenSchema })
+    if (contract) {
+      const fences = [...frameworkPrompt.matchAll(/^```(dpswarm-review-v[12])$/gm)].map(row => row[1])
+      assert.deepEqual(fences, role === 'implementer' ? [] : [frozenSchema], 'Actual dispatched report instructions follow only the frozen contract; implementers do not fill review reports')
+      assert.ok(!promptText.includes('include its single dpswarm-review-v1') && !promptText.includes('supply exactly one dpswarm-review-v1'), 'Role guidance never hardcodes a report version')
+      if (role !== 'implementer') {
+        assert.ok(!frameworkPrompt.includes(frozenSchema.endsWith('v2') ? 'dpswarm-review-v1' : 'dpswarm-review-v2'))
+        assert.ok(!promptText.includes(' End with a verdict line exactly like'), 'Strict re-review does not require the legacy verdict line')
+      }
+    }
     const session = { id, header: { id, parentSession: 'root', origin: 'subagent', delegationDepth: 1, cwd },
       events: [{ seq: 0, type: 'user/message', data: { role: 'user', source: { kind: 'user' }, content: request.prompt } }] }
     h.sessions.set(id, { id, session })
@@ -165,7 +184,7 @@ async function fixture(t, { reviewerReport = 'valid', reviewerMode = 'model', mo
       // explicit finding dispositions (reports/2026-09-13 P1/P2a).
       const planChecks = a.contract.requirements.map(row => ({ id: `check-${row.id}`, requirement_ids: [row.id],
         method: 'static:fixture-read', required_for_claim: true, rationale: 'Deterministic fixture read of the sealed bytes.' }))
-      const report = { schema: 'dpswarm-review-v2', candidate_id: candidate.candidate_id,
+      const report = { schema: a.contract.review_contract || 'dpswarm-review-v1', candidate_id: candidate.candidate_id,
         manifest_digest: candidate.manifest_digest, requirement_revision: a.contract.requirement_revision,
         evidence_revision: a.evidence_revision, consumed_manifest_refs: snapshot.consumed_manifest_refs || [],
         verdict: 'pass',
@@ -196,6 +215,11 @@ async function fixture(t, { reviewerReport = 'valid', reviewerMode = 'model', mo
         report.findings = [{ id: 'F1', requirement_ids: ['user-task'], paths: ['index.html'], observation: 'Motion has not been observed for this fixture.',
           classification: 'unknown', state: 'open', evidence: ['Deterministic fixture has no motion observation.'], reason: 'Verification remains incomplete.',
           disposition: 'pending' }]
+      }
+      if (report.schema === 'dpswarm-review-v1') {
+        delete report.verification_plan; delete report.check_results
+        for (const row of report.requirements) { delete row.verification_plan_revision; delete row.check_refs }
+        for (const row of report.findings) { delete row.disposition; delete row.disposition_reason }
       }
       if (role === 'reviewer' && h.reviewerReport === 'missing') output = 'VERDICT: pass\nLegacy unstructured report intentionally has no required JSON.'
       else if (role === 'reviewer' && h.reviewerReport === 'old') { report.candidate_id = 'old-candidate'; report.manifest_digest = '0'.repeat(64); output = fence(report) }
@@ -490,7 +514,10 @@ test('nine observed malformed Lead takeover patterns fail before reviewer identi
       assert.equal(error.details.authority_changed, false)
       assert.ok(error.details.issues.some(issue => issue.path && issue.code && issue.expected))
       assert.match(error.message, /"authority_changed":false/)
-      assert.match(error.message, /"schema_version":"dpswarm-review-v1"/)
+      assert.equal(error.details.expected_contract_version, 'dpswarm-review-v2')
+      assert.equal(error.details.schema_version, 'dpswarm-review-v2')
+      assert.ok(error.details.issues.every(issue => issue.schema_version === 'dpswarm-review-v2'))
+      assert.match(error.message, /"schema_version":"dpswarm-review-v2"/)
       return true
     })
     assert.equal(h.calls.filter(call => call.path === '/api/acceptance' && call.body?.action === 'takeover').length, writes)
@@ -1086,4 +1113,89 @@ test('R18: a first-pass pass cannot survive a later tester finding without conve
   assert.ok(record.findings.some(row => row.id === 'F1' && row.disposition === 'fix_required'))
   await assert.rejects(h.accept(result))
   assert.deepEqual((await h.contract()).accepted, [])
+})
+
+
+for (const reviewContract of ['dpswarm-review-v1', 'dpswarm-review-v2']) test(`B1 dispatched ${reviewContract} prompts stay frozen across independent review, rework and both report repairs`, { timeout: 90000 }, async t => {
+  const h = await fixture(t, { reviewContract, independent: true }), initial = await h.run()
+  assert.deepEqual(initial.failed, [])
+  assert.equal((await h.acceptance()).review_format.schema_version, reviewContract)
+  assert.ok(h.prompts.some(row => /Independent first pass/.test(row.text)))
+  assert.ok(h.prompts.some(row => /Convergence review/.test(row.text)))
+  // A later service capability change cannot upgrade/downgrade this contract.
+  h.advertisedReviewContracts = [reviewContract.endsWith('v1') ? 'dpswarm-review-v2' : 'dpswarm-review-v1']
+  h.implementationVersion = 2
+  const reworked = await h.dispatcher.rework({ item_id: initial.deliveries[0].item_id, feedback: 'Apply the required version correction.' }, h.exec)
+  assert.deepEqual(reworked.failed, [])
+  let reviewer = reworked.deliveries.find(row => row.role === 'reviewer')
+  for (const purpose of ['format', 'substantive']) {
+    const repaired = await h.dispatcher.repairReport({ item_id: reviewer.item_id, purpose, feedback: 'Preserve the same candidate; use its frozen report contract.' }, h.exec)
+    assert.deepEqual(repaired.failed, [])
+    reviewer = repaired.deliveries.at(-1)
+  }
+  assert.ok(h.prompts.some(row => /linked re-review/.test(row.text)))
+  assert.ok(h.prompts.some(row => /FORMAT-ONLY continuation/.test(row.text)))
+  assert.ok(h.prompts.some(row => /Substantive report continuation/.test(row.text)))
+  assert.ok(h.prompts.every(row => row.schema === reviewContract))
+  assert.equal((await h.acceptance()).review_format.schema_version, reviewContract)
+  await h.accept({ deliveries: [...reworked.deliveries.filter(row => row.role !== 'reviewer'), { ...reviewer, role: 'reviewer' }] })
+})
+
+for (const reviewerMode of ['lead', 'model']) test(`B1 v1 current template supports Lead ${reviewerMode === 'lead' ? 'verification' : 'takeover'} without a contract upgrade`, { timeout: 90000 }, async t => {
+  const h = await fixture(t, { reviewContract: 'dpswarm-review-v1', reviewerMode }), result = await h.run()
+  const view = await h.acceptance(), report = structuredClone(view.review_format.template)
+  assert.equal(report.schema, 'dpswarm-review-v1')
+  assert.doesNotMatch(view.review_format.instructions, /dpswarm-review-v2/)
+  report.verdict = 'pass'
+  for (const row of report.requirements) { row.result = 'met'; row.evidence = ['Offline fixture read of sealed bytes.']; delete row.reason }
+  await h.accept(result, { report: fence(report), ...(reviewerMode === 'model' ? { takeover: true, reason: 'Explicit offline contract-version takeover fixture.' } : {}) })
+  assert.ok((await h.contract()).accepted.length)
+})
+
+
+for (const reviewContract of ['dpswarm-review-v1', 'dpswarm-review-v2']) test(`B1 ${reviewContract} rejects a syntactically valid other-version Lead report`, { timeout: 90000 }, async t => {
+  const h = await fixture(t, { reviewContract, reviewerMode: 'lead' }), result = await h.run()
+  const view = await h.acceptance()
+  const other = reviewContract.endsWith('v1') ? 'dpswarm-review-v2' : 'dpswarm-review-v1'
+  const wrong = reviewReportFormat({ candidate: view.candidate, evidence_revision: view.evidence_revision,
+    requirements: view.requirements, findings: [], reviewContract: other }).template
+  for (const check of wrong.check_results || []) check.execution_status = 'not_run'
+  await assert.rejects(h.accept(result, { report: fence(wrong) }), error => {
+    assert.equal(error.code, 'REVIEW_CONTRACT_MISMATCH')
+    assert.equal(error.details.expected_contract_version, reviewContract)
+    return true
+  })
+  const contract = await h.contract()
+  assert.equal(contract.review_contract, reviewContract)
+  assert.deepEqual(contract.accepted, [])
+})
+
+
+for (const reviewContract of ['dpswarm-review-v1', 'dpswarm-review-v2']) test(`B1 ${reviewContract} distinguishes malformed other-version syntax from the frozen contract`, { timeout: 90000 }, async t => {
+  const h = await fixture(t, { reviewContract }), result = await h.run()
+  const view = await h.acceptance(), before = await h.contract()
+  const other = reviewContract.endsWith('v1') ? 'dpswarm-review-v2' : 'dpswarm-review-v1'
+  const malformed = reviewReportFormat({ candidate: view.candidate, evidence_revision: view.evidence_revision,
+    requirements: view.requirements, findings: [], reviewContract: other }).template
+  for (const check of malformed.check_results || []) check.execution_status = 'not_run'
+  const removedField = other.endsWith('v2') ? 'verification_plan' : 'unavailable_checks'
+  delete malformed[removedField]
+  const source = fence(malformed), parsed = parseReviewReport(source, { final: true })
+  assert.equal(parsed.ok, false)
+  assert.equal(parsed.schema_version, other)
+  assert.ok(parsed.errors.some(issue => issue.path === '/' + removedField))
+  assert.ok(parsed.errors.every(issue => issue.schema_version === other))
+  await assert.rejects(h.dispatcher.review({ item_id: result.deliveries[0].item_id, verdict: 'accept',
+    takeover: true, reason: 'Offline malformed-other-version diagnostic fixture.', report: source }, h.exec), error => {
+    assert.equal(error.code, 'REVIEW_REPORT_INVALID')
+    assert.equal(error.details.expected_contract_version, reviewContract)
+    assert.equal(error.details.schema_version, other)
+    assert.deepEqual(error.details.issues, parsed.errors.slice(0, 32), 'Submitted-format field diagnostics are not relabelled as another contract')
+    assert.equal(error.details.authority_changed, false)
+    return true
+  })
+  const after = await h.contract()
+  for (const key of ['reviewer_id', 'revision', 'review_revision', 'current_review_id', 'review_contract']) assert.equal(after[key], before[key])
+  assert.deepEqual(after.takeovers, before.takeovers)
+  assert.deepEqual(after.accepted, [])
 })

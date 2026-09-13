@@ -1,0 +1,60 @@
+DPswarm Source-Available License (Custom)
+
+Copyright (c) 2026 Jiaclv
+
+中文版要旨（以英文正文为准）：
+允许任何人免费使用、复制、修改、分发本软件，包括商业用途；但年度总营收
+超过 100 万美元（USD 1,000,000）的实体，其商业使用须事先获得版权人
+书面同意。软件按"现状"提供，不附带任何担保。
+
+Terms and Conditions
+
+1. Definitions
+
+   "Software" means the contents of this repository, including all source
+   code, documentation, and associated files.
+
+   "Commercial Use" means any use of the Software that is primarily
+   intended for or directed toward commercial advantage or monetary
+   compensation, including but not limited to use in a product or service
+   offered for sale, or use in the internal operations of a for-profit
+   organization.
+
+   "Large Commercial Entity" means any legal entity (together with its
+   affiliates) whose annual gross revenue exceeds one million US dollars
+   (USD 1,000,000) in its most recent fiscal year.
+
+2. Grant of Rights
+
+   Subject to the conditions below, the copyright holder hereby grants you
+   a non-exclusive, worldwide, royalty-free license to use, copy, modify,
+   merge, publish, and distribute the Software, in source or binary form,
+   for any lawful purpose, including Commercial Use.
+
+3. Revenue Threshold Condition
+
+   Notwithstanding Section 2, Commercial Use of the Software by a Large
+   Commercial Entity requires the prior written consent of the copyright
+   holder. If your organization becomes a Large Commercial Entity while
+   using the Software commercially, you must obtain such consent within
+   90 days.
+
+   Nothing in this Section restricts non-commercial use, evaluation,
+   research, or educational use by any entity regardless of size.
+
+4. Notices
+
+   Copies or substantial portions of the Software must retain this license
+   text and the copyright notice above.
+
+5. No Warranty
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+   IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES
+   OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+   ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+Contact: open an issue in this repository to request a commercial license.

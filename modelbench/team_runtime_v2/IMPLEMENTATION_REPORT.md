@@ -2,7 +2,7 @@
 
 日期：2026-09-03。授权范围来自 `team_eval20260903/REPAIR_PLAN.md`；本记录区分实现、离线验证和真实回归。
 
-后续状态：本报告的 51 调用/3 次通过属于已冻结的上一批真实回归。本次独立复审又发现并补修了边界问题，仍有宿主接入阻断项；没有新模型成绩。当前代码与历史版本不同，历史核心源码已保存在独立快照中。详见 [复审与重跑门槛](../postrepair_review_20260903/REVIEW.md)。
+后续状态：本报告的 51 调用/3 次通过属于已冻结的上一批真实回归。本次独立复审又发现并补修了边界问题，仍有宿主接入阻断项；没有新模型成绩。当前代码与历史版本不同，历史核心源码已保存在独立快照中。详见 复审与重跑门槛（本地归档，不随仓库分发）。
 
 产品入口澄清（2026-09-03）：DPswarm 是当前主 agent 按需调用的协作能力。主 agent 默认单干，需要时自主调用插件并兼任 Lead，协作结束后继续原任务。本文的固定 P/E/V、独立运行命令和模型组合只用于受控实验。此前“生产 Orchestrator 尚未迁移”描述的是修复覆盖范围，不意味着产品要改成默认团队流水线；后续需把相关修复贯通宿主插件的按需委派链路。此次实验未评估“是否应该启用协作”的决策质量。
 
@@ -47,7 +47,7 @@
 
 这4轮共51次调用、770,108 token，全部调用的总用量已知；GLM原生调用27次，工具协议错误0，transport错误0，NoAction 0。4轮交接全部通过，没有等价路径误拒绝。一个 Executor 初始阶段仍用尽6次调用且未显式结束，随后依预定流程进入验证和修复；预算提示不能保证模型一定按时结束。
 
-INT1 的 GLM-5.3 失败属于剩余实现遗漏：已修好数据流和整数 score，但 `reporter/templates/summary.txt` 仍使用 `record.full_name`，规格要求 `record.name`。Verifier 在原工作区与临时副本均发现该问题，最终 attestation 维持 fail，grader 返回 `bad_attestation`。这里不是协议解析失败，也不是缺少 attestation；没有手动替候选修答案或追加重试来提高通过率。见[最终验证证据](<K:/秋招/项目/DPswarm/modelbench/team_runtime_v2/regression_budget_visible_20260903/results/INT1_pipeline_repair__budget_visible__glm-5.3__r1/submission/attestation.json>)。
+INT1 的 GLM-5.3 失败属于剩余实现遗漏：已修好数据流和整数 score，但 `reporter/templates/summary.txt` 仍使用 `record.full_name`，规格要求 `record.name`。Verifier 在原工作区与临时副本均发现该问题，最终 attestation 维持 fail，grader 返回 `bad_attestation`。这里不是协议解析失败，也不是缺少 attestation；没有手动替候选修答案或追加重试来提高通过率。见最终验证证据（本地归档，不随仓库分发）。
 
 真实模型本轮触发澄清请求0次。因此澄清、重调度及恢复的正确性目前由脚本化模型与真实ControlPlane的离线集成测试支持，尚无真实模型澄清成功率数据。两题各一次也不足以证明Flash普遍优于5.3。
 
@@ -89,9 +89,9 @@ python -m modelbench.team_runtime_v2.revisions.budget_visibility run --root mode
 
 此入口复用真实CP，但**生产Orchestrator的普通文本循环尚未迁移**。当前修复落地到Provider合约、可复用团队模块和实验团队运行器；没有将这轮验证表述为完整生产接入。
 
-- [最终4轮报告](<K:/秋招/项目/DPswarm/modelbench/team_runtime_v2/regression_budget_visible_20260903/REPORT.md>)、[逐模型/逐角色/逐阶段统计](<K:/秋招/项目/DPswarm/modelbench/team_runtime_v2/regression_budget_visible_20260903/analysis.json>)、[CSV](<K:/秋招/项目/DPswarm/modelbench/team_runtime_v2/regression_budget_visible_20260903/summary.csv>)。
-- [6轮诊断报告](<K:/秋招/项目/DPswarm/modelbench/team_runtime_v2/regression_20260903_v2/REPORT.md>)、[停止记录](<K:/秋招/项目/DPswarm/modelbench/team_runtime_v2/regression_20260903_v2/stopped.json>)。
-- [最终JUnit](<K:/秋招/项目/DPswarm/modelbench/team_runtime_v2/validation/final-revision.junit.xml>)、[最终完整性核验](<K:/秋招/项目/DPswarm/modelbench/team_runtime_v2/validation/final_audit.json>)。
+- 最终4轮报告（本地归档，不随仓库分发）、逐模型/逐角色/逐阶段统计（本地归档，不随仓库分发）、CSV（本地归档，不随仓库分发）。
+- 6轮诊断报告（本地归档，不随仓库分发）、停止记录（本地归档，不随仓库分发）。
+- 最终JUnit（本地归档，不随仓库分发）、[最终完整性核验](<K:/秋招/项目/DPswarm/modelbench/team_runtime_v2/validation/final_audit.json>)。
 - 每批`calls/<call_id>/`保存原始请求、响应和metadata；`results/<run_id>/`保存工作区、角色阶段记录、execution日志、ControlPlane事件和grader结果；`source_snapshot/`保存对应源码快照。
 
 最终核验：历史程序/实例/ControlPlane核心hash一致；诊断版17个和最终版20个源码与快照hash一致；109个调用ID无重复、无悬空；预算无待结算/未知调用、无超额；10轮CP不变量回放通过且任务验收与grader一致；本次50个自有容器全部移除。独立只读复核另将最终51次started/completed、原始usage、metadata、turn、result与CP rich ledger逐项对齐，未发现遗漏或重复。原始成绩及调用记录保留。当前20调用上限与旧主实验18调用上限不同，且组合修复同时改变多处机制，不能作严格单因素因果比较。

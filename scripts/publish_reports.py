@@ -15,8 +15,13 @@ SPECS={
 REPO_URL='https://github.com/Jiaclv/dpswarm/blob/main/'
 EXCLUDE={'ARTIFACT_HASHES.json','PORTABLE_RECEIPT.json','EPISODES.json','WORKERS.json','TOOL_TIMELINES.json','PATCHES.json'}
 RECEIPTS={'REPORT_VALIDATION.json','DATA_VALIDATION.json','REVIEWED_SOURCE_HASHES.json','SOURCE_HASHES.json'}
-NATIVE_SCRIPT=Path(os.environ.get('DP_REPORT_BUILDER_DIR','D:/codex-home/plugins/cache/openai-curated-remote/data-analytics/0.2.10-13ceeea1f599/skills/build-report/scripts'))
-NODE=Path(os.environ.get('DP_REPORT_NODE') or shutil.which('node') or (Path.home()/'.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node.exe'))
+if not os.environ.get('DP_REPORT_BUILDER_DIR'):
+ raise SystemExit('Set DP_REPORT_BUILDER_DIR to the optional report-builder scripts directory; frozen reports are already included.')
+NATIVE_SCRIPT=Path(os.environ['DP_REPORT_BUILDER_DIR']).expanduser().resolve()
+for required in ['build_portable_artifact.mjs','verify_portable_artifact.mjs']:
+ if not (NATIVE_SCRIPT/required).is_file():raise SystemExit('Missing optional report builder: '+required)
+NODE=os.environ.get('DP_REPORT_NODE') or shutil.which('node')
+if not NODE:raise SystemExit('Install Node.js or set DP_REPORT_NODE before rebuilding reports.')
 LINK=re.compile(r'(?<!!)\[([^\]]+)\]\((<[^>]+>|[^)]+)\)')
 records=[];omitted=[];source_digest={}
 sha=lambda p:hashlib.sha256(Path(p).read_bytes()).hexdigest()

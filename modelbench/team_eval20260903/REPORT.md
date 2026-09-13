@@ -67,4 +67,4 @@ P/E/V/S 分别为 Planner、Executor、Verifier、Solo。进行中或用量证�
 
 这只是两题工程 pilot，不能作模型综合排名或异构协作因果结论。此次接入原生 DPswarm ControlPlane 的工作项、usage、submission 与评分证据；没有验证原生 Orchestrator 自动 fission/router 或 DSH 全链路。控制面验证、接受和 grader pass 分开记录。
 
-文件：[calls.csv](<K:/秋招/项目/DPswarm/modelbench/team_eval20260903/calls.csv>) · [runs.csv](<K:/秋招/项目/DPswarm/modelbench/team_eval20260903/runs.csv>) · [roles.csv](<K:/秋招/项目/DPswarm/modelbench/team_eval20260903/roles.csv>) · [models.csv](<K:/秋招/项目/DPswarm/modelbench/team_eval20260903/models.csv>) · [任务预检](<K:/秋招/项目/DPswarm/modelbench/team_eval20260903/task_audit/TASK_SELECTION.md>)。
+文件：calls.csv（本地归档，不随仓库分发） · runs.csv（本地归档，不随仓库分发） · roles.csv（本地归档，不随仓库分发） · models.csv（本地归档，不随仓库分发） · 任务预检（本地归档，不随仓库分发）。

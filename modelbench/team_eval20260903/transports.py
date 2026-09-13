@@ -20,7 +20,7 @@ from urllib import error as urlerror, request
 from uuid import uuid4
 
 MODELS = ("glm-5.3", "glm-5.3-flash", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna")
-CODEX_JS = Path(r"C:\Users\93711\AppData\Roaming\npm\node_modules\@openai\codex\bin\codex.js")
+CODEX_JS = Path(os.environ["DPSWARM_CODEX_JS"]).expanduser() if os.environ.get("DPSWARM_CODEX_JS") else None
 TIMEOUT_SECONDS = 600
 TEXT_TOOL_PROTOCOL = '''Return exactly one JSON object, without Markdown fences.
 For a final response: {"type":"final","content":"your response"}.
@@ -243,6 +243,8 @@ class ExperimentTransport:
     def _codex(self, record: dict[str, Any], messages: list[dict[str, Any]], folder: Path) -> None:
         cwd = folder / "empty-cwd"
         cwd.mkdir()
+        if CODEX_JS is None:
+            raise RuntimeError("Set DPSWARM_CODEX_JS to the installed Codex bin/codex.js entrypoint for this historical adapter")
         argv = ["node", str(CODEX_JS), "exec", "--ignore-user-config", "--json",
                 "--skip-git-repo-check", "--ephemeral", "-s", "read-only",
                 "-m", record["model_requested"],

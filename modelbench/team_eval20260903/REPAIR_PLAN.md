@@ -42,15 +42,15 @@ GLM 的官方接口通过 tools 声明函数、通过 tool_calls 返回调用，
 
 没有纯 Markdown 围栏案例。“去掉代码围栏”不对应这批数据。11 次可解析后缀只证明有些工具意图被说明前缀挡住，**不证明执行后任务就会成功**，也没有据此执行任何动作或修改原分数。
 
-离线复核方法为：仅对说明前缀案例，从第一个左花括号取到输出结尾，交给冻结版本的 parse_action；不搜索后续对象、不补括号、不改引号。11 次通过者均是完整单一顶层对象，无尾部说明。各类完整 call ID 清单、方法与源哈希保存在 [REPAIR_EVIDENCE.json](<K:/秋招/项目/DPswarm/modelbench/team_eval20260903/REPAIR_EVIDENCE.json>)。
+离线复核方法为：仅对说明前缀案例，从第一个左花括号取到输出结尾，交给冻结版本的 parse_action；不搜索后续对象、不补括号、不改引号。11 次通过者均是完整单一顶层对象，无尾部说明。各类完整 call ID 清单、方法与源哈希保存在 REPAIR_EVIDENCE.json（本地归档，不随仓库分发）。
 
 代表证据：
 
-- [首轮只有行动说明](<K:/秋招/项目/DPswarm/modelbench/team_eval20260903/calls/e3ae4dce-6a03-4e1e-a2d6-128311124f12/output.md>)：没有历史也已失败，所以历史遗漏不是全部错误的解释。
-- [Flash 说明前缀后有完整工具对象](<K:/秋招/项目/DPswarm/modelbench/team_eval20260903/calls/17351cee-c202-47ab-91c0-0bd0b67a34c7/output.md>)：原 driver 在全文首字符拒绝。
-- [参数缺少 arguments 层](<K:/秋招/项目/DPswarm/modelbench/team_eval20260903/calls/a3e33a1b-7b6e-4347-b53e-caa80e3ba22d/output.md>)。
-- [括号结构错误](<K:/秋招/项目/DPswarm/modelbench/team_eval20260903/calls/5e1168e0-a1f4-49d4-bfc3-a9420cda3142/output.md>)。
-- [独立的 600.297 秒超时](<K:/秋招/项目/DPswarm/modelbench/team_eval20260903/calls/2936228d-3b42-4866-a63e-7550dd0e9c53/metadata.json:20>)：无 usage/输出，不属于 JSON 错误。
+- 首轮只有行动说明（本地归档，不随仓库分发）：没有历史也已失败，所以历史遗漏不是全部错误的解释。
+- Flash 说明前缀后有完整工具对象（本地归档，不随仓库分发）：原 driver 在全文首字符拒绝。
+- 参数缺少 arguments 层（本地归档，不随仓库分发）。
+- 括号结构错误（本地归档，不随仓库分发）。
+- 独立的 600.297 秒超时（本地归档，不随仓库分发）：无 usage/输出，不属于 JSON 错误。
 
 ### 2.3 历史与提示的缺口，需要修，但不能过度归因
 
@@ -58,7 +58,7 @@ GLM 的官方接口通过 tools 声明函数、通过 tool_calls 返回调用，
 
 官方文档要求交错工具调用时完整回传原始 reasoning 历史；Coding 端点默认使用保留式思考。主实验采用文本模拟工具，遗漏历史可能影响后续连续性，但本批四个 GLM 运行首轮均已出现错误，因此不能把全部失败归给历史遗漏。GLM-5.3/Flash 为强制思考型号，修复方案不采用关闭 thinking 的办法。[官方思考模式文档](https://docs.bigmodel.cn/cn/guide/capabilities/thinking-mode)
 
-官方角色提示要求完成后输出 DONE，实验追加提示要求 JSON final；二者可通过 final 的 content=“DONE”兼容，但没有显式说明。它是可消除的歧义，25 次错误中没有直接由 DONE 触发的案例，也没有依据说原提示要求先输出说明文字。[原角色提示](<K:/秋招/项目/DPswarm/modelbench/team_eval20260903/TeamBench/harness/agent_interface.py:515>)、[追加提示](<K:/秋招/项目/DPswarm/modelbench/team_eval20260903/run_experiment.py:202>)。
+官方角色提示要求完成后输出 DONE，实验追加提示要求 JSON final；二者可通过 final 的 content=“DONE”兼容，但没有显式说明。它是可消除的歧义，25 次错误中没有直接由 DONE 触发的案例，也没有依据说原提示要求先输出说明文字。原角色提示（本地归档，不随仓库分发）、[追加提示](<K:/秋招/项目/DPswarm/modelbench/team_eval20260903/run_experiment.py:202>)。
 
 ### 2.4 目前可以排除和不能确认的解释
 
@@ -108,7 +108,7 @@ E 自带的 partial schema 只有前五项，不能补齐上述五份遗漏消�
 
 直接问题是交接协议把“清晰计划、突出隐藏约束”当作足够的产物，却没有要求逐字段移交完整规格、声明未知项并通过检查。send_message 校验的是字符串/收件角色等基础合法性，不验证配置键、默认值、环境变量及范围是否齐全。模型因此可以产出读起来合理、但无法无歧义实现的摘要。
 
-权限边界并非完全没提示：runner 已标明 spec 只对 P/V/Solo 可见，E 原角色提示也明确只有 brief、需求不清时应问 Planner。缺的是把已告知的信息边界变成可检查的交付责任。[P 提示](<K:/秋招/项目/DPswarm/modelbench/team_eval20260903/TeamBench/harness/agent_interface.py:321>)、[权限说明](<K:/秋招/项目/DPswarm/modelbench/team_eval20260903/run_experiment.py:202>)、[E 提示](<K:/秋招/项目/DPswarm/modelbench/team_eval20260903/TeamBench/harness/agent_interface.py:511>)、[公开完整规格](<K:/秋招/项目/DPswarm/modelbench/team_eval20260903/instances/SPEC5_config_system/task/spec.md:13>)。
+权限边界并非完全没提示：runner 已标明 spec 只对 P/V/Solo 可见，E 原角色提示也明确只有 brief、需求不清时应问 Planner。缺的是把已告知的信息边界变成可检查的交付责任。P 提示（本地归档，不随仓库分发）、[权限说明](<K:/秋招/项目/DPswarm/modelbench/team_eval20260903/run_experiment.py:202>)、E 提示（本地归档，不随仓库分发）、公开完整规格（本地归档，不随仓库分发）。
 
 另外七份 INT1 规划均传递了主要阶段格式、字段、邮箱加号规则、数量、错误日志和报告路径；该检查不等于所有自然语言语义已证明完整。Flash INT1 的输出产物遗漏不能简单归给 Planner 未说明产物。
 
@@ -122,7 +122,7 @@ E 自带的 partial schema 只有前五项，不能补齐上述五份遗漏消�
 
 这既包含 Planner 的遗漏，也包含 Executor 对未知信息的处理差异。特例映射 WEB_DEBUG 不能保证从 debug_mode 名称机械推导出来。即使换更强 E，也不应把猜对未提供的值作为正确协作机制。
 
-证据：[主实验 Sol 交接时间线](<K:/秋招/项目/DPswarm/modelbench/team_eval20260903/results/SPEC5_config_system__team__gpt-5.6-sol/messages/dialogue.jsonl>)、[native GLM 规划](<K:/秋招/项目/DPswarm/modelbench/team_eval20260903/native_followup/results/SPEC5_config_system__native_team__glm-5.3/messages/dialogue.jsonl:1>)、[native Flash 规划](<K:/秋招/项目/DPswarm/modelbench/team_eval20260903/native_followup/results/SPEC5_config_system__native_team__glm-5.3-flash/messages/dialogue.jsonl:1>)。完整运行成绩及案例见 [原综合报告](<K:/秋招/项目/DPswarm/modelbench/team_eval20260903/EXPERIMENT_REPORT.md>)。
+证据：主实验 Sol 交接时间线（本地归档，不随仓库分发）、native GLM 规划（本地归档，不随仓库分发）、native Flash 规划（本地归档，不随仓库分发）。完整运行成绩及案例见 [原综合报告](<K:/秋招/项目/DPswarm/modelbench/team_eval20260903/EXPERIMENT_REPORT.md>)。
 
 ## 4. 澄清为什么不能及时被回答
 

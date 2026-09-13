@@ -1,0 +1,32 @@
+name: Bug report
+description: Report a reproducible defect using sanitized information.
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: "Do not include credentials, private sessions, or full configuration files. Report security vulnerabilities using SECURITY.md."
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Commit, plugin/Python/Node/DSH versions, operating system, and whether this is a source test or installed runtime.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Minimal reproduction
+      description: Steps and sanitized input that reproduce the issue.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Relevant sanitized evidence
+      description: Error code, a short log excerpt, or a failing test. Omit secrets and private paths.

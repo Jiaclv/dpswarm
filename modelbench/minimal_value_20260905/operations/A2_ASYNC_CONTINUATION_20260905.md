@@ -29,10 +29,10 @@
 
 SymPy 已有真实目标断言失败，同时有兼容性警告异常；独立复核报告将区分两者。该单题问题本身不构成其他已通过环境资格题目的阻断证据。
 
-续跑状态记录：[continuation_state.json](K:/秋招/项目/DPswarm/modelbench/minimal_value_20260905/operations/a2-auto-continue-v1/continuation_state.json)。该文件实际创建且报告运行后才表示已启动；不存在时仍在准备。
+续跑状态记录：continuation_state.json（本地归档，不随仓库分发）。该文件实际创建且报告运行后才表示已启动；不存在时仍在准备。
 
-复核产物：[SymPy 独立复核](K:/秋招/项目/DPswarm/modelbench/minimal_value_20260905/operations/a2-first-wave-review-v1/SYMPY_REVIEW_ZH.md)。
+复核产物：SymPy 独立复核（本地归档，不随仓库分发）。
 
 ## 第二波实际停止与后续修订
 
-23:02已启动第13–24次所在波次，23:04因本地provider槽释放PermissionError触保护中断。6次已准入、62次从未启动，原累计10.8M准入不退款；12次有效结果保持原状。锁修复与自动续波器已完成测试；自动续波器尚未启动，因为旧波中断账目与有效前缀不满足正式准入条件。需先按[版本化恢复方案](K:/秋招/项目/DPswarm/modelbench/minimal_value_20260905/operations/a2-wave4-incident-v1/RECOVERY_OPTIONS_ZH.md)明确预算和故障处理，再实现恢复适配并执行。该更新取代上文“剩余68次均未启动”的首波后快照；原始首波文件不变。
+23:02已启动第13–24次所在波次，23:04因本地provider槽释放PermissionError触保护中断。6次已准入、62次从未启动，原累计10.8M准入不退款；12次有效结果保持原状。锁修复与自动续波器已完成测试；自动续波器尚未启动，因为旧波中断账目与有效前缀不满足正式准入条件。需先按版本化恢复方案（本地归档，不随仓库分发）明确预算和故障处理，再实现恢复适配并执行。该更新取代上文“剩余68次均未启动”的首波后快照；原始首波文件不变。

@@ -1,5 +1,7 @@
 # lg_compare_20260910：经典 Orchestrator vs OrchestratorLG 真实 API 对照
 
+公开仓库保留运行器、实验说明及 `logs*/` 调用统计。`runs*/` 中的完整模型交付、装配包、事件账本，以及进度／控制台输出仅保留在本地；读取这些原始产物的分析步骤需要相应归档。调用统计不包含完整 prompt 或模型响应。
+
 ## 实验设计
 
 **问题**：LangGraph 版实验编排器（`dpswarm-plugin/dpswarm/orchestrator_lg.py`）

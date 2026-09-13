@@ -1,7 +1,7 @@
 {
   "name": "dpswarm-dsh-plugin",
-  "version": "0.15.0",
-  "description": "Explicit fixed-team and independent DeepSeek context management for DSH",
+  "version": "0.15.1",
+  "description": "Fixed-team collaboration, context management and evidence-bound acceptance for DSH",
   "type": "module",
   "private": true,
   "exports": {
@@ -39,10 +39,21 @@
     "bin",
     "cordis.patch.yml",
     "README.md",
-    "VALIDATION.md"
+    "LICENSE"
   ],
   "scripts": {
     "doctor": "node bin/setup.mjs --check",
-    "test": "node --test tests/*.test.mjs"
-  }
+    "test": "cd .. && node --test dpswarm-dsh-plugin/tests/*.test.mjs",
+    "test:unit": "node --test tests/acceptance-contract.test.mjs tests/acceptance-prompt-contract.test.mjs tests/handoff.test.mjs tests/write-scope.test.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Jiaclv/dpswarm.git",
+    "directory": "dpswarm-dsh-plugin"
+  },
+  "bugs": {
+    "url": "https://github.com/Jiaclv/dpswarm/issues"
+  },
+  "homepage": "https://github.com/Jiaclv/dpswarm/tree/main/dpswarm-dsh-plugin",
+  "license": "SEE LICENSE IN LICENSE"
 }

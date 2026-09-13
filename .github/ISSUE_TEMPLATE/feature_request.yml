@@ -1,0 +1,23 @@
+name: Feature request
+description: Propose a change tied to a concrete use case.
+title: "[Feature] "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: Describe the current limitation and who encounters it.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Include relevant compatibility or evidence requirements.
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: How to assess the change
+      description: A test, comparison, or observable result that would establish its value.

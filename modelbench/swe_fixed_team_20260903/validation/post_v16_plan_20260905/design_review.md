@@ -140,5 +140,5 @@ prepare 前至少封存：计划全文哈希、task IDs/来源/替补次序、�
 
 - [现有总 PLAN.md](K:/秋招/项目/DPswarm/modelbench/swe_fixed_team_20260903/PLAN.md)：模型/固定角色、隔离、预算、日志与旧停止规则；CM 描述属于早期版本。
 - [v15/v16 旧预注册](K:/秋招/项目/DPswarm/modelbench/swe_fixed_team_20260903/validation/NEXT_EXPERIMENT_PLAN_20260904C.md)：P1–P6 与 B 分支冲突、后验轨迹归因、任务分母等教训。
-- [主张审计](K:/秋招/项目/DPswarm/modelbench/swe_fixed_team_20260903/validation/consolidated_v16_20260905/notes/claims_audit.md)：非空 delta 的真实 4/20、F3 分支未触及、F5 预算阈值变化与配置可比性。
-- [v16 总复核报告](K:/秋招/项目/DPswarm/modelbench/swe_fixed_team_20260903/validation/consolidated_v16_20260905/REPORT_ZH.md)：成本/时间/失败机制的分层读法；本计划不把历史观察当作新确认样本。
+- 主张审计（本地归档，不随仓库分发）：非空 delta 的真实 4/20、F3 分支未触及、F5 预算阈值变化与配置可比性。
+- v16 总复核报告（本地归档，不随仓库分发）：成本/时间/失败机制的分层读法；本计划不把历史观察当作新确认样本。

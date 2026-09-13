@@ -171,3 +171,48 @@ test('v2 format scaffolds a plan, check results and dispositions; v1 format unch
   assert.equal(v1.schema_version, REVIEW_SCHEMA)
   assert.ok(!('verification_plan' in v1.template))
 })
+
+
+test('report diagnostics identify the submitted schema and use fence version only when JSON cannot be parsed', () => {
+  for (const schema of [REVIEW_SCHEMA, REVIEW_SCHEMA_V2]) {
+    const value = schema === REVIEW_SCHEMA ? report() : v2report()
+    const missingField = schema === REVIEW_SCHEMA ? 'unavailable_checks' : 'verification_plan'
+    delete value[missingField]
+    const wrapCurrent = raw => '```' + schema + '\n' + raw + '\n```'
+    const malformed = parseReviewReport(wrapCurrent(JSON.stringify(value)))
+    assert.equal(malformed.ok, false)
+    assert.equal(malformed.schema_version, schema)
+    assert.ok(malformed.errors.every(issue => issue.schema_version === schema))
+    assert.ok(malformed.errors.some(issue => issue.path === '/' + missingField))
+    const invalidJson = parseReviewReport(wrapCurrent('{'))
+    assert.equal(invalidJson.ok, false)
+    assert.equal(invalidJson.schema_version, schema)
+    assert.ok(invalidJson.errors.every(issue => issue.schema_version === schema))
+    const bindingErrors = validateReviewBindings(schema === REVIEW_SCHEMA ? report() : v2report(), {
+      candidate: { candidate_id: 'different-candidate' }, evidence_revision: 10 })
+    assert.ok(bindingErrors.length)
+    assert.ok(bindingErrors.every(issue => issue.schema_version === schema))
+  }
+})
+
+
+for (const fenceVersion of [REVIEW_SCHEMA, REVIEW_SCHEMA_V2]) {
+  for (const declaredSchema of [undefined, 'dpswarm-review-future']) {
+    test(`${fenceVersion} fence with ${declaredSchema === undefined ? 'missing' : 'unknown'} JSON schema refuses version selection without foreign field advice`, () => {
+      const value = { verdict: 'pass', ...(declaredSchema === undefined ? {} : { schema: declaredSchema }) }
+      const source = '```' + fenceVersion + '\n' + JSON.stringify(value) + '\n```'
+      const parsed = parseReviewReport(source, { final: true })
+      assert.equal(parsed.ok, false)
+      assert.equal(parsed.report, null)
+      assert.equal(parsed.transport_schema_version, fenceVersion)
+      assert.equal(parsed.schema_version, null, 'The fence is not a validated report schema')
+      assert.equal(parsed.errors.length, 1, 'Do not continue into either version-specific field validator')
+      const [error] = parsed.errors
+      assert.equal(error.code, 'REPORT_SCHEMA_VERSION_INVALID')
+      assert.equal(error.path, '/schema')
+      assert.equal(error.schema_version, null)
+      assert.deepEqual(error.expected, [REVIEW_SCHEMA, REVIEW_SCHEMA_V2])
+      assert.equal(error.actual, declaredSchema ?? null)
+    })
+  }
+}

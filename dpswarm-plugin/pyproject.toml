@@ -1,9 +1,15 @@
 [project]
 name = "dpswarm"
 version = "0.1.0"
-description = "DPswarm: multi-model agent team orchestration control plane (mechanism doc implementation)"
+description = "Transactional control plane for multi-model agent collaboration"
+readme = "README.md"
+license = {file = "LICENSE"}
 requires-python = ">=3.10"
 dependencies = []
+
+[project.urls]
+Repository = "https://github.com/Jiaclv/dpswarm"
+Issues = "https://github.com/Jiaclv/dpswarm/issues"
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]

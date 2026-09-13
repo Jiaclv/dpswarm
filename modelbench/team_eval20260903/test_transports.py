@@ -10,6 +10,18 @@ from modelbench.team_eval20260903.transports import ExperimentTransport
 
 
 class TransportTests(unittest.TestCase):
+    def setUp(self):
+        # Transport tests mock the CLI process and provide an explicit fixture entrypoint.
+        configured = patch("modelbench.team_eval20260903.transports.CODEX_JS", Path("fixture/codex.js"))
+        configured.start()
+        self.addCleanup(configured.stop)
+
+    def test_missing_codex_entrypoint_does_not_launch_a_process(self):
+        with tempfile.TemporaryDirectory() as directory, patch("modelbench.team_eval20260903.transports.CODEX_JS", None), patch("modelbench.team_eval20260903.transports._run_codex_process") as run:
+            result = ExperimentTransport(Path(directory)).complete("gpt-5.6-luna", [], run_id="r", role="x", task_id="t")
+            self.assertIn("DPSWARM_CODEX_JS", result["error"]["message"])
+            run.assert_not_called()
+
     def test_codex_usage_includes_cache_and_actual_fields_remain_unknown(self):
         events = [
             {"type": "thread.started", "thread_id": "example"},

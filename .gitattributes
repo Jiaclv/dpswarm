@@ -10,3 +10,7 @@ reports/2026-09-08/pelican/artifacts/** -whitespace
 
 # Preserve original test evidence bytes, including whitespace in captured tracebacks.
 modelbench/**/validation/**/*.xml -text -whitespace
+
+# These inputs are SHA256-bound by the historical admission gate.
+modelbench/swe_fixed_team_20260903/validation/test_evidence_contract_20260905/** -text -whitespace
+modelbench/swe_fixed_team_20260903/validation/TEST_EVIDENCE_CONTRACT_20260905.md -text -whitespace

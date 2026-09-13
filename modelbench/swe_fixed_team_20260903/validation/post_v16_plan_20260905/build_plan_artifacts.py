@@ -11,7 +11,7 @@ from pathlib import Path
 P=Path(__file__).resolve().parent
 ROOT=P.parents[3]
 PLAN=P.parent/'NEXT_EXPERIMENT_PLAN_20260905.md'
-FLOW=Path('C:/Users/93711/.agents/skills/flowmap/scripts/flow.py')
+FLOW=Path.home()/'.agents/skills/flowmap/scripts/flow.py'
 LEDGER=ROOT/'.flowmap/post-v16-plan.json'
 TASKS=['pydata__xarray-7229','mwaskom__seaborn-3069','sphinx-doc__sphinx-8035','sympy__sympy-16792','scikit-learn__scikit-learn-25232','astropy__astropy-14995']
 T='gpt-5.6-terra'; G='glm-5.3'; L='gpt-5.6-luna'; F='glm-5.3-flash'; S='gpt-5.6-sol'

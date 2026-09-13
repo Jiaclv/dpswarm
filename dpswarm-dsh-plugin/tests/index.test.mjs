@@ -23,6 +23,10 @@ test('real installed DSH tool/schema API accepts the default-off fixed plugin', 
   const runTool = registered.get('dpswarm_run')
   assert.ok(runTool.parameters.properties.subtasks && runTool.parameters.properties.staged, 'run declares both split forms in its schema (0.9.3)')
   assert.match(runTool.description,/team_mode/)
+  const reportDescription = registered.get('dpswarm_review').parameters.properties.report.description
+  assert.match(reportDescription, /dpswarm_acceptance.review_format/)
+  assert.match(reportDescription, /frozen contract version/)
+  assert.doesNotMatch(reportDescription, /dpswarm-review-v[12]/)
   assert.equal(result.team_mode.mode,'serial')
   assert.equal(result.team_mode.source,'default')
   assert.equal(prompts.find(p => p.name === 'dpswm:model-capabilities').text({ agent: parent }), '', 'cold prompt assembly must not require a request header')
