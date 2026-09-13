@@ -1,6 +1,6 @@
 /**
  * Rail-model characterization (0.8.2, slack added 0.9.2): limits are anomaly
- * rails, not tight plans. No output squeeze; closeout = safe park when one more
+ * rails with a reserved report; closeout = safe park when one more
  * full step plus a report (plus a 1/3 estimate-uncertainty slack) no longer
  * fits; the Lead decides continuation via linked rework.
  * Numbers are the real ledger values from the 911 and 17:32 production runs.
@@ -64,9 +64,12 @@ test('rail model: genuinely short budgets still park instead of overrunning (low
   await assert.rejects(r.admit(state, call()), { code: 'WORKER_CLOSEOUT_INSTRUCTION_MISSING' })
 })
 
-test('rail model: output is never squeezed below the request while room remains (no progressive halving)', async () => {
+test('normal output preserves a report envelope and its generated context inside the same grant', async () => {
   const h = fixture({ workerTokenLimit: 100000, workerCallLimit: 6 }), r = h.runtime(), state = await r.ensure(h.agent(h.a), signal())
   await r.prepareCloseout(state, { inputEstimate: 10000, finalInputEstimate: 9000 }, signal())
   assert.equal(state.closeout, undefined)
-  assert.equal(r.outputLimit(state, 10000, 90000), 90000, 'full request, no halving reserve')
+  const output = r.outputLimit(state, 10000, 90000)
+  assert.equal(output, 37976)
+  assert.equal(10000 + 2 * output + state.stepBudget.final_report_reserve, 100000)
+  assert.equal(r.outputLimit(state, 10000, 2000), 2000, 'a smaller requested output is unchanged')
 })

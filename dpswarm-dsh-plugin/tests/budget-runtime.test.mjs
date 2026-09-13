@@ -45,14 +45,18 @@ test('unlimited ignores stale manual values and remains available when audit obs
   assert.equal(state.auditFailure, 'UNLIMITED_OBSERVATION_NOT_PERSISTED')
 })
 
-test('auto decisions are Lead-bound, one-use, and copied grants cannot bind a sibling', async () => {
-  const h = fixture({ workerBudgetMode: 'auto' }), runtime = h.runtime()
-  const plan = await runtime.plan(h.agent(h.root), { task: 'Draw one SVG.', tokenLimit: 600, callLimit: 1, reason: 'one bounded child' })
-  const message = { type: 'user/message', data: { role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: plan.prompt }] } }
-  h.a.events.push(message); h.b.events.push(message)
+
+test('Auto worker budgets are removed: plan is refused and a stored auto setting falls back to manual', async () => {
+  const h = fixture({ workerBudgetMode: 'auto', workerTokenLimit: 600000, workerCallLimit: 28 }), runtime = h.runtime()
+  await assert.rejects(runtime.plan(h.agent(h.root), { task: 'Draw one SVG.', tokenLimit: 600, callLimit: 1, reason: 'removed' }), { code: 'WORKER_BUDGET_AUTO_REQUIRED' })
+  assert.deepEqual(workerBudgetProfile(h.cfg, h.root.id), { mode: 'manual', tokenLimit: 600000, callLimit: 28 })
+  const handle = await runtime.beginTeamRun(h.agent(h.root), { roles: ['implementer'] })
+  const grant = await runtime.issueTeamWorker(h.agent(h.root), handle, { task: 'Implement one SVG.', label: 'implementer' })
+  h.a.events.push({ type: 'user/message', data: { role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: grant.prompt }] } })
   const state = await runtime.ensure(h.agent(h.a), signal())
-  assert.equal(state.decision.allocation_id, plan.allocation_id)
-  await assert.rejects(runtime.ensure(h.agent(h.b), signal()), { code: 'WORKER_BUDGET_DECISION_REQUIRED' })
+  assert.deepEqual(state.profile, { mode: 'manual', tokenLimit: 600000, callLimit: 28 })
+  assert.equal(state.decision, null)
+  await runtime.finishTeamRun(h.agent(h.root), handle)
 })
 
 test('missing ledger rejects an already-progressed limited worker instead of resetting its grant', async () => {
@@ -114,23 +118,9 @@ test('a root session override changes actual child enforcement, not merely setti
   await assert.rejects(runtime.admit(state, { ...request, maxTokens: 1 }), { code: 'WORKER_CALL_LIMIT_REACHED' })
 })
 
-test('Auto grant rejects task/content/source tampering and a child cannot mint its own allocation', async () => {
-  const h = fixture({ workerBudgetMode: 'auto' }), runtime = h.runtime()
-  const plan = await runtime.plan(h.agent(h.root), { task: 'Draw one SVG.', tokenLimit: 600, callLimit: 1, reason: 'one bounded child' })
-  const source = { kind: 'user' }
-  h.a.events.push({ type: 'user/message', data: { role: 'user', source, content: [{ type: 'text', text: plan.prompt + ' altered task' }] } })
-  await assert.rejects(runtime.ensure(h.agent(h.a), signal()), { code: 'WORKER_BUDGET_DECISION_REQUIRED' })
-  h.b.events.push({ type: 'user/message', data: { role: 'user', source, content: [{ type: 'text', text: plan.prompt }, { type: 'text', text: 'extra content' }] } })
-  await assert.rejects(runtime.ensure(h.agent(h.b), signal()), { code: 'WORKER_BUDGET_DECISION_REQUIRED' })
-  const forged = makeSession('forged', h.root.id)
-  h.sessions.set(forged.id, forged)
-  await assert.rejects(runtime.plan(h.agent(forged), { task: 'forged', tokenLimit: 1, callLimit: 1, reason: 'no' }), { code: 'WORKER_BUDGET_LEAD_REQUIRED' })
-})
-
 
 test('an awaited preflight cannot silently change the user budget before team admission', async t => {
   const changes = [
-    ['manual to auto', cfg => { cfg.workerBudgetMode = 'auto' }],
     ['manual to unlimited', cfg => { cfg.workerBudgetMode = 'unlimited' }],
     ['manual token limit', cfg => { cfg.workerTokenLimit = 1200000 }],
     ['manual call limit', cfg => { cfg.workerCallLimit = 56 }],
@@ -155,25 +145,22 @@ test('an awaited preflight cannot silently change the user budget before team ad
   })
 })
 
-test('matching preflight profiles preserve manual user values, Auto decisions, and unlimited semantics', async t => {
+test('matching preflight profiles preserve manual user values and unlimited semantics', async t => {
   const modes = [
     { mode: 'manual', expected: { mode: 'manual', tokenLimit: 600000, callLimit: 28 } },
-    { mode: 'auto', expected: { mode: 'auto', tokenLimit: 80000, callLimit: 40 },
-      decisions: { implementer: { tokenLimit: 80000, callLimit: 40, reason: 'Lead estimated this specific subtask.' } } },
     { mode: 'unlimited', expected: { mode: 'unlimited' } },
   ]
-  for (const { mode, expected, decisions } of modes) await t.test(mode, async () => {
+  for (const { mode, expected } of modes) await t.test(mode, async () => {
     const h = fixture({ workerBudgetMode: mode, workerTokenLimit: 600000, workerCallLimit: 28 }), runtime = h.runtime()
     const expectedProfile = workerBudgetProfile(h.cfg, h.root.id)
     await Promise.resolve()
-    const handle = await runtime.beginTeamRun(h.agent(h.root), { roles: ['implementer'], decisions, expectedProfile })
+    const handle = await runtime.beginTeamRun(h.agent(h.root), { roles: ['implementer'], expectedProfile })
     const grant = await runtime.issueTeamWorker(h.agent(h.root), handle, { task: 'Implement one SVG.', label: 'implementer' })
     h.a.events.push({ type: 'user/message', data: { role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: grant.prompt }] } })
     const state = await runtime.ensure(h.agent(h.a), signal())
     assert.deepEqual(grant.profile, expected)
     assert.deepEqual(state.profile, expected)
     if (mode === 'unlimited') assert.equal(runtime.describe(state).remaining_tokens, null)
-    if (mode === 'auto') assert.equal(state.decision.decided_by, 'current_lead_tool_call')
     await runtime.finishTeamRun(h.agent(h.root), handle)
   })
 })
@@ -231,13 +218,32 @@ test('closeout follows current full-input cost rather than cumulative percent or
   assert.equal(await r.diagnosticsForSession('not-a-native-session'), null)
 })
 
-test('rail model: the request keeps its full output bound while room remains', async () => {
+test('rail model: normal work preserves final input, output and history growth within its grant', async () => {
   const h = fixture({ workerTokenLimit: 100000, workerCallLimit: 4 }), r = h.runtime(), a = await r.ensure(h.agent(h.a), signal())
   await r.prepareCloseout(a, { inputEstimate: 10000, finalInputEstimate: 9000 }, signal())
   assert.equal(a.closeout, undefined)
   const output = r.outputLimit(a, 10000, 90000)
-  assert.equal(output, 90000, 'no progressive halving; only the hard remaining bound applies')
+  assert.equal(10000 + 2 * output + a.stepBudget.final_report_reserve, 100000, 'reserve the tool-free report plus one copy of this output in its input history')
+  assert.equal(r.outputLimit(a, 10000, 2000), 2000, 'an already smaller requested output limit remains unchanged')
   assert.equal(a.profile.tokenLimit, 100000)
+})
+
+test('a route output cap wins over the rail-shaped allowance and the requested bound', async () => {
+  // Live session 88122af1: a 300k Auto rail shaped a glm worker's maxTokens to
+  // 131883 (rail minus input estimate; the forecast had already entered
+  // final_only so no report reserve applied) for a route rejecting anything
+  // above 131072; the first implementer request died at the provider, zero usage.
+  const h = fixture({ workerTokenLimit: 300000, workerCallLimit: 4 }), r = h.runtime(), a = await r.ensure(h.agent(h.a), signal())
+  await r.prepareCloseout(a, { inputEstimate: 168117, finalInputEstimate: 168117 }, signal())
+  assert.equal(a.closeout?.mode, 'final_only')
+  assert.equal(r.outputLimit(a, 168117, null), 131883, 'preclamp shape reproduces the live request header')
+  assert.equal(a.requestBudget.route_output_cap, null)
+  assert.equal(r.outputLimit(a, 168117, null, 131072), 131072, 'the host-observed route cap clamps the shaped allowance')
+  assert.equal(r.outputLimit(a, 168117, 140000, 131072), 131072, 'an oversized requested bound is also clamped')
+  assert.equal(r.outputLimit(a, 168117, 2000, 131072), 2000, 'an already smaller requested bound is preserved')
+  assert.equal(r.outputLimit(a, 168117, null, 500000), 131883, 'a cap above the allowance changes nothing')
+  assert.equal(a.requestBudget.route_output_cap, 500000)
+  assert.equal(r.outputLimit(a, 168117, null, '131072'), 131883, 'a non-integer cap is ignored, never a partial clamp')
 })
 
 test('CM cannot consume the last planned request, and denied CM is not a worker failure or admitted call', async () => {
@@ -300,4 +306,21 @@ test('cancellation while awaiting the journal cannot dispatch through unlimited 
   await assert.rejects(r.admit(a, { ...request, signal: abort.signal }), { name: 'AbortError' })
   assert.equal(r.totals(a).calls, 0)
   assert.equal(a.auditFailure, undefined)
+})
+
+
+test('closeout forecasts an additional full recovery request inside the existing grant', async () => {
+  const h = fixture({ workerTokenLimit: 90000, workerCallLimit: 10 }), r = h.runtime(), a = await r.ensure(h.agent(h.a), signal())
+  await r.prepareCloseout(a, { inputEstimate: 20000, finalInputEstimate: 22000 }, signal())
+  assert.equal(a.closeout, undefined, 'a single-report forecast still fits')
+  await r.prepareCloseout(a, { inputEstimate: 20000, finalInputEstimate: 22000, recoveryInputEstimate: 23000 }, signal())
+  assert.equal(a.closeout.mode, 'final_only')
+  assert.equal(a.closeout.recovery_token_reserve, 23000 + Math.ceil(23000 / 3) + 2048)
+  assert.equal(a.closeout.recovery_call_reserve, 1)
+  assert.equal(a.closeout.remaining_tokens, 90000)
+  assert.equal(a.closeout.remaining_calls, 10)
+  assert.deepEqual(a.profile, { mode: 'manual', tokenLimit: 90000, callLimit: 10 })
+  const cold = await h.runtime().ensure(h.agent(h.a), signal())
+  assert.equal(cold.closeout.recovery_token_reserve, a.closeout.recovery_token_reserve)
+  assert.equal(cold.closeout.calls_at_closeout, 0)
 })

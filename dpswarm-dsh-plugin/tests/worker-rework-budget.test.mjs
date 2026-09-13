@@ -20,8 +20,7 @@ function fixture(config = {}) {
   }
   const end = (session, kind = 'completed') => session.events.push({ type: 'turn/end', seq: session.events.length, time: 123, data: { reason: { kind } } })
   const original = async (r, role = 'implementer') => {
-    const decisions = cfg.workerBudgetMode === 'auto' ? { [role]: { tokenLimit: 500, callLimit: 2, reason: 'Original Lead decision.' } } : undefined
-    const handle = await r.beginTeamRun({ session: root }, { roles: [role], ...(decisions ? { decisions } : {}) })
+    const handle = await r.beginTeamRun({ session: root }, { roles: [role] })
     const grant = await r.issueTeamWorker({ session: root }, handle, { task: 'Original fixed role task.', label: role })
     const session = child('original-' + role, grant.prompt), state = await r.ensure({ session }, signal())
     await r.finishTeamRun({ session: root }, handle)
@@ -50,8 +49,8 @@ test('exhausted manual worker can rework without caps while its original grant a
   assert.equal(old.state.profile.tokenLimit, 200)
 })
 
-test('initial Auto decision remains limited, but rework needs no decision and rejects budget overrides', async () => {
-  const h = fixture({ workerBudgetMode: 'auto', reworkBudgetMode: 'unlimited' }), r = h.runtime(), old = await h.original(r); h.end(old.session)
+test('initial manual rail stays limited, but rework needs no decision and rejects budget overrides', async () => {
+  const h = fixture({ reworkBudgetMode: 'unlimited' }), r = h.runtime(), old = await h.original(r); h.end(old.session)
   for (const override of [{ decision: { tokenLimit: 9000, callLimit: 7, reason: 'not applicable' } },
     { expectedProfile: { mode: 'auto' } }, { tokenLimit: 1 }, { callLimit: 1 }, { mode: 'manual' }]) {
     await assert.rejects(r.issueRework(h.lead, { workerSessionId: old.session.id, task: 'Fix feedback.', ...override }), { code: 'REWORK_BUDGET_OVERRIDES_NOT_ALLOWED' })
@@ -60,9 +59,7 @@ test('initial Auto decision remains limited, but rework needs no decision and re
   assert.deepEqual(grant.profile, { mode: 'unlimited' })
   const state = await r.ensure({ session: h.child('auto-repair', grant.prompt) }, signal())
   assert.equal(state.decision, null)
-  assert.equal(old.state.profile.tokenLimit, 500)
-  assert.equal(old.state.profile.callLimit, 2)
-  assert.equal(old.state.decision.reason, 'Original Lead decision.')
+  assert.deepEqual(old.state.profile, { mode: 'manual', tokenLimit: 1000, callLimit: 4 })
   const issued = (await h.journal.read(h.root.id)).events.find(e => e.data.allocation_id === grant.allocation_id).data
   assert.equal(issued.decided_by, 'user_authorized_unlimited_rework')
 })
@@ -238,9 +235,10 @@ test('fixed rework mode issues an independently limited grant and enforces it li
   // Limited path applies: final-only closeout and the hard admission floor.
   await r.prepareCloseout(state, { inputEstimate: 30000, finalInputEstimate: 30000 }, signal())
   assert.equal(state.closeout.mode, 'final_only')
-  await r.settle(await r.admit(state, { ...request, system: CLOSEOUT_INSTRUCTION, tools: [], maxTokens: 100 }), { inputTokens: 20000, outputTokens: 5000 }, 'stop')
-  // Rail closeout admits a tool-attempt step plus the report call, then refuses.
-  await r.settle(await r.admit(state, { ...request, system: CLOSEOUT_INSTRUCTION, tools: [{ name: 'write' }], maxTokens: 100 }), { inputTokens: 100, outputTokens: 50 }, 'stop')
+  // Schemas stay visible at closeout: a tool-bearing request is admitted, and
+  // one tool-attempt step plus one report call both fit before the rail closes.
+  await r.settle(await r.admit(state, { ...request, system: CLOSEOUT_INSTRUCTION, tools: [{ name: 'write' }], maxTokens: 100 }), { inputTokens: 20000, outputTokens: 5000 }, 'stop')
+  await r.settle(await r.admit(state, { ...request, system: CLOSEOUT_INSTRUCTION, tools: [], maxTokens: 100 }), { inputTokens: 1000, outputTokens: 500 }, 'stop')
   await assert.rejects(r.admit(state, { ...request, system: CLOSEOUT_INSTRUCTION, tools: [], maxTokens: 100 }), { code: 'WORKER_CLOSEOUT_ALREADY_SENT' })
 })
 

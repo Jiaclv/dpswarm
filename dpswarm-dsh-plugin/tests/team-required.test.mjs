@@ -182,7 +182,7 @@ test('installer registers both public gates', () => {
   const h = fixture(), calls = [], provided = []
   const ctx = { on(name, handler, options) { calls.push([name, handler, options]) }, provide(name, value) { provided.push([name, value]) } }
   const installed = installTeamRequirement(ctx, { requirement: h.req })
-  assert.equal(installed, h.req); assert.deepEqual(calls.map(([name]) => name), ['tools/pre-execute', 'agent/turn-stopping'])
+  assert.equal(installed, h.req); assert.deepEqual(calls.map(([name]) => name), ['agent/pre-step', 'tools/pre-execute', 'agent/turn-stopping'])
   assert.equal(provided[0][0], 'dpswarmTeamRequirement')
-  assert.deepEqual(calls.map(([, , options]) => options), [{ prepend: true, global: true }, { prepend: true, global: true }])
+  assert.deepEqual(calls.map(([, , options]) => options), [{ prepend: true, global: true }, { prepend: true, global: true }, { prepend: true, global: true }])
 })

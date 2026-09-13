@@ -40,7 +40,7 @@ function fixture(t) {
         return { items: [{ item_id: id, node_id: id, session_id: 'reservation-' + id, context_epoch: 0, attempt: 1, kind: 'derive' }] }
       }
       if (path === '/api/execution/bind') return { context_epoch: 0, session_id: body.execution_session_id }
-      if (path === '/api/submit') state.items[body.item_id].acceptance = 'submitted'
+      if (path === '/api/submit') { state.items[body.item_id].acceptance = 'submitted'; state.items[body.item_id].submission_package_id = 'package-' + body.item_id }
       if (path === '/api/execution/fail') {
         state.items[body.item_id].acceptance = 'terminated'
         state.sealed = body.physical_cleanup_confirmed === false
@@ -261,7 +261,8 @@ test('cancelling an independent Reviewer disposes it, preserves earlier evidence
   assert.equal(h.children.length,3);assert.equal(h.children[2].child.disposed,1)
   assert.deepEqual(result.deliveries.map(d=>d.role),['implementer','tester'])
   assert.equal(result.failed[0].role,'reviewer')
-  for(const d of result.deliveries)await h.controller.review({item_id:d.item_id,verdict:'accept'},h.exec)
+  await assert.rejects(h.controller.review({item_id:result.deliveries[0].item_id,verdict:'accept'},h.exec), /REVIEWER_PENDING/)
+  for(const d of result.deliveries)await h.controller.review({item_id:d.item_id,verdict:'accept',takeover:true,reason:'Reviewer cancelled; Lead checked the fixture candidate directly.'},h.exec)
   assert.equal(h.controller.sessions.get('parent').lease,null)
   h.finish(2)
 })
@@ -293,7 +294,10 @@ test('inherited implementer ignores a stored custom route and resolves separatel
   const a=fixedProfile(cfg,undefined,{provider:'a',model:'one',reasoningEffort:'off'})
   const b=fixedProfile(cfg,undefined,{provider:'b',model:'two'})
   assert.deepEqual(a.implementer,{mode:'lead',provider:'a',model:'one',reasoning_effort:'off'})
-  assert.deepEqual(b.implementer,{mode:'lead',provider:'b',model:'two',reasoning_effort:undefined})
+  // An unset effort must omit the key entirely: an explicit undefined property
+  // survives in-memory tool results and the host rejects them as non-lossless.
+  assert.deepEqual(b.implementer,{mode:'lead',provider:'b',model:'two'})
+  assert.ok(!('reasoning_effort' in b.implementer))
   assert.notEqual(a.id,b.id)
   assert.throws(()=>fixedProfile(cfg),/ROOT_MODEL_REQUIRED/)
   assert.throws(()=>fixedProfile({...cfg,implMode:'auto-router'}),/INVALID_IMPLEMENTER_MODE/)
@@ -353,14 +357,11 @@ function budgetFixture(t, mode) {
 }
 
 for (const scenario of [
-  { name: 'Auto to manual', before: 'auto', next: { workerBudgetMode: 'manual', workerTokenLimit: 7777, workerCallLimit: 7 } },
-  { name: 'Auto to unlimited', before: 'auto', next: { workerBudgetMode: 'unlimited' } },
   { name: 'manual value edits', before: 'manual', next: { workerTokenLimit: 7777, workerCallLimit: 7 } },
-  { name: 'manual to Auto', before: 'manual', next: { workerBudgetMode: 'auto' } },
   { name: 'unlimited to manual', before: 'unlimited', next: { workerBudgetMode: 'manual', workerTokenLimit: 7777, workerCallLimit: 7 } },
 ]) test(`frozen team policy survives ${scenario.name}; same-root native worker uses current policy`, async t => {
   const h = budgetFixture(t, scenario.before)
-  const running = h.controller.run({ task: 'repair', ...(scenario.before === 'auto' ? { worker_budgets: h.decisions } : {}) }, h.exec)
+  const running = h.controller.run({ task: 'repair' }, h.exec)
   await nextTurn(); assert.equal(h.children.length, 1)
   Object.assign(h.cfg, scenario.next)
   // An unrelated native child must never inherit this pipeline snapshot.
@@ -400,9 +401,9 @@ for (const scenario of [
 })
 
 test('failed native dispatch revokes unused team grants and clears controller lifecycle', async t => {
-  const h = budgetFixture(t, 'auto')
+  const h = budgetFixture(t, 'manual')
   h.controller.subagents.start = async () => { throw new Error('fixture dispatch failure') }
-  const result = await h.controller.run({ task: 'repair', worker_budgets: h.decisions }, h.exec)
+  const result = await h.controller.run({ task: 'repair' }, h.exec)
   assert.ok(result.failed.length >= 1)
   const allocation = (await h.journal.read('parent')).events.find(e => e.type.endsWith('allocation'))?.data
   assert.ok(allocation)
@@ -411,6 +412,13 @@ test('failed native dispatch revokes unused team grants and clears controller li
   await assert.rejects(h.launch('late-replay', [{ type: 'text', text: allocation.prompt }]), { code: 'WORKER_BUDGET_DECISION_REQUIRED' })
 })
 
+
+test('run rejects the removed Lead-selected worker_budgets before any dispatch', async t => {
+  const h = fixture(t)
+  Object.assign(h.cfg, { workerBudgetMode: 'manual', workerTokenLimit: 10000, workerCallLimit: 4 })
+  await assert.rejects(h.controller.run({ task: 'repair', worker_budgets: { implementer: { tokenLimit: 1, callLimit: 1, reason: 'removed' } } }, h.exec), { code: 'USER_WORKER_LIMITS_AUTHORITATIVE' })
+  assert.equal(h.children.length, 0)
+})
 
 test('manual user limits cannot be silently skipped when the budget runtime is missing', async t => {
   const h = fixture(t)
@@ -513,7 +521,6 @@ for (const change of ['provider-removed','lead-changed']) test(`${change} before
 
 for (const [name, change] of [
   ['manual values become 1200000/56', cfg => Object.assign(cfg, { workerTokenLimit: 1200000, workerCallLimit: 56 })],
-  ['manual becomes Auto', cfg => { cfg.workerBudgetMode = 'auto' }],
   ['manual becomes unlimited', cfg => { cfg.workerBudgetMode = 'unlimited' }],
 ]) test(`budget change during awaited controller model preflight is rejected: ${name}`, async t => {
   const h = fixture(t), journal = new MemoryAuditJournal()

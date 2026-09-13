@@ -1,4 +1,9 @@
-/** Native DSH Lead tools -> real Python sidecar -> native workers, local adapter only. */
+/*
+// OBSOLETE (2026-09-13): Auto mode (Lead-estimated worker_budgets /
+// dpswarm_prepare_worker) was removed; worker limits now come from user
+// settings only. This probe exercised the removed path and is kept as the
+// historical verification record of that mechanism.
+* Native DSH Lead tools -> real Python sidecar -> native workers, local adapter only. */
 import assert from 'node:assert/strict'
 import { appendFileSync, existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs'
 import { spawn } from 'node:child_process'

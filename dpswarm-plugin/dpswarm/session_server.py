@@ -7,18 +7,36 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import os
 import re
 import threading
+import uuid
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from .server import Handler, PanelState, MAX_BODY_BYTES
+from .server import Handler, PanelState, MAX_BODY_BYTES, DELEGATE_ADMISSION_CLEANUP_PROTOCOL
 from .control import ControlPlaneError
-from .plugin_audit import PluginAuditError, PluginAuditStore, _strict_json, validate_transaction
+from .plugin_audit import (PluginAuditError, PluginAuditStore, _strict_json, validate_transaction,
+                           EVENT_TYPES, SCHEMA as AUDIT_SCHEMA)
 from .worker_status import worker_status
 
+RUNTIME_CAPABILITIES = {
+    "schema": "dpswarm-runtime-capabilities-v1", "revision": 1,
+    "audit_schema": AUDIT_SCHEMA, "audit_event_types": sorted(EVENT_TYPES),
+    "admission_cleanup": DELEGATE_ADMISSION_CLEANUP_PROTOCOL,
+    "acceptance_contract": "dpswarm-acceptance-v1",
+    # Additive (revision stays 1): negotiable review report contracts. A
+    # contract freezes its choice at bind time and only reports of that exact
+    # schema version register on it; runtimes that do not report the set keep
+    # v1 semantics.
+    "acceptance_review_contracts": ["dpswarm-review-v1", "dpswarm-review-v2"],
+}
+# Diagnostic identity only; callers must decide compatibility from capabilities.
+RUNTIME_PROCESS = {"pid": os.getpid(), "start_id": uuid.uuid4().hex}
+
 BRIDGE = {"protocol": "dpswarm-dsh-fixed-v1", "session_isolation": True, "plugin_audit_v1": True, "host_catalog_v1": True,
+          "runtime": RUNTIME_CAPABILITIES, "process": RUNTIME_PROCESS,
           "context_management": "DSH plugin owns optional CM; query dpswarm_status for session enablement and adoption"}
 
 

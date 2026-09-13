@@ -130,6 +130,7 @@ class Projection:
         self.terminated_item_ids: Set[str] = set()
         self.terminated_node_ids: Set[str] = set()
         self.packages: Dict[str, Dict[str, Any]] = {}
+        self.acceptance_contracts: Dict[str, Dict[str, Any]] = {}
         self.peer_channels: Dict[str, Dict[str, Any]] = {}
         self.messages: Dict[str, Dict[str, Any]] = {}
         self.human_directives: List[HumanDirective] = []
@@ -321,6 +322,8 @@ def apply_event(proj: Projection, event: Event) -> None:
         if before in proj.work_items:
             proj.work_items[before].unlock_items.append(after)
         proj.graph_revision += 1  # 决策 8：apply 后 graph_revision+1
+    elif kind == "acceptance_updated":
+        proj.acceptance_contracts[payload["contract_id"]] = copy.deepcopy(payload["contract"])
     elif kind == "work_item_submitted":
         item = proj.work_items[payload["item_id"]]
         item.acceptance = AcceptanceState.SUBMITTED
@@ -340,6 +343,12 @@ def apply_event(proj: Projection, event: Event) -> None:
         item.outcome = WorkItemOutcome.ACCEPTED
         item.holds_worker_slot = False  # 决策 2：accepted 释放槽
         proj.terminated_item_ids.add(item.item_id)
+        acceptance = (payload.get("accepted_by") or {}).get("acceptance")
+        if acceptance:
+            contract = proj.acceptance_contracts[acceptance["contract_id"]]
+            contract["accepted"].append({**copy.deepcopy(acceptance), "item_id": item.item_id,
+                                         "event_seq": event.seq})
+            contract["revision"] += 1
     elif kind == "work_item_rejected":
         proj.work_items[payload["item_id"]].acceptance = AcceptanceState.REJECTED
     elif kind == "work_item_retried":

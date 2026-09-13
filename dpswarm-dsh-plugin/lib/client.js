@@ -222,7 +222,7 @@ window.__ModuleLoader__.load({
 .dps-routeState{font-size:10px;line-height:20px;padding:0 6px;background:var(--dsw-alias-bg-layer-3);border-radius:5px;color:var(--dsw-alias-label-tertiary);white-space:nowrap}
 .dps-roleControls{display:grid;grid-template-columns:minmax(0,1fr) 122px;gap:12px;align-items:end}.dps-modelField:only-child{grid-column:1/-1}
 /* Each subagent receives its own limits; Lead remains outside this budget. */
-.dps-budgetModes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;border:0;padding:0;margin:0;min-width:0}
+.dps-budgetModes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;border:0;padding:0;margin:0;min-width:0}
 .dps-budgetMode{position:relative;display:flex;align-items:flex-start;gap:8px;cursor:pointer;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;padding:12px 10px;background:var(--dsw-alias-bg-layer-3);min-width:0}
 .dps-budgetMode:has(input:checked){border-color:var(--dsw-alias-brand-primary);background:color-mix(in srgb,var(--dsw-alias-brand-primary) 6%,var(--dsw-alias-bg-layer-3))}
 .dps-budgetMode:has(input:focus-visible){outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}.dps-budgetMode:has(input:disabled){opacity:.6;cursor:default}
@@ -611,9 +611,9 @@ window.__ModuleLoader__.load({
     const BUDGET_MODES = [
       ['unlimited', '不做限制', '不启用子 agent 限额'],
       ['manual', '手动填写', '每个子 agent 独立使用'],
-      ['auto', 'Lead 自动分配', '派发前按子任务分别评估'],
     ]
-    const budgetMode = value => ['unlimited', 'manual', 'auto'].includes(value) ? value : 'unlimited'
+    // Auto (Lead-estimated budgets) was removed; a stored auto setting reads back as manual.
+    const budgetMode = value => value === 'manual' || value === 'auto' ? 'manual' : 'unlimited'
     const positiveBudget = value => /^\d+$/.test(String(value).trim()) && Number.isSafeInteger(Number(value)) && Number(value) > 0
     const budgetNumber = value => positiveBudget(value) ? Number(value).toLocaleString('zh-CN') : '未配置'
 
@@ -633,7 +633,7 @@ window.__ModuleLoader__.load({
         if (manual && (errors.totalTokens || errors.maxCalls)) { setError('请填写有效的子 agent token 限额和调用次数。'); return }
         setPending(true)
         try {
-          // Unlimited/auto deliberately preserve and ignore stored manual values.
+          // Unlimited deliberately preserves and ignores stored manual values.
           await writeSettings({ workerBudgetMode: draft.mode, ...(manual ? { workerTokenLimit: Number(draft.totalTokens), workerCallLimit: Number(draft.maxCalls) } : {}) })
           setMessage('已保存 · 用于下一次子任务派发')
         } catch (e) { setError(String(e.message || e)) } finally { setPending(false) }
@@ -647,10 +647,13 @@ window.__ModuleLoader__.load({
         manual ? h('div', { className: 'dps-budgetFields' }, ...[['totalTokens', '每个子 agent 的 token 限额', '该子 agent 的输入、缓存和输出合计'], ['maxCalls', '每个子 agent 的调用次数', '每个子 agent 各自拥有，不共享']].map(([field, label, hint]) => h('label', { key: field }, label,
           h('input', { type: 'text', inputMode: 'numeric', autoComplete: 'off', spellCheck: false, value: draft[field], disabled, 'aria-label': label, 'aria-invalid': validated && !!errors[field], 'aria-describedby': id + '-' + field + '-hint', onChange: e => edit(field, e.target.value) }),
           h('span', { id: id + '-' + field + '-hint', className: validated && errors[field] ? 'dps-error' : 'dps-hint' }, validated && errors[field] ? errors[field] : hint))))
-          : h('div', { className: 'dps-budgetInfo', role: 'note' }, draft.mode === 'auto'
-            ? '当前 Lead 读完任务后，在正常派发流程中决定各子 agent 的 token 限额、调用次数和理由；不额外调用评估模型。'
-            : '不设置子 agent 的 token 或调用次数上限，也不进行预算评估。手动填写过的值不参与限制。'),
+          : h('div', { className: 'dps-budgetInfo', role: 'note' }, '不设置子 agent 的 token 或调用次数上限，也不进行预算评估。手动填写过的值不参与限制。'),
         manual ? h('p', { className: 'dps-hint' }, '初始参考：1,200,000 token / 50 次。这是异常护栏而非精确计划；触轨后 worker 会安全停车并交回 Lead 裁决是否继续。') : null,
+        h('label', { className: 'dps-effortField' }, '验证独立性',
+          h('select', { value: cfg.reviewerIndependence === 'independent' ? 'independent' : 'guided',
+            disabled, 'aria-label': '验证独立性', onChange: e => writeSettings({ reviewerIndependence: e.target.value }).catch(err => setError(String(err.message || err))) },
+            h('option', { value: 'guided' }, '顺序（Tester 后 Reviewer）'),
+            h('option', { value: 'independent' }, '独立初审＋汇合（并行，额外一轮汇合调用）'))),
         h('p', { className: 'dps-hint' }, '适用于 DPH 子 agent，包括固定团队外的子任务。各自的 CM 计入各自额度；Lead 主调用和主 CM 不受限制。'),
         h('p', { className: 'dps-hint' }, 'Token 在请求前估算、完成后结算，最后一次请求可能超出估算额度，随后停止继续调用。角色超时仍单独设置。'),
         h('div', { className: 'dps-roleFooter' }, h('span', { className: message ? 'dps-saved' : 'dps-hint', role: message ? 'status' : undefined }, message || (dirty ? '更改保存后生效' : '此处显示配置，不代表运行中的剩余额度')),
@@ -889,7 +892,7 @@ window.__ModuleLoader__.load({
         ['测试者', cfg.testModel || '待配置'],
         ['Reviewer', cfg.reviewerMode === 'model' ? (cfg.reviewerModel || '待配置') : '沿用 Lead'],
         ['CM', cfg.cmModel || 'deepseek-v4-flash'],
-        ['限额', { unlimited: '不做限制', manual: '手动', auto: 'Lead 分配' }[cfg.workerBudgetMode] || '不做限制'],
+        ['限额', { unlimited: '不做限制', manual: '手动' }[cfg.workerBudgetMode] || (cfg.workerBudgetMode === 'auto' ? '手动' : '不做限制')],
         ['返工', reworkMode(cfg.reworkBudgetMode) === 'fixed' ? '固定 ' + budgetNumber(cfg.reworkTokenLimit) + ' / ' + budgetNumber(cfg.reworkCallLimit) + ' 次' : '不限'],
         ['超时', String(cfg.workerTimeoutSeconds ?? 600) + 's'],
       ]

@@ -46,27 +46,12 @@ function fixture(config = {}, provider) {
 }
 
 test('host request hook lowers only a limited worker output bound', async () => {
-  const h = fixture({ workerTokenLimit: 500, workerCallLimit: 2 })
+  const h = fixture({ workerTokenLimit: 1000, workerCallLimit: 2 })
   const original = Object.freeze({ provider: 'worker-provider', model: 'model', reasoningEffort: 'max', maxTokens: 5000 })
   const child = await h.ctx.waterfall('agent/request', { agent: h.agents.get('child') }, async () => original)
-  assert.notEqual(child, original); assert.ok(child.maxTokens < 500)
+  assert.notEqual(child, original); assert.ok(child.maxTokens < 1000)
   assert.equal(original.maxTokens, 5000)
   assert.equal(await h.ctx.waterfall('agent/request', { agent: h.agents.get('lead') }, async () => original), original)
-  h.service.shutdown()
-})
-
-test('host Auto pre-step accepts one durable Lead allocation before worker dispatch', async () => {
-  const h = fixture({ workerBudgetMode: 'auto' })
-  const plan = await h.service.plan(h.agents.get('lead'), { task: 'Build one SVG.', tokenLimit: 50000, callLimit: 2, reason: 'bounded SVG child; above the 4,096 closeout report floor' })
-  const message = assignment(plan.prompt)
-  await h.ctx.get('systemPrompt').assemble({ agent: h.agents.get('child') })
-  await h.ctx.waterfall('agent/pre-step', { agent: h.agents.get('child'), messages: [message] }, async () => ({ kind: 'enter' }))
-  h.child.append('user/message', message, { surfaceOp: 'append' })
-  await h.stream('child')
-  assert.equal(h.calls.length, 1)
-  const status = await h.service.status(h.agents.get('child'))
-  assert.equal(status.decision.allocation_id, plan.allocation_id)
-  assert.equal(status.remaining_calls, 1)
   h.service.shutdown()
 })
 
@@ -106,16 +91,16 @@ async function prepared(h, id, text = 'Continue the delegated task.') {
   return { agent, signal, assembly, config, system, messages: agent.session.deriveMessages() }
 }
 
-test('two-call worker can save a candidate first and sends tool-free delivery on its final call', async () => {
+test('two-call worker can work once then report without a refused-tool round', async () => {
   const h = fixture({ workerTokenLimit: 100000, workerCallLimit: 2 })
   h.assembly.tools = [{ name: 'write', description: 'Save a file.', parameters: { type: 'object' } }]
   const first = await prepared(h, 'child')
   assert.equal(first.assembly.tools.length, 1)
   assert.equal((await h.service.diagnosticsForSession('child')).closeout, null)
   await h.stream('child', { ...first.config, system: first.system, tools: first.assembly.tools, messages: first.messages })
-  h.child.append('user/message', assignment('write succeeded: candidate.html was saved; final report has not yet been sent.'), { surfaceOp: 'append' })
+  h.child.append('user/message', assignment('A useful check completed; the final report has not yet been sent.'), { surfaceOp: 'append' })
   const last = await prepared(h, 'child')
-  assert.equal(last.assembly.tools.length, 1, 'tool schemas stay visible in the final-only assembly')
+  assert.equal(last.assembly.tools.length, 1, 'the final-only request keeps schemas visible; execution alone is denied at the tool gate')
   assert.match(last.system, /DPSWARM_WORKER_FINAL_ONLY/)
   assert.match(last.system, /If nothing was provably saved/)
   assert.equal((await h.service.diagnosticsForSession('child')).remaining_calls, 1)
@@ -125,12 +110,12 @@ test('two-call worker can save a candidate first and sends tool-free delivery on
   h.service.shutdown()
 })
 
-test('final-only keeps tool schemas visible, denies their execution, and bounds extra calls', async () => {
+test('final-only keeps tool schemas, denies direct execution, and permits one tool-attempt plus one report', async () => {
   const h = fixture({ workerTokenLimit: 6000, workerCallLimit: 10 })
   h.assembly.tools = [{ name: 'run_code', parameters: { type: 'object' } }]
   // Token rail parks the worker at arrival (6,000 < input + final + 4,096 + 2,048).
   const last = await prepared(h, 'child')
-  assert.equal(last.assembly.tools.length, 1, 'schemas stay visible; execution is denied at the tool gate instead')
+  assert.equal(last.assembly.tools.length, 1, 'schemas stay listed; only execution is denied')
   assert.match(last.system, /DPSWARM_WORKER_FINAL_ONLY/)
   // A tool-attempt step is admitted but the tool never executes (cold-restore path covered).
   h.service.runtime.states.clear()
@@ -140,19 +125,19 @@ test('final-only keeps tool schemas visible, denies their execution, and bounds 
     assert.match(h.guards[0]({ agent: h.agents.get('child'), name }), /budget rail reached/)
   }
   assert.equal(executed, 0)
-  // The report call follows; a third post-closeout call is refused.
+  // One tool-attempt step plus one report call are admitted; a third post-closeout call is refused.
   await h.stream('child', { system: last.system, tools: last.assembly.tools, messages: last.messages })
-  await h.stream('child', { system: last.system, tools: [], messages: last.messages })
+  await h.stream('child', { system: last.system, tools: last.assembly.tools, messages: last.messages })
   await assert.rejects(h.stream('child', { system: last.system, tools: [] }), { code: 'WORKER_CLOSEOUT_ALREADY_SENT' })
   assert.equal(h.calls.length, 2)
   h.service.shutdown()
 })
 
-test('a tiny grant is refused before dispatch with the real (never-stripped) envelope priced in', async () => {
+test('a tiny grant is refused before dispatch when even the closeout report envelope does not fit', async () => {
   const h = fixture({ workerTokenLimit: 500, workerCallLimit: 1 })
   h.assembly.tools = [{ name: 'write', description: 'large schema'.repeat(1000) }]
-  // Tool schemas are never stripped now, so a grant too small for the real
-  // envelope gets an honest pre-dispatch denial instead of a fake-worked report.
+  // The closeout envelope keeps its tool schemas, so a grant too small for the
+  // real envelope gets an honest pre-dispatch denial instead of a fake-worked report.
   await assert.rejects(prepared(h, 'child'), { code: 'WORKER_TOKEN_RESERVATION_DENIED' })
   const d = await h.service.diagnosticsForSession('child')
   assert.equal(h.calls.length, 0)
@@ -204,7 +189,9 @@ test('projected dynamic runtime context is priced once, including the first-step
   const before = h.service.runtime.states.get('child').stepBudget.input_estimate
   await h.service.prepareStep(agent, { signal, messages: [task, projected] })
   const after = h.service.runtime.states.get('child').stepBudget.input_estimate
-  assert.equal(after, estimateRequestTokens({ system: '', tools: [], messages: [task, projected] }).input)
+  const { createSystemMessage } = await import(hostModuleUrl(host, 'dsh-llm/lib/index.js'))
+  const system = createSystemMessage(assembly.sections.map(section => section.text).join('\n\n'), '@deepseek-ai/dsh-system-prompt')
+  assert.equal(after, estimateRequestTokens({ tools: [], messages: [...[task, projected], system] }).input)
   // Metadata adds a few tokens; the entire 2k dynamic context is not duplicated.
   assert.ok(after - before < 100)
   h.service.shutdown()
@@ -228,7 +215,7 @@ test('cancelled pre-step and immutable schema fail before any model dispatch', a
 })
 
 
-test('final report input measurement prices the retained tool schemas (they are never stripped)', async () => {
+test('final report input measurement prices the current envelope with its visible schemas', async () => {
   const h = fixture({ workerTokenLimit: 11000, workerCallLimit: 3 })
   h.assembly.sections = [{ name: 'system', text: 'S'.repeat(9500) }]
   h.assembly.tools = [{ name: 'old_tool', description: 'T'.repeat(6000) }]
@@ -238,10 +225,99 @@ test('final report input measurement prices the retained tool schemas (they are 
     return { totalTokens: header ? 300 : 5000 }
   } })
   const step = await prepared(h, 'child')
-  assert.equal((measuredHeader.tools || []).length, 1, 'the retained schema is priced into the envelope instead of charging a stale or a stripped one')
+  assert.equal((measuredHeader.tools || []).length, 1, 'the closeout request still carries the schema, so it is charged')
   assert.match(measuredHeader.system, /DPSWARM_WORKER_FINAL_ONLY/)
   assert.ok(step.config.maxTokens > 0)
   await h.stream('child', { ...step.config, system: step.system, tools: step.assembly.tools, messages: step.messages })
   assert.equal(h.calls.length, 1)
+  h.service.shutdown()
+})
+
+test('request output limit is clamped to a host-observed route cap when the rail shapes above it', async () => {
+  // Live session 88122af1: glm rejects max_tokens above 131072 while a 300k
+  // rail shaped a larger allowance; the provider refused the first request.
+  const h = fixture({ workerTokenLimit: 300000, workerCallLimit: 2 })
+  h.llm.resolveCallConfig = async c => ({ ...c }) // no host default output bound applied
+  let lookups = 0
+  h.llm.resolveModelInfo = async (provider, model) => { lookups++
+    return { provider, id: model, defaultMaxTokens: 131072, context: { contextWindow: 131072 } } }
+  const original = Object.freeze({ provider: 'worker-provider', model: 'model' })
+  const bounded = await h.ctx.waterfall('agent/request', { agent: h.agents.get('child') }, async () => original)
+  assert.equal(bounded.maxTokens, 131072, 'the route cap wins over the rail-shaped allowance')
+  assert.ok(bounded.maxTokens < 300000)
+  const second = await h.ctx.waterfall('agent/request', { agent: h.agents.get('child') }, async () => original)
+  assert.equal(second.maxTokens, 131072)
+  assert.equal(lookups, 1, 'the route cap is resolved once per route, then cached')
+  assert.equal((await h.service.diagnosticsForSession('child')).request_budget.route_output_cap, 131072)
+  h.service.shutdown()
+})
+
+test('a context-window-only route (glmcp shape: no defaultMaxTokens) is clamped by its window', async () => {
+  // Live session e3589816: glmcp exposes context.contextWindow=131072 but no
+  // defaultMaxTokens; the tester's shaped maxTokens 269854 died at the provider.
+  const h = fixture({ workerTokenLimit: 600000, workerCallLimit: 36 })
+  h.llm.resolveCallConfig = async c => ({ ...c }) // no host default output bound applied
+  h.llm.resolveModelInfo = async (provider, model) => ({ provider, id: model, context: { contextWindow: 131072 } })
+  const original = Object.freeze({ provider: 'worker-provider', model: 'model' })
+  const bounded = await h.ctx.waterfall('agent/request', { agent: h.agents.get('child') }, async () => original)
+  assert.equal(bounded.maxTokens, 131072, 'the window alone clamps the shaped allowance')
+  assert.equal((await h.service.diagnosticsForSession('child')).request_budget.route_output_cap, 131072)
+  h.service.shutdown()
+})
+
+test('a route exposing both bounds is clamped by the smaller one', async () => {
+  const h = fixture({ workerTokenLimit: 600000, workerCallLimit: 36 })
+  h.llm.resolveCallConfig = async c => ({ ...c })
+  h.llm.resolveModelInfo = async (provider, model) => ({ provider, id: model, defaultMaxTokens: 98304, context: { contextWindow: 131072 } })
+  const bounded = await h.ctx.waterfall('agent/request', { agent: h.agents.get('child') }, async () => Object.freeze({ provider: 'worker-provider', model: 'model' }))
+  assert.equal(bounded.maxTokens, 98304)
+  h.service.shutdown()
+})
+
+test('a registry-blind route falls back to the measured provider cap, and the registry still wins when present', async () => {
+  // Live shape: glmcp reports no defaultMaxTokens and (in some setups) no
+  // contextWindow either; the measured gateway bound is 131072.
+  const h = fixture({ workerTokenLimit: 600000, workerCallLimit: 36 })
+  h.llm.resolveCallConfig = async c => ({ ...c })
+  h.llm.resolveModelInfo = async (provider, model) => ({ provider, id: model })
+  const original = Object.freeze({ provider: 'glmcp', model: 'glm-5.3-flash' })
+  const bounded = await h.ctx.waterfall('agent/request', { agent: h.agents.get('child') }, async () => original)
+  assert.equal(bounded.maxTokens, 131072, 'the measured fallback clamps the registry-blind route')
+  // An unknown provider with no registry data stays unclamped.
+  const unknown = Object.freeze({ provider: 'other-provider', model: 'm' })
+  const free = await h.ctx.waterfall('agent/request', { agent: h.agents.get('child') }, async () => unknown)
+  assert.ok(free.maxTokens > 131072, 'unknown routes are never clamped by guesses')
+  h.service.shutdown()
+})
+
+test('an optimistic registry (262144) loses to the measured gateway cap (131072), a conservative one still wins', async () => {
+  // Live 03e8db1b: the glmcp registry reports 262144 while the gateway rejects
+  // anything above 131072; only the measured value prevents the dead request.
+  {
+    const h = fixture({ workerTokenLimit: 600000, workerCallLimit: 36 })
+    h.llm.resolveCallConfig = async c => ({ ...c, maxTokens: 262144 })
+    h.llm.resolveModelInfo = async (provider, model) => ({ provider, id: model, defaultMaxTokens: 262144, context: { contextWindow: 262144 } })
+    const bounded = await h.ctx.waterfall('agent/request', { agent: h.agents.get('child') }, async () => Object.freeze({ provider: 'glmcp', model: 'glm-5.3-flash' }))
+    assert.equal(bounded.maxTokens, 131072, 'the measured gateway cap wins over the optimistic registry')
+    h.service.shutdown()
+  }
+  {
+    const h = fixture({ workerTokenLimit: 600000, workerCallLimit: 36 })
+    h.llm.resolveCallConfig = async c => ({ ...c })
+    h.llm.resolveModelInfo = async (provider, model) => ({ provider, id: model, defaultMaxTokens: 65536 })
+    const bounded = await h.ctx.waterfall('agent/request', { agent: h.agents.get('child') }, async () => Object.freeze({ provider: 'glmcp', model: 'glm-5.3-flash' }))
+    assert.equal(bounded.maxTokens, 65536, 'a conservative registry value still lowers the bound')
+    h.service.shutdown()
+  }
+})
+
+test('an unavailable model lookup leaves the rail-shaped bound unclamped', async () => {
+  const h = fixture({ workerTokenLimit: 300000, workerCallLimit: 2 })
+  h.llm.resolveCallConfig = async c => ({ ...c })
+  h.llm.resolveModelInfo = async () => { throw new Error('metadata unavailable') }
+  const original = Object.freeze({ provider: 'worker-provider', model: 'model' })
+  const bounded = await h.ctx.waterfall('agent/request', { agent: h.agents.get('child') }, async () => original)
+  assert.ok(bounded.maxTokens > 131072, 'unknown metadata must not invent a clamp')
+  assert.equal((await h.service.diagnosticsForSession('child')).request_budget.route_output_cap, null)
   h.service.shutdown()
 })

@@ -214,3 +214,74 @@ test('model preflight failures before any child publication never fulfill the ta
   assert.equal(state.phase, 'required'); assert.equal(state.starts.length, 0); assert.equal(state.finish, null)
   assert.equal((await writeGate(h)).kind, 'deny')
 })
+
+test('same-host review of active but terminated nodes settles the exact run only with native cleanup proof', async t => {
+  for (const recovered of [false, true]) await t.test(recovered ? 'cold spawn owner death' : 'same-host native cleanup', async () => {
+    const h = await recoveryFixture()
+    h.state.lease.recovered = recovered
+    for (const node of Object.values(h.snapshot.nodes)) { node.lifecycle = 'active'; node.terminated = true }
+    h.controller.reviewSettlementEvidence = async (_agent, starts) => {
+      assert.deepEqual(starts.map(s => s.execution_session_id).sort(), ['child-1', 'child-2'])
+      return !recovered
+    }
+    await h.dispatcher.review({ item_id: 'item-2', verdict: 'terminate' }, h.exec)
+    assert.equal((await h.requirement.beforeRun(h.agent)).phase, 'finished')
+    assert.equal((await writeGate(h)).kind, 'allow')
+  })
+})
+
+test('same-host cleanup evidence cannot replace physical terminal, control terminal, or released lease proof', async t => {
+  for (const [label, mutate] of [
+    ['native cleanup unavailable', h => { h.controller.reviewSettlementEvidence = async () => false }],
+    ['physical worker not terminal', h => { h.snapshot.nodes['node-1'].terminated = false }],
+    ['nonterminal CP acceptance', h => { h.snapshot.work_items['item-1'].acceptance = 'submitted' }],
+    ['lease retained', h => { h.controller.review = async () => h.reviewResult }],
+    ['active slot', h => { h.snapshot.open_worker_slots_used = 1 }],
+    ['wrong native provider', h => { h.snapshot.nodes['node-1'].execution_provider = 'sdk' }],
+  ]) await t.test(label, async () => {
+    const h = await recoveryFixture(); h.state.lease.recovered = false
+    h.controller.reviewSettlementEvidence = async () => true
+    for (const node of Object.values(h.snapshot.nodes)) { node.lifecycle = 'active'; node.terminated = true }
+    mutate(h)
+    await h.dispatcher.review({ item_id: 'item-2', verdict: 'terminate' }, h.exec)
+    assert.equal((await h.requirement.beforeRun(h.agent)).phase, 'started')
+  })
+})
+
+test('capture failure hands execution back only after fresh evidence for every published child', async t => {
+  for (const terminal of [true, false]) await t.test(`terminal=${terminal}`, async () => {
+    const result = { ...success(), execution_error: { stage: 'candidate_capture', code: 'CANDIDATE_PUBLISH_FAILED' },
+      verification_recovery: { checkpoint_id: 'capture-1', phase: 'ready' } }
+    const h = fixture(async (args, exec, { onChildStarted }) => { await onChildStarted(child()); return result })
+    let inspected
+    h.controller.reviewSettlementEvidence = async (parent, starts) => { inspected = starts; return terminal }
+    assert.equal(await h.dispatcher.run({}, h.exec), result)
+    assert.deepEqual(inspected, [child()])
+    const state = await h.requirement.beforeRun(h.agent)
+    assert.equal(state.phase, terminal ? 'finished' : 'started')
+    assert.equal((await writeGate(h)).kind, terminal ? 'allow' : 'deny')
+    if (terminal) {
+      assert.equal(state.finish.outcome, 'failed_takeover')
+      assert.equal(state.finish.error_code, 'CANDIDATE_PUBLISH_FAILED')
+    }
+  })
+})
+
+test('resume serializes calls and cannot authorize an unstarted or different task', async () => {
+  const h = fixture(async (args, exec, { onChildStarted }) => { await onChildStarted(child()); return success() })
+  let calls = 0
+  h.controller.resume = async (args, exec, { validateTask }) => { await validateTask(); calls++; return { resumed: true } }
+  await assert.rejects(h.dispatcher.resume({}, h.exec), { code: 'RESUME_TASK_NOT_SETTLED' })
+  assert.equal(calls, 0)
+  await h.dispatcher.run({}, h.exec)
+  assert.deepEqual(await h.dispatcher.resume({}, h.exec), { resumed: true })
+  const entered = deferred(), done = deferred()
+  h.controller.resume = async () => { entered.resolve(); await done.promise; return { resumed: true } }
+  const first = h.dispatcher.resume({}, h.exec); await entered.promise
+  await assert.rejects(h.dispatcher.resume({}, h.exec), { code: 'RUN_PENDING' })
+  done.resolve(); await first
+  h.agent.session.events.push({ type: 'user/message', data: createUserMessage({ source: { kind: 'user' },
+    content: [{ type: 'text', text: 'A different task.' }] }) })
+  h.controller.resume = async (args, exec, { validateTask }) => validateTask()
+  await assert.rejects(h.dispatcher.resume({}, h.exec), { code: 'RESUME_TASK_NOT_SETTLED' })
+})

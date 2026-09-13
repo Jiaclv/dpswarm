@@ -51,6 +51,7 @@ class Event:
 
 
 EVENT_KINDS = {
+    "acceptance_updated",  # authoritative native DPH contract revision
     # root / spec（§2.1）
     "root_started",
     "spec_published",

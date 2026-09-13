@@ -6,8 +6,9 @@ import { installBudget } from '../lib/budget.js'
 import { estimateRequestTokens } from '../lib/budget-runtime.js'
 import { MemoryAuditJournal } from './helpers/memory-audit.mjs'
 const host = resolveHostRoot()
-const [{ Context }, { Session, canonicalHeader }, { TokenMeter }, { createSystemMessage }] = await Promise.all(
+const [{ Context }, { Session, canonicalHeader }, { TokenMeter }, { createSystemMessage, createUserMessage }] = await Promise.all(
   ['cordis', 'dsh-session', 'dsh-token-meter', 'dsh-llm'].map(name => import(hostModuleUrl(host, name + '/lib/index.js'))))
+const { renderPrompt, renderContextSnapshot, renderContextSections } = await import(hostModuleUrl(host, 'dsh-system-prompt/lib/index.js'))
 const header = { config: { provider: 'fixture', model: 'fixture' }, tools: [{ name: 'read', parameters: { type: 'object' } }] }
 const addSystem = (session, text) => session.append('system/message', { message: { role: 'system', content: text ? [{ type: 'text', text }] : [] } }, { surfaceOp: 'append' })
 const addUser = session => session.append('user/message', { role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: 'Create the animation.' }] }, { surfaceOp: 'append' })
@@ -82,22 +83,31 @@ for (const scenario of ['none', 'same', 'changed']) for (const nativeMeter of [f
     const service = installBudget(ctx, () => ({ workerBudgetMode: 'manual', workerTokenLimit: 100000, workerCallLimit: 5 }), { journal: new MemoryAuditJournal() })
     t.after(() => service.shutdown())
     const signal = new AbortController().signal
-    await ctx.get('systemPrompt').assemble({ agent, signal })
-    await service.prepareStep(agent, { signal, messages: [] })
-    const messages = child.deriveMessages(), separate = scenario === 'same' ? '' : next
-    const serialized = estimateRequestTokens({ messages, system: separate, tools: [] }).input
-    const metered = meter ? measureSystemRequest(meter, child, { config: agent.options }, next, canonicalHeader).totalTokens : 0
-    const expected = Math.max(serialized, metered)
-    assert.equal(service.runtime.states.get(child.id).stepBudget.input_estimate, expected)
+    const assembled = await ctx.get('systemPrompt').assemble({ agent, signal })
+    const projectedSystem = renderPrompt(assembled)
+    const context = createUserMessage({ content: [{ type: 'text', text: renderContextSnapshot(assembled) }],
+      source: { kind: 'plugin', plugin: '@deepseek-ai/dsh-system-prompt', form: 'snapshot', sections: renderContextSections(assembled) } })
+    await ctx.waterfall('agent/pre-step', { agent, signal, messages: [context] }, async () => ({ kind: 'enter', messages: [context] }))
+    const eventsBeforeRequest = child.snapshotEvents()
+    const metered = meter ? measureSystemRequest(meter, child, { config: agent.options }, projectedSystem, canonicalHeader).totalTokens + meter.estimateMessage(context) : 0
     const result = await ctx.waterfall('agent/request', { agent, signal }, async () => ({ ...agent.options, maxTokens: 256000 }))
     const state = service.runtime.states.get(child.id)
+    assert.equal(child.snapshotEvents(), eventsBeforeRequest, 'forecast and request pricing do not commit the pending projection')
     // Materialize the native in-history system message as the request oracle:
     // unlike a bare system string it also carries role/content/source/id.
-    if (scenario !== 'same') child.append('system/message', {
-      message: createSystemMessage(next, '@deepseek-ai/dsh-system-prompt'),
+    if (retainedSystemText(child) !== projectedSystem) child.append('system/message', {
+      message: createSystemMessage(projectedSystem, '@deepseek-ai/dsh-system-prompt'),
     }, { surfaceOp: 'append' })
-    const projected = estimateRequestTokens({ messages: child.deriveMessages(), tools: [] }).input
-    assert.equal(result.maxTokens, service.runtime.outputLimit(state, Math.max(projected, metered), 256000))
-    if (scenario === 'same') assert.equal(retainedSystemText(child), next)
+    child.append('user/message', context, { surfaceOp: 'append' })
+    const request = Object.freeze({ ...result, sessionId: child.id, messages: child.deriveMessages(), tools: [] })
+    const projected = estimateRequestTokens(request).input, expected = Math.max(projected, metered)
+    assert.equal(state.stepBudget.input_estimate, expected, 'pre-step forecast prices the materialized native request')
+    assert.equal(result.maxTokens, service.runtime.outputLimit(state, expected, 256000))
+    const ticket = await service.runtime.admit(state, request)
+    assert.equal(ticket.call.input_estimate, projected, 'final admission prices the same native request surface')
+    assert.ok(ticket.call.reserved_tokens <= state.profile.tokenLimit)
+    await service.runtime.settle(ticket, { inputTokens: projected, outputTokens: 1 }, 'stop')
+    assert.equal(retainedSystemText(child), projectedSystem)
+    assert.ok(projectedSystem.includes('DPSWARM_WORKER_BUDGET_POLICY'))
   })
 }

@@ -1,32 +1,34 @@
-import { estimateRequestTokens, isWorkerSession, workerBudgetProfile } from './budget-runtime.js'
+import { isWorkerSession, workerBudgetProfile } from './budget-runtime.js'
 
 // Advisory measurements only. Never store prompts, choose budgets or mutate settings.
-export function installBudgetAdvice(ctx, config) {
-  const envelopes = new Map()
-  const dispose = ctx.on('llm/stream', (options, next) => {
-    const session = options.sessionId ? (ctx.get?.('sessions', false) || ctx.sessions)?.get(options.sessionId) : null
-    if (session && !isWorkerSession(session) && !['compaction', 'session-title'].includes(options.purpose)) {
-      if (!envelopes.has(session.id) && envelopes.size >= 256) envelopes.delete(envelopes.keys().next().value)
-      envelopes.set(session.id, {
-        source: 'latest Lead request envelope; proxy only, not a worker quote',
-        estimation: 'ceil(serialized system/messages/tools characters / 3); tokenizer and provider overhead can differ',
-        estimated_input_tokens: estimateRequestTokens(options).input,
-        estimated_system_tools_tokens: estimateRequestTokens({ system: options.system, tools: options.tools }).input,
-      })
-    }
-    return next()
-  }, { prepend: true, global: true })
+// Auto (Lead-estimated per-role budgets) was removed: rails come from user
+// settings, a worker that reaches its rail reports for a Lead decision, and
+// continuation spends the user's rework allowance. No estimation surface remains.
+export function installBudgetAdvice(ctx, config, { modelRegistry = null } = {}) {
   return {
-    status(agent) {
+    async status(agent) {
       const policy = workerBudgetProfile(config(), agent.session.id)
-      return { mode: policy.mode, allocation_authority: policy.mode === 'auto' ? 'current Lead' : 'user settings',
+      // A cumulative grant above the route context window can never fit into a
+      // single request; surface host-observed limits for the current Lead route
+      // when metadata is available. Advisory only; never a budget decision.
+      const route = agent?.session?.requestHeader?.()?.config
+      let routeLimits = null
+      if (modelRegistry && typeof route?.provider === 'string' && typeof route?.model === 'string'
+        && route.provider.trim() && route.model.trim()) {
+        const capability = await modelRegistry.resolveRouteCapability(route.provider, route.model).catch(() => null)
+        if (capability && (capability.context_window || capability.default_max_tokens)) {
+          routeLimits = { provider: route.provider, model: route.model,
+            context_window: capability.context_window, default_max_tokens: capability.default_max_tokens,
+            note: 'Host-observed for the current Lead route. One request output is clamped to default_max_tokens; a cumulative tokenLimit above context_window cannot fit in any single request, so split the work instead of granting one oversized rail. Advisory only; never a substitute for user settings.' }
+        }
+      }
+      return { mode: policy.mode, allocation_authority: 'user settings',
         modifies_limits: false,
         token_unit: 'sum of input + output + cache read + cache write for every worker request and its CM; reasoning is included in output',
-        envelope_reference: envelopes.get(agent.session.id) || null,
-        reference_limit: 'Lead and worker prompts/tools/history differ. This proxy is not a minimum, a model tokenizer count, a cost prediction or an automatically selected grant.',
-        planning: 'For Auto, choose per-role anomaly rails, not precise estimates: call counts are the primary scale (steps are predictable; token content is not). Every step re-sends the full history plus the system/tool envelope, so a write-then-verify worker spends several full envelopes after the file exists — size the rail for the write plus a few verification reads plus the report, not for the artifact alone. A worker that reaches its rail parks and reports saved files plus remaining work; you decide continuation. In manual/unlimited omit worker_budgets.',
+        route_limits: routeLimits,
+        planning: 'Worker limits are user-set fixed rails, not per-task estimates: every initial worker gets the same cumulative tokenLimit and callLimit from settings, and you never choose, announce or rescale them. A rail is an anomaly bound, not a plan for the work. A worker that reaches its rail parks: it stops tool use and reports what is complete, which files were provably saved, and what remains — you then decide: continue via dpswarm_rework (its allowance comes from the user\'s rework settings, never a grant you invent), accept the partial delivery where the requirements allow, or terminate. Full acceptance still requires every necessary requirement and related finding to pass for the sealed candidate.',
       }
     },
-    dispose() { if (typeof dispose === 'function') dispose(); envelopes.clear() },
+    dispose() {},
   }
 }

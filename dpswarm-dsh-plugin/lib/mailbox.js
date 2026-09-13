@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
+import { optionalHostStorage, hostStorageKv } from './host-services.js'
 
 /**
  * 有界持久 mailbox（借鉴项④）：Lead↔worker 直系消息通道的准入、有界、
@@ -353,28 +354,27 @@ export class KvMailboxStorage {
   }
 
   available() {
-    const hub = this.ctx?.storage
-    return Boolean(hub?.backend && typeof hub.backend.get === 'function' && (hub.backend.names?.().length || 0) > 0)
+    return Boolean(optionalHostStorage(this.ctx)?.names.length)
   }
 
   async _unit() {
     if (this.unit) return this.unit
-    const hub = this.ctx?.storage
-    if (!hub?.backend || typeof hub.backend.get !== 'function') {
+    const storage = optionalHostStorage(this.ctx)
+    if (!storage) {
       throw failure('DPSWARM_MAILBOX_STORAGE_UNAVAILABLE', 'The host storage hub is not composed; the persistent mailbox cannot run')
     }
-    const names = hub.backend.names?.() || []
-    const order = ['json', ...names.filter(name => name !== 'json')]
-    let last = null
-    for (const name of order) {
-      let backend = null
-      try { backend = hub.backend.get(name) } catch (error) { last = error; continue }
-      if (backend?.kv) {
-        this.unit = await backend.kv.open(MAILBOX_KV_UNIT)
-        return this.unit
+    const kv = hostStorageKv(storage)
+    if (kv) {
+      const unit = await kv.open(MAILBOX_KV_UNIT)
+      for (const method of ['loadAll', 'putRecord', 'deleteRecord']) {
+        if (typeof unit?.[method] !== 'function') {
+          throw failure('DPSWARM_MAILBOX_STORAGE_UNAVAILABLE', `The opened KV unit does not provide ${method}`)
+        }
       }
+      this.unit = unit
+      return this.unit
     }
-    throw failure('DPSWARM_MAILBOX_STORAGE_UNAVAILABLE', `No storage backend with a KV facet is registered (${last ? String(last?.message ?? last) : 'none'})`)
+    throw failure('DPSWARM_MAILBOX_STORAGE_UNAVAILABLE', 'No storage backend with a KV facet is registered')
   }
 
   async loadAll() { return (await this._unit()).loadAll() }

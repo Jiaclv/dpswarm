@@ -15,6 +15,8 @@ import { resolveHostRoot, hostModuleUrl } from '../lib/host-modules.js'
 
 const host = resolveHostRoot()
 const [{ Context }, { Session, SESSION_FORMAT_VERSION }] = await Promise.all(['cordis', 'dsh-session'].map(p => import(hostModuleUrl(host, `${p}/lib/index.js`))))
+const { renderContextSnapshot, renderContextSections } = await import(hostModuleUrl(host, 'dsh-system-prompt/lib/index.js'))
+const { createUserMessage } = await import(hostModuleUrl(host, 'dsh-llm/lib/index.js'))
 
 function makeSession(id, parent = null, events = []) {
   return { id, header: { id, ...(parent ? { parentSession: parent, origin: 'subagent', delegationDepth: 1, seedLength: 0 } : {}) }, events }
@@ -48,10 +50,12 @@ test('911 closeout: tester entered final-only with 53% budget and 9 calls left, 
   await r.settle(final, { inputTokens: 19000, outputTokens: 2516 }, 'stop')
   assert.equal(r.describe(state).remaining_tokens, 84562)
   assert.equal(r.describe(state).remaining_calls, 8)
-  // Rail closeout: a marker-less call is refused for the missing instruction;
-  // one tool-attempt step plus the report call may still be admitted past it.
-  await assert.rejects(r.admit(state, call()), { code: 'WORKER_CLOSEOUT_INSTRUCTION_MISSING' })
-  await r.settle(await r.admit(state, call({ system: CLOSEOUT_INSTRUCTION })), { inputTokens: 500, outputTokens: 100 }, 'stop')
+  // A visible-tool closeout keeps one refused tool-attempt slot: a second
+  // post-closeout call is still admitted, the third is not. Anything beyond
+  // must be an explicitly authorized continuation, never a hidden call.
+  const recovery = await r.admit(state, call({ system: CLOSEOUT_INSTRUCTION }))
+  await r.settle(recovery, { inputTokens: 20000, outputTokens: 100 }, 'stop')
+  await assert.rejects(r.admit(state, call()), { code: 'WORKER_CLOSEOUT_ALREADY_SENT' })
   await assert.rejects(r.admit(state, call({ system: CLOSEOUT_INSTRUCTION })), { code: 'WORKER_CLOSEOUT_ALREADY_SENT' })
 })
 
@@ -117,14 +121,16 @@ function hostFixture(config = {}) {
 
 test('911 estimator: pre-step closeout forecast prefers the native token meter (0.7.8 Phase 2a)', async () => {
   const h = hostFixture(), agent = h.agents.get('child')
-  await h.ctx.get('systemPrompt').assemble({ agent })
+  const assembly = await h.ctx.get('systemPrompt').assemble({ agent })
+  const context = createUserMessage({ content: [{ type: 'text', text: renderContextSnapshot(assembly) }],
+    source: { kind: 'plugin', plugin: '@deepseek-ai/dsh-system-prompt', form: 'snapshot', sections: renderContextSections(assembly) } })
   await h.ctx.waterfall('agent/pre-step', { agent, messages: [] }, async () => ({ kind: 'enter' }))
   assert.equal(h.measures.length, 2, 'prepareStep now measures input and final-input envelopes with the native meter')
-  assert.equal(h.service.runtime.states.get('child').stepBudget.input_estimate, 424242,
-    'the forecast uses the metered envelope instead of the chars/3 serialization')
+  assert.equal(h.service.runtime.states.get('child').stepBudget.input_estimate, 424242 + estimateRequestTokens({ messages: [context] }).input,
+    'the forecast retains the native meter and prices its pending budget context exactly once')
   const original = Object.freeze({ provider: 'worker-provider', model: 'model', maxTokens: 5000 })
   await h.ctx.waterfall('agent/request', { agent }, async () => original)
-  assert.equal(h.measures.length, 3, 'agent/request keeps its existing meter measurement')
+  assert.ok(h.measures.length > 2, 'agent/request reforecasts and measures its current request, including retries')
   h.service.shutdown()
 })
 
@@ -172,6 +178,7 @@ test('911 reporting: Lead-facing view truncates a 5,422-char reviewer report to 
   assert.equal(entry.output_original_chars, 5422)
   assert.equal(entry.output_truncated, true)
   assert.equal(entry.output.length, 600 + '… [truncated; full value in plugin audit]'.length)
-  assert.equal(entry.detail_source, 'Full report: dpswarm_report(item_id, offset, limit) pages the unabridged text; authenticated /api/plugin-audit remains the audit of record. Inspect original task and files before deciding',
-    '0.7.8 points the Lead to the in-session paged read path')
+  assert.match(entry.detail_source, /dpswarm_report/)
+  assert.equal(entry.output_status, 'unclassified', 'a fixture without native provenance cannot imply a final report')
+  assert.match(entry.detail_source, /Progress is not a final report/)
 })

@@ -151,6 +151,10 @@ class ControlPlane:
                     cand = invariants.check_event(cand, ev)
                     if kind == "work_item_accepted":
                         self._verify_submission_artifact(cand.packages[payload["package_id"]])
+                        from .acceptance import AcceptanceService, contract_for_item
+                        contract = contract_for_item(cand, payload["item_id"])
+                        if contract:
+                            AcceptanceService(self).verify_acceptance_artifacts(contract, contract["candidates"][contract["current_candidate_id"]])
                     staged.append(ev)
             except InvariantViolation as iv:
                 # 控制面拒绝统一以 ControlPlaneError 面向调用方（结构化 code 保留）；
@@ -164,7 +168,7 @@ class ControlPlane:
 
     # 事件内容是纯记录类（无不变量约束）时的直通通道。
     def _record(self, kind: str, payload: Dict[str, Any]) -> Event:
-        if kind in ("package_stored", "node_execution_bound") or kind.startswith("work_item_"):
+        if kind in ("package_stored", "node_execution_bound", "acceptance_updated") or kind.startswith("work_item_"):
             return self._transact((kind, payload))[0]
         with self._lock:
             ev = self.store.append(kind, payload)
@@ -1333,11 +1337,13 @@ class ControlPlane:
                                "attempt": w.attempt, "team": w.team,
                                "submission_id": w.submission_id,
                                "submission_package_id": w.submission_package_id,
-                               "submission_session_id": w.submission_session_id}
+                               "submission_session_id": w.submission_session_id,
+                               "submission_node_id": w.submission_node_id,
+                               "submission_context_epoch": w.submission_context_epoch}
                            for i, w in p.work_items.items()},
             "nodes": {n.node_id: {"item": n.item_id, "role": n.role.value,
                                   "lifecycle": n.lifecycle.value, "blocked": n.blocked.value,
-                                  "epoch": n.context_epoch, "terminated": n.terminated,
+                                  "epoch": n.context_epoch, "session_id": n.session_id, "terminated": n.terminated,
                                   "execution_session_id": (n.execution_binding or {}).get("execution_session_id"),
                                   "execution_parent_session_id": (n.execution_binding or {}).get("parent_session_id"),
                                   "execution_provider": (n.execution_binding or {}).get("execution_provider"),

@@ -7,7 +7,7 @@ import { MemoryAuditJournal } from './helpers/memory-audit.mjs'
 const lib = name => process.env.DPSWARM_TEST_LIB
   ? pathToFileURL(resolve(process.env.DPSWARM_TEST_LIB, name)).href : new URL('../lib/' + name, import.meta.url).href
 const { WorkerBudgetRuntime } = await import(lib('budget-runtime.js'))
-const { CLOSEOUT_INSTRUCTION, CLOSEOUT_MARKER } = await import(lib('worker-closeout.js'))
+const { CLOSEOUT_INSTRUCTION, CLOSEOUT_MARKER, BUDGET_POLICY_INSTRUCTION } = await import(lib('worker-closeout.js'))
 
 async function fixture() {
   const root = { id: 'lead', header: { id: 'lead' }, events: [] }
@@ -66,10 +66,12 @@ test('closeout authorization follows only the last nonempty system message', asy
   })
 })
 
-test('native closeout after cold restore retains two-call maximum and final-only compaction gate', async () => {
+test('native closeout after cold restore admits one tool-attempt step plus the report, then closes', async () => {
   const { create, agent } = await fixture(), runtime = create(), state = await runtime.ensure(agent)
   await assert.rejects(runtime.admit(state, request({ purpose: 'compaction' })), { code: 'WORKER_CLOSEOUT_CM_DEFERRED' })
-  for (let i = 0; i < 2; i++) await runtime.settle(await runtime.admit(state, request()), { inputTokens: 100, outputTokens: 100 }, 'stop')
+  // Tool-bearing closeout requests are admitted: schemas stay visible, the tool
+  // gate refuses execution, and one attempt plus the report call both fit.
+  for (let i = 0; i < 2; i++) await runtime.settle(await runtime.admit(state, request({ tools: [{ name: 'pwsh' }] })), { inputTokens: 100, outputTokens: 100 }, 'stop')
   await assert.rejects(runtime.admit(state, request()), { code: 'WORKER_CLOSEOUT_ALREADY_SENT' })
 })
 
@@ -77,4 +79,17 @@ test('correct system instruction cannot bypass the remaining token limit', async
   const { runtime, state } = await fixture()
   await assert.rejects(runtime.admit(state, request({ maxTokens: 201270 })), { code: 'WORKER_TOKEN_RESERVATION_DENIED' })
   assert.equal(runtime.describe(state).calls, 7)
+})
+
+test('retry-cached budget policy authorizes tool-bearing and tool-free closeout reports from trusted system text', async () => {
+  const { runtime, state } = await fixture()
+  await assert.rejects(runtime.admit(state, request({ messages: [message('user', BUDGET_POLICY_INSTRUCTION)] })), { code: 'WORKER_CLOSEOUT_INSTRUCTION_MISSING' })
+  assert.equal(runtime.describe(state).calls, 7)
+  // Schemas stay visible at closeout; execution alone is refused at the tool gate.
+  const toolBearing = await runtime.admit(state, request({ messages: [message('system', BUDGET_POLICY_INSTRUCTION)], tools: [{ name: 'read_evidence' }] }))
+  await runtime.settle(toolBearing, { inputTokens: 100, outputTokens: 50 }, 'stop')
+  assert.equal(runtime.describe(state).calls, 8)
+  assert.ok(await runtime.admit(state, request({ messages: [message('system', BUDGET_POLICY_INSTRUCTION)], tools: [] })))
+  assert.equal(runtime.describe(state).calls, 9)
+  await assert.rejects(runtime.admit(state, request()), { code: 'WORKER_CLOSEOUT_ALREADY_SENT' })
 })

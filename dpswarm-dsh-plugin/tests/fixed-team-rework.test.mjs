@@ -2,7 +2,12 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { mkdtempSync, mkdirSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
+import { spawn } from 'node:child_process'
+import { once } from 'node:events'
+import { createInterface } from 'node:readline'
+import { fileURLToPath } from 'node:url'
+import { Sidecar } from '../lib/sidecar.js'
 import { FixedTeamController } from '../lib/fixed-team.js'
 import { TeamDispatcher } from '../lib/team-dispatch.js'
 import { TeamRequirement } from '../lib/team-required.js'
@@ -11,7 +16,7 @@ import { HostModelRegistry } from '../lib/host-model-registry.js'
 import { MemoryAuditJournal } from './helpers/memory-audit.mjs'
 
 const coded = code => Object.assign(new Error(code), { code })
-function fixture() {
+function fixture({ sidecarFactory: providedSidecarFactory } = {}) {
   const workspace = mkdtempSync(join(tmpdir(), 'dpswarm-rework-')), cwd = join(workspace, 'project'); mkdirSync(cwd)
   const cfg = { workspace, sidecarUrl: 'http://127.0.0.1:8791', autoStart: false, enabledSessions: ['root'],
     subagentProvider: 'spawn', implMode: 'lead', testProvider: 'fixture', testModel: 'tester',
@@ -70,7 +75,7 @@ function fixture() {
       const reason = kind === 'error' ? { kind: 'error', error: { code: 'UNKNOWN', message: 'WORKER_TOKEN_RESERVATION_DENIED' } }
         : kind === 'cancel' ? { kind: 'aborted', reason: { kind: 'parent' } } : { kind: 'completed' }
       session.events.push({ seq: 0, type: 'turn/end', data: { reason }, time: Date.now() })
-      resolve({ output: [{ type: 'text', text: kind === 'completed' ? 'Saved candidate. Exact task constraints retained.' : 'Partial candidate; unfinished.' }], stopReason: reason.kind === 'error' ? 'error' : reason.kind === 'aborted' ? 'aborted' : 'completed' })
+      resolve({ output: [{ type: 'text', text: kind === 'completed' ? (h.outputFor?.[id] || 'Saved candidate. Exact task constraints retained.') : 'Partial candidate; unfinished.' }], stopReason: reason.kind === 'error' ? 'error' : reason.kind === 'aborted' ? 'aborted' : 'completed' })
     }
     const child = { id, request, provider, session, result, localAgent: { session },
       async dispose() { if (h.disposeError) throw coded('DISPOSE_FAILED'); if (kind === 'cancel') finish() } }
@@ -80,10 +85,13 @@ function fixture() {
     return child
   } }
   const modelRegistry = new HostModelRegistry(() => ({ async resolveCallConfig(route) { if (h.denyRoute) throw coded('NO_ADAPTER'); return route } }))
-  h.controller = new FixedTeamController({ config: () => cfg, budget, subagents, modelRegistry, sidecarFactory, resolveSession: id => sessions.get(id) })
+  h.controller = new FixedTeamController({ config: () => cfg, budget, subagents, modelRegistry, sidecarFactory: providedSidecarFactory || sidecarFactory, resolveSession: id => sessions.get(id) })
   h.requirement = new TeamRequirement({ config: () => cfg, journal })
+  // This fixture exercises the frozen legacy lifecycle with its legacy mock service.
+  // Strict native source/acceptance is covered by acceptance-native-bridge.test.mjs.
+  h.requirement.sourceFor = () => undefined
   h.dispatcher = new TeamDispatcher({ controller: h.controller, requirement: h.requirement })
-  h.signal = new AbortController(); h.exec = { agent: parent, signal: h.signal.signal }; h.budget = budget
+  h.signal = new AbortController(); h.exec = { agent: parent, signal: h.signal.signal }; h.budget = budget; h.sidecarFactory = providedSidecarFactory || sidecarFactory
   h.run = () => h.dispatcher.run({ task: 'Create an HTML file; no tests.', acceptance: 'Single requested file only.' }, h.exec)
   h.rework = item_id => h.dispatcher.rework({ item_id, feedback: 'Correct only the detached bicycle pedal; preserve all other content.' }, h.exec)
   return h
@@ -101,7 +109,8 @@ test('same-task rework uses exact original route, unrestricted new grant and lat
   assert.match(h.children[2].request.prompt[0].text, /Single requested file only/)
   assert.equal(h.children[2].request.agentOptions.model, 'lead'); assert.equal(h.children[2].request.agentOptions.reasoningEffort, 'max')
   assert.equal(h.items[old.item_id].acceptance, 'terminated')
-  assert.equal(h.items[initial.deliveries[1].item_id].acceptance, 'submitted', 'tester report is not implicitly accepted or removed')
+  assert.equal(h.items[initial.deliveries[1].item_id].acceptance, 'terminated', 'superseded tester releases its reservation without being accepted')
+  assert.equal((await h.controller.report({ item_id: initial.deliveries[1].item_id }, h.exec)).text, 'Saved candidate. Exact task constraints retained.', 'superseded report remains readable')
   await assert.rejects(h.rework(old.item_id), /REWORK_SOURCE_SUPERSEDED/)
   const last = reworked.deliveries[0]
   const third = await h.rework(last.item_id)
@@ -180,7 +189,7 @@ test('physical cleanup failure preserves workspace lease and failed candidate is
 test('cold controller refuses inference and another root workspace lease cannot be stolen', async () => {
   const h = fixture(), initial = await h.run(), old = initial.deliveries[0]
   const originalController = h.dispatcher.controller
-  h.dispatcher.controller = new FixedTeamController({ config: () => h.cfg })
+  h.dispatcher.controller = new FixedTeamController({ config: () => h.cfg, sidecarFactory: h.sidecarFactory })
   await assert.rejects(h.rework(old.item_id), /REWORK_RESTORE_REQUIRED/)
   h.dispatcher.controller = originalController
   for (const delivery of initial.deliveries) await h.dispatcher.review({ item_id: delivery.item_id, verdict: 'terminate' }, h.exec)
@@ -352,4 +361,167 @@ test('a grant profile differing from the announced rework allowance is rejected 
   h.budget.issueRework = async (parent, args) => ({ ...await originalIssue(parent, args), profile: { mode: 'unlimited' } })
   await assert.rejects(h.rework(old.item_id), /WORKER_REWORK_ALLOCATION_INVALID/)
   assert.equal(h.items[old.item_id].acceptance, 'submitted', 'source item is not terminated when the grant mismatches')
+})
+
+
+function independentReviewer(h) {
+  Object.assign(h.cfg, { reviewerMode: 'model', reviewerProvider: 'fixture', reviewerModel: 'reviewer' })
+}
+
+for (const missing of [true, false]) test('old accepted reviewer cannot approve the latest candidate when its replacement is ' + (missing ? 'not admitted' : 'failed'), async () => {
+  const h = fixture(); independentReviewer(h)
+  const first = await h.run()
+  await h.dispatcher.review({ item_id: first.deliveries[2].item_id, verdict: 'accept' }, h.exec)
+  const start = h.controller.subagents.start
+  h.controller.subagents.start = async (provider, request) => {
+    if (request.label === 'dpswarm:DPswarm reviewer re-review') {
+      if (missing) throw coded('TEST_REVIEWER_NOT_ADMITTED')
+      h.nextKind = 'error'
+    }
+    return start(provider, request)
+  }
+  const next = await h.rework(first.deliveries[0].item_id)
+  const candidate = next.deliveries[0]
+  assert.equal(next.failed[0].role, 'reviewer')
+  await assert.rejects(h.dispatcher.review({ item_id: candidate.item_id, verdict: 'accept' }, h.exec), /REVIEWER_PENDING/)
+  const cold = new FixedTeamController({ config: () => h.cfg, sidecarFactory: h.sidecarFactory })
+  await assert.rejects(cold.review({ item_id: candidate.item_id, verdict: 'accept' }, h.exec), /REVIEWER_PENDING/, 'cold review must recover the same generation gate')
+  await assert.rejects(cold.review({ item_id: candidate.item_id, verdict: 'accept', takeover: true, reason: '  ' }, h.exec), /REVIEW_TAKEOVER_REASON_REQUIRED/)
+  const accepted = await cold.review({ item_id: candidate.item_id, verdict: 'accept', takeover: true,
+    reason: 'Replacement reviewer unavailable; Lead checked the candidate and original requirements directly.' }, h.exec)
+  assert.equal(accepted.acceptance_basis, 'lead-takeover')
+  assert.equal(h.items[candidate.item_id].acceptance, 'accepted')
+  const takeover = (await h.journal.read('root')).events.filter(event => event.type === 'dpswarm/verification-takeover')
+  assert.equal(takeover.length, 1)
+  assert.deepEqual(takeover[0].data.candidate_item_ids, [candidate.item_id])
+  await cold.review({ item_id: candidate.item_id, verdict: 'accept', takeover: true, reason: takeover[0].data.reason }, h.exec)
+  assert.equal((await h.journal.read('root')).events.filter(event => event.type === 'dpswarm/verification-takeover').length, 1)
+})
+
+test('supersession never invents cleanup proof and partial retirement resumes idempotently', async () => {
+  const h = fixture(); independentReviewer(h)
+  const first = await h.run(), old = first.deliveries[0]
+  const event = h.journal.state('root').events.find(event => event.type === 'dpswarm/worker-diagnostic' && event.data.role === 'reviewer')
+  event.data.diagnostic.cleanup.physical_cleanup_confirmed = false
+  await assert.rejects(h.rework(old.item_id), /REWORK_VERIFIER_UNSETTLED/)
+  assert.deepEqual(first.deliveries.map(item => h.items[item.item_id].acceptance), ['submitted', 'submitted', 'submitted'])
+  event.data.diagnostic.cleanup.physical_cleanup_confirmed = true
+  const state = h.controller.sessions.get('root'), call = state.sidecar.call.bind(state.sidecar)
+  let denied = false
+  state.sidecar.call = async (method, path, body) => {
+    if (!denied && path === '/api/review' && body.item_id === first.deliveries[2].item_id) { denied = true; throw coded('CONTROL_UNAVAILABLE') }
+    return call(method, path, body)
+  }
+  await assert.rejects(h.rework(old.item_id), /CONTROL_UNAVAILABLE/)
+  assert.equal(h.items[first.deliveries[1].item_id].acceptance, 'terminated')
+  assert.equal(h.items[old.item_id].acceptance, 'submitted')
+  const retried = await h.rework(old.item_id)
+  assert.deepEqual(retried.deliveries.map(item => item.role), ['implementer', 'tester', 'reviewer'])
+  assert.equal(h.calls.filter(call => call.path === '/api/review' && call.body.item_id === first.deliveries[1].item_id).length, 1)
+  assert.equal((await h.controller.report({ item_id: first.deliveries[1].item_id }, h.exec)).completion, 'completed')
+})
+
+test('old generation takeover is not inherited by a reworked candidate and cold reviewer termination records current takeover', async () => {
+  const h = fixture(); independentReviewer(h)
+  const first = await h.run()
+  await h.dispatcher.review({ item_id: first.deliveries[2].item_id, verdict: 'terminate', reason: 'Lead verified the first candidate directly.' }, h.exec)
+  const next = await h.rework(first.deliveries[0].item_id)
+  const candidate = next.deliveries[0], reviewer = next.deliveries[2]
+  const cold = new FixedTeamController({ config: () => h.cfg, sidecarFactory: h.sidecarFactory })
+  await assert.rejects(cold.review({ item_id: candidate.item_id, verdict: 'accept' }, h.exec), /REVIEWER_PENDING/)
+  await cold.review({ item_id: reviewer.item_id, verdict: 'terminate' }, h.exec)
+  await assert.rejects(cold.review({ item_id: candidate.item_id, verdict: 'accept' }, h.exec), /REVIEWER_PENDING/, 'termination without a documented takeover must not pass')
+  await cold.review({ item_id: reviewer.item_id, verdict: 'terminate', reason: 'Lead verified the replacement candidate directly.' }, h.exec)
+  assert.equal((await cold.review({ item_id: candidate.item_id, verdict: 'accept' }, h.exec)).acceptance_basis, 'lead-takeover')
+})
+
+test('legacy candidate with configured reviewer needs explicit takeover when no generation binding can be recovered', async () => {
+  const h = fixture(); independentReviewer(h)
+  const first = await h.run()
+  const journalState = h.journal.state('root')
+  journalState.events = journalState.events.filter(event => !event.type.startsWith('dpswarm/verification-'))
+  const cold = new FixedTeamController({ config: () => h.cfg, sidecarFactory: h.sidecarFactory })
+  await h.dispatcher.review({ item_id: first.deliveries[2].item_id, verdict: 'accept' }, h.exec)
+  await assert.rejects(cold.review({ item_id: first.deliveries[0].item_id, verdict: 'accept' }, h.exec), /REVIEWER_PENDING/)
+  assert.equal((await cold.review({ item_id: first.deliveries[0].item_id, verdict: 'accept', takeover: true,
+    reason: 'Historical reviewer binding unavailable; Lead verified this candidate directly.' }, h.exec)).acceptance_basis, 'lead-takeover')
+})
+
+test('real Python sidecar keeps 4 slots and 8 points through two rework generations, durable review and lease release', { timeout: 60000 }, async t => {
+  const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
+  const directory = mkdtempSync(join(tmpdir(), 'dpswarm-real-rework-'))
+  const child = spawn(process.env.DPSWARM_TEST_PYTHON || 'python', [join(repo, 'dpswarm-dsh-plugin/tests/session-sidecar-harness.py'), directory],
+    { cwd: repo, windowsHide: true, shell: false, stdio: ['pipe', 'pipe', 'pipe'] })
+  let stderr = ''; child.stderr.on('data', data => { stderr += data })
+  const lines = createInterface({ input: child.stdout }), queue = [], waiters = []
+  lines.on('line', line => { const value = JSON.parse(line); if (waiters.length) waiters.shift()(value); else queue.push(value) })
+  const next = () => queue.length ? Promise.resolve(queue.shift()) : new Promise(resolve => waiters.push(resolve))
+  t.after(async () => { if (child.exitCode === null) { const done = once(child, 'exit'); child.stdin.end('{"command":"stop"}\n'); await done } lines.close() })
+  const { port } = await Promise.race([next(), once(child, 'exit').then(() => { throw new Error(stderr) })])
+  const samples = [], specChanges = []
+  const h = fixture({ sidecarFactory: cfg => {
+    const sidecar = new Sidecar({ ...cfg, workspace: directory, sidecarUrl: 'http://127.0.0.1:' + port })
+    const call = sidecar.call.bind(sidecar)
+    sidecar.call = async (method, path, body) => {
+      const result = await call(method, path, body)
+      if (path === '/api/spec' && method === 'POST') specChanges.push(body)
+      if (path === '/api/status' && result.snapshot) samples.push({ points: result.snapshot.active_points,
+        slots: result.snapshot.open_worker_slots_used, spec: result.spec })
+      return result
+    }
+    return sidecar
+  } })
+  independentReviewer(h)
+  realBudget(h)
+  const first = await h.run()
+  assert.deepEqual(first.failed, [])
+  const state = h.controller.sessions.get('root')
+  const status = await state.sidecar.call('GET', '/api/status')
+  assert.equal(status.spec.max_open_work_items, 4)
+  assert.equal(status.spec.max_active_node_points, 8)
+  assert.equal(status.snapshot.open_worker_slots_used, 3)
+  assert.equal(status.snapshot.active_points, 7)
+  let previous = first
+  for (let round = 0; round < 2; round++) {
+    const reworked = await h.rework(previous.deliveries[0].item_id)
+    assert.deepEqual(reworked.failed, [])
+    assert.deepEqual(reworked.deliveries.map(item => item.role), ['implementer', 'tester', 'reviewer'])
+    const current = await state.sidecar.call('GET', '/api/status')
+    assert.deepEqual(previous.deliveries.map(item => current.snapshot.work_items[item.item_id].acceptance), ['terminated', 'terminated', 'terminated'])
+    assert.equal(current.snapshot.open_worker_slots_used, 3)
+    assert.equal(current.snapshot.active_points, 7)
+    assert.equal((await h.controller.report({ item_id: previous.deliveries[2].item_id }, h.exec)).completion, 'completed')
+    await assert.rejects(h.dispatcher.review({ item_id: reworked.deliveries[0].item_id, verdict: 'accept' }, h.exec), /REVIEWER_PENDING/)
+    previous = reworked
+  }
+  assert.deepEqual(specChanges, [], 'no team-worker or root resource cap needs raising')
+  assert.ok(samples.every(sample => sample.points <= 8 && sample.slots <= 4))
+  child.stdin.write('{"command":"restart"}\n'); assert.equal((await next()).restarted, true)
+  const cold = new FixedTeamController({ config: () => h.cfg, sidecarFactory: h.sidecarFactory })
+  const candidate = previous.deliveries[0], reviewer = previous.deliveries[2]
+  await assert.rejects(cold.review({ item_id: candidate.item_id, verdict: 'accept' }, h.exec), /REVIEWER_PENDING/)
+  await cold.review({ item_id: reviewer.item_id, verdict: 'accept', reason: 'Current independent fixture review read.' }, h.exec)
+  assert.equal((await cold.review({ item_id: candidate.item_id, verdict: 'accept' }, h.exec)).acceptance_basis, 'independent-reviewer-evidence')
+  await h.dispatcher.review({ item_id: previous.deliveries[1].item_id, verdict: 'accept' }, h.exec)
+  assert.equal(state.lease, null)
+  const end = await state.sidecar.call('GET', '/api/status')
+  assert.equal(end.snapshot.open_worker_slots_used, 0)
+  assert.equal(end.spec.max_open_work_items, 4)
+  assert.equal(end.spec.max_active_node_points, 8)
+  assert.equal((await cold.review({ item_id: candidate.item_id, verdict: 'accept' }, h.exec)).outcome, 'already_accepted')
+})
+
+
+for (const verdict of ['needs-rework', 'blocked']) test('current explicit ' + verdict + ' verdict cannot be replaced by an old pass or evidence acceptance', async () => {
+  const h = fixture(); independentReviewer(h)
+  h.outputFor = { 'child-2': 'VERDICT: pass\nThe original candidate was checked.', 'child-5': 'Current candidate remains unverified.\nVERDICT: ' + verdict }
+  const first = await h.run()
+  await h.dispatcher.review({ item_id: first.deliveries[2].item_id, verdict: 'accept' }, h.exec)
+  const next = await h.rework(first.deliveries[0].item_id), candidate = next.deliveries[0]
+  await h.dispatcher.review({ item_id: next.deliveries[2].item_id, verdict: 'accept' }, h.exec)
+  await assert.rejects(h.dispatcher.review({ item_id: candidate.item_id, verdict: 'accept' }, h.exec), /REVIEWER_REJECTED/)
+  const cold = new FixedTeamController({ config: () => h.cfg, sidecarFactory: h.sidecarFactory })
+  await assert.rejects(cold.review({ item_id: candidate.item_id, verdict: 'accept' }, h.exec), /REVIEWER_REJECTED/)
+  assert.equal((await cold.review({ item_id: candidate.item_id, verdict: 'accept', takeover: true,
+    reason: 'Lead reproduced and resolved the reported verification limitation against the current files.' }, h.exec)).acceptance_basis, 'lead-takeover')
 })

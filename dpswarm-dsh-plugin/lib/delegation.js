@@ -15,6 +15,90 @@ export function requireRootCaller(parent) {
 }
 
 
+// /api/delegate failed before any native child was started by this call.
+// CP reservations may still exist even when partial is empty. Settle only the
+// exact newly created, unbound nodes; preserve all ambiguous or older resources.
+async function settleRejectedAdmission(error, sidecar) {
+  const admission = error?.details
+  const records = []
+  const finish = (complete, reason) => {
+    if (error && typeof error === 'object') {
+      error.details = { ...admission, admission_settlement: { complete, records, ...(reason ? { reason } : {}) } }
+      error.controlSettlement = { ok: complete, admission: true, items: records }
+    }
+  }
+  if (!admission || admission.ok !== false || admission.error !== error.code
+    || !['created', 'started', 'cleanup', 'pending'].every(key => Array.isArray(admission[key]))
+    || typeof admission.cleanup_complete !== 'boolean') {
+    finish(false, 'admission-response-unverified')
+    return
+  }
+  const validId = value => typeof value === 'string' && value.length > 0
+  const createdIds = admission.created.map(row => row?.item_id)
+  if (createdIds.some(id => !validId(id)) || new Set(createdIds).size !== createdIds.length
+    || admission.cleanup.some(row => !validId(row?.item_id) || !Array.isArray(row.node_ids)
+      || !['terminated', 'retained', 'failed'].includes(row.status))
+    || admission.started.some(row => !validId(row?.item_id) || !validId(row.node_id))
+    || new Set(admission.started.map(row => row.node_id)).size !== admission.started.length
+    || new Set(admission.cleanup.map(row => row.item_id)).size !== admission.cleanup.length
+    || admission.cleanup_complete !== admission.cleanup.every(row => row.status === 'terminated')
+    || createdIds.some(id => !admission.cleanup.some(row => row.item_id === id))
+    || admission.started.some(row => !admission.cleanup.some(entry => entry.item_id === row.item_id))) {
+    finish(false, 'admission-response-unverified')
+    return
+  }
+  let snapshot
+  if (admission.cleanup.some(row => row.status === 'retained' && createdIds.includes(row.item_id))) {
+    try { snapshot = (await sidecar.call('GET', '/api/status')).snapshot }
+    catch (failure) { finish(false, 'admission-status-unavailable'); return }
+  }
+  for (const row of admission.cleanup) {
+    const record = { item_id: row.item_id, status: row.status }
+    records.push(record)
+    if (row.status === 'terminated' && createdIds.includes(row.item_id)
+      && row.node_ids.length === 0 && !admission.started.some(node => node.item_id === row.item_id)) continue
+    record.status = 'retained'
+    const nodes = admission.started.filter(node => node.item_id === row.item_id)
+    const currentItem = snapshot?.work_items?.[row.item_id]
+    const currentNodes = Object.entries(snapshot?.nodes || {}).filter(([, node]) => node?.item === row.item_id)
+    if (!createdIds.includes(row.item_id) || row.status !== 'retained' || !nodes.length
+      || nodes.length !== 1 || !currentItem || !['derive', 'fission'].includes(currentItem.kind) || currentItem.acceptance !== null
+      || nodes.length !== row.node_ids.length || nodes.length !== currentNodes.length
+      || new Set(row.node_ids).size !== row.node_ids.length
+      || nodes.some(node => !row.node_ids.includes(node.node_id)
+        || node.execution_binding !== null || !Number.isSafeInteger(node.attempt) || node.attempt < 1
+        || !Number.isSafeInteger(node.context_epoch) || node.context_epoch < 0
+        || !(validId(node.session_id) || (node.lifecycle === 'provisioning' && node.session_id === null))
+        || !['provisioning', 'active'].includes(node.lifecycle)
+        || currentItem.attempt !== node.attempt
+        || !currentNodes.some(([id, current]) => id === node.node_id && current.epoch === node.context_epoch
+          && current.terminated === false && current.execution_session_id === null
+          && current.execution_provider === null && current.lifecycle === node.lifecycle))) {
+      record.reason = 'execution-settlement-unverified'
+      continue
+    }
+    const node = nodes[0] // The sidecar rechecks sole-node ownership under its admission lock.
+    try {
+      const result = await sidecar.call('POST', '/api/execution/fail', {
+        item_id: row.item_id, node_id: node.node_id, attempt: node.attempt,
+        context_epoch: node.context_epoch, reservation_session_id: node.session_id,
+        execution_session_id: null, published: false, physical_cleanup_confirmed: true, admission_cleanup: true,
+        code: 'DELEGATION_ADMISSION_FAILED', stop_reason: 'error',
+        error: String(error?.message || admission.error),
+        details: { phase: 'admission-before-native-start', admission_error: admission.error },
+      })
+      record.control_settlement = result
+      if (result?.ok === true && result.outcome === 'terminated') record.status = 'terminated'
+      else { record.status = 'failed'; record.reason = 'control-settlement-unconfirmed' }
+    } catch (failure) {
+      record.status = 'failed'
+      record.error = failure?.code || 'ADMISSION_SETTLEMENT_FAILED'
+      record.message = String(failure?.message || failure)
+    }
+  }
+  finish(records.every(row => row.status === 'terminated'))
+}
+
 // Internal adapter; dynamic topology is not exposed by the fixed-team plugin.
 export async function delegateOnce(args, exec, sidecar, subagents, { routeJournal = new AuditJournal({ sidecarFactory: () => sidecar }), modelRegistry, modelRoutes, hostModels, modelRole, onChildStarted, resolveSession, budget, runId, onDiagnostic, beforeChildStart } = {}) {
         const parent = exec.agent
@@ -54,9 +138,14 @@ export async function delegateOnce(args, exec, sidecar, subagents, { routeJourna
           if (!args.kind || !Array.isArray(args.subtasks) || args.subtasks.length === 0) {
             throw new Error('新建模式需要 kind + subtasks；reject 后重跑既有 item 用 item_id + subtask')
           }
-          admission = await sidecar.call('POST', '/api/delegate', {
-            kind: args.kind, subtasks: args.subtasks,
-          })
+          try {
+            admission = await sidecar.call('POST', '/api/delegate', {
+              kind: args.kind, subtasks: args.subtasks,
+            })
+          } catch (error) {
+            await settleRejectedAdmission(error, sidecar)
+            throw error
+          }
         }
         // 重跑预算耗尽：控制面已自动上交（item 终态 escalated），无 items 可执行
         if (!admission.items) {

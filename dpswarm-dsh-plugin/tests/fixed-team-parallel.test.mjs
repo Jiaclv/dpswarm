@@ -80,6 +80,9 @@ function fixture() {
   const writeScope = new WriteScopeRegistry({ journal })
   h.controller = new FixedTeamController({ config: () => cfg, budget, subagents, modelRegistry, sidecarFactory, writeScope, resolveSession: id => sessions.get(id) })
   h.requirement = new TeamRequirement({ config: () => cfg, journal })
+  // This fixture exercises the frozen legacy lifecycle with its legacy mock service.
+  // Strict native source/acceptance is covered by acceptance-native-bridge.test.mjs.
+  h.requirement.sourceFor = () => undefined
   h.dispatcher = new TeamDispatcher({ controller: h.controller, requirement: h.requirement })
   h.signal = new AbortController(); h.exec = { agent: parent, signal: h.signal.signal }; h.budget = budget; h.writeScope = writeScope
   const subtasks = [
@@ -168,46 +171,6 @@ test('rework of a parallel item re-claims the same subtask scope for its continu
   assert.equal(h.items[itemA.item_id].acceptance, 'terminated')
 })
 
-test('auto mode hands each parallel implementer its own index-aligned decision', async () => {
-  const h = fixture()
-  h.cfg.workerBudgetMode = 'auto'
-  const decisions = {
-    implementer: [
-      { tokenLimit: 80000, callLimit: 40, reason: 'part A is the larger share' },
-      { tokenLimit: 50000, callLimit: 20, reason: 'part B is smaller' },
-    ],
-    tester: { tokenLimit: 30000, callLimit: 10, reason: 'read-only verification' },
-  }
-  const runtime = new WorkerBudgetRuntime({ config: () => h.cfg, journal: h.journal,
-    resolveSession: id => id === h.parent.id ? h.parent.session : h.sessions.get(id)?.session,
-    listSessions: () => [h.parent.session, ...[...h.sessions.values()].map(agent => agent.session)] })
-  h.controller.budget = runtime
-  const originalStart = h.controller.subagents.start
-  h.controller.subagents.start = async (provider, request) => {
-    const child = await originalStart(provider, request)
-    child.session.events.unshift({ type: 'user/message', data: { role: 'user', source: { kind: 'user' }, content: request.prompt } })
-    child.session.events.forEach((event, seq) => { event.seq = seq })
-    const state = await runtime.ensure({ session: child.session }, request.signal)
-    const ticket = await runtime.admit(state, { provider: 'fixture', model: 'm', messages: [], maxTokens: 100 })
-    await runtime.settle(ticket, { inputTokens: 20, outputTokens: 10 }, 'completed')
-    return child
-  }
-  await h.dispatcher.run({ task: 'Create the two parts.', acceptance: 'Both parts exist.',
-    subtasks: [
-      { id: 'part-a', task: 'Build part A.', write_scope: ['src/a/**'] },
-      { id: 'part-b', task: 'Build part B.', write_scope: ['src/b/**'] },
-    ], worker_budgets: decisions }, h.exec)
-  const first = await runtime.diagnosticsForSession('child-0')
-  const second = await runtime.diagnosticsForSession('child-1')
-  assert.equal(first.tokenLimit, 80000)
-  assert.equal(second.tokenLimit, 50000)
-  assert.equal(first.policy_binding.subtask, 'part-a')
-  assert.equal(second.policy_binding.subtask, 'part-b')
-  // A same-subtask repeat issuance stays one-use.
-  const events = (await h.journal.read('root')).events.filter(e => e.type === 'dpswarm/worker-budget-allocation' && e.data.authority === 'fixed-team-run')
-  assert.equal(events.length, 3)
-})
-
 test('a 3-way split raises the team-worker cap before dispatch and restores it after settle', async () => {
   const h = fixture()
   const result = await h.dispatcher.run({ task: 'Create three parts.', acceptance: 'All exist.', subtasks: [
@@ -231,14 +194,14 @@ test('a 2-way split fits the default cap and never touches the spec', async () =
   assert.deepEqual(h.specCalls, [], '2 implementers + tester = 3, exactly the default cap')
 })
 
-test('rework raises the cap for the implementer plus tester continuation while originals are open', async () => {
+test('rework replaces predecessor reservations so the existing cap fits the verification chain', async () => {
   const h = fixture()
   const result = await h.run()
   const itemA = result.deliveries.find(d => d.subtask === 'part-a')
-  // Original items remain submitted (unreviewed): 3 open + 2 new = cap 5.
+  // Old implementer and tester are explicitly superseded; one untouched implementation plus two continuations fit cap 3.
   const reworked = await h.dispatcher.rework({ item_id: itemA.item_id, feedback: 'Fix part A only.' }, h.exec)
   assert.equal(reworked.failed.length, 0)
-  assert.deepEqual(h.specCalls.map(c => c.max_team_workers), [5])
+  assert.deepEqual(h.specCalls.map(c => c.max_team_workers), [])
   assert.equal(reworked.deliveries.length, 2)
 })
 
@@ -261,9 +224,9 @@ test('whoever raised the defect re-checks it: a configured reviewer lineage re-r
   // The continuation is the latest reviewer lineage and its prompt carries its own earlier verdict context.
   const continuation = h.children.at(-1)
   assert.match(continuation.request.prompt[0].text, /linked re-review after implementer rework/)
-  // Capacity: the initial run raised the cap for 4 roles; after the first
-  // review, 3 originals stay open, so rework raises for 3 continuations to 6.
-  assert.deepEqual(h.specCalls.map(c => c.max_team_workers), [4, 6])
+  // Capacity: initial cap 4 also fits the replacement generation after
+  // superseding the old implementer and tester reservations.
+  assert.deepEqual(h.specCalls.map(c => c.max_team_workers), [4])
   // The pending re-review verdict gates acceptance of the reworked delivery.
   const newImpl = reworked.deliveries[0]
   await assert.rejects(h.dispatcher.review({ item_id: newImpl.item_id, verdict: 'accept' }, h.exec), /REVIEWER_PENDING/)

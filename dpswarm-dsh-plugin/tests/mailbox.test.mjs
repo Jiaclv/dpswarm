@@ -291,6 +291,9 @@ function controllerFixture() {
   h.controller = new FixedTeamController({ config: () => cfg, budget, subagents, modelRegistry, sidecarFactory, writeScope,
     mailboxStorage: h.kv, resolveSession: id => sessions.get(id) })
   h.requirement = new TeamRequirement({ config: () => cfg, journal })
+  // This fixture exercises the frozen legacy lifecycle with its legacy mock service.
+  // Strict native source/acceptance is covered by acceptance-native-bridge.test.mjs.
+  h.requirement.sourceFor = () => undefined
   h.dispatcher = new TeamDispatcher({ controller: h.controller, requirement: h.requirement })
   h.exec = { agent: parent, signal: new AbortController().signal }
   h.writeScope = writeScope

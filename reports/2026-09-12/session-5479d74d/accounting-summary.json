@@ -1,0 +1,1333 @@
+{
+  "scope": "ZIP native logs only. No live API/private spill access.",
+  "root_usage": {
+    "inputTokens": 184805,
+    "cacheReadTokens": 4918016,
+    "cacheWriteTokens": 0,
+    "outputTokens": 76990,
+    "reasoningTokens": 50349,
+    "totalTokens": 5179811
+  },
+  "worker_usage": {
+    "inputTokens": 1134031,
+    "cacheReadTokens": 6575488,
+    "cacheWriteTokens": 0,
+    "outputTokens": 614710,
+    "reasoningTokens": 433672,
+    "totalTokens": 8324229
+  },
+  "total_usage": {
+    "inputTokens": 1318836,
+    "cacheReadTokens": 11493504,
+    "cacheWriteTokens": 0,
+    "outputTokens": 691700,
+    "reasoningTokens": 484021,
+    "totalTokens": 13504040
+  },
+  "observed_response_count": 177,
+  "worker_count": 16,
+  "tool_call_count": 219,
+  "total_budget_committed_workers": 8649242,
+  "unknown_usage_calls": 1,
+  "final_only_workers": 12,
+  "time": {
+    "created_before_turn1_seconds": 5.166,
+    "turn1_seconds": 2014.996,
+    "between_turns_seconds": 303.948,
+    "turn2_seconds": 1155.606,
+    "turn_sum_seconds": 3170.602,
+    "created_to_final_seconds": 3479.716,
+    "child_lifetime_sum_seconds": 2881.397
+  },
+  "phase_summary": [
+    {
+      "name": "首次 run",
+      "call_line": 31,
+      "result_line": 41,
+      "root_turn": 1,
+      "root_step": 3,
+      "child_ids": [
+        "5dc0a0dd-1079-4361-bf37-c666b7637b21",
+        "77739ebe-df65-485a-85f2-70d2be3e6304",
+        "e340fa6c-cbbb-4912-9351-f4f9c8e2c518"
+      ],
+      "observed_calls": 35,
+      "usage": {
+        "inputTokens": 272772,
+        "cacheReadTokens": 1994752,
+        "cacheWriteTokens": 0,
+        "outputTokens": 179936,
+        "reasoningTokens": 144433,
+        "totalTokens": 2447460
+      },
+      "worker_lifetime_sum_seconds": 812.753,
+      "tool_wait_seconds": 813.409
+    },
+    {
+      "name": "返工 1：尝试修腿",
+      "call_line": 53,
+      "result_line": 57,
+      "root_turn": 1,
+      "root_step": 5,
+      "child_ids": [
+        "655d220b-3ea2-4dc7-8b59-8687f790b863",
+        "5b2328b2-567e-447e-8f5f-f56216fe36a1",
+        "e6ef99b0-9efa-406f-87e6-da68bbb5bade"
+      ],
+      "observed_calls": 24,
+      "usage": {
+        "inputTokens": 175092,
+        "cacheReadTokens": 901888,
+        "cacheWriteTokens": 0,
+        "outputTokens": 81357,
+        "reasoningTokens": 47986,
+        "totalTokens": 1158337
+      },
+      "worker_lifetime_sum_seconds": 374.594,
+      "tool_wait_seconds": 375.741
+    },
+    {
+      "name": "返工 2：落盘腿部修正",
+      "call_line": 66,
+      "result_line": 70,
+      "root_turn": 1,
+      "root_step": 7,
+      "child_ids": [
+        "46d24383-22c8-459b-a6c7-e3fe8c2464b7",
+        "491d97a9-c1bb-4b45-8514-a5d9e1f56878",
+        "50307b72-ece3-4f6b-bc46-4979e1910311"
+      ],
+      "observed_calls": 22,
+      "usage": {
+        "inputTokens": 207406,
+        "cacheReadTokens": 851712,
+        "cacheWriteTokens": 0,
+        "outputTokens": 105639,
+        "reasoningTokens": 72569,
+        "totalTokens": 1164757
+      },
+      "worker_lifetime_sum_seconds": 465.811,
+      "tool_wait_seconds": 467.69
+    },
+    {
+      "name": "返工 3：修云层循环",
+      "call_line": 79,
+      "result_line": 83,
+      "root_turn": 1,
+      "root_step": 9,
+      "child_ids": [
+        "be9d5849-7f3d-4eb1-a6a9-ac0b1fbc17fc",
+        "94e62920-83cc-4c82-9b43-9d3da8a83b1a",
+        "98f6cb5d-1cf8-4bb7-8f1d-58f44d8aa912"
+      ],
+      "observed_calls": 17,
+      "usage": {
+        "inputTokens": 207226,
+        "cacheReadTokens": 646912,
+        "cacheWriteTokens": 0,
+        "outputTokens": 79357,
+        "reasoningTokens": 53741,
+        "totalTokens": 933495
+      },
+      "worker_lifetime_sum_seconds": 368.922,
+      "tool_wait_seconds": 227.698
+    },
+    {
+      "name": "第二次正式 run：重新验证",
+      "call_line": 138,
+      "result_line": 142,
+      "root_turn": 2,
+      "root_step": 9,
+      "child_ids": [
+        "14b40392-a2cb-4145-a664-838f50d1130d",
+        "dec6e49e-1e14-4183-bae9-329d098fd588",
+        "fa83aa27-c5ff-47be-a49b-b03116b33273"
+      ],
+      "observed_calls": 42,
+      "usage": {
+        "inputTokens": 241460,
+        "cacheReadTokens": 2076672,
+        "cacheWriteTokens": 0,
+        "outputTokens": 158840,
+        "reasoningTokens": 111789,
+        "totalTokens": 2476972
+      },
+      "worker_lifetime_sum_seconds": 808.347,
+      "tool_wait_seconds": 810.85
+    },
+    {
+      "name": "reviewer 报告修复",
+      "call_line": 166,
+      "result_line": 168,
+      "root_turn": 2,
+      "root_step": 14,
+      "child_ids": [
+        "93a2a78c-d435-4ffd-b1f5-476e7e8b6884"
+      ],
+      "observed_calls": 5,
+      "usage": {
+        "inputTokens": 30075,
+        "cacheReadTokens": 103552,
+        "cacheWriteTokens": 0,
+        "outputTokens": 9581,
+        "reasoningTokens": 3154,
+        "totalTokens": 143208
+      },
+      "worker_lifetime_sum_seconds": 50.97,
+      "tool_wait_seconds": 52.077
+    }
+  ],
+  "lineage": [
+    {
+      "order": 1,
+      "worker_id": "5dc0a0dd-1079-4361-bf37-c666b7637b21",
+      "item_id": "wi-6b96c310ee",
+      "role": "implementer",
+      "phase": "首次 run",
+      "parent_session": "session-5479d74d-a9e0-45f4-8b61-a5cae4de3f05",
+      "source_item_id": null,
+      "launch_call_line": 31,
+      "run_id": "09252281-e4b8-4346-801b-7d7a4b59a0d4",
+      "budget_authority": "fixed-team-run",
+      "token_limit": 1500000,
+      "call_limit": 30,
+      "budget_calls": 15,
+      "observed_calls": 15,
+      "observed_tokens": 1258674,
+      "committed_tokens": 1258674,
+      "unknown_usage_calls": 0,
+      "active_calls_at_diagnostic": 0,
+      "remaining_tokens": 241326,
+      "remaining_calls": 15,
+      "closeout": {
+        "mode": "final_only",
+        "trigger": "budget_rail",
+        "at": 1789185731925,
+        "remaining_tokens": 459194,
+        "remaining_calls": 17
+      },
+      "last_denial": null,
+      "budget_evidence_source": {
+        "file": "session.v3.jsonl",
+        "line": 41,
+        "time_ms": 1789186248605,
+        "time_sydney": "2026-09-12T14:10:48.605000+10:00"
+      },
+      "item_source": {
+        "file": "session.v3.jsonl",
+        "line": 41,
+        "time_ms": 1789186248605,
+        "time_sydney": "2026-09-12T14:10:48.605000+10:00"
+      },
+      "created_sydney": "2026-09-12T13:57:15.391000+10:00",
+      "ended_sydney": "2026-09-12T14:02:33.057000+10:00",
+      "duration_seconds": 317.666,
+      "native_terminal": {
+        "source": {
+          "file": "subagents/5dc0a0dd-1079-4361-bf37-c666b7637b21/session.v3.jsonl",
+          "line": 93,
+          "time_ms": 1789185753057,
+          "time_sydney": "2026-09-12T14:02:33.057000+10:00"
+        },
+        "turn": 1,
+        "reason": {
+          "kind": "completed"
+        }
+      },
+      "last_evidenced_item": {
+        "item_id": "wi-6b96c310ee",
+        "state": "terminated",
+        "source": {
+          "file": "session.v3.jsonl",
+          "line": 95,
+          "time_ms": 1789187735196,
+          "time_sydney": "2026-09-12T14:35:35.196000+10:00"
+        },
+        "node_id": "node-b7845294f5",
+        "submission_id": "submission-f2c04ccaec",
+        "submission_package_id": "dep-7fae34eb72"
+      },
+      "report_status": "final",
+      "report_available": true,
+      "physical_cleanup_confirmed": true
+    },
+    {
+      "order": 2,
+      "worker_id": "77739ebe-df65-485a-85f2-70d2be3e6304",
+      "item_id": "wi-264582acc3",
+      "role": "tester",
+      "phase": "首次 run",
+      "parent_session": "session-5479d74d-a9e0-45f4-8b61-a5cae4de3f05",
+      "source_item_id": null,
+      "launch_call_line": 31,
+      "run_id": "09252281-e4b8-4346-801b-7d7a4b59a0d4",
+      "budget_authority": "fixed-team-run",
+      "token_limit": 1000000,
+      "call_limit": 24,
+      "budget_calls": 11,
+      "observed_calls": 11,
+      "observed_tokens": 754643,
+      "committed_tokens": 754643,
+      "unknown_usage_calls": 0,
+      "active_calls_at_diagnostic": 0,
+      "remaining_tokens": 245357,
+      "remaining_calls": 13,
+      "closeout": {
+        "mode": "final_only",
+        "trigger": "budget_rail",
+        "at": 1789185992969,
+        "remaining_tokens": 457978,
+        "remaining_calls": 15
+      },
+      "last_denial": null,
+      "budget_evidence_source": {
+        "file": "session.v3.jsonl",
+        "line": 41,
+        "time_ms": 1789186248605,
+        "time_sydney": "2026-09-12T14:10:48.605000+10:00"
+      },
+      "item_source": {
+        "file": "session.v3.jsonl",
+        "line": 41,
+        "time_ms": 1789186248605,
+        "time_sydney": "2026-09-12T14:10:48.605000+10:00"
+      },
+      "created_sydney": "2026-09-12T14:02:33.220000+10:00",
+      "ended_sydney": "2026-09-12T14:07:33.948000+10:00",
+      "duration_seconds": 300.728,
+      "native_terminal": {
+        "source": {
+          "file": "subagents/77739ebe-df65-485a-85f2-70d2be3e6304/session.v3.jsonl",
+          "line": 84,
+          "time_ms": 1789186053948,
+          "time_sydney": "2026-09-12T14:07:33.948000+10:00"
+        },
+        "turn": 1,
+        "reason": {
+          "kind": "completed"
+        }
+      },
+      "last_evidenced_item": {
+        "item_id": "wi-264582acc3",
+        "state": "terminated",
+        "source": {
+          "file": "session.v3.jsonl",
+          "line": 95,
+          "time_ms": 1789187735196,
+          "time_sydney": "2026-09-12T14:35:35.196000+10:00"
+        },
+        "node_id": "node-baa7c077ee",
+        "submission_id": "submission-51b44169a7",
+        "submission_package_id": "dep-aafe914e0a"
+      },
+      "report_status": "final",
+      "report_available": true,
+      "physical_cleanup_confirmed": true
+    },
+    {
+      "order": 3,
+      "worker_id": "e340fa6c-cbbb-4912-9351-f4f9c8e2c518",
+      "item_id": "wi-9cb301b569",
+      "role": "reviewer",
+      "phase": "首次 run",
+      "parent_session": "session-5479d74d-a9e0-45f4-8b61-a5cae4de3f05",
+      "source_item_id": null,
+      "launch_call_line": 31,
+      "run_id": "09252281-e4b8-4346-801b-7d7a4b59a0d4",
+      "budget_authority": "fixed-team-run",
+      "token_limit": 1000000,
+      "call_limit": 24,
+      "budget_calls": 9,
+      "observed_calls": 9,
+      "observed_tokens": 434143,
+      "committed_tokens": 434143,
+      "unknown_usage_calls": 0,
+      "active_calls_at_diagnostic": 0,
+      "remaining_tokens": 565857,
+      "remaining_calls": 15,
+      "closeout": null,
+      "last_denial": null,
+      "budget_evidence_source": {
+        "file": "session.v3.jsonl",
+        "line": 41,
+        "time_ms": 1789186248605,
+        "time_sydney": "2026-09-12T14:10:48.605000+10:00"
+      },
+      "item_source": {
+        "file": "session.v3.jsonl",
+        "line": 41,
+        "time_ms": 1789186248605,
+        "time_sydney": "2026-09-12T14:10:48.605000+10:00"
+      },
+      "created_sydney": "2026-09-12T14:07:34.095000+10:00",
+      "ended_sydney": "2026-09-12T14:10:48.454000+10:00",
+      "duration_seconds": 194.359,
+      "native_terminal": {
+        "source": {
+          "file": "subagents/e340fa6c-cbbb-4912-9351-f4f9c8e2c518/session.v3.jsonl",
+          "line": 73,
+          "time_ms": 1789186248454,
+          "time_sydney": "2026-09-12T14:10:48.454000+10:00"
+        },
+        "turn": 1,
+        "reason": {
+          "kind": "completed"
+        }
+      },
+      "last_evidenced_item": {
+        "item_id": "wi-9cb301b569",
+        "state": "terminated",
+        "source": {
+          "file": "session.v3.jsonl",
+          "line": 95,
+          "time_ms": 1789187735196,
+          "time_sydney": "2026-09-12T14:35:35.196000+10:00"
+        },
+        "node_id": "node-25771b7933",
+        "submission_id": "submission-bb48233d35",
+        "submission_package_id": "dep-ebd41f2a6d"
+      },
+      "report_status": "final",
+      "report_available": true,
+      "physical_cleanup_confirmed": true
+    },
+    {
+      "order": 4,
+      "worker_id": "655d220b-3ea2-4dc7-8b59-8687f790b863",
+      "item_id": "wi-f75f9c091c",
+      "role": "implementer rework",
+      "phase": "返工 1：尝试修腿",
+      "parent_session": "session-5479d74d-a9e0-45f4-8b61-a5cae4de3f05",
+      "source_item_id": "wi-6b96c310ee",
+      "launch_call_line": 53,
+      "run_id": "09252281-e4b8-4346-801b-7d7a4b59a0d4",
+      "budget_authority": "fixed-team-rework",
+      "token_limit": 600000,
+      "call_limit": 28,
+      "budget_calls": 10,
+      "observed_calls": 10,
+      "observed_tokens": 477429,
+      "committed_tokens": 477429,
+      "unknown_usage_calls": 0,
+      "active_calls_at_diagnostic": 0,
+      "remaining_tokens": 122571,
+      "remaining_calls": 18,
+      "closeout": {
+        "mode": "final_only",
+        "trigger": "budget_rail",
+        "at": 1789186416361,
+        "remaining_tokens": 251705,
+        "remaining_calls": 20
+      },
+      "last_denial": null,
+      "budget_evidence_source": {
+        "file": "session.v3.jsonl",
+        "line": 57,
+        "time_ms": 1789186675999,
+        "time_sydney": "2026-09-12T14:17:55.999000+10:00"
+      },
+      "item_source": {
+        "file": "session.v3.jsonl",
+        "line": 57,
+        "time_ms": 1789186675999,
+        "time_sydney": "2026-09-12T14:17:55.999000+10:00"
+      },
+      "created_sydney": "2026-09-12T14:11:40.670000+10:00",
+      "ended_sydney": "2026-09-12T14:14:15.995000+10:00",
+      "duration_seconds": 155.325,
+      "native_terminal": {
+        "source": {
+          "file": "subagents/655d220b-3ea2-4dc7-8b59-8687f790b863/session.v3.jsonl",
+          "line": 68,
+          "time_ms": 1789186455995,
+          "time_sydney": "2026-09-12T14:14:15.995000+10:00"
+        },
+        "turn": 1,
+        "reason": {
+          "kind": "completed"
+        }
+      },
+      "last_evidenced_item": {
+        "item_id": "wi-f75f9c091c",
+        "state": "terminated",
+        "source": {
+          "file": "session.v3.jsonl",
+          "line": 95,
+          "time_ms": 1789187735196,
+          "time_sydney": "2026-09-12T14:35:35.196000+10:00"
+        },
+        "node_id": "node-92f27ea2f9",
+        "submission_id": "submission-9fd1ff5f55",
+        "submission_package_id": "dep-c7ec145113"
+      },
+      "report_status": "final",
+      "report_available": true,
+      "physical_cleanup_confirmed": true
+    },
+    {
+      "order": 5,
+      "worker_id": "5b2328b2-567e-447e-8f5f-f56216fe36a1",
+      "item_id": "wi-7530bb10f9",
+      "role": "tester re-verify",
+      "phase": "返工 1：尝试修腿",
+      "parent_session": "session-5479d74d-a9e0-45f4-8b61-a5cae4de3f05",
+      "source_item_id": "wi-6b96c310ee",
+      "launch_call_line": 53,
+      "run_id": "09252281-e4b8-4346-801b-7d7a4b59a0d4",
+      "budget_authority": "fixed-team-rework",
+      "token_limit": 600000,
+      "call_limit": 28,
+      "budget_calls": 7,
+      "observed_calls": 7,
+      "observed_tokens": 311795,
+      "committed_tokens": 311795,
+      "unknown_usage_calls": 0,
+      "active_calls_at_diagnostic": 0,
+      "remaining_tokens": 288205,
+      "remaining_calls": 21,
+      "closeout": null,
+      "last_denial": null,
+      "budget_evidence_source": {
+        "file": "session.v3.jsonl",
+        "line": 57,
+        "time_ms": 1789186675999,
+        "time_sydney": "2026-09-12T14:17:55.999000+10:00"
+      },
+      "item_source": {
+        "file": "session.v3.jsonl",
+        "line": 57,
+        "time_ms": 1789186675999,
+        "time_sydney": "2026-09-12T14:17:55.999000+10:00"
+      },
+      "created_sydney": "2026-09-12T14:14:16.203000+10:00",
+      "ended_sydney": "2026-09-12T14:16:00.063000+10:00",
+      "duration_seconds": 103.86,
+      "native_terminal": {
+        "source": {
+          "file": "subagents/5b2328b2-567e-447e-8f5f-f56216fe36a1/session.v3.jsonl",
+          "line": 53,
+          "time_ms": 1789186560063,
+          "time_sydney": "2026-09-12T14:16:00.063000+10:00"
+        },
+        "turn": 1,
+        "reason": {
+          "kind": "completed"
+        }
+      },
+      "last_evidenced_item": {
+        "item_id": "wi-7530bb10f9",
+        "state": "terminated",
+        "source": {
+          "file": "session.v3.jsonl",
+          "line": 95,
+          "time_ms": 1789187735196,
+          "time_sydney": "2026-09-12T14:35:35.196000+10:00"
+        },
+        "node_id": "node-d68b7d446a",
+        "submission_id": "submission-672f68c053",
+        "submission_package_id": "dep-a25f520cab"
+      },
+      "report_status": "final",
+      "report_available": true,
+      "physical_cleanup_confirmed": true
+    },
+    {
+      "order": 6,
+      "worker_id": "e6ef99b0-9efa-406f-87e6-da68bbb5bade",
+      "item_id": "wi-061c9ef6d1",
+      "role": "reviewer re-review",
+      "phase": "返工 1：尝试修腿",
+      "parent_session": "session-5479d74d-a9e0-45f4-8b61-a5cae4de3f05",
+      "source_item_id": "wi-6b96c310ee",
+      "launch_call_line": 53,
+      "run_id": "09252281-e4b8-4346-801b-7d7a4b59a0d4",
+      "budget_authority": "fixed-team-rework",
+      "token_limit": 600000,
+      "call_limit": 28,
+      "budget_calls": 7,
+      "observed_calls": 7,
+      "observed_tokens": 369113,
+      "committed_tokens": 369113,
+      "unknown_usage_calls": 0,
+      "active_calls_at_diagnostic": 0,
+      "remaining_tokens": 230887,
+      "remaining_calls": 21,
+      "closeout": {
+        "mode": "final_only",
+        "trigger": "budget_rail",
+        "at": 1789186644002,
+        "remaining_tokens": 302142,
+        "remaining_calls": 22
+      },
+      "last_denial": null,
+      "budget_evidence_source": {
+        "file": "session.v3.jsonl",
+        "line": 57,
+        "time_ms": 1789186675999,
+        "time_sydney": "2026-09-12T14:17:55.999000+10:00"
+      },
+      "item_source": {
+        "file": "session.v3.jsonl",
+        "line": 57,
+        "time_ms": 1789186675999,
+        "time_sydney": "2026-09-12T14:17:55.999000+10:00"
+      },
+      "created_sydney": "2026-09-12T14:16:00.341000+10:00",
+      "ended_sydney": "2026-09-12T14:17:55.750000+10:00",
+      "duration_seconds": 115.409,
+      "native_terminal": {
+        "source": {
+          "file": "subagents/e6ef99b0-9efa-406f-87e6-da68bbb5bade/session.v3.jsonl",
+          "line": 61,
+          "time_ms": 1789186675750,
+          "time_sydney": "2026-09-12T14:17:55.750000+10:00"
+        },
+        "turn": 1,
+        "reason": {
+          "kind": "completed"
+        }
+      },
+      "last_evidenced_item": {
+        "item_id": "wi-061c9ef6d1",
+        "state": "terminated",
+        "source": {
+          "file": "session.v3.jsonl",
+          "line": 95,
+          "time_ms": 1789187735196,
+          "time_sydney": "2026-09-12T14:35:35.196000+10:00"
+        },
+        "node_id": "node-ee3dd33619",
+        "submission_id": "submission-9d7598316f",
+        "submission_package_id": "dep-95b28232de"
+      },
+      "report_status": "final",
+      "report_available": true,
+      "physical_cleanup_confirmed": true
+    },
+    {
+      "order": 7,
+      "worker_id": "46d24383-22c8-459b-a6c7-e3fe8c2464b7",
+      "item_id": "wi-85707941a1",
+      "role": "implementer rework",
+      "phase": "返工 2：落盘腿部修正",
+      "parent_session": "session-5479d74d-a9e0-45f4-8b61-a5cae4de3f05",
+      "source_item_id": "wi-f75f9c091c",
+      "launch_call_line": 66,
+      "run_id": "09252281-e4b8-4346-801b-7d7a4b59a0d4",
+      "budget_authority": "fixed-team-rework",
+      "token_limit": 600000,
+      "call_limit": 28,
+      "budget_calls": 7,
+      "observed_calls": 7,
+      "observed_tokens": 261985,
+      "committed_tokens": 261985,
+      "unknown_usage_calls": 0,
+      "active_calls_at_diagnostic": 0,
+      "remaining_tokens": 338015,
+      "remaining_calls": 21,
+      "closeout": null,
+      "last_denial": null,
+      "budget_evidence_source": {
+        "file": "session.v3.jsonl",
+        "line": 95,
+        "time_ms": 1789187735196,
+        "time_sydney": "2026-09-12T14:35:35.196000+10:00"
+      },
+      "item_source": {
+        "file": "session.v3.jsonl",
+        "line": 70,
+        "time_ms": 1789187171049,
+        "time_sydney": "2026-09-12T14:26:11.049000+10:00"
+      },
+      "created_sydney": "2026-09-12T14:18:24.065000+10:00",
+      "ended_sydney": "2026-09-12T14:19:11.096000+10:00",
+      "duration_seconds": 47.031,
+      "native_terminal": {
+        "source": {
+          "file": "subagents/46d24383-22c8-459b-a6c7-e3fe8c2464b7/session.v3.jsonl",
+          "line": 57,
+          "time_ms": 1789186751096,
+          "time_sydney": "2026-09-12T14:19:11.096000+10:00"
+        },
+        "turn": 1,
+        "reason": {
+          "kind": "completed"
+        }
+      },
+      "last_evidenced_item": {
+        "item_id": "wi-85707941a1",
+        "state": "terminated",
+        "source": {
+          "file": "session.v3.jsonl",
+          "line": 95,
+          "time_ms": 1789187735196,
+          "time_sydney": "2026-09-12T14:35:35.196000+10:00"
+        },
+        "node_id": "node-8f5ef35ca9",
+        "submission_id": "submission-e3850d761d",
+        "submission_package_id": "dep-147a97b87b"
+      },
+      "report_status": "final",
+      "report_available": true,
+      "physical_cleanup_confirmed": true
+    },
+    {
+      "order": 8,
+      "worker_id": "491d97a9-c1bb-4b45-8514-a5d9e1f56878",
+      "item_id": "wi-092f486157",
+      "role": "tester re-verify",
+      "phase": "返工 2：落盘腿部修正",
+      "parent_session": "session-5479d74d-a9e0-45f4-8b61-a5cae4de3f05",
+      "source_item_id": "wi-f75f9c091c",
+      "launch_call_line": 66,
+      "run_id": "09252281-e4b8-4346-801b-7d7a4b59a0d4",
+      "budget_authority": "fixed-team-rework",
+      "token_limit": 600000,
+      "call_limit": 28,
+      "budget_calls": 8,
+      "observed_calls": 8,
+      "observed_tokens": 455032,
+      "committed_tokens": 455032,
+      "unknown_usage_calls": 0,
+      "active_calls_at_diagnostic": 0,
+      "remaining_tokens": 144968,
+      "remaining_calls": 20,
+      "closeout": {
+        "mode": "final_only",
+        "trigger": "budget_rail",
+        "at": 1789186887031,
+        "remaining_tokens": 301694,
+        "remaining_calls": 22
+      },
+      "last_denial": null,
+      "budget_evidence_source": {
+        "file": "session.v3.jsonl",
+        "line": 70,
+        "time_ms": 1789187171049,
+        "time_sydney": "2026-09-12T14:26:11.049000+10:00"
+      },
+      "item_source": {
+        "file": "session.v3.jsonl",
+        "line": 70,
+        "time_ms": 1789187171049,
+        "time_sydney": "2026-09-12T14:26:11.049000+10:00"
+      },
+      "created_sydney": "2026-09-12T14:19:11.502000+10:00",
+      "ended_sydney": "2026-09-12T14:22:39.639000+10:00",
+      "duration_seconds": 208.137,
+      "native_terminal": {
+        "source": {
+          "file": "subagents/491d97a9-c1bb-4b45-8514-a5d9e1f56878/session.v3.jsonl",
+          "line": 63,
+          "time_ms": 1789186959639,
+          "time_sydney": "2026-09-12T14:22:39.639000+10:00"
+        },
+        "turn": 1,
+        "reason": {
+          "kind": "completed"
+        }
+      },
+      "last_evidenced_item": {
+        "item_id": "wi-092f486157",
+        "state": "terminated",
+        "source": {
+          "file": "session.v3.jsonl",
+          "line": 95,
+          "time_ms": 1789187735196,
+          "time_sydney": "2026-09-12T14:35:35.196000+10:00"
+        },
+        "node_id": "node-dad5a093a8",
+        "submission_id": "submission-66f3c2fbb3",
+        "submission_package_id": "dep-be7e4d5cf7"
+      },
+      "report_status": "final",
+      "report_available": true,
+      "physical_cleanup_confirmed": true
+    },
+    {
+      "order": 9,
+      "worker_id": "50307b72-ece3-4f6b-bc46-4979e1910311",
+      "item_id": "wi-96859e70da",
+      "role": "reviewer re-review",
+      "phase": "返工 2：落盘腿部修正",
+      "parent_session": "session-5479d74d-a9e0-45f4-8b61-a5cae4de3f05",
+      "source_item_id": "wi-f75f9c091c",
+      "launch_call_line": 66,
+      "run_id": "09252281-e4b8-4346-801b-7d7a4b59a0d4",
+      "budget_authority": "fixed-team-rework",
+      "token_limit": 600000,
+      "call_limit": 28,
+      "budget_calls": 7,
+      "observed_calls": 7,
+      "observed_tokens": 447740,
+      "committed_tokens": 447740,
+      "unknown_usage_calls": 0,
+      "active_calls_at_diagnostic": 0,
+      "remaining_tokens": 152260,
+      "remaining_calls": 21,
+      "closeout": {
+        "mode": "final_only",
+        "trigger": "budget_rail",
+        "at": 1789187111857,
+        "remaining_tokens": 322975,
+        "remaining_calls": 23
+      },
+      "last_denial": null,
+      "budget_evidence_source": {
+        "file": "session.v3.jsonl",
+        "line": 95,
+        "time_ms": 1789187735196,
+        "time_sydney": "2026-09-12T14:35:35.196000+10:00"
+      },
+      "item_source": {
+        "file": "session.v3.jsonl",
+        "line": 70,
+        "time_ms": 1789187171049,
+        "time_sydney": "2026-09-12T14:26:11.049000+10:00"
+      },
+      "created_sydney": "2026-09-12T14:22:40.064000+10:00",
+      "ended_sydney": "2026-09-12T14:26:10.707000+10:00",
+      "duration_seconds": 210.643,
+      "native_terminal": {
+        "source": {
+          "file": "subagents/50307b72-ece3-4f6b-bc46-4979e1910311/session.v3.jsonl",
+          "line": 58,
+          "time_ms": 1789187170707,
+          "time_sydney": "2026-09-12T14:26:10.707000+10:00"
+        },
+        "turn": 1,
+        "reason": {
+          "kind": "completed"
+        }
+      },
+      "last_evidenced_item": {
+        "item_id": "wi-96859e70da",
+        "state": "terminated",
+        "source": {
+          "file": "session.v3.jsonl",
+          "line": 95,
+          "time_ms": 1789187735196,
+          "time_sydney": "2026-09-12T14:35:35.196000+10:00"
+        },
+        "node_id": "node-b490983b2b",
+        "submission_id": "submission-3547be187b",
+        "submission_package_id": "dep-04fd1a38d8"
+      },
+      "report_status": "final",
+      "report_available": true,
+      "physical_cleanup_confirmed": true
+    },
+    {
+      "order": 10,
+      "worker_id": "be9d5849-7f3d-4eb1-a6a9-ac0b1fbc17fc",
+      "item_id": "wi-3675910c2c",
+      "role": "implementer rework",
+      "phase": "返工 3：修云层循环",
+      "parent_session": "session-5479d74d-a9e0-45f4-8b61-a5cae4de3f05",
+      "source_item_id": "wi-85707941a1",
+      "launch_call_line": 79,
+      "run_id": "09252281-e4b8-4346-801b-7d7a4b59a0d4",
+      "budget_authority": "fixed-team-rework",
+      "token_limit": 600000,
+      "call_limit": 28,
+      "budget_calls": 5,
+      "observed_calls": 5,
+      "observed_tokens": 199736,
+      "committed_tokens": 199736,
+      "unknown_usage_calls": 0,
+      "active_calls_at_diagnostic": 0,
+      "remaining_tokens": 400264,
+      "remaining_calls": 23,
+      "closeout": null,
+      "last_denial": null,
+      "budget_evidence_source": {
+        "file": "session.v3.jsonl",
+        "line": 124,
+        "time_ms": 1789187844837,
+        "time_sydney": "2026-09-12T14:37:24.837000+10:00"
+      },
+      "item_source": {
+        "file": "session.v3.jsonl",
+        "line": 95,
+        "time_ms": 1789187735196,
+        "time_sydney": "2026-09-12T14:35:35.196000+10:00"
+      },
+      "created_sydney": "2026-09-12T14:26:41.621000+10:00",
+      "ended_sydney": "2026-09-12T14:27:39.472000+10:00",
+      "duration_seconds": 57.851,
+      "native_terminal": {
+        "source": {
+          "file": "subagents/be9d5849-7f3d-4eb1-a6a9-ac0b1fbc17fc/session.v3.jsonl",
+          "line": 45,
+          "time_ms": 1789187259472,
+          "time_sydney": "2026-09-12T14:27:39.472000+10:00"
+        },
+        "turn": 1,
+        "reason": {
+          "kind": "completed"
+        }
+      },
+      "last_evidenced_item": {
+        "item_id": "wi-3675910c2c",
+        "state": "accepted",
+        "source": {
+          "file": "session.v3.jsonl",
+          "line": 124,
+          "time_ms": 1789187844837,
+          "time_sydney": "2026-09-12T14:37:24.837000+10:00"
+        },
+        "node_id": "node-84c03aafc1",
+        "submission_id": "submission-2a7ae1db66",
+        "submission_package_id": "dep-e3b9d7f575"
+      },
+      "report_status": "final",
+      "report_available": true,
+      "physical_cleanup_confirmed": true
+    },
+    {
+      "order": 11,
+      "worker_id": "94e62920-83cc-4c82-9b43-9d3da8a83b1a",
+      "item_id": "wi-b0c0f1212d",
+      "role": "tester re-verify",
+      "phase": "返工 3：修云层循环",
+      "parent_session": "session-5479d74d-a9e0-45f4-8b61-a5cae4de3f05",
+      "source_item_id": "wi-85707941a1",
+      "launch_call_line": 79,
+      "run_id": "09252281-e4b8-4346-801b-7d7a4b59a0d4",
+      "budget_authority": "fixed-team-rework",
+      "token_limit": 600000,
+      "call_limit": 28,
+      "budget_calls": 8,
+      "observed_calls": 8,
+      "observed_tokens": 482079,
+      "committed_tokens": 482079,
+      "unknown_usage_calls": 0,
+      "active_calls_at_diagnostic": 0,
+      "remaining_tokens": 117921,
+      "remaining_calls": 20,
+      "closeout": {
+        "mode": "final_only",
+        "trigger": "budget_rail",
+        "at": 1789187367013,
+        "remaining_tokens": 263218,
+        "remaining_calls": 22
+      },
+      "last_denial": null,
+      "budget_evidence_source": {
+        "file": "session.v3.jsonl",
+        "line": 134,
+        "time_ms": 1789187879000,
+        "time_sydney": "2026-09-12T14:37:59+10:00"
+      },
+      "item_source": {
+        "file": "session.v3.jsonl",
+        "line": 95,
+        "time_ms": 1789187735196,
+        "time_sydney": "2026-09-12T14:35:35.196000+10:00"
+      },
+      "created_sydney": "2026-09-12T14:27:39.947000+10:00",
+      "ended_sydney": "2026-09-12T14:30:27.606000+10:00",
+      "duration_seconds": 167.659,
+      "native_terminal": {
+        "source": {
+          "file": "subagents/94e62920-83cc-4c82-9b43-9d3da8a83b1a/session.v3.jsonl",
+          "line": 60,
+          "time_ms": 1789187427606,
+          "time_sydney": "2026-09-12T14:30:27.606000+10:00"
+        },
+        "turn": 1,
+        "reason": {
+          "kind": "completed"
+        }
+      },
+      "last_evidenced_item": {
+        "item_id": "wi-b0c0f1212d",
+        "state": "accepted",
+        "source": {
+          "file": "session.v3.jsonl",
+          "line": 134,
+          "time_ms": 1789187879000,
+          "time_sydney": "2026-09-12T14:37:59+10:00"
+        },
+        "node_id": "node-03dfdbb717",
+        "submission_id": "submission-9fca2fc767",
+        "submission_package_id": "dep-33e624bb43"
+      },
+      "report_status": "final",
+      "report_available": true,
+      "physical_cleanup_confirmed": true
+    },
+    {
+      "order": 12,
+      "worker_id": "98f6cb5d-1cf8-4bb7-8f1d-58f44d8aa912",
+      "item_id": "wi-f6022e16f2",
+      "role": "reviewer re-review",
+      "phase": "返工 3：修云层循环",
+      "parent_session": "session-5479d74d-a9e0-45f4-8b61-a5cae4de3f05",
+      "source_item_id": "wi-85707941a1",
+      "launch_call_line": 79,
+      "run_id": "09252281-e4b8-4346-801b-7d7a4b59a0d4",
+      "budget_authority": "fixed-team-rework",
+      "token_limit": 600000,
+      "call_limit": 28,
+      "budget_calls": 5,
+      "observed_calls": 4,
+      "observed_tokens": 251680,
+      "committed_tokens": 576693,
+      "unknown_usage_calls": 1,
+      "active_calls_at_diagnostic": 0,
+      "remaining_tokens": 23307,
+      "remaining_calls": 23,
+      "closeout": {
+        "mode": "final_only",
+        "trigger": "budget_rail",
+        "at": 1789187567371,
+        "remaining_tokens": 101040,
+        "remaining_calls": 24
+      },
+      "last_denial": {
+        "code": "WORKER_TOKEN_RESERVATION_DENIED",
+        "stage": "request_output_limit",
+        "input_estimate": 89618,
+        "output_limit": 1,
+        "required_reservation": 89619,
+        "remaining_tokens": 23307,
+        "remaining_calls": 23,
+        "at": 1789187571521
+      },
+      "budget_evidence_source": {
+        "file": "session.v3.jsonl",
+        "line": 95,
+        "time_ms": 1789187735196,
+        "time_sydney": "2026-09-12T14:35:35.196000+10:00"
+      },
+      "item_source": {
+        "file": "session.v3.jsonl",
+        "line": 95,
+        "time_ms": 1789187735196,
+        "time_sydney": "2026-09-12T14:35:35.196000+10:00"
+      },
+      "created_sydney": "2026-09-12T14:30:28.201000+10:00",
+      "ended_sydney": "2026-09-12T14:32:51.613000+10:00",
+      "duration_seconds": 143.412,
+      "native_terminal": {
+        "source": {
+          "file": "subagents/98f6cb5d-1cf8-4bb7-8f1d-58f44d8aa912/session.v3.jsonl",
+          "line": 46,
+          "time_ms": 1789187571613,
+          "time_sydney": "2026-09-12T14:32:51.613000+10:00"
+        },
+        "turn": 1,
+        "reason": {
+          "kind": "error",
+          "error": {
+            "message": "WORKER_TOKEN_RESERVATION_DENIED",
+            "code": "UNKNOWN"
+          }
+        }
+      },
+      "last_evidenced_item": {
+        "item_id": "wi-f6022e16f2",
+        "state": "terminated",
+        "source": {
+          "file": "session.v3.jsonl",
+          "line": 95,
+          "time_ms": 1789187735196,
+          "time_sydney": "2026-09-12T14:35:35.196000+10:00"
+        },
+        "node_id": null,
+        "submission_id": null,
+        "submission_package_id": null
+      },
+      "report_status": "progress",
+      "report_available": false,
+      "physical_cleanup_confirmed": true
+    },
+    {
+      "order": 13,
+      "worker_id": "14b40392-a2cb-4145-a664-838f50d1130d",
+      "item_id": "wi-29d77d2efd",
+      "role": "implementer",
+      "phase": "第二次正式 run：重新验证",
+      "parent_session": "session-5479d74d-a9e0-45f4-8b61-a5cae4de3f05",
+      "source_item_id": null,
+      "launch_call_line": 138,
+      "run_id": "adee37e4-fa63-4cc5-beba-b91cbc80215c",
+      "budget_authority": "fixed-team-run",
+      "token_limit": 350000,
+      "call_limit": 10,
+      "budget_calls": 9,
+      "observed_calls": 9,
+      "observed_tokens": 267957,
+      "committed_tokens": 267957,
+      "unknown_usage_calls": 0,
+      "active_calls_at_diagnostic": 0,
+      "remaining_tokens": 82043,
+      "remaining_calls": 1,
+      "closeout": {
+        "mode": "final_only",
+        "trigger": "budget_rail",
+        "at": 1789187939057,
+        "remaining_tokens": 156038,
+        "remaining_calls": 3
+      },
+      "last_denial": null,
+      "budget_evidence_source": {
+        "file": "session.v3.jsonl",
+        "line": 173,
+        "time_ms": 1789188837589,
+        "time_sydney": "2026-09-12T14:53:57.589000+10:00"
+      },
+      "item_source": {
+        "file": "session.v3.jsonl",
+        "line": 142,
+        "time_ms": 1789188696707,
+        "time_sydney": "2026-09-12T14:51:36.707000+10:00"
+      },
+      "created_sydney": "2026-09-12T14:38:06.856000+10:00",
+      "ended_sydney": "2026-09-12T14:39:17.930000+10:00",
+      "duration_seconds": 71.074,
+      "native_terminal": {
+        "source": {
+          "file": "subagents/14b40392-a2cb-4145-a664-838f50d1130d/session.v3.jsonl",
+          "line": 68,
+          "time_ms": 1789187957930,
+          "time_sydney": "2026-09-12T14:39:17.930000+10:00"
+        },
+        "turn": 1,
+        "reason": {
+          "kind": "completed"
+        }
+      },
+      "last_evidenced_item": {
+        "item_id": "wi-29d77d2efd",
+        "state": "accepted",
+        "source": {
+          "file": "session.v3.jsonl",
+          "line": 173,
+          "time_ms": 1789188837589,
+          "time_sydney": "2026-09-12T14:53:57.589000+10:00"
+        }
+      },
+      "report_status": "final",
+      "report_available": true,
+      "physical_cleanup_confirmed": true
+    },
+    {
+      "order": 14,
+      "worker_id": "dec6e49e-1e14-4183-bae9-329d098fd588",
+      "item_id": "wi-5ea56945a7",
+      "role": "tester",
+      "phase": "第二次正式 run：重新验证",
+      "parent_session": "session-5479d74d-a9e0-45f4-8b61-a5cae4de3f05",
+      "source_item_id": null,
+      "launch_call_line": 138,
+      "run_id": "adee37e4-fa63-4cc5-beba-b91cbc80215c",
+      "budget_authority": "fixed-team-run",
+      "token_limit": 1400000,
+      "call_limit": 26,
+      "budget_calls": 18,
+      "observed_calls": 18,
+      "observed_tokens": 1220368,
+      "committed_tokens": 1220368,
+      "unknown_usage_calls": 0,
+      "active_calls_at_diagnostic": 0,
+      "remaining_tokens": 179632,
+      "remaining_calls": 8,
+      "closeout": {
+        "mode": "final_only",
+        "trigger": "budget_rail",
+        "at": 1789188283740,
+        "remaining_tokens": 395070,
+        "remaining_calls": 10
+      },
+      "last_denial": null,
+      "budget_evidence_source": {
+        "file": "session.v3.jsonl",
+        "line": 178,
+        "time_ms": 1789188844398,
+        "time_sydney": "2026-09-12T14:54:04.398000+10:00"
+      },
+      "item_source": {
+        "file": "session.v3.jsonl",
+        "line": 142,
+        "time_ms": 1789188696707,
+        "time_sydney": "2026-09-12T14:51:36.707000+10:00"
+      },
+      "created_sydney": "2026-09-12T14:39:18.465000+10:00",
+      "ended_sydney": "2026-09-12T14:46:53.854000+10:00",
+      "duration_seconds": 455.389,
+      "native_terminal": {
+        "source": {
+          "file": "subagents/dec6e49e-1e14-4183-bae9-329d098fd588/session.v3.jsonl",
+          "line": 120,
+          "time_ms": 1789188413854,
+          "time_sydney": "2026-09-12T14:46:53.854000+10:00"
+        },
+        "turn": 1,
+        "reason": {
+          "kind": "completed"
+        }
+      },
+      "last_evidenced_item": {
+        "item_id": "wi-5ea56945a7",
+        "state": "accepted",
+        "source": {
+          "file": "session.v3.jsonl",
+          "line": 178,
+          "time_ms": 1789188844398,
+          "time_sydney": "2026-09-12T14:54:04.398000+10:00"
+        }
+      },
+      "report_status": "final",
+      "report_available": true,
+      "physical_cleanup_confirmed": true
+    },
+    {
+      "order": 15,
+      "worker_id": "fa83aa27-c5ff-47be-a49b-b03116b33273",
+      "item_id": "wi-b1c4060e23",
+      "role": "reviewer",
+      "phase": "第二次正式 run：重新验证",
+      "parent_session": "session-5479d74d-a9e0-45f4-8b61-a5cae4de3f05",
+      "source_item_id": null,
+      "launch_call_line": 138,
+      "run_id": "adee37e4-fa63-4cc5-beba-b91cbc80215c",
+      "budget_authority": "fixed-team-run",
+      "token_limit": 1200000,
+      "call_limit": 24,
+      "budget_calls": 15,
+      "observed_calls": 15,
+      "observed_tokens": 988647,
+      "committed_tokens": 988647,
+      "unknown_usage_calls": 0,
+      "active_calls_at_diagnostic": 0,
+      "remaining_tokens": 211353,
+      "remaining_calls": 9,
+      "closeout": {
+        "mode": "final_only",
+        "trigger": "budget_rail",
+        "at": 1789188632151,
+        "remaining_tokens": 394706,
+        "remaining_calls": 11
+      },
+      "last_denial": null,
+      "budget_evidence_source": {
+        "file": "session.v3.jsonl",
+        "line": 183,
+        "time_ms": 1789188848801,
+        "time_sydney": "2026-09-12T14:54:08.801000+10:00"
+      },
+      "item_source": {
+        "file": "session.v3.jsonl",
+        "line": 142,
+        "time_ms": 1789188696707,
+        "time_sydney": "2026-09-12T14:51:36.707000+10:00"
+      },
+      "created_sydney": "2026-09-12T14:46:54.206000+10:00",
+      "ended_sydney": "2026-09-12T14:51:36.090000+10:00",
+      "duration_seconds": 281.884,
+      "native_terminal": {
+        "source": {
+          "file": "subagents/fa83aa27-c5ff-47be-a49b-b03116b33273/session.v3.jsonl",
+          "line": 125,
+          "time_ms": 1789188696090,
+          "time_sydney": "2026-09-12T14:51:36.090000+10:00"
+        },
+        "turn": 1,
+        "reason": {
+          "kind": "completed"
+        }
+      },
+      "last_evidenced_item": {
+        "item_id": "wi-b1c4060e23",
+        "state": "terminated",
+        "source": {
+          "file": "session.v3.jsonl",
+          "line": 183,
+          "time_ms": 1789188848801,
+          "time_sydney": "2026-09-12T14:54:08.801000+10:00"
+        }
+      },
+      "report_status": "final",
+      "report_available": true,
+      "physical_cleanup_confirmed": true
+    },
+    {
+      "order": 16,
+      "worker_id": "93a2a78c-d435-4ffd-b1f5-476e7e8b6884",
+      "item_id": "wi-0037542947",
+      "role": "reviewer report repair",
+      "phase": "reviewer 报告修复",
+      "parent_session": "session-5479d74d-a9e0-45f4-8b61-a5cae4de3f05",
+      "source_item_id": "wi-b1c4060e23",
+      "launch_call_line": 166,
+      "run_id": "adee37e4-fa63-4cc5-beba-b91cbc80215c",
+      "budget_authority": "fixed-team-rework",
+      "token_limit": 211353,
+      "call_limit": 9,
+      "budget_calls": 5,
+      "observed_calls": 5,
+      "observed_tokens": 143208,
+      "committed_tokens": 143208,
+      "unknown_usage_calls": 0,
+      "active_calls_at_diagnostic": 0,
+      "remaining_tokens": 68145,
+      "remaining_calls": 4,
+      "closeout": {
+        "mode": "final_only",
+        "trigger": "budget_rail",
+        "at": 1789188762881,
+        "remaining_tokens": 131931,
+        "remaining_calls": 6
+      },
+      "last_denial": null,
+      "budget_evidence_source": {
+        "file": "session.v3.jsonl",
+        "line": 188,
+        "time_ms": 1789188853765,
+        "time_sydney": "2026-09-12T14:54:13.765000+10:00"
+      },
+      "item_source": {
+        "file": "session.v3.jsonl",
+        "line": 168,
+        "time_ms": 1789188803349,
+        "time_sydney": "2026-09-12T14:53:23.349000+10:00"
+      },
+      "created_sydney": "2026-09-12T14:52:31.866000+10:00",
+      "ended_sydney": "2026-09-12T14:53:22.836000+10:00",
+      "duration_seconds": 50.97,
+      "native_terminal": {
+        "source": {
+          "file": "subagents/93a2a78c-d435-4ffd-b1f5-476e7e8b6884/session.v3.jsonl",
+          "line": 46,
+          "time_ms": 1789188802836,
+          "time_sydney": "2026-09-12T14:53:22.836000+10:00"
+        },
+        "turn": 1,
+        "reason": {
+          "kind": "completed"
+        }
+      },
+      "last_evidenced_item": {
+        "item_id": "wi-0037542947",
+        "state": "accepted",
+        "source": {
+          "file": "session.v3.jsonl",
+          "line": 188,
+          "time_ms": 1789188853765,
+          "time_sydney": "2026-09-12T14:54:13.765000+10:00"
+        }
+      },
+      "report_status": "final",
+      "report_available": true,
+      "physical_cleanup_confirmed": true
+    }
+  ],
+  "control_evidence_file": "control-exported-evidence.json",
+  "observed_usage_is_lower_bound": true,
+  "unobserved_worker_call_note": "98f6 child step5 has no request/header or assistant/message/usage. Root L95 records request_output_limit denial during that step, and 1 unknown usage call without per-call IDs. Do not equate its reserved tokens to actual spend or assert the unknown reservation belongs to that specific step.",
+  "native_step_count": 178,
+  "root_native_step_count": 32,
+  "worker_native_step_count": 146
+}

@@ -93,3 +93,32 @@ def test_scoped_state_survives_sidecar_restart(server):
 def test_sensitive_unknown_session_read_still_requires_bearer(server):
     assert call(server, "/api/events", session="missing", authorized=False)[0] == 401
     assert not server.hub._states
+
+
+def test_runtime_status_advertises_loaded_implementation_and_process_identity(server, monkeypatch):
+    import os
+    from dpswarm import plugin_audit
+    from dpswarm import server as panel_server
+    from dpswarm.session_server import RUNTIME_CAPABILITIES
+
+    code, first = call(server, "/api/status", session="runtime-check", authorized=False)
+    runtime = first["bridge"]["runtime"]
+    assert code == 200
+    assert runtime["schema"] == "dpswarm-runtime-capabilities-v1"
+    assert runtime["revision"] == 1
+    assert runtime["audit_schema"] == plugin_audit.SCHEMA
+    assert runtime["audit_event_types"] == sorted(plugin_audit.EVENT_TYPES)
+    assert runtime["admission_cleanup"] == panel_server.DELEGATE_ADMISSION_CLEANUP_PROTOCOL
+    assert first["bridge"]["process"]["pid"] == os.getpid()
+    assert len(first["bridge"]["process"]["start_id"]) == 32
+    assert server.hub.root.token not in json.dumps(first)
+
+    # Status is a startup snapshot, rather than a fresh read of package files or
+    # module metadata that could diverge from the handlers already serving work.
+    monkeypatch.setattr(plugin_audit, "EVENT_TYPES", frozenset({"fake-new-disk-event"}))
+    monkeypatch.setattr(panel_server, "DELEGATE_ADMISSION_CLEANUP_PROTOCOL", "fake-new-version")
+    _, second = call(server, "/api/status", session="runtime-check", authorized=False)
+    assert second["bridge"]["runtime"] == runtime == RUNTIME_CAPABILITIES
+    assert second["bridge"]["process"] == first["bridge"]["process"]
+    assert server.hub._states == {}
+    assert not (server.hub.root.workspace / "sessions").exists()

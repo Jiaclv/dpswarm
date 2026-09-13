@@ -571,6 +571,12 @@ def _pre_work_item_finalizing(p: Projection, payload: Dict[str, Any]) -> None:
 
 
 def _pre_work_item_accepted(p: Projection, payload: Dict[str, Any]) -> None:
+    from .acceptance import validate_acceptance
+    from .control import ControlPlaneError
+    try:
+        validate_acceptance(p, payload)
+    except ControlPlaneError as exc:
+        raise _v(exc.code, str(exc)) from exc
     item = _get_item(p, _req(payload, "item_id"))
     _acceptance_transition(item, AcceptanceState.ACCEPTED)  # 只能从 FINALIZING 来（决策 9）
     if payload.get("evidence_ready") is not True:
@@ -1178,6 +1184,15 @@ def check_event(proj: Projection, event: Event) -> Projection:
     if event.kind not in EVENT_KINDS:
         raise _v("UNKNOWN_EVENT", f"未知事件类型: {event.kind}")
     candidate = proj.copy()
+    if event.kind == "acceptance_updated":
+        contract = event.payload.get("contract", {})
+        old = candidate.acceptance_contracts.get(event.payload.get("contract_id"))
+        revision = old["revision"] if old else 0
+        if (event.payload.get("previous_revision") != revision
+                or contract.get("revision") != revision + 1
+                or contract.get("contract_id") != event.payload.get("contract_id")
+                or contract.get("root_id") != candidate.root_id):
+            raise _v("ACCEPTANCE_REVISION_CONFLICT", "Invalid acceptance projection revision or root")
     pre = _PRE_CHECKS.get(event.kind)
     if pre is not None:
         pre(candidate, event.payload if event.payload is not None else {})

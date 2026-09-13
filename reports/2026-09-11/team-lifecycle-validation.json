@@ -1,0 +1,128 @@
+{
+  "source": {
+    "exit_code": 0,
+    "counts": [
+      "ℹ tests 502",
+      "ℹ suites 0",
+      "ℹ pass 502",
+      "ℹ fail 0",
+      "ℹ cancelled 0",
+      "ℹ skipped 0",
+      "ℹ todo 0",
+      "ℹ duration_ms 7088.3284"
+    ],
+    "excluded_uninstalled_011_features": []
+  },
+  "candidate": {
+    "exit_code": 0,
+    "counts": [
+      "ℹ tests 326",
+      "ℹ suites 0",
+      "ℹ pass 326",
+      "ℹ fail 0",
+      "ℹ cancelled 0",
+      "ℹ skipped 0",
+      "ℹ todo 0",
+      "ℹ duration_ms 6396.4709"
+    ],
+    "excluded_uninstalled_011_features": [
+      "staged phase handoff is a three-layer package",
+      "staged phase handoff: a verbatim-dependency artifact",
+      "reviewer prompt carries upstream ready deliveries",
+      "acceptance visibility rides the run result"
+    ]
+  },
+  "installed": {
+    "exit_code": 0,
+    "counts": [
+      "ℹ tests 326",
+      "ℹ suites 0",
+      "ℹ pass 326",
+      "ℹ fail 0",
+      "ℹ cancelled 0",
+      "ℹ skipped 0",
+      "ℹ todo 0",
+      "ℹ duration_ms 6006.0627"
+    ],
+    "excluded_uninstalled_011_features": [
+      "staged phase handoff is a three-layer package",
+      "staged phase handoff: a verbatim-dependency artifact",
+      "reviewer prompt carries upstream ready deliveries",
+      "acceptance visibility rides the run result"
+    ],
+    "files": [
+      {
+        "relativePath": "lib/workspace-admission.js",
+        "beforeSha256": null,
+        "afterSha256": "498405028719d2326b1e18116185f36db00fef50fcbfb061745285a3890f41d9"
+      },
+      {
+        "relativePath": "lib/delegation.js",
+        "beforeSha256": "3284FE8FE4DF1FAF1596BBF1383166F5A3AA66934AD3390FF37A3A5AB13D7BB7",
+        "afterSha256": "657a12e3bbb642ff68e838c788e135b45468efcd164a73a682fd93f67ccf336b"
+      },
+      {
+        "relativePath": "lib/fixed-team.js",
+        "beforeSha256": "F1231492F7697C5F80C34E6582E0F43C7A1BEBC3615716A1562FEB87FF5FB266",
+        "afterSha256": "e1bd0a8f9de1acdae0bf38280fecb06f8a9668bbec630d765fae2392888f3fad"
+      },
+      {
+        "relativePath": "lib/index.js",
+        "beforeSha256": "A87CE2D8C7EF94EF67911839D01F934C7333CB061BDD9F266F9A893D4506FCBA",
+        "afterSha256": "0b663f0b37053ea3d1c506422de38e1984367088fe94929ef1b998fd144041bf"
+      },
+      {
+        "relativePath": "lib/sidecar.js",
+        "beforeSha256": "C6221A9EA043C89C908A653FDA02B3F57B01FEAC05A84FC0D923F0F0F604F6D0",
+        "afterSha256": "64c45fd9a7317dcd41368be98176c86821eb9fb2c1a3d61562fa3b39e2442c46"
+      },
+      {
+        "relativePath": "lib/team-dispatch.js",
+        "beforeSha256": "DFF52B35F4C5B704CD0E37D616B83430CDEC57A54B22D12B3D3B720804DE84DB",
+        "afterSha256": "c8352ff5693da8b83151e10c4e52c47cbc801542040780849f072d6b14ec781a"
+      },
+      {
+        "relativePath": "lib/team-required.js",
+        "beforeSha256": "D3093CC0E8EDEC711E337A44FE73687125122271DE647E85A11D75A150742FAD",
+        "afterSha256": "9dfb1df81c670580cbd65a9878c45fb894c16bf65072bcbb42679fbc7beb86cd"
+      },
+      {
+        "relativePath": "python/dpswarm/plugin_audit.py",
+        "beforeSha256": "8CB704267A54A9BBFBF9BE60D2C0B62A1E4AB269F33171A21EC3B7BB0097B726",
+        "afterSha256": "21b1785100216a4301bdd8cf1db3a995e38508ed2208f2ba8fa80bcfa32491f0"
+      },
+      {
+        "relativePath": "python/dpswarm/server.py",
+        "beforeSha256": "2D834DA587170A08DAC625C9868FEFAC2BED5ADDD7296130C88B4AF7D1C4C542",
+        "afterSha256": "e0bfd173a0f5c5421ed22d3b7c20bc79648ad1f6df31e48ec6ab69deaa1e7dfd"
+      }
+    ],
+    "installed_at": "2026-09-11T13:21:08.8504903Z",
+    "process_restarted": false,
+    "external_model_calls": 0
+  },
+  "python_source": {
+    "name": "pytest",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "1",
+    "tests": "692",
+    "time": "53.881",
+    "timestamp": "2026-09-11T23:19:21.502406+10:00",
+    "hostname": "Xiaomi-NoteBook",
+    "skipped_details": [
+      {
+        "test": "test_live_roundtrip_bm25",
+        "reason": "DPSWARM_TDAI_ENDPOINT 未设置"
+      }
+    ]
+  },
+  "orphan_recovery": {
+    "item_id": "wi-13dbf33738",
+    "outcome": "terminated",
+    "open_worker_slots_before": 1,
+    "open_worker_slots_after": 0,
+    "lease_changed": false,
+    "host_reconcile_pending": true
+  }
+}

@@ -2,10 +2,11 @@
 from pathlib import Path
 import json
 import sys
+import os
 import threading
 from http.server import ThreadingHTTPServer
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "dpswarm-plugin"))
+sys.path.insert(0, os.environ.get("DPSWARM_TEST_PYTHON_ROOT") or str(Path(__file__).resolve().parents[2] / "dpswarm-plugin"))
 from dpswarm.server import Handler, PanelState
 
 workspace = Path(sys.argv[1]) / ".dpswarm-panel"

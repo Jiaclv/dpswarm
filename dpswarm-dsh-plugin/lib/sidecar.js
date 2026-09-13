@@ -1,8 +1,74 @@
 import { spawn } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const starting = new Map()
+
+// This is a bounded wire contract, independent of package/install versions.
+export const FIXED_TEAM_RUNTIME_REQUIREMENTS = Object.freeze({
+  schema: 'dpswarm-runtime-capabilities-v1', revision: 1,
+  audit_schema: 'dpswarm-plugin-audit-v1',
+  audit_event_types: Object.freeze([
+    'dpswarm/verification-required', 'dpswarm/verification-binding',
+    'dpswarm/verification-superseded', 'dpswarm/verification-takeover',
+    'dpswarm/verification-recovery',
+    'dpswarm/worker-budget-team-run-resumed', 'dpswarm/worker-budget-team-run-resume-ended',
+    'dpswarm/team-required-admission', 'dpswarm/team-required-continued',
+  ]),
+  admission_cleanup: 'delegate-admission-cleanup-v1',
+})
+
+// Additive and opt-in: new acceptance cannot invalidate legacy status or cleanup.
+export const ACCEPTANCE_RUNTIME_REQUIREMENTS = Object.freeze({ acceptance_contract: 'dpswarm-acceptance-v1' })
+
+export function acceptanceRuntimeCompatibility(health) {
+  const required = ACCEPTANCE_RUNTIME_REQUIREMENTS
+  const observed = { acceptance_contract: health?.bridge?.runtime?.acceptance_contract ?? null }
+  const fingerprint = createHash('sha256').update(JSON.stringify({ required, observed })).digest('hex')
+  if (observed.acceptance_contract !== required.acceptance_contract) {
+    const error = new Error('SIDECAR_RUNTIME_INCOMPATIBLE: new strict tasks require dpswarm-acceptance-v1; update the matching service. Legacy status, reports and cleanup remain available.')
+    error.code = 'SIDECAR_RUNTIME_INCOMPATIBLE'
+    error.details = { ok: false, error: error.code, required, observed, missing: ['runtime.acceptance_contract'], fingerprint }
+    throw error
+  }
+  return { compatible: true, fingerprint, runtime: health.bridge.runtime }
+}
+
+function runtimeCompatibility(health) {
+  const required = FIXED_TEAM_RUNTIME_REQUIREMENTS
+  const runtime = health?.bridge?.runtime
+  const auditTypes = Array.isArray(runtime?.audit_event_types) ? runtime.audit_event_types : []
+  const observed = {
+    session_isolation: health?.bridge?.session_isolation === true,
+    plugin_audit_v1: health?.bridge?.plugin_audit_v1 === true,
+    schema: typeof runtime?.schema === 'string' ? runtime.schema : null,
+    revision: Number.isSafeInteger(runtime?.revision) ? runtime.revision : null,
+    audit_schema: typeof runtime?.audit_schema === 'string' ? runtime.audit_schema : null,
+    audit_event_types: required.audit_event_types.filter(type => auditTypes.includes(type)),
+    admission_cleanup: typeof runtime?.admission_cleanup === 'string' ? runtime.admission_cleanup : null,
+  }
+  const missing = []
+  for (const key of ['session_isolation', 'plugin_audit_v1']) {
+    if (!observed[key]) missing.push(`bridge.${key}`)
+  }
+  for (const key of ['schema', 'revision', 'audit_schema', 'admission_cleanup']) {
+    if (observed[key] !== required[key]) missing.push(`runtime.${key}`)
+  }
+  for (const type of required.audit_event_types) {
+    if (!observed.audit_event_types.includes(type)) missing.push(`audit_event_type:${type}`)
+  }
+  // Fixed construction order and requirement-order filtering make this canonical.
+  // PID/start_id, timestamps and unrelated additive capabilities never reset a gate.
+  const fingerprint = createHash('sha256').update(JSON.stringify({ required, observed })).digest('hex')
+  if (missing.length) {
+    const error = new Error('SIDECAR_RUNTIME_INCOMPATIBLE: the running control service lacks required fixed-team capabilities; update and restart the matching service before retrying.')
+    error.code = 'SIDECAR_RUNTIME_INCOMPATIBLE'
+    error.details = { ok: false, error: error.code, required, observed, missing, fingerprint }
+    throw error
+  }
+  return { compatible: true, fingerprint, runtime }
+}
 
 export function sidecarSpawnSpec(cfg) {
   const url = new URL(cfg.sidecarUrl)
@@ -25,6 +91,7 @@ export class Sidecar {
   }
 
   _checkCapabilities(health) {
+    if (this.cfg.runtimeCapabilitiesRequired) runtimeCompatibility(health)
     if (this.cfg.hostCatalogRequired && health.bridge?.host_catalog_v1 !== true) {
       const error = new Error('SIDECAR_HOST_CATALOG_VERSION_MISMATCH: update the DPSwarm control service to use DPH model registration.')
       error.code = 'SIDECAR_HOST_CATALOG_VERSION_MISMATCH'
@@ -38,6 +105,16 @@ export class Sidecar {
       error.code = 'SIDECAR_AUDIT_VERSION_MISMATCH'
       throw error
     }
+  }
+
+  /** Read-only fixed-team preflight. Never starts a service or reserves work. */
+  async requireRuntimeCapabilities() {
+    return runtimeCompatibility(await this.call('GET', '/api/status', undefined, 2500))
+  }
+
+  /** Strict acceptance checks are requested by new-task preflight, never globally. */
+  async requireAcceptanceCapabilities() {
+    return acceptanceRuntimeCompatibility(await this.call('GET', '/api/status', undefined, 2500))
   }
 
   async ensure() {
@@ -119,6 +196,7 @@ export class Sidecar {
       if (!res.ok && json?.ok === false && json?.error) {
         const err = new Error(`${json.error}${json.message ? ' — ' + json.message : ''}`)
         err.code = json.error
+        err.details = json
         throw err
       }
       if (!res.ok) throw new Error(`sidecar ${path} → HTTP ${res.status}`)

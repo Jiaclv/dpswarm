@@ -369,3 +369,55 @@ def test_team_requirement_lifecycle_survives_store_restart(tmp_path):
     assert restored.read() == expected
     assert [e["type"] for e in expected["events"]] == [e["type"] for e in body["events"]]
     restored.close()
+
+
+LIFECYCLE_AUDIT_TYPES = (
+    "dpswarm/verification-required", "dpswarm/verification-binding",
+    "dpswarm/verification-superseded", "dpswarm/verification-takeover",
+    "dpswarm/team-required-admission",
+)
+
+
+def test_http_lifecycle_journal_roundtrip_restarts_and_preserves_idempotency(server):
+    events = [{"type": kind, "data": {"version": 1, "root_session_id": "root",
+               "owner_session_id": "root", "generation": "rework-1",
+               "candidate_item_ids": ["wi-candidate"], "phase": "test-fixture",
+               "reason": "explicit admission or verification state"}}
+              for kind in LIFECYCLE_AUDIT_TYPES]
+    body = transaction(events=events)
+    code, result = call(server, body)
+    assert code == 200, result
+    assert [event["type"] for event in result["events"]] == list(LIFECYCLE_AUDIT_TYPES)
+    frozen = call(server)[1]
+    workspace = server.hub.root.workspace
+    server.hub.close()
+    server.hub = SessionHub(workspace)
+    assert call(server)[1] == frozen
+    assert call(server, body)[1]["idempotent"] is True
+    assert call(server)[1] == frozen
+    assert not server.hub._states  # Journal events cannot create work-item execution state.
+
+
+@pytest.mark.parametrize("kind", LIFECYCLE_AUDIT_TYPES)
+def test_lifecycle_journal_rejects_cross_root_event_before_append(tmp_path, kind):
+    with_store = PluginAuditStore(tmp_path / "audit", "root", create=True)
+    try:
+        frozen = with_store.read()
+        body = transaction(events=[{"type": kind, "data": {"root_session_id": "foreign"}}])
+        with pytest.raises(PluginAuditError) as caught:
+            with_store.append(body)
+        assert caught.value.code == "SESSION_SCOPE_MISMATCH"
+        assert with_store.read() == frozen
+    finally:
+        with_store.close()
+
+
+def test_lifecycle_journal_does_not_accept_arbitrary_verification_events(tmp_path):
+    store = PluginAuditStore(tmp_path / "audit", "root", create=True)
+    try:
+        with pytest.raises(PluginAuditError) as caught:
+            store.append(transaction(events=[{"type": "dpswarm/verification-accepted", "data": {}}]))
+        assert caught.value.code == "PLUGIN_AUDIT_INVALID_EVENT"
+        assert store.read()["revision"] == 0
+    finally:
+        store.close()

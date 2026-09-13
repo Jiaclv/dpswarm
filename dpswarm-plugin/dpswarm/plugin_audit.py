@@ -12,7 +12,7 @@ import json
 import os
 import re
 import threading
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 
 VERSION = 1
@@ -23,11 +23,18 @@ IDENTIFIER = re.compile(r"[A-Za-z0-9_.:-]{1,160}\Z")
 EVENT_TYPES = frozenset({
     *("dpswarm/worker-budget-" + suffix for suffix in (
         "allocation", "allocation-bound", "team-run", "team-run-ended",
+        "team-run-resumed", "team-run-resume-ended",
         "frozen", "failure", "admitted", "settled", "closeout", "denied", "rework-revoked")),
     "dpswarm/worker-diagnostic",
     "dpswarm/fixed-team-binding", "dpswarm/worker-rework",
     "dpswarm/route-bound",
-    *("dpswarm/team-required-" + suffix for suffix in ("bound", "started", "finished")),
+    "dpswarm/handoff-profile", "dpswarm/write-scope",
+    "dpswarm/artifact-ready-manifest", "dpswarm/artifact-consumed-manifest",
+    *("dpswarm/mailbox-" + suffix for suffix in ("queued", "delivered", "rejected")),
+    *("dpswarm/verification-" + suffix for suffix in (
+        "required", "binding", "superseded", "takeover", "recovery")),
+    "dpswarm/team-required-admission",
+    *("dpswarm/team-required-" + suffix for suffix in ("bound", "started", "finished", "amended", "continued")),
     "dpswarm/cm-team", "dpswarm/cm-start", "dpswarm/cm-end", "dpswarm/cm-usage",
 })
 
@@ -71,6 +78,119 @@ def valid_session_id(value):
     return isinstance(value, str) and IDENTIFIER.fullmatch(value) is not None
 
 
+
+def _validate_native_audit_event(kind, data, root_session_id):
+    """Validate actual native emitters; these records confer no acceptance authority."""
+    def require(condition, detail):
+        if not condition:
+            raise PluginAuditError("PLUGIN_AUDIT_INVALID_NATIVE_EVENT", f"{kind}: {detail}", 400)
+
+    def string(value, limit=4096):
+        return (isinstance(value, str) and bool(value.strip()) and len(value) <= limit
+                and not any(ord(c) < 32 or ord(c) == 127 for c in value))
+
+    def integer(value, minimum=0, maximum=MAX_SAFE_INTEGER):
+        return type(value) is int and minimum <= value <= maximum
+
+    def strings(value, limit=64, width=4096, nonempty=True):
+        return (isinstance(value, list) and (not nonempty or bool(value)) and len(value) <= limit
+                and all(string(item, width) for item in value))
+
+    def fields(required, optional=()):
+        require(set(required).issubset(data) and not set(data) - set(required) - set(optional),
+                "missing or unsupported fields")
+
+    def sha256(value):
+        return isinstance(value, str) and re.fullmatch(r"[a-f0-9]{64}", value) is not None
+
+    def relative_path(value):
+        if not string(value, 512) or "\\" in value or ":" in value or value.startswith("/"):
+            return False
+        return all(part not in ("", ".", "..") and not part.endswith((" ", "."))
+                   and not any(c in part for c in '<>"|?*')
+                   and not re.match(r"(?i)^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)", part)
+                   for part in value.split("/"))
+
+    if kind == "dpswarm/handoff-profile":
+        fields({"root_session_id", "artifact_id", "phase", "profile", "decider", "upstreams"}, {"via"})
+        require(data["root_session_id"] == root_session_id and string(data["artifact_id"]), "invalid artifact scope")
+        require(data["phase"] is None or string(data["phase"]), "phase must be a name or null")
+        require(data["profile"] in ("verbatim", "semantic") and data["decider"] == "rule", "invalid handoff classification")
+        require(strings(data["upstreams"]) and len(set(data["upstreams"])) == len(data["upstreams"]), "invalid upstream ids")
+        require("via" not in data or data["via"] == "wake", "unsupported handoff carrier")
+    elif kind == "dpswarm/write-scope":
+        fields({"root_session_id", "worker_session_id", "subtask", "scopes", "run_id", "claimed_at", "state", "version"})
+        require(data["root_session_id"] == root_session_id and valid_session_id(data["worker_session_id"]), "invalid worker scope")
+        require(string(data["subtask"]) and strings(data["scopes"], width=1024), "invalid subtask or write scopes")
+        require(data["run_id"] is None or string(data["run_id"], 128), "invalid run id")
+        require(integer(data["claimed_at"]) and data["state"] == "claimed" and type(data["version"]) is int and data["version"] == 1,
+                "invalid write claim version or time")
+    elif kind in ("dpswarm/artifact-ready-manifest", "dpswarm/artifact-consumed-manifest"):
+        common = {"artifact_id", "manifest_digest"}
+        if kind.endswith("ready-manifest"):
+            fields(common | {"candidate_files", "view_path"}, {"root_session_id"})
+            view = data["view_path"]
+            require(string(view, 8192) and (PurePosixPath(view).is_absolute() or PureWindowsPath(view).is_absolute()),
+                    "view_path must be an absolute local path")
+            files = data["candidate_files"]
+            require(isinstance(files, list) and 0 < len(files) <= 64, "candidate_files must contain 1 to 64 entries")
+            seen, size = set(), 0
+            for file in files:
+                require(isinstance(file, dict) and {"path", "operation", "sha256", "size"}.issubset(file)
+                        and not set(file) - {"path", "operation", "sha256", "size", "blob_ref"}, "invalid manifest file fields")
+                require(relative_path(file["path"]), "manifest file must have a safe relative path")
+                key = file["path"].casefold()
+                require(key not in seen, "duplicate case-insensitive manifest path")
+                seen.add(key)
+                require(file["operation"] in ("file", "deleted") and integer(file["size"], maximum=3 * 1024 * 1024),
+                        "invalid file operation or size")
+                if file["operation"] == "file":
+                    require(sha256(file["sha256"]), "file hash must be SHA256")
+                    require("blob_ref" not in file or file["blob_ref"] == file["sha256"], "blob reference must match file hash")
+                else:
+                    require(file["sha256"] is None and file["size"] == 0 and "blob_ref" not in file,
+                            "deleted paths must not reference content")
+                size += file["size"]
+            require(size <= 3 * 1024 * 1024, "manifest exceeds the total snapshot byte bound")
+            require(not any(path.startswith(other + "/") for path in seen for other in seen if path != other),
+                    "manifest paths overlap as file and directory")
+        else:
+            fields(common | {"worker_session_id", "paths"}, {"root_session_id"})
+            require(valid_session_id(data["worker_session_id"]), "invalid consuming worker")
+            paths = data["paths"]
+            require(strings(paths) and all(relative_path(path) for path in paths), "consumed paths must be safe relative paths")
+            require(len({path.casefold() for path in paths}) == len(paths), "duplicate consumed paths")
+        require(string(data["artifact_id"]) and sha256(data["manifest_digest"]), "invalid artifact id or manifest digest")
+    elif kind.startswith("dpswarm/mailbox-"):
+        common = {"version", "root_session_id", "run_id", "message_id", "from", "to", "kind", "at"}
+        require(type(data.get("version")) is int and data["version"] == 1
+                and data.get("root_session_id") == root_session_id and integer(data.get("at")), "invalid mailbox scope or time")
+        if kind == "dpswarm/mailbox-rejected":
+            fields(common | {"code", "detail"})
+            # Rejected audit records intentionally preserve invalid or absent
+            # caller fields. They must never be mistaken for a queued message.
+            require(all(data[key] is None or isinstance(data[key], str) for key in ("run_id", "message_id", "from", "to", "kind")),
+                    "rejected message fields must be strings or null")
+            require(string(data["code"], 160) and isinstance(data["detail"], str) and len(data["detail"]) <= 65536,
+                    "invalid rejection diagnosis")
+            return
+        require(string(data.get("run_id"), 128) and isinstance(data.get("message_id"), str)
+                and re.fullmatch(r"[A-Za-z0-9_.-]{1,128}", data["message_id"]) is not None,
+                "invalid mailbox run or message id")
+        require(all(isinstance(data.get(key), str) and re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", data[key]) is not None
+                    for key in ("from", "to")), "invalid mailbox members")
+        require(data.get("kind") in ("fact", "clarify", "block"), "mailbox records cannot carry control commands")
+        delivery = "inject" if data["kind"] == "fact" else "followup"
+        if kind == "dpswarm/mailbox-queued":
+            fields(common | {"delivery", "refs", "ts", "pending_for_target"})
+            require(data["delivery"] == delivery and strings(data["refs"], limit=16, width=256, nonempty=False),
+                    "invalid queued delivery or references")
+            require(integer(data["ts"]) and integer(data["pending_for_target"], minimum=1), "invalid queue count or time")
+        else:
+            fields(common | {"via", "carrier"})
+            require(data["via"] in (delivery, "acknowledge") and string(data["carrier"], 128), "invalid delivery carrier")
+
+
 def validate_transaction(body, root_session_id):
     if not valid_session_id(root_session_id):
         raise PluginAuditError("INVALID_SESSION", "Invalid DSH session identifier", 400)
@@ -93,6 +213,26 @@ def validate_transaction(body, root_session_id):
             raise PluginAuditError("PLUGIN_AUDIT_INVALID_EVENT", "Event type is not in the plugin audit vocabulary", 400)
         if "root_session_id" in event["data"] and event["data"]["root_session_id"] != root_session_id:
             raise PluginAuditError("SESSION_SCOPE_MISMATCH", "Event root differs from the audit root", 400)
+        data = event["data"]
+        _validate_native_audit_event(event["type"], data, root_session_id)
+        if (event["type"] == "dpswarm/worker-budget-allocation"
+                and data.get("budget_origin") == "source_remaining_report_repair"):
+            remaining, profile = data.get("source_remaining"), data.get("profile", {})
+            if (data.get("version") != 3 or data.get("authority") != "fixed-team-rework"
+                    or data.get("decided_by") != "source_worker_remaining_budget"
+                    or data.get("label") not in ("tester", "reviewer")
+                    or not valid_session_id(data.get("source_worker_session_id"))
+                    or not valid_session_id(data.get("source_allocation_id"))):
+                raise PluginAuditError("PLUGIN_AUDIT_INVALID_REPORT_REPAIR", "Invalid report repair source or verification role", 400)
+            if profile.get("mode") == "unlimited":
+                valid_remaining = remaining is None
+            else:
+                valid_remaining = (isinstance(remaining, dict) and set(remaining) == {"tokens", "calls"}
+                    and all(type(remaining[key]) is int and remaining[key] > 0 for key in remaining)
+                    and profile.get("tokenLimit") == remaining.get("tokens")
+                    and profile.get("callLimit") == remaining.get("calls"))
+            if not valid_remaining:
+                raise PluginAuditError("PLUGIN_AUDIT_INVALID_REPORT_REPAIR", "Repair profile must exactly match source remaining budget", 400)
         if event["type"] == "dpswarm/route-bound":
             data = event["data"]
             if (set(data) != {"protocol", "root_session_id", "owner_session_id", "child_session_id", "parent_session_id", "label", "route"}

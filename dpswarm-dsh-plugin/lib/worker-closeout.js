@@ -1,9 +1,13 @@
 // A forecast inside the existing worker grant, never an additional allocation.
 export const CLOSEOUT_MARKER = 'DPSWARM_WORKER_FINAL_ONLY'
+// Native retries reuse the system string captured at step entry. Keep this
+// conditional rule stable from the first request; a retry can then remove its
+// tool schemas without relying on a newly rendered system prompt.
+export const BUDGET_POLICY_MARKER = 'DPSWARM_WORKER_BUDGET_POLICY'
+export const BUDGET_POLICY_INSTRUCTION = `[${BUDGET_POLICY_MARKER}]
+Use the current worker budget context to choose the smallest useful next action. Input history is charged again on every request, including retries. Save useful progress and read decisive evidence before starting optional checks. When the available tools have been removed by the budget rail, immediately return your final report as plain text, never tool-call markup (DSML or invoke tags are plain text: they execute nothing and are flagged as never executed): confirmed results, saved paths, unverified checks, and remaining work. Do not request tools, wait, or claim unfinished verification succeeded. This policy never increases your allowance.`
 export const CLOSEOUT_OUTPUT_RESERVE = 2048
-// Below this output size the next step cannot write a full report or a
-// meaningful file edit. Limits are anomaly RAILS, not per-task plans: parking
-// early hands the decision to the Lead instead of silently squeezing outputs.
+// A minimum useful work/report allowance for the estimate-based park forecast.
 export const CLOSEOUT_REPORT_FLOOR = 4096
 // The park forecast runs on estimates; the hard rail runs on the measured
 // envelope. Where the two disagree (tokenizer skew, history growth), the
@@ -13,7 +17,7 @@ export const CLOSEOUT_REPORT_FLOOR = 4096
 // costs only an earlier report, under-parking costs the report entirely.
 export const CLOSEOUT_ESTIMATE_SLACK_RATIO = 1 / 3
 export const CLOSEOUT_INSTRUCTION = `[${CLOSEOUT_MARKER}]
-This worker reached its budget rail. Stop expanding the task and return your final report now: what is complete, which files were provably saved (exact paths), what remains unfinished, and an estimate of what is left. If nothing was provably saved, say so explicitly. Tool calls are disabled and will be rejected — write the report as plain prose, never as tool-call markup. The Lead will decide whether to continue the work in a linked continuation, accept the partial result, or stop. Do not claim unperformed tests, successful delivery, or completion without evidence. Do not ask for more budget or wait for another step. This instruction does not change the task or increase your allowance.`
+This worker reached its budget rail. Stop expanding the task and return your final report now: what is complete, which files were provably saved (exact paths), what remains unfinished, and an estimate of what is left. If nothing was provably saved, say so explicitly. Tool calls are disabled and will be rejected — write the report as plain prose, never as tool-call markup. Markup such as \`<｜｜DSML｜｜ …>\` or \`<｜tool▁…｜>\` tags is plain text here: it executes nothing, runs no check, and is flagged to the Lead as never executed; a report consisting of markup is invalid. The Lead will decide whether to continue the work in a linked continuation, accept the partial result, or stop. Do not claim unperformed tests, successful delivery, or completion without evidence. Do not ask for more budget or wait for another step. This instruction does not change the task or increase your allowance.`
 
 // Check the frozen request that will actually reach the adapter. DSH 0.1.5
 // projects its prompt into system-role messages; legacy one-shot callers use
@@ -33,7 +37,8 @@ export function requestSystemText(options) {
 
 export function closeoutForecast({ remainingTokens, remainingCalls, inputEstimate, finalInputEstimate }) {
   // Rail model: park when one more full step plus a viable report no longer
-  // fit, then hand the continuation decision to the Lead. No output squeeze.
+  // fit, then hand the continuation decision to the Lead. Normal work reserves
+  // that report; the parked report itself can use all remaining output room.
   const slack = Math.ceil((inputEstimate + finalInputEstimate) * CLOSEOUT_ESTIMATE_SLACK_RATIO)
   const park = remainingTokens < inputEstimate + finalInputEstimate + slack + CLOSEOUT_REPORT_FLOOR + CLOSEOUT_OUTPUT_RESERVE
   return {
@@ -41,7 +46,8 @@ export function closeoutForecast({ remainingTokens, remainingCalls, inputEstimat
     trigger: remainingCalls <= 1 ? 'last_available_call' : 'budget_rail',
     input_estimate: inputEstimate, final_input_estimate: finalInputEstimate,
     estimate_slack: slack,
-    next_input_reserve: Math.max(inputEstimate, finalInputEstimate),
+    next_input_reserve: finalInputEstimate,
+    final_report_reserve: finalInputEstimate + Math.ceil(finalInputEstimate * CLOSEOUT_ESTIMATE_SLACK_RATIO) + CLOSEOUT_OUTPUT_RESERVE,
     report_floor: CLOSEOUT_REPORT_FLOOR, delivery_output_reserve: CLOSEOUT_OUTPUT_RESERVE,
     forecast_limitations: 'Estimated full input plus a 1/3 estimate-uncertainty slack, a report floor and a short delivery reserve; provider tokenization and mid-step history growth can still exceed this forecast. Hard admission remains authoritative.',
   }

@@ -1,20 +1,24 @@
 import { WorkerBudgetRuntime, budgetError, estimateRequestTokens, isWorkerSession } from './budget-runtime.js'
-import { CLOSEOUT_INSTRUCTION } from './worker-closeout.js'
+import { CLOSEOUT_INSTRUCTION, BUDGET_POLICY_INSTRUCTION, requestSystemText } from './worker-closeout.js'
+import { getOptionalHostService } from './host-services.js'
 import { AuditJournal } from './audit.js'
 import { resolveChildRoute } from './lead-route.js'
-import { sessionEvents, measureSystemRequest, pendingSystemText, headerPricesSystem } from './host-session-compat.js'
+import { readModelLimits } from './host-model-registry.js'
+import { sessionEvents, measureSystemRequest, headerPricesSystem } from './host-session-compat.js'
 import { resolveHostRoot, hostModuleUrl } from './host-modules.js'
 
 const host = resolveHostRoot()
-const [{ assembleContextFor }, { renderPrompt, renderContextSnapshot }, { canonicalHeader }, { createSystemMessage }] = await Promise.all([
+const [{ assembleContextFor }, { renderPrompt, renderContextSnapshot, renderContextSections }, { canonicalHeader }, { createSystemMessage, createUserMessage }] = await Promise.all([
   import(hostModuleUrl(host, 'dsh-agent/lib/index.js')),
   import(hostModuleUrl(host, 'dsh-system-prompt/lib/index.js')),
   import(hostModuleUrl(host, 'dsh-session/lib/index.js')),
   import(hostModuleUrl(host, 'dsh-llm/lib/index.js')),
 ])
 
+const CLOSEOUT_TOOL_REFUSAL = 'WORKER_CLOSEOUT_FINAL_ONLY: budget rail reached and tool calls are disabled. Write the final report now as plain text: what is complete, saved file paths, what remains.'
+
 export function installBudget(ctx, configGetter, { journal = new AuditJournal({ config: configGetter }) } = {}) {
-  const get = name => ctx.get?.(name, false) || ctx[name]
+  const get = name => getOptionalHostService(ctx, name)
   const runtime = new WorkerBudgetRuntime({
     config: configGetter,
     resolveSession: id => get('sessions')?.get(id),
@@ -31,11 +35,62 @@ export function installBudget(ctx, configGetter, { journal = new AuditJournal({ 
   // object so cold-restored children do not re-read the whole audit ledger on
   // every pre-step estimate. Non-DP children deterministically resolve to null.
   const routeCache = new WeakMap()
+  // Measured per-route single-request output caps for providers whose gateway
+  // rejects values below what any registry field reports. The measured value
+  // participates in the minimum together with registry fields; routes with no
+  // data at all stay unclamped rather than guessing.
+  // glmcp: its gateway validates max_tokens at the parameter level; measured
+  // 2026-09-13 from the gateway's own rejection (live sessions 88122af1/e3589816):
+  // 400 {"code":"1210","message":"max_tokens参数非法：限制数值范围[1,131072]"}
+  // while the host registry reports 262144 (live 03e8db1b).
+  const FALLBACK_OUTPUT_CAPS = { glmcp: 131072 }
+  const fallbackOutputCap = (provider, model) => {
+    const value = FALLBACK_OUTPUT_CAPS[`${provider}/${model}`] ?? FALLBACK_OUTPUT_CAPS[provider]
+    return Number.isSafeInteger(value) && value > 0 ? value : null
+  }
+  // The rail shapes output allowances from the cumulative grant; a route may
+  // reject a max_tokens above its own cap even when budget remains (glm 131072
+  // vs a 600k manual rail). All available bounds participate as a minimum: the
+  // measured fallback, the host's per-request output default, and the context
+  // window (output beyond the window can never fit). A gateway's parameter
+  // ceiling can sit below every registry field (live 03e8db1b: glmcp registry
+  // 262144 vs gateway 131072), so clamping too tightly is safe while clamping
+  // too loosely is a guaranteed provider rejection. Only a successful
+  // authoritative lookup is cached; unknown routes stay unclamped.
+  const routeCaps = new Map()
+  const routeOutputCap = async (native, signal) => {
+    const provider = native?.provider, model = native?.model
+    if (typeof provider !== 'string' || !provider.trim() || typeof model !== 'string' || !model.trim()) return null
+    const key = JSON.stringify([provider, model])
+    if (routeCaps.has(key)) return routeCaps.get(key)
+    let cap = null, resolved = false
+    try {
+      const llm = get('llm')
+      if (typeof llm?.resolveModelInfo === 'function') {
+        const info = await llm.resolveModelInfo(provider, model, signal)
+        if (info?.provider === provider && info?.id === model) {
+          const limits = readModelLimits(info)
+          const bounds = [fallbackOutputCap(provider, model), limits.default_max_tokens, limits.context_window].filter(value => value !== null)
+          cap = bounds.length ? Math.min(...bounds) : null
+          resolved = true
+        }
+      }
+    } catch (error) {
+      if (signal?.aborted) throw error
+    }
+    if (resolved) {
+      if (routeCaps.size >= 64) routeCaps.clear()
+      routeCaps.set(key, cap)
+    }
+    return cap
+  }
   const limited = state => state && state.profile.mode !== 'unlimited'
   const applyCloseout = (state, assembly) => {
     if (!state?.closeout || !assembly) return
-    // Tools stay listed so the model keeps its native call→result→report
-    // pattern; the tool gate denies execution with the report instruction.
+    // Tool schemas stay listed so the model keeps its native call→refusal→report
+    // pattern; the tool gate denies execution with the report instruction. A
+    // tools-stripped closeout made DeepSeek-class models emit DSML tool-call
+    // markup as plain text (0.8.3; again all three roles in the 0.14.1 live run).
     if (!Array.isArray(assembly.sections) || Object.isFrozen(assembly.sections)) throw budgetError('WORKER_CLOSEOUT_ASSEMBLY_IMMUTABLE')
     if (!assembly.sections.some(s => s.name === 'dpswarm-worker-closeout')) assembly.sections.push({ name: 'dpswarm-worker-closeout', text: CLOSEOUT_INSTRUCTION })
   }
@@ -43,7 +98,19 @@ export function installBudget(ctx, configGetter, { journal = new AuditJournal({ 
     const assembly = await next(), agent = context?.agent
     if (agent?.session && isWorkerSession(agent.session)) {
       assemblies.set(agent.session, { assembly, signal: context.signal })
-      applyCloseout(runtime.states.get(agent.session.id), assembly)
+      const state = runtime.states.get(agent.session.id)
+      if (state ? limited(state) : (configGetter().workerBudgetMode ?? 'unlimited') !== 'unlimited') {
+        if (!Array.isArray(assembly.sections) || Object.isFrozen(assembly.sections)) throw budgetError('WORKER_CLOSEOUT_ASSEMBLY_IMMUTABLE')
+        if (!assembly.sections.some(s => s.name === 'dpswarm-worker-budget-policy')) assembly.sections.push({ name: 'dpswarm-worker-budget-policy', text: BUDGET_POLICY_INSTRUCTION })
+        if (!Array.isArray(assembly.contexts) || Object.isFrozen(assembly.contexts)) throw budgetError('WORKER_CLOSEOUT_ASSEMBLY_IMMUTABLE')
+        const advice = state ? runtime.describe(state).next_step : { mode: 'awaiting_first_estimate',
+          guidance: 'Your frozen grant is checked before dispatch. Each call resends full input; preserve room to read evidence and report.' }
+        const item = { name: 'dpswarm-worker-budget', text: JSON.stringify(advice) }
+        const at = assembly.contexts.findIndex(value => value.name === item.name)
+        if (at < 0) assembly.contexts.push(item)
+        else assembly.contexts[at] = item
+      }
+      applyCloseout(state, assembly)
     }
     return assembly
   }, { prepend: true, global: true }))
@@ -83,7 +150,7 @@ export function installBudget(ctx, configGetter, { journal = new AuditJournal({ 
     return Math.max(estimateRequestTokens({ messages: appended, tools }).input,
       estimateRequestTokens({ messages: normalized, tools }).input)
   }
-  const meteredInput = async (agent, { system, tools, pending, signal }) => {
+  const meteredInput = async (agent, { system, tools, pending, signal, config: preparedConfig }) => {
     const meter = get('tokenMeter')
     if (typeof meter?.measure !== 'function') return null
     // The meter prices the retained surface and header with the real tokenizer;
@@ -94,7 +161,7 @@ export function installBudget(ctx, configGetter, { journal = new AuditJournal({ 
         routeCache.set(agent.session, await resolveChildRoute(agent, { journal, signal }).catch(() => null))
       }
       const frozen = routeCache.get(agent.session)
-      const config = frozen || agent.session.requestHeader?.()?.config
+      const config = preparedConfig || frozen || agent.session.requestHeader?.()?.config
         || { provider: agent.options?.provider, model: agent.options?.model }
       if (!['provider', 'model'].every(key => typeof config?.[key] === 'string' && config[key].trim())) return null
       const envelope = { config, ...(system ? { system } : {}), ...(Array.isArray(tools) && tools.length ? { tools } : {}) }
@@ -102,6 +169,42 @@ export function installBudget(ctx, configGetter, { journal = new AuditJournal({ 
       if (!Number.isSafeInteger(measured) || measured < 0) return null
       return measured + pendingTokens(meter, pending || [])
     } catch { return null }
+  }
+  // Both forecasts and request admission price the same tool envelope and the
+  // host's possible system projections. The final frozen stream is still
+  // checked independently by runtime.admit; an estimate never grants a call.
+  const estimateInput = async (agent, { messages, system, tools, pending, signal, config }) => {
+    const metered = await meteredInput(agent, { system, tools, pending, signal, config })
+    return Math.max(metered ?? 0, serializedInput(messages, system, tools))
+  }
+  const frozenInputEstimate = (agent, options) => {
+    const serialized = estimateRequestTokens(options).input, meter = get('tokenMeter')
+    if (typeof meter?.measure !== 'function') return serialized
+    try {
+      const messages = options.messages || [], current = agent.session.deriveMessages?.()
+      const header = { config: options, ...(options.system ? { system: options.system } : {}),
+        ...(options.tools?.length ? { tools: options.tools } : {}) }
+      let measured
+      if (Array.isArray(current) && JSON.stringify(current) === JSON.stringify(messages)) {
+        // The native loop committed exactly this frozen surface. Preserve its
+        // usage anchor, repriced with this request's route and tool schema.
+        measured = measureSystemRequest(meter, agent.session, header, requestSystemText(options), canonicalHeader)?.totalTokens
+      } else {
+        // CM and detached calls can have their own messages. Never borrow the
+        // latest worker's surface/estimate: price this exact envelope instead.
+        const empty = agent.session.constructor?.create?.('dpswarm-frozen-request-price')
+        if (!empty) throw budgetError('WORKER_REQUEST_PRICING_UNAVAILABLE')
+        measured = meter.measure(empty, header)?.totalTokens
+        if (Number.isSafeInteger(measured) && measured >= 0) {
+          measured += pendingTokens(meter, messages)
+          if (options.system && !headerPricesSystem(canonicalHeader)) measured += pendingTokens(meter, [createSystemMessage(options.system, '@deepseek-ai/dsh-system-prompt')])
+        }
+      }
+      if (!Number.isSafeInteger(measured) || measured < 0) throw budgetError('WORKER_REQUEST_PRICING_UNAVAILABLE')
+      return Math.max(serialized, measured)
+    } catch (error) {
+      throw budgetError('WORKER_REQUEST_PRICING_UNAVAILABLE', 'The frozen request could not be measured; no request was dispatched.')
+    }
   }
   const prepareStep = async (agent, { messages = [], signal } = {}) => {
     const state = await ensure(agent, signal, messages)
@@ -112,6 +215,8 @@ export function installBudget(ctx, configGetter, { journal = new AuditJournal({ 
       const captured = assemblies.get(agent.session)
       if (!captured || (captured.signal && captured.signal !== signal)) throw budgetError('WORKER_REQUEST_ENVELOPE_UNAVAILABLE')
       const assembly = captured.assembly
+      if (!Array.isArray(assembly.sections) || Object.isFrozen(assembly.sections)) throw budgetError('WORKER_CLOSEOUT_ASSEMBLY_IMMUTABLE')
+      if (!assembly.sections.some(s => s.name === 'dpswarm-worker-budget-policy')) assembly.sections.push({ name: 'dpswarm-worker-budget-policy', text: BUDGET_POLICY_INSTRUCTION })
       const visible = agent.session.deriveMessages?.() || [], ids = new Set(visible.map(m => m.id).filter(Boolean))
       const incoming = messages.filter(m => !m.id || !ids.has(m.id))
       // Runtime-context projection happens just before pre-step. Price its
@@ -123,17 +228,21 @@ export function installBudget(ctx, configGetter, { journal = new AuditJournal({ 
       const alreadyRetained = retained?.content?.length === 1 && retained.content[0]?.text === context
       const alreadyPending = incoming.some(m => m.source?.kind === 'plugin' && m.source.plugin === '@deepseek-ai/dsh-system-prompt'
         && m.content?.length === 1 && m.content[0]?.text === context)
-      const pendingContext = context && !alreadyRetained && !alreadyPending ? [{ role: 'user', content: [{ type: 'text', text: context }] }] : []
+      const pendingContext = context && !alreadyRetained && !alreadyPending ? [createUserMessage({
+        content: [{ type: 'text', text: context }], source: { kind: 'plugin', plugin: '@deepseek-ai/dsh-system-prompt',
+          form: 'snapshot', sections: renderContextSections(assembly) },
+      })] : []
       const history = [...visible, ...incoming, ...pendingContext]
       const system = renderPrompt(assembly) || '', tools = assembly.tools || []
       const pending = [...incoming, ...pendingContext]
-      // Same basis as agent/request below: prefer the native meter, keep the
-      // chars/3 serialization as a floor and as the no-meter fallback.
-      const metered = await meteredInput(agent, { system, tools, pending, signal })
-      const input = Math.max(metered ?? 0, estimateRequestTokens({ messages: history, system: pendingSystemText(history, system), tools }).input)
+      const input = await estimateInput(agent, { messages: history, system, tools, pending, signal })
       const finalSystem = state.closeout ? system : `${system}\n\n${CLOSEOUT_INSTRUCTION}`
-      const meteredFinal = await meteredInput(agent, { system: finalSystem, tools: [], pending, signal })
-      const finalInput = Math.max(meteredFinal ?? 0, estimateRequestTokens({ messages: history, system: pendingSystemText(history, finalSystem), tools: [] }).input)
+      // The closeout request keeps its tool schemas: price the envelope that is
+      // actually sent. No extra recovery reserve: the existing slack and report
+      // floor cushion one refused tool attempt, a tighter grant must not park
+      // at arrival (0.8.2 lesson), and a spent attempt that genuinely leaves no
+      // room fails admission honestly instead of producing a fake report.
+      const finalInput = await estimateInput(agent, { messages: history, system: finalSystem, tools, pending, signal })
       await runtime.prepareCloseout(state, { inputEstimate: input, finalInputEstimate: finalInput }, signal)
       applyCloseout(state, assembly)
       return state
@@ -165,7 +274,7 @@ export function installBudget(ctx, configGetter, { journal = new AuditJournal({ 
   }, { global: true }))
   dispose.push(() => disposePreStep())
   const toolGuard = exec => runtime.states.get(exec.agent?.session?.id)?.closeout?.mode === 'final_only'
-    ? 'WORKER_CLOSEOUT_FINAL_ONLY: budget rail reached and tool calls are disabled. Write the final report now as plain text: what is complete, saved file paths, what remains.' : undefined
+    ? CLOSEOUT_TOOL_REFUSAL : undefined
   if (get('tools')?.guard) dispose.push(get('tools').guard(toolGuard))
   dispose.push(ctx.on('tools/pre-execute', async (exec, next) => {
     // Cold restored children can reach tool execution without a new pre-step.
@@ -186,6 +295,10 @@ export function installBudget(ctx, configGetter, { journal = new AuditJournal({ 
       const assembly = captured && (!captured.signal || captured.signal === signal)
         ? captured.assembly : await promptService.assemble(assembleContextFor(agent, signal))
       signal?.throwIfAborted()
+      // Native retries do not rerun pre-step. Reforecast after the preceding
+      // attempt settled (including an unknown transport reservation).
+      assemblies.set(session, { assembly, signal })
+      await prepareStep(agent, { signal, messages: pendingMessages(session, { signal, turn, step }) })
       applyCloseout(state, assembly)
       const system = renderPrompt(assembly) || ''
       const pending = pendingMessages(session, { signal, turn, step })
@@ -194,12 +307,9 @@ export function installBudget(ctx, configGetter, { journal = new AuditJournal({ 
       // A previous header can contain tools removed for final-only. Measure the
       // current envelope instead of charging that stale schema again. System
       // projection uses the same conservative pending-input bound as pre-step.
-      const envelope = { config: native, system, ...(assembly.tools?.length ? { tools: assembly.tools } : {}) }
-      const meter = get('tokenMeter')
-      const measured = measureSystemRequest(meter, session, envelope, system, canonicalHeader)?.totalTokens
-      estimated = Math.max((measured || 0) + pendingTokens(meter, pending), serializedInput(messages, system, assembly.tools))
+      estimated = await estimateInput(agent, { messages, system, tools: assembly.tools || [], pending, signal, config: native })
       requested = native.maxTokens
-      const maxTokens = runtime.outputLimit(state, estimated, requested)
+      const maxTokens = runtime.outputLimit(state, estimated, requested, await routeOutputCap(native, signal))
       return { ...original, maxTokens }
     } catch (error) {
       await runtime.recordDenied(state, error, 'request_output_limit', estimated, requested)
@@ -212,7 +322,8 @@ export function installBudget(ctx, configGetter, { journal = new AuditJournal({ 
     const agent = agents.get(session.id) || get('agents')?.get(session.id) || { session }
     const state = await ensure(agent, options.signal)
     options.signal?.throwIfAborted()
-    const ticket = await runtime.admit(state, options)
+    const inputEstimate = limited(state) ? frozenInputEstimate(agent, options) : null
+    const ticket = await runtime.admit(state, options, inputEstimate === null ? null : { inputEstimate })
     let usage = null, finish = null, error = null
     try {
       for await (const chunk of next()) {
@@ -230,11 +341,13 @@ export function installBudget(ctx, configGetter, { journal = new AuditJournal({ 
   const service = {
     runtime, journal, ensure, prepareStep,
     diagnosticsForSession: sessionId => runtime.diagnosticsForSession(sessionId),
-    plan: (parent, decision) => runtime.plan(parent, decision),
     beginTeamRun: (parent, options) => runtime.beginTeamRun(parent, options),
+    resumeTeamRun: (parent, options) => runtime.resumeTeamRun(parent, options),
+    teamRunRecoveryStatus: (parent, options) => runtime.teamRunRecoveryStatus(parent, options),
     issueTeamWorker: (parent, handle, assignment) => runtime.issueTeamWorker(parent, handle, assignment),
     finishTeamRun: (parent, handle) => runtime.finishTeamRun(parent, handle),
     issueRework: (parent, options) => runtime.issueRework(parent, options),
+    issueReportRepair: (parent, options) => runtime.issueReportRepair(parent, options),
     revokeRework: (parent, allocationId) => runtime.revokeRework(parent, allocationId),
     status: agent => runtime.status(agent),
     shutdown: () => { runtime.shutdown(); for (const fn of dispose) if (typeof fn === 'function') fn() },

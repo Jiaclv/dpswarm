@@ -50,6 +50,7 @@ from .events import DelegationRecord
 from .orchestrator import Orchestrator
 from .providers import MockProvider, OpenAICompatProvider
 from .types import (
+    AcceptanceState,
     Artifact,
     HumanDirective,
     Level,
@@ -60,6 +61,9 @@ from .types import (
 )
 
 STATIC = Path(__file__).parent / "static"
+
+# Advertise the implementation loaded by this process, never an on-disk version.
+DELEGATE_ADMISSION_CLEANUP_PROTOCOL = "delegate-admission-cleanup-v1"
 
 # Spec 可控参数白名单（§2.1 稳定约束；发布新 revision 时仅接受这些字段，
 # 其余继承当前值——Spec 不原地覆写）。
@@ -512,6 +516,69 @@ class PanelState:
                 return event.payload.get("reason")
         return None
 
+    def _failed_delegation(self, error: ControlPlaneError, created: list,
+                           nodes_before: set, results: list, kind: str) -> Dict[str, Any]:
+        """Compensate only this request's items that never acquired a node.
+
+        Called under the admission lock. A node, even one not yet activated or
+        published to DSH, needs explicit execution settlement; never infer that
+        an empty partial-results list makes its resources safe to release.
+        """
+        indices = {item.item_id: i for i, item in created}
+        started = []
+        for node_id, node in self.cp.proj.nodes.items():
+            if node_id in nodes_before:
+                continue
+            started.append({"item_id": node.item_id, "node_id": node_id,
+                            "kind": kind, "level": node.level.value,
+                            "subtask_index": indices.get(node.item_id, 0),
+                            "lifecycle": node.lifecycle.value,
+                            **self._fence_of(node_id)})
+        unknown_cleanup_items = {item_id for item_id, _ in
+                                 self._unconfirmed_execution_cleanups()}
+        cleanup = []
+        pending = []
+        for i, item in created:
+            item_id = item.item_id
+            node_ids = [n.node_id for n in self.cp.proj.nodes.values()
+                        if n.item_id == item_id]
+            record = {"item_id": item_id, "subtask_index": i, "node_ids": node_ids}
+            if node_ids or item_id in unknown_cleanup_items:
+                record.update(status="retained", reason="execution-settlement-required")
+            else:
+                try:
+                    # Keep the existing terminal vocabulary; compensation details
+                    # live in the durable summary rather than inventing an outcome.
+                    self.cp.terminate(item_id, reason="manual-stopped", summary=json.dumps({
+                        "phase": "delegate-admission-compensation", "error": error.code,
+                        "subtask_index": i, "created_in_this_request": True,
+                        "execution_started": False}, ensure_ascii=False))
+                    record.update(status="terminated", reason="admission-failed-before-node")
+                except Exception as cleanup_error:
+                    # A failed compensation is visible and keeps the reservation.
+                    record.update(status="failed", reason="compensation-failed",
+                                  error=getattr(cleanup_error, "code", "ADMISSION_CLEANUP_FAILED"),
+                                  message=str(cleanup_error))
+            cleanup.append(record)
+            if not node_ids:
+                pending.append({"item_id": item_id, "subtask_index": i,
+                                "waiting_on": list(item.deps),
+                                "cleanup_status": record["status"]})
+        # split uses an existing item. Report any newly reserved nodes without
+        # ever terminating that pre-existing root item as compensation.
+        for item_id in dict.fromkeys(row["item_id"] for row in started):
+            if item_id not in indices:
+                cleanup.append({"item_id": item_id, "status": "retained",
+                                "reason": "execution-settlement-required",
+                                "node_ids": [row["node_id"] for row in started
+                                             if row["item_id"] == item_id]})
+        return {"ok": False, "error": error.code, "message": str(error),
+                "partial": results,
+                "created": [{"item_id": item.item_id, "subtask_index": i}
+                            for i, item in created],
+                "started": started, "pending": pending, "cleanup": cleanup,
+                "cleanup_complete": all(row["status"] == "terminated" for row in cleanup)}
+
     def _delegate(self, body: Dict[str, Any]) -> Tuple[bool, Dict[str, Any]]:
         """拓扑动作 + 硬准入（§7）：两模式——
         新建：kind + subtasks（可带 deps 0 基下标，§7 DAG；未就绪项不启动、
@@ -580,10 +647,11 @@ class PanelState:
                            "message": "subtask dependencies must form an acyclic graph"}
         results: list = []
         pending: list = []
+        created: list = []  # (subtask 下标, WorkItem), also retained on admission failure
+        nodes_before = set(self.cp.proj.nodes)
         try:
             self._register_agent_routes(routes)
             team = "root"
-            created: list = []  # (subtask 下标, WorkItem)
             for i, st in enumerate(subtasks):
                 route = routes[i]
                 if kind == DelegationKind.SPLIT:
@@ -631,7 +699,7 @@ class PanelState:
                                 "subtask_index": i, **self._fence_of(node.node_id)})
             return True, {"ok": True, "items": results, "pending": pending}
         except ControlPlaneError as e:
-            return False, {"ok": False, "error": e.code, "message": str(e), "partial": results}
+            return False, self._failed_delegation(e, created, nodes_before, results, kind.value)
 
     def _delegate_rerun(self, body: Dict[str, Any]) -> Tuple[bool, Dict[str, Any]]:
         """重跑既有 item（§8 归因重试的执行臂 + §7 超时重试）：
@@ -792,6 +860,13 @@ class PanelState:
                     or body.get("reservation_session_id") != binding.get("reservation_session_id", node.session_id)
                     or (binding and body.get("execution_session_id") != binding.get("execution_session_id"))):
                 return False, {"ok": False, "error": "FENCE_VIOLATION"}
+            if body.get("admission_cleanup") is True:
+                # Snapshot checks in the bridge cannot fence a sibling binding
+                # created concurrently. Recheck sole, unpublished ownership here.
+                item_nodes = [n for n in self.cp.proj.nodes.values() if n.item_id == item.item_id]
+                if (len(item_nodes) != 1 or binding or item.kind.value not in {"derive", "fission"}
+                        or body.get("published") is not False or body.get("execution_session_id") is not None):
+                    return False, {"ok": False, "error": "ADMISSION_CLEANUP_CONFLICT"}
             if item.acceptance in TERMINAL_ACCEPTANCE:
                 early = {"ok": True, "outcome": item.acceptance.value, "already_terminal": True}
                 if body.get("physical_cleanup_confirmed") is not True:
@@ -875,6 +950,21 @@ class PanelState:
         except (TypeError, ValueError) as e:
             return False, {"ok": False, "error": "FENCE_REQUIRED", "message": str(e)}
 
+    def acceptance_state(self):
+        from .acceptance import AcceptanceService
+        return AcceptanceService(self.cp).read()
+
+    def acceptance(self, body):
+        from .acceptance import AcceptanceService
+        try:
+            return True, AcceptanceService(self.cp).mutate(body)
+        except ControlPlaneError as exc:
+            return False, {"ok": False, "error": exc.code, "message": str(exc), **exc.context}
+        except OSError as exc:
+            return False, {"ok": False, "error": "ACCEPTANCE_STORAGE_UNAVAILABLE", "message": str(exc)}
+        except (ValueError, TypeError, KeyError, AttributeError, RecursionError) as exc:
+            return False, {"ok": False, "error": "ACCEPTANCE_INVALID", "message": str(exc)}
+
     def review(self, body: Dict[str, Any]) -> Tuple[bool, Dict[str, Any]]:
         """Lead 验收（§4 验收制 / §8 异常路径）：
         - accept：证据落盘 + 原子发布（解锁后继、释放槽与点数）；
@@ -913,9 +1003,22 @@ class PanelState:
                     return False, {"ok": False, "error": "EVIDENCE_MISMATCH",
                                    "message": f"package {pkg} != submit 绑定的 "
                                               f"{item.submission_package_id}（证据不可替换）"}
+                from .acceptance import contract_for_item
+                contract = contract_for_item(self.cp.proj, item_id)
+                acceptance = None
+                if contract:
+                    acceptance = {key: body.get(key) for key in
+                                  ("contract_id", "candidate_id", "review_id", "expected_revision")}
+                    if item.acceptance == AcceptanceState.ACCEPTED and any(
+                            accepted.get("item_id") == item_id and all(accepted.get(key) == acceptance[key]
+                                for key in ("contract_id", "candidate_id", "review_id"))
+                            for accepted in contract["accepted"]):
+                        return True, {"ok": True, "outcome": "accepted", "replayed": True,
+                                      "revision": contract["revision"]}
                 self.cp.accept_submission(
                     item_id, package_id=pkg,
                     accepted_by={"node": "dsh-lead", "via": "dpswarm-dsh-plugin",
+                                 **({"acceptance": acceptance} if acceptance else {}),
                                  **({"review_note": review_note} if review_note else {})})
                 return True, {"ok": True, "outcome": "accepted"}
             if verdict == "terminate":
@@ -1078,6 +1181,14 @@ class Handler(BaseHTTPRequestHandler):
         if not length:
             return {}
         raw = self.rfile.read(length)
+        if self.path == "/api/acceptance":
+            from .plugin_audit import _strict_json
+            if self.headers.get("Transfer-Encoding") or len(raw) != length:
+                return {}
+            try:
+                return _strict_json(raw)
+            except (ValueError, UnicodeError, RecursionError):
+                return {}
         try:
             return json.loads(raw.decode("utf-8"))
         except (json.JSONDecodeError, UnicodeDecodeError):
@@ -1135,6 +1246,11 @@ class Handler(BaseHTTPRequestHandler):
                 except ValueError:
                     pass
             self._json(st.events(limit))
+        elif self.path == "/api/acceptance":
+            if not self._authorized():
+                self._unauthorized()
+                return
+            self._json(st.acceptance_state())
         elif self.path.startswith("/api/observation"):
             if not self._authorized():
                 self._unauthorized()
@@ -1185,6 +1301,10 @@ class Handler(BaseHTTPRequestHandler):
             elif self.path == "/api/submit":
                 ok, resp = st.submit_output(body)
                 self._json(resp, 200 if ok else 400)
+            elif self.path == "/api/acceptance":
+                ok, resp = st.acceptance(body)
+                status = 200 if ok else (409 if resp.get("error", "").endswith("CONFLICT") else 400)
+                self._json(resp, status)
             elif self.path == "/api/review":
                 ok, resp = st.review(body)
                 self._json(resp, 200 if ok else 400)

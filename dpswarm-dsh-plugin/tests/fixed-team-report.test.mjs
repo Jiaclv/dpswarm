@@ -55,6 +55,8 @@ test('dpswarm_report pages the unabridged worker report that the run view trunca
   assert.equal(page1.total_chars, 10000)
   assert.equal(page1.truncated, true)
   assert.equal(page1.report_source, 'native-result')
+  assert.equal(page1.report_status, 'final')
+  assert.equal(page1.report_available, true)
   assert.equal(page1.completion, 'completed')
   const page2 = await h.controller.report({ item_id: item.item_id, offset: 4000, limit: 4000 }, h.exec)
   const page3 = await h.controller.report({ item_id: item.item_id, offset: 8000, limit: 4000 }, h.exec)
@@ -95,4 +97,43 @@ test('dpswarm_report fails closed when the worker produced no report text', asyn
   assert.equal(result.failed[0].code, 'SUBAGENT_EMPTY_DELIVERY')
   // The failed worker's diagnostic was still audited, but it holds no report text.
   await assert.rejects(h.controller.report({ item_id: result.failed[0].item_id }, h.exec), /REPORT_UNAVAILABLE/)
+})
+
+test('dpswarm_report and run deliveries flag DSML pseudo-call markup as never executed', async () => {
+  const dsml = 'Applying the corrected leg paths:\n\n<｜｜DSML｜｜ calls>\n<｜｜DSML｜｜ invoke name="edit">\n<｜｜DSML｜｜ parameter name="file_path" string="true">pelican.html</｜｜DSML｜｜ parameter>\n</｜｜DSML｜｜ invoke>\n</｜｜DSML｜｜ calls>'
+  const h = fixture(dsml)
+  const result = await h.controller.run({ task: 'Create an HTML file.', acceptance: 'Single file.' }, h.exec)
+  const item = result.deliveries[0]
+  // The Lead sees the nature of the output without reading the full text first.
+  assert.deepEqual(item.diagnostic.closeout.output_nature.pseudo_tool_markup.tool_names, ['edit'])
+  assert.equal(item.diagnostic.closeout.output_nature.final_step_tool_calls, false)
+  assert.match(item.diagnostic.closeout.lead_note, /never executed/)
+  const page = await h.controller.report({ item_id: item.item_id }, h.exec)
+  assert.equal(page.report_status, 'final')
+  assert.deepEqual(page.output_nature.families, ['dsml-markup'])
+  assert.deepEqual(page.output_nature.tool_names, ['edit'])
+  assert.match(page.note, /never executed/)
+  const clean = fixture('普通文本报告，全部检查已记录。')
+  const cleanResult = await clean.controller.run({ task: 'Create an HTML file.', acceptance: 'Single file.' }, clean.exec)
+  const cleanPage = await clean.controller.report({ item_id: cleanResult.deliveries[0].item_id }, clean.exec)
+  assert.equal(cleanPage.output_nature, null)
+  assert.doesNotMatch(cleanPage.note, /never executed/)
+})
+
+
+test('dpswarm_report exposes recoverable progress and old text without promoting it to a final report', async () => {
+  const h = fixture('unused')
+  const reference = { kind: 'worker-diagnostic-audit', event_seq: 46, step: 5 }
+  for (const closeout of [
+    { report_status: 'progress', report_available: false, progress: { text: 'Next I will inspect the result.', source: 'native-assistant-message', reference } },
+    { report_available: true, report: { text: 'Next I will inspect the result.', source: 'native-assistant-message' } },
+  ]) {
+    h.controller.diagnostics = async () => [{ role: 'reviewer', diagnostic: { worker_session_id: 'failed-reviewer', closeout } }]
+    const page = await h.controller.report({ item_id: 'failed-item' }, h.exec)
+    assert.equal(page.report_available, false)
+    assert.equal(page.report_status, closeout.report_status || 'unclassified')
+    assert.equal(page.text, 'Next I will inspect the result.')
+    assert.match(page.note, /not a final report/)
+    if (closeout.progress) assert.deepEqual(page.progress_reference, reference)
+  }
 })

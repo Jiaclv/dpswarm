@@ -1,4 +1,9 @@
-/** Real two-process DSH + durable sidecar restart probe; local adapter only. */
+/*
+// OBSOLETE (2026-09-13): Auto mode (Lead-estimated worker_budgets /
+// dpswarm_prepare_worker) was removed; worker limits now come from user
+// settings only. This probe exercised the removed path and is kept as the
+// historical verification record of that mechanism.
+* Real two-process DSH + durable sidecar restart probe; local adapter only. */
 import assert from 'node:assert/strict'
 import { createHash, randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'

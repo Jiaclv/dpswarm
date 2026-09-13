@@ -39,20 +39,6 @@ test('limited worker freezes then CAS-admits only one concurrent call; every rec
   }
 })
 
-test('new auto grant creates the fresh root ledger; copied prompt cannot bind a sibling', async () => {
-  const { root, child, map } = sessions(), sibling = { id: 'sibling', header: { origin: 'subagent', delegationDepth: 1, parentSession: 'root', seedLength: 0 }, events: [] }
-  map.set(sibling.id, sibling)
-  const journal = new MemoryAuditJournal(), runtime = new WorkerBudgetRuntime({
-    config: () => ({ workerBudgetMode: 'auto', workerBudgetSessionOverrides: [] }),
-    resolveSession: id => map.get(id), listSessions: () => [...map.values()], journal,
-  })
-  const plan = await runtime.plan({ session: root }, { task: 'Create one SVG.', tokenLimit: 300, callLimit: 1, reason: 'bounded task' })
-  const message = { type: 'user/message', data: { role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: plan.prompt }] } }
-  child.events.push(message); sibling.events.push(message)
-  await runtime.ensure({ session: child }, signal())
-  await assert.rejects(runtime.ensure({ session: sibling }, signal()), { code: 'WORKER_BUDGET_DECISION_REQUIRED' })
-})
-
 test('disabled CM does not read the sidecar ledger', async () => {
   const journal = { read: async () => { throw new Error('should not read') }, append: async () => { throw new Error('should not append') } }
   const runtime = new CMRuntime(() => ({ cmEnabledSessions: [], cmProvider: 'deepseek' }), () => null, journal)

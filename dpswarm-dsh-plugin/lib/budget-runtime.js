@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { closeoutForecast, requestSystemText, CLOSEOUT_MARKER, CLOSEOUT_OUTPUT_RESERVE } from './worker-closeout.js'
+import { closeoutForecast, requestSystemText, CLOSEOUT_MARKER, BUDGET_POLICY_MARKER, CLOSEOUT_OUTPUT_RESERVE, CLOSEOUT_ESTIMATE_SLACK_RATIO } from './worker-closeout.js'
 import { sessionEvents, forkBoundary } from './host-session-compat.js'
 
 export const budgetError = (code, message = code, details = null) => Object.assign(new Error(message), { code, ...(details ? { budget_details: details } : {}) })
@@ -18,6 +18,28 @@ const reworkMarker = id => `[DPSWARM_REWORK_WORKER_BUDGET_V1:${id}]`
 const fixedMarker = id => `[DPSWARM_FIXED_WORKER_BUDGET_V1:${id}]`
 const eventName = suffix => `dpswarm/worker-budget-${suffix}`
 const decisionRequired = message => budgetError('WORKER_BUDGET_DECISION_REQUIRED', message || 'Auto requires the current Lead to decide this worker allocation before delegation.')
+// A resumed allocation stays on the original run and policy, but has its own
+// issuance/closure boundary. The original ended run never revives old grants.
+function resumedAllocation(events, allocation, { active = false } = {}) {
+  const claims = events.filter(e => e.type === eventName('team-run-resumed') && e.data?.resume_id === allocation.resume_id)
+  const runs = events.filter(e => e.type === eventName('team-run') && e.data?.run_id === allocation.run_id)
+  const endings = events.filter(e => e.type === eventName('team-run-ended') && e.data?.run_id === allocation.run_id)
+  const issued = events.filter(e => e.type === eventName('allocation') && e.data?.authority === 'fixed-team-run'
+    && e.data?.run_id === allocation.run_id && e.data?.label === allocation.label)
+  const claim = claims[0]?.data
+  if (claims.length !== 1 || runs.length !== 1 || endings.length !== 1
+    || claim.run_id !== allocation.run_id || !['tester', 'reviewer'].includes(allocation.label)
+    || !Array.isArray(claim.roles) || !claim.roles.includes(allocation.label)
+    || !same(claim.profile, runs[0].data.profile) || claim.budget_origin !== 'unissued_original_role'
+    || allocation.budget_origin !== 'unissued_original_role'
+    || allocation.subtask != null || issued.length !== 1 || issued[0].data.allocation_id !== allocation.allocation_id
+    || events.indexOf(endings[0]) >= events.indexOf(claims[0])
+    || events.indexOf(claims[0]) >= events.indexOf(issued[0])) throw decisionRequired('The resumed worker has no unique original-role authorization.')
+  if (active && events.some(e => e.type === eventName('team-run-resume-ended') && e.data?.resume_id === allocation.resume_id)) {
+    throw decisionRequired('The resumed run has ended; its unbound allocation is revoked.')
+  }
+  return claim
+}
 const nativeProgress = session => sessionEvents(session).slice(forkBoundary(session))
   .some(event => ['assistant/message', 'tool/result', 'step/end', 'turn/end'].includes(event.type))
 const callsFrom = (events, workerId) => {
@@ -51,6 +73,28 @@ const settledCalls = (events, workerId) => {
     && e.data?.worker_session_id === workerId && e.data.call_id === call.call_id)) throw budgetError('REWORK_SOURCE_UNSETTLED')
   return calls
 }
+const sourceAccounting = (events, workerId) => {
+  const calls = settledCalls(events, workerId), consumption = totalsFor(calls)
+  return { calls, consumption, accounting_sha256: accountingHash(calls) }
+}
+const sourceRemaining = (profile, consumption) => {
+  if (profile?.mode === 'unlimited') return { profile: { mode: 'unlimited' }, remaining: null }
+  if (!['manual', 'auto', 'fixed'].includes(profile?.mode)
+    || !positive(profile.tokenLimit) || !positive(profile.callLimit)) throw budgetError('REWORK_SOURCE_INVALID')
+  const remaining = { tokens: profile.tokenLimit - consumption.committed_tokens, calls: profile.callLimit - consumption.calls }
+  return { profile: positive(remaining.tokens) && positive(remaining.calls)
+    ? { mode: 'fixed', tokenLimit: remaining.tokens, callLimit: remaining.calls } : null, remaining }
+}
+const reportRepairAttribution = () => ({ budget_origin: 'source_remaining_report_repair', decided_by: 'source_worker_remaining_budget' })
+const reportRepairEvidenceMatches = (allocation, source, accounting, budget) =>
+  allocation.budget_origin === 'source_remaining_report_repair'
+  && allocation.decided_by === reportRepairAttribution().decided_by
+  && ['tester', 'reviewer'].includes(allocation.label)
+  && same(allocation.source_profile, source.profile)
+  && same(allocation.source_consumption, accounting.consumption)
+  && allocation.source_accounting_sha256 === accounting.accounting_sha256
+  && same(allocation.source_remaining, budget.remaining)
+  && same(allocation.profile, budget.profile)
 // Validate the grant lineage from authenticated root-ledger events, including
 // repeated rework. The user explicitly authorized unlimited rework only;
 // initial worker grants and their historical accounting are left untouched.
@@ -67,6 +111,7 @@ function fixedSource(events, workerId, seen = new Set()) {
     || bound[0].data.owner_session_id !== workerId) throw budgetError('REWORK_SOURCE_INVALID')
   const a = issued[0].data
   if (a.authority !== binding.authority || a.run_id !== binding.run_id || a.label !== binding.label
+    || (a.resume_id ?? null) !== (binding.resume_id ?? null)
     || (a.subtask ?? null) !== (binding.subtask ?? null)
     || !same(a.profile, data.profile) || !same(binding.profile, data.profile)
     || !['implementer', 'tester', 'reviewer'].includes(a.label)) throw budgetError('REWORK_SOURCE_INVALID')
@@ -82,17 +127,24 @@ function fixedSource(events, workerId, seen = new Set()) {
     const expected = run.profile.mode === 'unlimited' ? { mode: 'unlimited' }
       : { mode: run.profile.mode, tokenLimit: chosen.tokenLimit, callLimit: chosen.callLimit }
     if (!same(expected, data.profile)) throw budgetError('REWORK_SOURCE_INVALID')
+    if (a.resume_id != null) resumedAllocation(events, a)
   } else {
     if (binding.source_worker_session_id !== a.source_worker_session_id
       || events.some(e => e.type === eventName('rework-revoked') && e.data?.allocation_id === a.allocation_id)) throw budgetError('REWORK_SOURCE_INVALID')
     const source = fixedSource(events, a.source_worker_session_id, seen)
     if ((a.subtask ?? null) !== (source.allocation.subtask ?? null)) throw budgetError('REWORK_SOURCE_INVALID')
-    const attribution = validReworkProfile(a.profile) ? reworkAttribution(a.profile) : null
+    const accounting = source.accounting, budget = sourceRemaining(source.profile, accounting.consumption)
+    const ordinaryAttribution = validReworkProfile(a.profile) ? reworkAttribution(a.profile) : null
+    const attributionValid = a.budget_origin === 'source_remaining_report_repair'
+      ? reportRepairEvidenceMatches(a, source, accounting, budget)
+      : !!ordinaryAttribution && a.budget_origin === ordinaryAttribution.budget_origin && a.decided_by === ordinaryAttribution.decided_by
     if (a.source_allocation_id !== source.allocation.allocation_id || a.run_id !== source.allocation.run_id
-      || a.label !== source.allocation.label || !attribution
-      || a.budget_origin !== attribution.budget_origin || a.decided_by !== attribution.decided_by) throw budgetError('REWORK_SOURCE_INVALID')
+      || a.label !== source.allocation.label || !attributionValid) throw budgetError('REWORK_SOURCE_INVALID')
+    if (a.budget_origin === 'source_remaining_report_repair' && !budget.profile) throw budgetError('REWORK_SOURCE_INVALID')
   }
-  return { profile: data.profile, binding, allocation: a }
+  const accounting = sourceAccounting(events, workerId)
+  return { profile: data.profile, binding, allocation: a, accounting,
+    budget: sourceRemaining(data.profile, accounting.consumption) }
 }
 
 function assignment(session, incoming) {
@@ -111,7 +163,17 @@ export function workerBudgetProfile(config, rootId) {
   const matches = (config.workerBudgetSessionOverrides || []).filter(item => item?.sessionId === rootId)
   if (matches.length > 1) throw budgetError('WORKER_BUDGET_DUPLICATE_OVERRIDE')
   const selected = matches[0], mode = selected?.mode ?? config.workerBudgetMode ?? 'unlimited'
-  if (!['unlimited', 'manual', 'auto'].includes(mode)) throw budgetError('WORKER_BUDGET_MODE_INVALID')
+  // Auto (Lead-estimated per-role budgets) was removed: pre-estimation carries
+  // no model knowledge (route caps, context windows) and its first live run
+  // (88122af1) mispriced every role. Stored auto settings fall back to the
+  // manual fixed rail; historical auto ledgers stay replayable through their
+  // own frozen records.
+  if (mode === 'auto') {
+    const tokenLimit = selected?.tokenLimit ?? config.workerTokenLimit, callLimit = selected?.callLimit ?? config.workerCallLimit
+    if (!positive(tokenLimit) || !positive(callLimit)) throw budgetError('WORKER_BUDGET_LIMIT_INVALID')
+    return { mode: 'manual', tokenLimit, callLimit }
+  }
+  if (!['unlimited', 'manual'].includes(mode)) throw budgetError('WORKER_BUDGET_MODE_INVALID')
   if (mode !== 'manual') return { mode }
   const tokenLimit = selected?.tokenLimit ?? config.workerTokenLimit, callLimit = selected?.callLimit ?? config.workerCallLimit
   if (!positive(tokenLimit) || !positive(callLimit)) throw budgetError('WORKER_BUDGET_LIMIT_INVALID')
@@ -196,7 +258,7 @@ export class WorkerBudgetRuntime {
     this.states.set(session.id, state)
     return state
   }
-  async beginTeamRun(parent, { roles, decisions, expectedProfile }) {
+  async beginTeamRun(parent, { roles, expectedProfile }) {
     const root = this.trustedLead(parent), profile = workerBudgetProfile(this.config(), root.id)
     // Route preflight may await while user settings change. Compare the resolved
     // policy before any ledger write; an admitted team keeps this frozen policy.
@@ -204,28 +266,67 @@ export class WorkerBudgetRuntime {
       throw budgetError('WORKER_BUDGET_SETTINGS_CHANGED', 'Worker budget settings changed during team preflight. Start again using the current user settings.')
     }
     if (!Array.isArray(roles) || !roles.length || new Set(roles).size !== roles.length || roles.some(r => !['implementer', 'tester', 'reviewer'].includes(r))) throw budgetError('WORKER_BUDGET_ROLES_INVALID')
-    const chosen = {}
-    if (profile.mode === 'auto') {
-      if (!decisions || typeof decisions !== 'object' || Object.keys(decisions).some(r => !roles.includes(r))) throw decisionRequired()
-      for (const role of roles) {
-        const entry = decisions[role]
-        // Parallel implementer phases pass one decision per subtask, index-aligned.
-        const list = Array.isArray(entry) ? entry : [entry]
-        if (!list.length) throw decisionRequired()
-        const validated = list.map(value => { const d = validateWorkerDecision({ ...value, task: role }); return { tokenLimit: d.tokenLimit, callLimit: d.callLimit, reason: d.reason } })
-        chosen[role] = Array.isArray(entry) ? validated : validated[0]
-      }
-    } else if (decisions !== undefined) throw budgetError('USER_WORKER_LIMITS_AUTHORITATIVE')
-    const record = { run_id: randomUUID(), profile: plain(profile), roles: [...roles], decisions: chosen, frozen_at: Date.now() }
+    // decisions stays structurally present for replay of historical Auto
+    // ledgers; new records never carry a Lead-chosen per-role grant.
+    const record = { run_id: randomUUID(), profile: plain(profile), roles: [...roles], decisions: {}, frozen_at: Date.now() }
     await this.append(root.id, 'team-run', record)
     const handle = Object.freeze({ run_id: record.run_id, profile: Object.freeze({ ...profile }) })
     this.teamRuns.set(handle, { root, record, issued: new Set(), closed: false }); return handle
+  }
+  async teamRunRecoveryStatus(parent, request) {
+    const root = this.trustedLead(parent)
+    if (!request || typeof request !== 'object' || Array.isArray(request)
+      || Object.keys(request).some(key => key !== 'runId') || typeof request.runId !== 'string' || !request.runId) throw budgetError('WORKER_BUDGET_RESUME_REQUEST_INVALID')
+    const events = await this.events(root), runId = request.runId
+    const runs = events.filter(e => e.type === eventName('team-run') && e.data?.run_id === runId)
+    if (runs.length !== 1) throw budgetError('WORKER_BUDGET_RESUME_SOURCE_INVALID')
+    const claims = events.filter(e => e.type === eventName('team-run-resumed') && e.data?.run_id === runId)
+    if (claims.length > 1) throw budgetError('WORKER_BUDGET_RESUME_SOURCE_INVALID')
+    if (!claims.length) return { claimed: false, resume_id: null, ended: false, issued_roles: [] }
+    const claim = claims[0].data
+    const issued = events.filter(e => e.type === eventName('allocation') && e.data?.authority === 'fixed-team-run'
+      && e.data?.run_id === runId && e.data?.resume_id === claim.resume_id)
+    return { claimed: true, resume_id: claim.resume_id,
+      ended: events.some(e => e.type === eventName('team-run-resume-ended') && e.data?.run_id === runId && e.data?.resume_id === claim.resume_id),
+      issued_roles: [...new Set(issued.map(e => e.data.label))] }
+  }
+  async resumeTeamRun(parent, request) {
+    const root = this.trustedLead(parent)
+    if (!request || typeof request !== 'object' || Array.isArray(request)
+      || Object.keys(request).some(key => !['runId', 'roles', 'expectedProfile'].includes(key))) throw budgetError('WORKER_BUDGET_RESUME_REQUEST_INVALID')
+    const { runId, roles, expectedProfile } = request
+    if (typeof runId !== 'string' || !runId || !Array.isArray(roles) || !roles.length
+      || new Set(roles).size !== roles.length || roles.some(role => !['tester', 'reviewer'].includes(role))) throw budgetError('WORKER_BUDGET_RESUME_REQUEST_INVALID')
+    const resumeId = randomUUID()
+    const tx = await this.journal.transaction(root.id, snapshot => {
+      const events = (snapshot.events || []).filter(e => e.data?.root_session_id === root.id)
+      const runs = events.filter(e => e.type === eventName('team-run') && e.data?.run_id === runId)
+      if (runs.length !== 1) throw budgetError('WORKER_BUDGET_RESUME_SOURCE_INVALID')
+      const record = runs[0].data
+      const ended = events.filter(e => e.type === eventName('team-run-ended') && e.data?.run_id === runId)
+      if (ended.length !== 1 || events.indexOf(ended[0]) <= events.indexOf(runs[0])) throw budgetError('WORKER_BUDGET_RESUME_SOURCE_NOT_ENDED')
+      if (events.some(e => e.type === eventName('team-run-resumed') && e.data?.run_id === runId)) throw budgetError('WORKER_BUDGET_RESUME_ALREADY_CLAIMED')
+      if (roles.some(role => !record.roles.includes(role))) throw budgetError('WORKER_BUDGET_RESUME_ROLE_NOT_PLANNED')
+      if (events.some(e => e.type === eventName('allocation') && e.data?.run_id === runId && roles.includes(e.data?.label))) throw budgetError('WORKER_BUDGET_ROLE_ALREADY_ISSUED')
+      const current = workerBudgetProfile(this.config(), root.id)
+      if (!same(current, record.profile) || (expectedProfile !== undefined && !same(current, expectedProfile))) {
+        throw budgetError('WORKER_BUDGET_SETTINGS_CHANGED', 'The original and current worker budget policies must match before resuming unissued roles.')
+      }
+      const data = { version: 3, root_session_id: root.id, owner_session_id: root.id,
+        run_id: runId, resume_id: resumeId, roles: [...roles], profile: plain(record.profile),
+        budget_origin: 'unissued_original_role', resumed_at: Date.now() }
+      return { events: [{ type: eventName('team-run-resumed'), data }], result: plain(record) }
+    })
+    const handle = Object.freeze({ run_id: runId, resume_id: resumeId, profile: Object.freeze({ ...tx.result.profile }) })
+    this.teamRuns.set(handle, { root, record: tx.result, resumeId, roles: [...roles], issued: new Set(), closed: false })
+    return handle
   }
   async issueTeamWorker(parent, handle, { task, label, subtask = null, subtaskIndex = null, attempt = 0 }) {
     const root = this.trustedLead(parent), team = this.teamRuns.get(handle)
     if (!team || team.closed || team.root !== root) throw budgetError('WORKER_BUDGET_TEAM_HANDLE_INVALID')
     const key = subtask === null ? label : `${label}#${subtask}${attempt ? `#wake${attempt}` : ''}`
     if (!team.record.roles.includes(label) || team.issued.has(key) || typeof task !== 'string' || !task.trim()) throw budgetError('WORKER_BUDGET_ROLE_ALREADY_ISSUED')
+    if (team.resumeId && (!team.roles.includes(label) || subtask !== null || subtaskIndex !== null || attempt !== 0)) throw budgetError('WORKER_BUDGET_RESUME_ROLE_NOT_PLANNED')
     let choice = team.record.decisions[label]
     if (Array.isArray(choice)) {
       if (!Number.isSafeInteger(subtaskIndex) || subtaskIndex < 0 || subtaskIndex >= choice.length) throw decisionRequired()
@@ -236,7 +337,21 @@ export class WorkerBudgetRuntime {
     const data = { authority: 'fixed-team-run', allocation_id, run_id: team.record.run_id, task, task_sha256: hash(task), prompt_sha256: hash(prompt), prompt, label, profile,
       ...(subtask === null ? {} : { subtask, subtask_index: subtaskIndex }),
       ...(choice || {}), decided_at: team.record.frozen_at, decided_by: team.record.profile.mode === 'auto' ? 'current_lead_tool_call' : 'user_settings_at_team_start' }
-    await this.append(root.id, 'allocation', data); team.issued.add(key)
+    if (team.resumeId) {
+      data.resume_id = team.resumeId
+      data.budget_origin = 'unissued_original_role'
+      await this.journal.transaction(root.id, snapshot => {
+        const events = (snapshot.events || []).filter(e => e.data?.root_session_id === root.id)
+        const claims = events.filter(e => e.type === eventName('team-run-resumed') && e.data?.resume_id === team.resumeId)
+        if (team.closed || claims.length !== 1 || claims[0].data.run_id !== team.record.run_id
+          || !claims[0].data.roles.includes(label)
+          || events.some(e => e.type === eventName('team-run-resume-ended') && e.data?.resume_id === team.resumeId)) throw budgetError('WORKER_BUDGET_TEAM_HANDLE_INVALID')
+        if (!same(workerBudgetProfile(this.config(), root.id), team.record.profile)) throw budgetError('WORKER_BUDGET_SETTINGS_CHANGED')
+        if (events.some(e => e.type === eventName('allocation') && e.data?.run_id === team.record.run_id && e.data?.label === label)) throw budgetError('WORKER_BUDGET_ROLE_ALREADY_ISSUED')
+        return { events: [{ type: eventName('allocation'), data: { version: 3, root_session_id: root.id, owner_session_id: root.id, ...data } }] }
+      })
+    } else await this.append(root.id, 'allocation', data)
+    team.issued.add(key)
     return { allocation_id, prompt, profile: { ...profile }, ...(choice || {}) }
   }
   async finishTeamRun(parent, handle) {
@@ -244,7 +359,11 @@ export class WorkerBudgetRuntime {
     if (!team || team.closed) return
     if (parent?.session !== team.root) throw budgetError('WORKER_BUDGET_LEAD_REQUIRED')
     team.closed = true
-    try { await this.append(team.root.id, 'team-run-ended', { run_id: team.record.run_id, ended_at: Date.now(), unbound_allocations: 'revoked' }) } finally { this.teamRuns.delete(handle) }
+    try {
+      await this.append(team.root.id, team.resumeId ? 'team-run-resume-ended' : 'team-run-ended', {
+        run_id: team.record.run_id, ...(team.resumeId ? { resume_id: team.resumeId } : {}),
+        ended_at: Date.now(), unbound_allocations: 'revoked' })
+    } finally { this.teamRuns.delete(handle) }
   }
   reworkSourceSession(root, workerId) {
     const source = this.resolveSession(workerId) || this.states.get(workerId)?.session
@@ -292,6 +411,41 @@ export class WorkerBudgetRuntime {
     })
     return tx.result
   }
+  async issueReportRepair(parent, request) {
+    const root = this.trustedLead(parent)
+    if (!request || typeof request !== 'object' || Array.isArray(request)) throw budgetError('REPORT_REPAIR_REQUEST_INVALID')
+    if (Object.keys(request).some(key => !['workerSessionId', 'task'].includes(key))) throw budgetError('REPORT_REPAIR_BUDGET_OVERRIDES_NOT_ALLOWED')
+    const { workerSessionId, task } = request
+    if (typeof workerSessionId !== 'string' || !workerSessionId || typeof task !== 'string' || !task.trim()) throw budgetError('REPORT_REPAIR_REQUEST_INVALID')
+    this.reworkSourceSession(root, workerSessionId)
+    const allocation_id = randomUUID(), prompt = `${reworkMarker(allocation_id)}\n${task}`
+    const tx = await this.journal.transaction(root.id, snapshot => {
+      const events = (snapshot.events || []).filter(e => e.data?.root_session_id === root.id)
+      const { terminal } = this.reworkSourceSession(root, workerSessionId)
+      const source = fixedSource(events, workerSessionId)
+      if (!['tester', 'reviewer'].includes(source.allocation.label)) throw budgetError('REPORT_REPAIR_ROLE_UNSUPPORTED')
+      if (reworkAllocations(events, workerSessionId).length) throw budgetError('REWORK_ALREADY_CLAIMED')
+      const accounting = source.accounting, budget = sourceRemaining(source.profile, accounting.consumption)
+      if (!budget.profile) throw budgetError('REPORT_REPAIR_NO_REMAINING_BUDGET')
+      const attribution = reportRepairAttribution()
+      const data = { version: 3, root_session_id: root.id, owner_session_id: root.id,
+        authority: 'fixed-team-rework', allocation_id, run_id: source.allocation.run_id,
+        source_worker_session_id: workerSessionId, source_allocation_id: source.allocation.allocation_id,
+        ...attribution, source_profile: source.profile, source_consumption: accounting.consumption,
+        source_accounting_sha256: accounting.accounting_sha256, source_remaining: budget.remaining,
+        source_terminal: { seq: terminal.seq ?? null, at: terminal.time ?? null, kind: terminal.data.reason.kind },
+        task, task_sha256: hash(task), prompt_sha256: hash(prompt), prompt, label: source.allocation.label,
+        ...(source.allocation.subtask != null ? { subtask: source.allocation.subtask, subtask_index: source.allocation.subtask_index } : {}),
+        profile: budget.profile,
+        ...(budget.profile.mode === 'unlimited' ? {} : { tokenLimit: budget.profile.tokenLimit, callLimit: budget.profile.callLimit }),
+        reason: 'Report-only continuation reuses the authenticated source worker budget remaining after its terminal report.',
+        decided_at: Date.now() }
+      return { events: [{ type: eventName('allocation'), data }], result: {
+        allocation_id, prompt, profile: budget.profile, authority: data.authority, run_id: data.run_id,
+        role: data.label, source_worker_session_id: workerSessionId, source_remaining: budget.remaining } }
+    })
+    return tx.result
+  }
   async revokeRework(parent, allocationId) {
     const root = this.trustedLead(parent)
     const tx = await this.journal.transaction(root.id, snapshot => {
@@ -330,11 +484,17 @@ export class WorkerBudgetRuntime {
       if (claims.length !== 1 || claims[0].data.allocation_id !== allocationId) throw decisionRequired()
       this.reworkSourceSession(root, a.source_worker_session_id)
       const source = fixedSource(events, a.source_worker_session_id)
-      settledCalls(events, a.source_worker_session_id)
-      const attribution = validReworkProfile(a.profile) ? reworkAttribution(a.profile) : null
+      const accounting = sourceAccounting(events, a.source_worker_session_id)
+      if (accounting.accounting_sha256 !== source.accounting.accounting_sha256
+        || !same(accounting.consumption, source.accounting.consumption)) throw budgetError('REWORK_SOURCE_INVALID')
+      const budget = sourceRemaining(source.profile, accounting.consumption)
+      const ordinaryAttribution = validReworkProfile(a.profile) ? reworkAttribution(a.profile) : null
+      const attributionValid = a.budget_origin === 'source_remaining_report_repair'
+        ? reportRepairEvidenceMatches(a, source, accounting, budget)
+        : !!ordinaryAttribution && a.budget_origin === ordinaryAttribution.budget_origin && a.decided_by === ordinaryAttribution.decided_by
       if (a.source_allocation_id !== source.allocation.allocation_id || a.run_id !== source.allocation.run_id
-        || a.label !== source.allocation.label || (a.subtask ?? null) !== (source.allocation.subtask ?? null) || !attribution
-        || a.budget_origin !== attribution.budget_origin || a.decided_by !== attribution.decided_by) throw budgetError('REWORK_SOURCE_INVALID')
+        || a.label !== source.allocation.label || (a.subtask ?? null) !== (source.allocation.subtask ?? null) || !attributionValid) throw budgetError('REWORK_SOURCE_INVALID')
+      if (a.budget_origin === 'source_remaining_report_repair' && !budget.profile) throw budgetError('REWORK_SOURCE_INVALID')
       const bound = events.filter(e => e.type === eventName('allocation-bound') && e.data?.allocation_id === allocationId)
       if (bound.length > 1 || bound.some(e => e.data.worker_session_id !== session.id)) throw decisionRequired()
       return { events: bound.length ? [] : [{ type: eventName('allocation-bound'), data: {
@@ -349,14 +509,7 @@ export class WorkerBudgetRuntime {
     })
     return tx.result
   }
-  async plan(parent, requested) {
-    const root = this.trustedLead(parent)
-    if (workerBudgetProfile(this.config(), root.id).mode !== 'auto') throw budgetError('WORKER_BUDGET_AUTO_REQUIRED')
-    const d = validateWorkerDecision(requested), allocation_id = randomUUID(), prompt = `${marker(allocation_id)}\n${d.task}`
-    const data = { allocation_id, task_sha256: hash(d.task), prompt_sha256: hash(prompt), ...d, prompt, decided_at: Date.now(), decided_by: 'current_lead_tool_call' }
-    const result = await this.append(root.id, 'allocation', data)
-    return { allocation_id, prompt, tokenLimit: d.tokenLimit, callLimit: d.callLimit, reason: d.reason, audit: { revision: result.journal.revision, head_hash: result.journal.head_hash } }
-  }
+  async plan() { throw budgetError('WORKER_BUDGET_AUTO_REQUIRED', 'Auto worker budgets were removed; worker limits come from user settings only.') }
   async allocation(root, session, incoming, fixed) {
     if (session.header?.parentSession !== root.id) throw decisionRequired()
     const prompt = assignment(session, incoming), found = (fixed ? /^\[DPSWARM_FIXED_WORKER_BUDGET_V1:([0-9a-f-]{36})\]\n/ : /^\[DPSWARM_WORKER_BUDGET_V1:([0-9a-f-]{36})\]\n/).exec(prompt)
@@ -383,8 +536,9 @@ export class WorkerBudgetRuntime {
       if (profile.mode === 'auto') validateWorkerDecision(a)
       const bindings = events.filter(e => e.type === eventName('allocation-bound') && e.data.allocation_id === allocationId)
       if (bindings.some(e => e.data.worker_session_id !== session.id) || bindings.length > 1) throw decisionRequired()
-      if (fixed && !bindings.length && events.some(e => e.type === eventName('team-run-ended') && e.data.run_id === a.run_id)) throw decisionRequired()
-      const result = { allocation_id: allocationId, task_sha256: a.task_sha256, profile, ...(profile.mode === 'unlimited' ? {} : { tokenLimit: profile.tokenLimit, callLimit: profile.callLimit }), ...(a.reason === undefined ? {} : { reason: a.reason }), ...(fixed ? { run_id: a.run_id, authority: a.authority } : {}), ...(a.label === undefined ? {} : { label: a.label }), ...(a.subtask != null ? { subtask: a.subtask, subtask_index: a.subtask_index } : {}), decided_by: a.decided_by, decided_at: a.decided_at }
+      if (fixed && a.resume_id != null) resumedAllocation(events, a, { active: !bindings.length })
+      else if (fixed && !bindings.length && events.some(e => e.type === eventName('team-run-ended') && e.data.run_id === a.run_id)) throw decisionRequired()
+      const result = { allocation_id: allocationId, task_sha256: a.task_sha256, profile, ...(profile.mode === 'unlimited' ? {} : { tokenLimit: profile.tokenLimit, callLimit: profile.callLimit }), ...(a.reason === undefined ? {} : { reason: a.reason }), ...(fixed ? { run_id: a.run_id, authority: a.authority, ...(a.resume_id == null ? {} : { resume_id: a.resume_id }) } : {}), ...(a.label === undefined ? {} : { label: a.label }), ...(a.subtask != null ? { subtask: a.subtask, subtask_index: a.subtask_index } : {}), decided_by: a.decided_by, decided_at: a.decided_at }
       return { events: bindings.length ? [] : [{ type: eventName('allocation-bound'), data: { version: 3, root_session_id: root.id, allocation_id: allocationId, worker_session_id: session.id, owner_session_id: session.id, task_sha256: a.task_sha256, bound_at: Date.now() } }], result }
     })
     return tx.result
@@ -435,6 +589,7 @@ async initialize(session, incoming, signal) {
       if (profile.mode === 'auto') decision = allocation
       if (fixed) policyBinding = { authority: allocation.authority, run_id: allocation.run_id,
         allocation_id: allocation.allocation_id, label: allocation.label, profile,
+        ...(allocation.resume_id == null ? {} : { resume_id: allocation.resume_id }),
         ...(allocation.subtask != null ? { subtask: allocation.subtask } : {}),
         ...(rework ? { source_worker_session_id: allocation.source_worker_session_id } : {}) }
     }
@@ -496,16 +651,29 @@ async initialize(session, incoming, signal) {
     try { await this.append(state.rootId, 'denied', data) }
     catch { state.auditFailure = 'WORKER_BUDGET_DENIAL_NOT_PERSISTED' }
   }
-  async prepareCloseout(state, { inputEstimate, finalInputEstimate = inputEstimate }, signal) {
+  async prepareCloseout(state, { inputEstimate, finalInputEstimate = inputEstimate, recoveryInputEstimate = 0 }, signal) {
     if (!state || state.profile.mode === 'unlimited') return state
     return this.serial(state, async () => {
       signal?.throwIfAborted()
       this.guard(state)
       const budget = this.budgetDetails(state, 'pre_step')
       if (!Number.isSafeInteger(inputEstimate) || inputEstimate < 1
-        || !Number.isSafeInteger(finalInputEstimate) || finalInputEstimate < 1) throw budgetError('WORKER_REQUEST_ENVELOPE_UNAVAILABLE')
-      const forecast = closeoutForecast({ remainingTokens: budget.remaining_tokens,
-        remainingCalls: budget.remaining_calls, inputEstimate, finalInputEstimate })
+        || !Number.isSafeInteger(finalInputEstimate) || finalInputEstimate < 1
+        || !Number.isSafeInteger(recoveryInputEstimate) || recoveryInputEstimate < 0) throw budgetError('WORKER_REQUEST_ENVELOPE_UNAVAILABLE')
+      // The production caller passes one further full closeout-shaped input
+      // here: a visible-tool closeout can spend one refused tool attempt
+      // before its report call. A zero estimate keeps the legacy tool-free
+      // single-report behavior; the reserve never authorizes another call by
+      // itself.
+      const recoveryCalls = recoveryInputEstimate > 0 ? 1 : 0
+      const recoverySlack = Math.ceil(recoveryInputEstimate * CLOSEOUT_ESTIMATE_SLACK_RATIO)
+      const recoveryReserve = recoveryInputEstimate + recoverySlack + (recoveryCalls ? CLOSEOUT_OUTPUT_RESERVE : 0)
+      const forecast = { ...closeoutForecast({ remainingTokens: budget.remaining_tokens - recoveryReserve,
+        remainingCalls: budget.remaining_calls - recoveryCalls, inputEstimate, finalInputEstimate }),
+        recovery_input_estimate: recoveryInputEstimate, recovery_estimate_slack: recoverySlack,
+        recovery_token_reserve: recoveryReserve, recovery_call_reserve: recoveryCalls,
+      }
+      if (recoveryCalls) forecast.forecast_limitations += ' A visible-tool closeout may spend one refused tool-attempt step, so one further full report input, its estimate slack and output allowance are reserved; generated arguments and multiple refusals can still grow history beyond the forecast.'
       state.stepBudget = forecast
       if (!state.closeout && forecast.final_only) {
         const data = { version: 3, root_session_id: state.rootId, worker_session_id: state.session.id, owner_session_id: state.session.id,
@@ -519,24 +687,42 @@ async initialize(session, incoming, signal) {
       return state
     })
   }
-  outputLimit(state, inputEstimate, requested) {
+  outputLimit(state, inputEstimate, requested, routeCap = null) {
     if (!state || state.profile.mode === 'unlimited') return requested
     this.guard(state)
     const remaining = state.profile.tokenLimit - this.totals(state).committed_tokens
     const input = Math.max(1, inputEstimate), remain = remaining - input
     if (remain < 1) throw budgetError('WORKER_TOKEN_RESERVATION_DENIED', 'WORKER_TOKEN_RESERVATION_DENIED', this.budgetDetails(state, 'request_output_limit', input, 1))
-    // Rail model: the request keeps its full output bound. The closeout park —
-    // not a progressive squeeze — is what protects the final delivery.
-    return Math.min(positive(requested) ? requested : remain, remain)
+    // A normal attempt may fail without usage or use its full output bound.
+    // Reserve a report input/output inside the same grant, plus room to carry
+    // that generated output into its report context. A final report itself can
+    // use the entire remaining allowance. Unknown attempts remain charged.
+    const reserve = !state.closeout ? state.stepBudget?.final_report_reserve || 0 : 0
+    const available = reserve ? Math.max(1, Math.floor((remain - reserve) / 2)) : remain
+    // A cumulative rail can exceed what the route accepts in one request
+    // (glm rejects max_tokens above 131072); a host-observed per-route cap
+    // wins over both the requested value and the rail's remaining allowance.
+    const limit = Math.min(positive(requested) ? requested : available, available, ...(positive(routeCap) ? [routeCap] : []))
+    state.requestBudget = { input_estimate: input, remaining_tokens: remaining,
+      final_report_reserve: reserve, output_context_reserve: reserve ? limit : 0, output_limit: limit,
+      route_output_cap: positive(routeCap) ? routeCap : null }
+    return limit
   }
   serial(state, work) { const next = state.serial.catch(() => undefined).then(work); state.serial = next; return next }
-async admit(state, options) {
+async admit(state, options, pricing = null) {
     if (!state) return null
     return this.serial(state, async () => {
       options.signal?.throwIfAborted()
       const unlimited = state.profile.mode === 'unlimited'
       if (!unlimited && state.phase !== 'ready') throw budgetError(state.failure || 'WORKER_BUDGET_NOT_READY')
       const estimate = estimateRequestTokens(options)
+      // Only the bridge may supply a fresh estimate for this frozen request.
+      // Request/model content never controls it, and serialization remains an
+      // independent lower bound. The value becomes the durable reservation.
+      if (pricing !== null) {
+        if (!positive(pricing.inputEstimate)) throw budgetError('WORKER_REQUEST_PRICING_UNAVAILABLE')
+        estimate.input = Math.max(estimate.input, pricing.inputEstimate)
+      }
       if (!unlimited && estimate.output === null) {
         const error = budgetError('WORKER_OUTPUT_LIMIT_REQUIRED')
         await this.recordDenied(state, error, 'stream_admission', estimate.input, null)
@@ -566,16 +752,19 @@ async admit(state, options) {
               state.closeout = plain(closeout)
               if (options.purpose === 'compaction') denied('WORKER_CLOSEOUT_CM_DEFERRED')
               // Tool schemas stay in the request: DeepSeek-class models answer a
-              // tools-stripped prompt with DSML markup instead of prose (20:24
-              // run). Execution is denied at the tool gate; allow one tool-attempt
+              // tools-stripped prompt with DSML markup instead of prose (0.8.3,
+              // and again all three roles in the 0.14.1 pelican live run).
+              // Execution is denied at the tool gate; allow one tool-attempt
               // step plus the final report call.
               if (totals.calls >= closeout.calls_at_closeout + 2) denied('WORKER_CLOSEOUT_ALREADY_SENT')
-              if (!requestSystemText(options).includes(CLOSEOUT_MARKER)) denied('WORKER_CLOSEOUT_INSTRUCTION_MISSING')
+              const system = requestSystemText(options)
+              if (!system.includes(CLOSEOUT_MARKER) && !system.includes(BUDGET_POLICY_MARKER)) denied('WORKER_CLOSEOUT_INSTRUCTION_MISSING')
             }
 
             if (options.purpose === 'compaction' && state.stepBudget
-              && (state.profile.callLimit - totals.calls <= 1
-                || state.profile.tokenLimit - totals.committed_tokens - reservation < state.stepBudget.next_input_reserve + CLOSEOUT_OUTPUT_RESERVE)) denied('WORKER_CLOSEOUT_CM_DEFERRED')
+              && (state.profile.callLimit - totals.calls <= 1 + (state.stepBudget.recovery_call_reserve || 0)
+                || state.profile.tokenLimit - totals.committed_tokens - reservation < state.stepBudget.next_input_reserve
+                  + (state.stepBudget.recovery_token_reserve || 0) + CLOSEOUT_OUTPUT_RESERVE)) denied('WORKER_CLOSEOUT_CM_DEFERRED')
             if (totals.calls >= state.profile.callLimit) denied('WORKER_CALL_LIMIT_REACHED')
             if (totals.committed_tokens >= state.profile.tokenLimit || totals.committed_tokens + reservation > state.profile.tokenLimit) {
               denied('WORKER_TOKEN_RESERVATION_DENIED')
@@ -609,11 +798,16 @@ async admit(state, options) {
       const u = budgetUsage(rawUsage), data = { worker_session_id: state.session.id, owner_session_id: state.session.id, call_id: call.call_id, status: outcome || 'completed', usage: u.usage, usage_complete: u.complete, observed_tokens: u.total, finished_at: Date.now(), failure: failure || null }
       try { await this.append(state.rootId, 'settled', data) } catch (error) { if (state.profile.mode !== 'unlimited') throw budgetError(error.code || 'WORKER_BUDGET_SETTLEMENT_NOT_DURABLE'); state.auditFailure = 'UNLIMITED_OBSERVATION_NOT_PERSISTED' }
       Object.assign(call, data)
+      // admit() folds durable calls into a fresh Map. Another admitted request
+      // (e.g. CM) can therefore replace this ticket's object while it streams.
+      // Update by authenticated call identity, not just the stale ticket ref.
+      const current = state.calls.get(call.call_id)
+      if (current && current !== call) Object.assign(current, data)
     })
   }
   describe(state) {
     const totals = this.totals(state), limited = state.profile.mode !== 'unlimited'
-    return { worker_session_id: state.session.id, root_session_id: state.rootId, ...state.profile, phase: state.phase, frozen: true, ...totals, remaining_tokens: limited ? Math.max(0, state.profile.tokenLimit - totals.committed_tokens) : null, remaining_calls: limited ? Math.max(0, state.profile.callLimit - totals.calls) : null, decision: state.decision, policy_binding: state.policyBinding || null, failure: state.failure, closeout: state.closeout ? plain(state.closeout) : null, last_denial: state.lastDenial ? plain(state.lastDenial) : null, audit_warning: state.auditFailure || null, recent: [...state.calls.values()].slice(-8).map(c => ({ ...c })) }
+    return { worker_session_id: state.session.id, root_session_id: state.rootId, ...state.profile, phase: state.phase, frozen: true, ...totals, remaining_tokens: limited ? Math.max(0, state.profile.tokenLimit - totals.committed_tokens) : null, remaining_calls: limited ? Math.max(0, state.profile.callLimit - totals.calls) : null, request_budget: state.requestBudget ? plain(state.requestBudget) : null, next_step: { mode: state.closeout ? 'final_only' : 'work', remaining_tokens: limited ? Math.max(0, state.profile.tokenLimit - totals.committed_tokens) : null, remaining_calls: limited ? Math.max(0, state.profile.callLimit - totals.calls) : null, unknown_usage_calls: totals.unknown_usage_calls, input_estimate: state.stepBudget?.input_estimate ?? null, final_input_estimate: state.stepBudget?.final_input_estimate ?? null, final_report_reserve: state.stepBudget?.final_report_reserve ?? null, guidance: state.closeout ? 'Return the final report now as plain text. Tool calls are refused at execution; distinguish verified results from remaining work.' : 'Each next call pays the complete input again. Save progress and read decisive evidence before optional expansion; combine compatible reads. Estimates do not authorize extra calls.' }, decision: state.decision, policy_binding: state.policyBinding || null, failure: state.failure, closeout: state.closeout ? plain(state.closeout) : null, last_denial: state.lastDenial ? plain(state.lastDenial) : null, audit_warning: state.auditFailure || null, recent: [...state.calls.values()].slice(-8).map(c => ({ ...c })) }
   }
   async diagnosticsForSession(sessionId) {
     const known = this.states.get(sessionId)

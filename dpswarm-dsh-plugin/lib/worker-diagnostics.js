@@ -1,6 +1,7 @@
 // Reads trusted native session events only. Never opens candidate paths, parses
 // shell commands, or treats model prose as evidence of a completed file write.
 import { sessionEvents, forkBoundary } from './host-session-compat.js'
+import { pseudoToolCallMarkup, PSEUDO_MARKUP_GUIDANCE } from './output-nature.js'
 
 const copy = value => value == null ? null : JSON.parse(JSON.stringify(value))
 const text = value => typeof value === 'string' && value.length > 0
@@ -106,17 +107,66 @@ function candidatesFrom(events) {
   return { candidates, untracked }
 }
 
+// The host result may repeat the last visible progress message after a later
+// tool call fails. Native terminal + latest assistant/tool events, never prose
+// keywords, determine whether that text is a completed final report.
+function reportEvidence(events, end, result, sessionId, rootId) {
+  const endIndex = end ? events.lastIndexOf(end) : events.length
+  const startIndex = events.findLastIndex(e => e.type === 'turn/start')
+  const current = events.slice(Math.max(0, startIndex), endIndex)
+    .filter(e => e.surfaceOp === undefined || e.surfaceOp === 'append')
+  const messages = current.filter(e => e.type === 'assistant/message')
+  const last = messages.at(-1)
+  const visible = event => (event?.data?.message?.content || [])
+    .filter(b => b?.type === 'text' && typeof b.text === 'string').map(b => b.text).join('\n')
+  const message = messages.findLast(e => visible(e).trim())
+  const output = Array.isArray(result?.output) ? result.output
+    .filter(b => b?.type === 'text' && typeof b.text === 'string').map(b => b.text).join('\n') : ''
+  const messageText = visible(message)
+  const sameOutput = output.trim() && output === messageText
+  const recovered = messageText.trim() ? { text: messageText, source: sameOutput ? 'native-result' : 'native-assistant-message',
+    event_seq: message.seq, turn: message.data?.turn ?? null, step: message.data?.step ?? null,
+    interrupted: message.data?.interrupted === true }
+    : output.trim() ? { text: output, source: 'native-result', event_seq: null, turn: end?.data?.turn ?? null, step: null } : null
+  if (!recovered) return { status: 'missing', basis: 'no-visible-text', report: null, progress: null, final_step_tool_calls: false }
+  const after = message ? current.slice(current.lastIndexOf(message) + 1) : []
+  const toolsAfter = after.some(e => ['tool/call', 'tool/code-dispatch', 'tool/code-dispatch-start'].includes(e.type))
+  const requestsTools = message?.data?.message?.content?.some(b => b?.type === 'tool-call') === true
+    || result?.output?.some?.(b => b?.type === 'tool-call') === true
+  const completed = end?.data?.reason?.kind === 'completed' && result?.stopReason === 'completed'
+  const final = completed && !recovered.interrupted && !requestsTools && !toolsAfter
+    // An empty newer assistant message is evidence against promoting older
+    // visible text, even if result.output repeats that older text. Terminal-only
+    // legacy host fixtures can still return a completed native result.
+    && (!last || message === last)
+  const truncated = recovered.interrupted || end?.data?.reason?.kind === 'max-tokens' || result?.stopReason === 'max-tokens'
+  const status = final ? 'final' : truncated ? 'truncated' : 'progress'
+  const basis = final ? message ? 'native-completed-final-message' : 'native-completed-result'
+    : truncated ? 'native-interrupted-or-output-limit'
+      : message !== last ? 'newer-assistant-message-without-final-text'
+        : toolsAfter || requestsTools ? 'assistant-tool-continuation' : 'native-turn-not-completed'
+  recovered.reference = { kind: 'worker-diagnostic-audit', root_session_id: rootId, worker_session_id: sessionId,
+    field: final ? 'closeout.report' : 'closeout.progress', event_seq: recovered.event_seq,
+    turn: recovered.turn, step: recovered.step }
+  return { status, basis, report: final ? recovered : null, progress: final ? null : recovered,
+    final_step_tool_calls: toolsAfter || requestsTools }
+}
+
+function outputNature(text, finalStepToolCalls, toolsRemovedByBudgetRail) {
+  return { pseudo_tool_markup: text ? pseudoToolCallMarkup(text) : null,
+    final_step_tool_calls: finalStepToolCalls === true,
+    tools_removed_by_budget_rail: toolsRemovedByBudgetRail === true }
+}
+
 export async function workerDiagnostics({ session, sessionId, rootId, role, result, error, signal,
   cleanup, budget, evidenceError }) {
   const evidence = sessionEvidence(session, sessionId, rootId), events = evidence.events
-  const end = events.findLast(e => e.type === 'turn/end')
+  const endIndex = events.findLastIndex(e => e.type === 'turn/end')
+  const startIndex = events.findLastIndex(e => e.type === 'turn/start')
+  const end = endIndex >= startIndex ? events[endIndex] : null
   const nativeTerminal = end ? { reason: copy(end.data.reason), seq: end.seq, at: end.time ?? null } : null
-  const output = Array.isArray(result?.output) ? result.output.filter(b => b?.type === 'text' && typeof b.text === 'string').map(b => b.text).join('\n') : ''
-  const message = events.findLast(e => e.type === 'assistant/message'
-    && e.data?.message?.content?.some(b => b.type === 'text' && text(b.text)))
-  const recoverable = message?.data.message.content.filter(b => b.type === 'text').map(b => b.text).join('\n') || ''
-  const report = output.trim() ? { text: output, source: 'native-result' } : recoverable.trim()
-    ? { text: recoverable, source: 'native-assistant-message', event_seq: message.seq, interrupted: message.data.interrupted === true } : null
+  const reportState = reportEvidence(events, end, result, sessionId, rootId)
+  const { report, progress } = reportState
   let budgetSnapshot = null, budgetError = null
   try {
     budgetSnapshot = await budget?.diagnosticsForSession?.(sessionId) || null
@@ -131,8 +181,12 @@ export async function workerDiagnostics({ session, sessionId, rootId, role, resu
     native_stop_reason: result?.stopReason || null, native_terminal: nativeTerminal, failure,
     budget: copy(budgetSnapshot), evidence: { native_session_available: evidence.available,
       native_terminal_available: nativeTerminal !== null, error: evidenceError || evidence.issue, budget_error: budgetError },
-    closeout: { completion: completed ? 'completed' : report || files.candidates.length ? 'partial' : 'failed',
-      report_available: report !== null, report_source: report?.source || null, report,
+    closeout: { completion: completed ? 'completed' : report || progress || files.candidates.length ? 'partial' : 'failed',
+      report_status: reportState.status, report_basis: reportState.basis,
+      report_available: reportState.status === 'final', report_source: report?.source || null, report,
+      progress_available: progress !== null, progress,
+      output_nature: outputNature(report?.text ?? progress?.text ?? null, reportState.final_step_tool_calls,
+        budgetSnapshot?.closeout?.mode === 'final_only'),
       requires_lead_verification: true, candidates: files.candidates,
       // Exact write/edit only; shell, Code Mode, external tools or a missing log
       // can write too. An empty list never proves there is no recoverable file.
@@ -154,10 +208,40 @@ const budgetFields = ['worker_session_id', 'root_session_id', 'mode', 'tokenLimi
   'remaining_tokens', 'remaining_calls', 'error']
 const denialFields = ['code', 'stage', 'input_estimate', 'output_limit', 'required_reservation', 'remaining_tokens', 'remaining_calls', 'at']
 
+const budgetTotals = ['calls', 'observed_tokens_lower_bound', 'committed_tokens', 'unknown_usage_calls', 'active_calls']
+function workerBudgetSummary(children) {
+  const workers = new Map(), conflicts = new Set()
+  let duplicates = 0, unattributed = 0
+  for (const row of children) {
+    if (!text(row?.worker_session_id)) { unattributed++; continue }
+    if (workers.has(row.worker_session_id)) {
+      duplicates++
+      // Repeated projections are not new usage. Conflicting copies have no
+      // ordering proof here, so do not guess which snapshot is current.
+      if (budgetTotals.some(key => workers.get(row.worker_session_id)[key] !== row[key])) conflicts.add(row.worker_session_id)
+    } else workers.set(row.worker_session_id, row)
+  }
+  const totals = Object.fromEntries(budgetTotals.map(key => {
+    const values = [...workers.values()].map(row => row[key])
+    const sum = values.reduce((n, value) => n + value, 0)
+    return [key, !unattributed && !conflicts.size && values.every(value => Number.isSafeInteger(value) && value >= 0)
+      && Number.isSafeInteger(sum) ? sum : null]
+  }))
+  const observed = totals.observed_tokens_lower_bound, committed = totals.committed_tokens
+  return { scope: 'worker-only; Lead usage excluded', workers: workers.size,
+    duplicate_rows_omitted: duplicates, unattributed_rows: unattributed, conflicting_workers: conflicts.size,
+    coverage: 'All distinct worker rows returned by this status, before detail truncation; workers unavailable to the runtime are not included.',
+    ...totals, unobserved_reserved_tokens: observed !== null && committed !== null && committed >= observed ? committed - observed : null,
+    accounting_note: 'Committed includes observed usage and outstanding reservations. Unobserved reserves include active or missing/partial usage and are not confirmed consumption. Null totals mean incomplete or conflicting rows.',
+    remaining_scope: 'Individual worker remaining values only; historical or reused grants do not form a transferable team pool.',
+    cost_note: 'Raw token counts include cache tokens; cache, input and output can have different prices. These counts are not a cost total.' }
+}
+
 export function compactBudgetStatus(value) {
   if (!value || typeof value !== 'object') return value || null
   if (Array.isArray(value.children)) return { scope: value.scope, lead_limited: value.lead_limited,
     configured: fields(value.configured, ['mode', 'tokenLimit', 'callLimit']),
+    summary: workerBudgetSummary(value.children),
     children: value.children.slice(-6).map(compactBudgetStatus), children_total: value.children.length,
     children_omitted: Math.max(0, value.children.length - 6), coverage: value.coverage,
     detail_source: 'authenticated /api/plugin-audit; per-call receipts omitted from model view' }
@@ -171,7 +255,24 @@ export function compactBudgetStatus(value) {
 export function compactWorkerDiagnostic(value) {
   if (!value || typeof value !== 'object') return null
   const closeout = value.closeout || {}, candidates = Array.isArray(closeout.candidates) ? closeout.candidates : []
-  const report = closeout.report
+  // Legacy ledgers did not distinguish progress from final text. Preserve their
+  // text for recovery, but never upgrade an unclassified entry to a final report.
+  const status = closeout.report_status || (closeout.report?.text ? 'unclassified' : 'missing')
+  const report = status === 'final' ? closeout.report : null
+  const progress = closeout.progress || (status === 'unclassified' ? closeout.report : null)
+  const compactText = entry => entry ? { text: excerpt(entry.text, 600),
+    original_chars: entry.text?.length || 0, truncated: (entry.text?.length || 0) > 600,
+    source: entry.source, interrupted: entry.interrupted, event_seq: entry.event_seq,
+    turn: entry.turn, step: entry.step, reference: copy(entry.reference) } : null
+  // Diagnostics recorded before output_nature existed still carry their text;
+  // recompute the advisory markup classification for them without upgrading
+  // any report status.
+  let outputNature = closeout.output_nature || null
+  if (!outputNature) {
+    const markup = pseudoToolCallMarkup(report?.text ?? progress?.text ?? '')
+    if (markup) outputNature = { pseudo_tool_markup: markup, final_step_tool_calls: null,
+      tools_removed_by_budget_rail: null, recomputed_from_text: true }
+  }
   return { version: value.version, role: value.role, worker_session_id: value.worker_session_id,
     native_stop_reason: value.native_stop_reason,
     native_terminal: value.native_terminal ? { seq: value.native_terminal.seq, at: value.native_terminal.at,
@@ -180,10 +281,12 @@ export function compactWorkerDiagnostic(value) {
         reason: fields(value.native_terminal.reason?.reason, ['kind']) } } : null,
     failure: fields(value.failure, ['code', 'category', 'source', 'phase', 'raw_code', 'message']),
     budget: compactBudgetStatus(value.budget),
-    closeout: { completion: closeout.completion, report_available: closeout.report_available,
-      report_source: closeout.report_source, report: report ? { text: excerpt(report.text, 600),
-        original_chars: report.text?.length || 0, truncated: (report.text?.length || 0) > 600,
-        source: report.source, interrupted: report.interrupted } : null,
+    closeout: { completion: closeout.completion, report_status: status,
+      report_basis: closeout.report_basis || (status === 'unclassified' ? 'legacy-report-without-provenance' : 'no-visible-text'),
+      report_available: status === 'final' && report !== null, report_source: report?.source || null, report: compactText(report),
+      progress_available: progress !== null, progress: compactText(progress),
+      output_nature: outputNature,
+      ...(outputNature?.pseudo_tool_markup ? { lead_note: PSEUDO_MARKUP_GUIDANCE } : {}),
       requires_lead_verification: true, candidate_count: candidates.length,
       candidates: candidates.slice(0, 3).map(c => ({ path: excerpt(c.path, 400), path_truncated: (c.path?.length || 0) > 400,
         operation: c.operation, at: c.at, result_seq: c.result_seq, source: c.source, verification: 'unverified' })),
@@ -199,9 +302,13 @@ export function compactWorkerEntry(value) {
   if (typeof value.output === 'string') {
     result.output = excerpt(value.output, 600); result.output_original_chars = value.output.length
     result.output_truncated = value.output.length > 600
-    result.detail_source = 'Full report: dpswarm_report(item_id, offset, limit) pages the unabridged text; authenticated /api/plugin-audit remains the audit of record. Inspect original task and files before deciding'
-    // Avoid emitting the exact same report twice in a single role entry.
-    if (result.diagnostic?.closeout) delete result.diagnostic.closeout.report
+    result.output_status = result.diagnostic?.closeout?.report_status || 'unclassified'
+    result.detail_source = 'dpswarm_report(item_id, offset, limit) reads final reports or recoverable progress with its recorded status; authenticated /api/plugin-audit remains the audit of record. Progress is not a final report.'
+    // Avoid emitting the same final report twice without losing its provenance.
+    if (result.diagnostic?.closeout?.report) {
+      result.diagnostic.closeout.report_reference = result.diagnostic.closeout.report.reference
+      delete result.diagnostic.closeout.report
+    }
   }
   if (value.token_usage) result.token_usage = fields(value.token_usage, ['input_tokens', 'output_tokens', 'cache_read_tokens', 'cache_write_tokens', 'cost_usd'])
   if (value.details) result.details = fields(value.details, ['sessionId', 'stopReason', 'published', 'physicalCleanupConfirmed', 'disposalError'])
@@ -213,5 +320,5 @@ export function compactDiagnosticRecords(records) {
   return records.slice(-6).map(row => ({ item_id: row.item_id, role: row.role,
     worker_session_id: row.worker_session_id || row.execution_session_id,
     diagnostic: compactWorkerDiagnostic(row.diagnostic),
-    detail_source: 'dpswarm_report(item_id) pages the full report; authenticated /api/plugin-audit keeps the complete record' }))
+    detail_source: 'dpswarm_report(item_id) reads the recorded report status and final text or recoverable progress; authenticated /api/plugin-audit keeps the complete record' }))
 }

@@ -1,3 +1,27 @@
+# 0.11.x b7e149cb 计划第一批判定语义：dpswarm-review-v2（2026-09-13）
+
+依据 `reports/2026-09-13/b7e149cb-mechanism-fix-plan.md` 实施 P0 核心 + P1 + P2a：新增 **dpswarm-review-v2 报告合同**（verification_plan/check_results/requirement.check_refs/findings.disposition），Python 权威语义 `verify_v2_semantics` 落 R01（met 必要要求必须有 completed check 支撑）、R04（check_result 绑定候选/计划 revision，错配拒）、R05/R06（pass 前所有 finding 需终态处置；defect 不可洗成 retained_suggestion）；能力协商以 additive 字段 `acceptance_review_contracts` 发布（revision 保持 1，旧 JS 完全兼容，未上报集合降级 v1）；合同 bind 时冻结版本，错版报告 `REVIEW_CONTRACT_MISMATCH`。JS：v2 schema/语法校验（占位值在提交前即拒）/双 fence 解析/v2 模板与指引/协商接线。回归：Python 12 个新用例（R01–R07+版本冻结）+ 全量 **752 passed + 1 skipped**；JS 3 个新单测 + bridge 40 用例升级 v2 报告形态 + 全量 **754/754**；v1 路径逐字节保留零回归。**未安装日常宿主**；P2b（repair 分路+R08）与 P3–P6 未实施。[实施记录](../reports/2026-09-13/b7e149cb-p1-p2a-implementation.md)
+
+**同日第二批（P2b+P3a）**：`dpswarm_repair_report` 增加 `purpose: format|substantive`（默认 substantive 兼容）——format 路径 Python `verify_format_repair` 语义等价门（verdict/requirement result/finding observation·classification·disposition 漂移即 `REPAIR_SEMANTIC_DRIFT` 事务级拒、旧报告保持当前；无可读基线 `REPAIR_SEMANTIC_BASE_MISSING`），substantive prompt 明示旧报告与 Lead 偏好为不可信输入；`acceptance` 视图新增 `decision_summary`（blocking 四类 + ready_to_accept + 五个合法动作，纯 contract 派生不新建决定面）。R08 四用例 + 决策视图两用例；JS **756/756**、Python **756+1**。P3b 收尾状态机、P4 用量、P5 实验仍未实施；未装宿主。
+
+**同日第三批（P3b 核心+P4）**：`completionStatus` 增 `finalization`（accepted+cleanup_pending / accepted+finished / not_accepted）；新工具 `dpswarm_finalize(reason)`——候选成员与已登记验证项拒静默关闭、可证终态辅助项以 terminate 关闭（非 accept）、幂等 reconcile、返回 retryable；`workspace_consistency` 对已接受 manifest 逐文件重哈希（consistent|drifted|unavailable，漂移只报告不回滚）。新模块 `usage-ledger.js`：`dpswarm_status.usage_ledger` 按活动（implementation/verification/product_rework/report_repair/cm/lead_control）与角色分账，settled call_id 恰好聚合一次、CM 不双计、未知保留预留下界不补零、账本重放不重复计；bridge fixture budget journal 改 Memory+sidecar 双写镜像对齐生产共享审计存储。计划中 34 条响应重放验收因原始日志不在本机无法执行，以单元+集成测试替代。JS **763/763**（新增 7 用例）、Python 756+1 未触及复跑确认。P3b 跨进程清理状态机、P4 价格/质量计数、P5/P6 未实施；未装宿主。
+
+# 0.11.x 会话 88122af1 三 bug 修复 + never-issued 补发 + Auto 移除（2026-09-13）
+
+**触发源**：live 会话 88122af1（glm-5.3-flash 全线，DSH 0.14.1，Auto 预算模式）暴露三个真实缺陷，其中两个为全新 bug 类；修复后按用户决策移除 Auto（Lead 预估）预算模式。
+
+- **Bug 1（maxTokens 超路由上限）**：30 万 Auto 护栏整形出 `maxTokens 131883`，超 glm 路由 131072 硬上限，实现者首请求 400 零产出。修复四层：能力层读 `resolveModelInfo` 的 `defaultMaxTokens`/`context.contextWindow`（仅正整数可信）；`outputLimit` 第四参 routeCap 取 min 钳制（unlimited 透传不变）；`budget.js` 请求 hook 按路由惰性缓存查上限（仅权威成功入缓存，失败降级不钳制）；`budget_planning.route_limits` 向 Lead 披露宿主观测窗口。回归：runtime 钳制单测复刻事故数字（168117 输入估算 + final_only 无储备 → 131883 → 钳 131072）+ 请求级端到端 + 降级不钳制。
+- **Bug 2（返回体非无损 JSON）**：`fixedProfile` 两处（model 路由 + lead 模式 implementer）显式写 `reasoning_effort: undefined`，宿主 `isJsonValue` 拒绝整个 `dpswarm_run` 返回（执行已完整发生）。deepseek 会话全配 max 强度故从未触发。修复为条件展开；`tests/fixed-team-lossless.test.mjs` 以宿主 `dsh-util-values` 的 `isJsonValue` 验证完整返回体，stash 双向红/绿验证（红点精确命中 `profile.implementer/tester.reasoning_effort :: undefined value`）。
+- **Bug 3（结构死锁）+ 方案 A**：首跑实现者在 tester 出生前死亡 → rework 后 `REVERIFY_SOURCE_UNAVAILABLE`（无血缘可续）→ acceptance 硬要求 tester 证据 → `VERIFICATION_INCOMPLETE` 永久，四个杠杆全被正确拒绝。实现 never-issued 补发：`verifyRework` 准入双路径——无 ready 延期决定时 `probeUnissuedVerification`（纯读：live implementer → budget `policy_binding.run_id` → resume 未领 → 同进程 verifiers 全空）成立则写与延期决定同构的合成决定（`issuance: 'never-issued-original-role'`，复用 `claimReworkVerification` 防重入），claim 后 `resumeTeamRun` 恢复 `unissued_original_role` 额度（"发行后失败"形态被 `WORKER_BUDGET_ROLE_ALREADY_ISSUED` 正确挡住），`dispatchUnissuedVerification` 以首验形态发行 tester/reviewer + 建立血缘 + 逐角色 cleanup 确认 + finally 吊销未绑定余额；`dpswarm_status` 展示 probe 视图（纯读不写）。死锁全链复刻测试（死亡 implementer 含 budget frozen + zero-usage settle）+ 已发行边界测试。
+- **Auto 模式移除（用户决策）**：Lead 事前预估 `worker_budgets` 无信息基础（不掌握路由上限/窗口/任务真实难度，v14 难度谱证伪全部事前代理；B 波实验证明 rail 精确调值零收益），首次实战即系统性定价错误。移除产生路径：设置 UI 两模式（存量 auto 配置回落 manual 固定 rail）、`dpswarm_run` 删 `worker_budgets` 参数（传入以 `USER_WORKER_LIMITS_AUTHORITATIVE` 拒绝且防在参数白名单前）、删 `dpswarm_prepare_worker` 工具、`beginTeamRun` 删 decisions（record.decisions 恒空保留回放兼容）、`plan()` 显式拒绝、预算建议层删 envelope 估算代理并重写 planning（固定 rail + 到量收尾 + Lead 裁决继续/验收/终止）、Lead/worker 指引同步。历史 auto 账本解释路径全部保留（issueTeamWorker/allocation/fixedSource 的 auto 分支）。
+- 第 4 项（`unavailable_checks` 条目形态）写入 `REVIEW_FORMAT_INSTRUCTIONS` 与 schema description：一条一字符串 `"<what was not checked> :: <why it was unavailable>"`。
+
+插件回归 **746/746**（仓库根 `node --test dpswarm-dsh-plugin/tests/*.test.mjs`；删 12 个纯 Auto 语义用例、新增回落/拒绝/死锁/边界用例）、控制服务 **740 passed + 1 skipped**。3 个强依赖 Auto 的手动真机探针标注 OBSOLETE 保留为历史记录；`acceptance-native-bridge` 存在已知真实 Python 子进程时序 flaky（与改动无关）。
+
+**同日第二轮（live 会话 e3589816 复盘，0.15.0 真实链路）**：重装后首轮真机测试暴露两个残留缺陷并已修复——①**钳制对 glmcp 失效**：`resolveModelInfo` 对 glmcp 只返回 `context.contextWindow`（无 `defaultMaxTokens`），`routeOutputCap` 只认后者 → cap=null 不钳制，补发 tester 的整形 `maxTokens 269854` 仍死于路由 400（限制 [1,131072]）。修复：上限取 `min(defaultMaxTokens, contextWindow)`，窗口是输出的物理上界（输出超窗口必然非法），任一来源存在即参与钳制。新增 window-only（glmcp 形态）与双来源取小两个请求级用例。②**0.15.0 自身的 lossless 回归**：首跑实现者死亡 + requirements 已建 contract 时，候选从未捕获，`acceptanceRuntime.view()` 的 `candidate: a.candidate, review: a.review` 无条件赋值写出显式 `undefined`；且 execute 边界 `tool-view.acceptanceView()` 的 `candidate: candidateView(value.candidate)` 在 clone 之后又造回一个显式 `undefined`（此前所有测试或无 acceptance、或有候选，从未覆盖"有 contract 无候选"形态）。两处改条件展开；新增 execute 边界钉子测试（真 Python 链 + 宿主 `isJsonValue` 同时检查 controller 级与 `modelToolView` 级产物——宿主实际检查点）。会话行为面：never-issued 补发在真实链路被 Lead 正确使用（含 takeover 被 tester 守卫正确拒绝），机制面无回归。插件回归 **749/749**。**补充（同日第三批）**：注册表盲区路由增加实测静态兜底——`budget.js` 内置 `FALLBACK_OUTPUT_CAPS`（当前仅 `glmcp: 131072`，数据来源为网关自身 400 拒绝消息实测，provider 级参数校验），仅在 `resolveModelInfo` 对该路由 `defaultMaxTokens` 与 `contextWindow` **均无**数据时参与钳制；任一注册表值存在时权威优先（静态表永不覆盖注册表，未知路由保持不钳制）。优先级用例：fallback 命中 / 注册表优先（独立路由缓存） / 未知不钳。插件回归 **751/751**。**第四批修正（live 会话 03e8db1b）**：glmcp 宿主注册表上报 262144（2^18，乐观值），而网关真实参数上限 131072——"注册表值权威"的优先级设计被证伪（网关参数校验上限可以小于注册表任何字段）。改为**全来源取 min**：实测静态表、defaultMaxTokens、contextWindow 任一存在均参与钳制（钳紧方向错误是安全的——只是少输出；钳松必死 400）。用例：注册表乐观 262144 被实测 131072 压住、注册表保守 65536 仍生效。插件回归 **751/751**。
+
+**同日第四批（P5 机制与协议安全）**：新设置 `reviewerIndependence`（默认 guided 零变化；UI「验证独立性」）；independent 模式——`dispatchIndependentVerification` 并发发行 tester 与盲初筛 reviewer（各自原额度/冻结路由），初审永不注册 reviewer evidence、汇合前 terminate 结案释放槽位，汇合轮走初审 reviewer 的 rework 链（额外调用入账）、prompt 携带 tester+初审（untrusted），唯一注册为终审；R18 由 evidence_revision 门+用例钉住（tester 后发现 → 汇合 needs-rework、accept 拒、初审 session 不在 evidence）。顺带生产级修复：controller/budget 共享单 AuditJournal（并行时跨实例 CAS 冲突）。JS **765/765**（bridge 46）、Python 756+1 未触及；行为试点未运行；未装宿主。
+
 # 0.11.0 有界持久 mailbox（Lead↔worker 直系通道）验证（2026-09-11）
 
 **测试环境披露（重要）**：本轮回归在本机遇到宿主版本漂移——全局安装的 `@deepseek-ai/dsh` 已升级到 `0.1.5-rc.1`（dsh-session `0.1.5-rc.2`），其 Session 头要求 `version 3` 并更改了 settings `installSection` API，而插件测试夹具（与仓库内 `deepseek-harness-master` 源码，`SESSION_FORMAT_VERSION = 0`）仍按 v0 构建。改动前基线实为 **303 通过 / 83 失败**（仓库根 `node --test dpswarm-dsh-plugin/tests/*.test.mjs`，386 项），失败全部集中在 cm / lead-route / budget-host / mechanism-911 的宿主 API 族（40× "session header version must be 3, got 0"、41× settings/registry API 变更、1× python 非 ASCII 路径、1× installSection），与本轮改动无关；0.10.0 记录的 381/381 生成于宿主升级之前。改动后同环境 **318 通过 / 83 失败**：原 303 全绿保持、新增 15 项 mailbox 测试全绿、失败集逐名 diff 与改动前完全一致（零回归）。**同日补注**：83 项宿主夹具债已在后续独立轮次修复（夹具 v3 头/新 API 对齐 + `lib/host-session-compat.js` 等价读取层，机制语义零改动），全量 **401/401 绿**；详见 `reports/2026-09-11/宿主夹具修复-plan.md` 的结果一节。
@@ -345,3 +369,88 @@ Python 首次全量检查因系统 pytest 临时目录 WinError 5 出现 337 个
 ## 2026-09-11：预算输入、收尾请求与零调用重试兼容修复
 
 完整源码回归 **457/457**、基于实际安装 0.9.7 的候选包与更新后的安装路径回归各 **185/185** 通过；无跳过，无外部模型调用。预算按原生请求生命周期计入待提交消息与系统包装，收尾校验兼容实际 system-role messages，完整零调用预算准入失败可用新 attempt 重试；保留硬预算、清理及真实执行失败的接管约束。六文件最小补丁已更新到本机安装，运行中的 DPH 仍需重启载入；未将本地模拟回归宣称为真实供应商端到端验收。详见 [修复记录](../reports/2026-09-11/team-budget-closeout-fix.md)。
+
+## 2026-09-11：准入补偿、工作区预检与返工复验
+
+源码插件 **502/502**、Python **691 通过/1 跳过**，实际安装 0.9.7 的兼容候选和安装路径分别 **326/326** 通过；外部模型调用为 0。修复返工占用、准入后空任务泄漏、预算数组参数、调用模型前的占用检查及当代评审关联。九文件最小补丁已安装；历史空任务已正常终止，运行中的 DPH 和 Python 控制服务仍需重启载入。详见 [修复与验证记录](../reports/2026-09-11/team-lifecycle-fix.md)。
+
+
+## 2026-09-12：运行协议握手、基础设施受阻与安全恢复
+
+源码 JavaScript **542/542**、基于实际 0.9.7 的兼容候选及安装路径分别 **366/366** 通过，均无失败、无跳过；Python **692 通过/1 跳过**，唯一跳过为未设置 `DPSWARM_TDAI_ENDPOINT` 的真实网关检查。新能力握手核验进程已加载的审计事件及准入清理协议，在工作区租约、预算、业务写入及模型调用前拒绝旧运行进程；不会把磁盘包版本或 `plugin_audit_v1` 单个标志当作兼容证明。
+
+基础设施错误保留原任务及已发布 worker，允许正常受阻收尾，不强制继续模型调用或重复团队派发。审计不可写时使用任务绑定的 HMAC 拒绝执行记录；恢复前校验账本连续性，账本回退及错误处理再次失败不能抹掉已发布 worker。旧启动记录通过控制面身份关联清理证据，只有控制面终态与物理清理均成立才可结算。
+
+8 文件最小补丁已安装并核对哈希，保持包版本 0.9.7。副本演练后，已实际重启 Python（PID 31324 / 8795）与 DPH（PID 52328 / 3080），核验运行能力、监听 PID 及认证页面 HTTP 200。原会话通过正常 terminate 流程收尾至 finished / failed_takeover：工作槽位 0、仅 root 剩余点数 1、CM 团队结束、目录租约释放。HTML 与设置哈希一致；原审计前缀和 134 条原生记录保留，DPH 打开会话只追加一条 end-seed 元数据。本轮工程验证、演练和实际恢复外部模型调用均为 0；终止旧任务不等于 HTML 通过独立验收，也没有执行新的真实供应商团队任务。 详见 [运行协议与恢复记录](../reports/2026-09-12/runtime-protocol-recovery.md)，完整收据位于 `.tmp/runtime-protocol-fix-20260911/`。此前各阶段记录保持原样。
+
+
+## 2026-09-12 acceptance contract repair
+
+Implementation and live-test boundary: [repair record](../reports/2026-09-12/acceptance-repair-implementation.md).
+Protocol tests: acceptance-native-bridge.test.mjs, acceptance-contract.test.mjs, candidate-snapshot.test.mjs, write-scope-acceptance.test.mjs, report-repair-budget.test.mjs, and Python test_native_acceptance_20260912.py.
+Cross-language fixtures use real HTTP/EventStore but deterministic mock model output. Actual Luna Max pelican generation runs separately through Codex; the local DPH has no configured exact Luna route. Final JavaScript suite: 589/589 passed, including 13 real HTTP bridge cases and 9 report-repair budget cases. Python full suite: 714 passed / 1 skipped; after the final audit vocabulary update, 73 related Python tests passed. The Luna Max pelican browser regression passed at 721 cycle samples with zero runtime errors or external requests. This is a known-bug, non-blind case; it is not a production deployment or a native DPH model-quality run.
+
+
+## 2026-09-12: 0.12.0 request accounting, report recovery and completion facts
+
+The 09291d59 repair aligns normal/final/compatibility-recovery request estimates with actual tools and system-message projection; exports the real report-repair service using the original remaining grant; distinguishes final reports from progress/truncation/legacy text; exposes versioned report schema and current unknown/blocked template to the Lead; validates report syntax/bindings before takeover and surfaces partial commits in error messages. Completion facts separate execution, current acceptance and filesystem lease ownership, including amendment/evidence invalidation and cold controllers. A single factual closeout notice permits honest partial/blocked endings rather than creating another team-required retry loop.
+
+Full JavaScript regression: 633/633 passed, zero skipped. Relevant authoritative Python regression: 81/81 passed; Python source/runtime files are unchanged. Real native-loop fixtures use deterministic provider responses, not external model calls. The first full test invocation used the wrong repository cwd for three harness paths and exposed four stale system-message pricing assertions; both were corrected before the complete passing run. Tests now compare the native committed request surface rather than fixed token constants.
+
+Installation and live loading evidence is tracked separately in `reports/2026-09-12/harness-fix-0.12.0-install.md` and `.tmp/harness-fix-20260912/`; passing these checks does not accept the historical animation candidate or prove a real-model task succeeds. Historical report-only recovery preserves old reports as unclassified text; no audit record is rewritten. Budget forecasts cover one refused tool attempt followed by a report, with uncertainty; repeated refusals or unusually large arguments can still hit the unchanged hard limit.
+
+
+## 2026-09-12：0.13.0 候选恢复
+
+最终完整 JavaScript 回归 684/684 通过，0 跳过；相关 Python 验收、审计、恢复协议与会话回归 107/107 通过。真实 Python 控制服务与原生派发边界的候选/验收集成 31/31（已含在 JS 总数中），包括外部观察路径、封版失败保留交付、原未发额度恢复、重复/并发拒绝、任务/配置/租约变化、部分提交、取消和清理失败。未调用外部模型。
+
+第一次全量回归仅因工具注册测试仍使用旧工具清单失败；补入新增 dpswarm_resume 后完整重跑通过。恢复过程不会替本次旧会话验收；claim 后重启重试仍有明确边界。安装状态与最终加载证据见 reports/2026-09-12/session-ec26c449-recovery-fix.md，包内回归通过不等于已部署。
+
+
+## 2026-09-12：0.14.0 续接、返工决策与证据读取
+
+[本轮修复与验证记录](../reports/2026-09-12/session-5479d74d-fix.md)覆盖同任务续接、相同候选延期验证、冻结额度下的无工具收尾、证据解码分页、输入能力提示与用量展示。真实 Python journal 的续接往返验证合同不变、0 新 worker、冷重放与幂等；真实候选与预算链验证相同内容只派一次实现者、后续验证只能领取未发行授权、清理不确定时停止派发。历史旧快照缺入口的兼容分支单独覆盖。
+
+读取工具沿用宿主 fs，并接入 staged read 门禁：未 ready 拒绝，ready 时读封版快照，成功读取才记录消费版本。覆盖 UTF-16 数值、权限拒绝、跨页变化、无 Base64 的工具摘要及可完整还原的中文报告。模型能力来自宿主精确路由；元数据缺失或超时为 unknown，取消仍停止。模型路由未替换。
+
+定向真实原生请求验证 TRANSPORT 失败缺 usage 的预约保留、重试重新计量、无工具最终报告，以及报告修复使用剩余 211,353 token / 9 次调用读取 UTF-16 结果后交报告。这是可控 provider fixture，无外部模型调用；不是实际供应商质量/效率测评。
+
+最终完整 JavaScript 回归 **731/731 通过，0 跳过**；Python 完整回归 **740 通过、1 跳过**，跳过项为未设置 DPSWARM_TDAI_ENDPOINT 的真实网关测试。首次 JS 为 723/725，两个旧预算断言更新后，加上独立审查发现的输入预约和读取门禁回归，再完整重跑通过。安装与加载状态单独见修复记录；历史验收记录不随升级改变。
+
+
+## 2026-09-12：真实鹈鹕冷启动修复 0.14.1
+
+首次真实新会话在第一个模型请求前以 ROOT_MODEL_REQUIRED 结束，模型请求和用量均为零：新增能力提示在 system prompt 装配阶段过早要求已解析请求路由。0.14.1 在实际请求头尚不存在时省略可选能力提示，首请求完成后仍只使用已解析的精确路由；正式派发的路由校验保持不变。冷请求头与可控原生宿主回归另行记录，真实实验保留这次失败，不将后续修复后的结果标成原0.14.0通过。
+
+
+## 2026-09-12：0.14.2 收尾伪调用检测与 Lead 明示
+
+动机：pelican-014 真实回归（`reports/2026-09-12/pelican-014-live/`）中，三个初始角色在 final-only 收尾的最后一步输出 DSML 伪工具调用文本而非报告——工具已被预算轨移除，这些"调用"从未执行；tester/reviewer 报告全部解析失败（`REVIEW_REPORT_INVALID`），implementer 的收尾修改实际未落盘，而 Lead 侧只有 `report_available: true`，必须读全文才能发现。0.8.3 曾以"保留工具 schema、执行层拒绝"修复同一根因；0.12.0 起请求会计对齐后设计回到无工具收尾。本版不改该设计，按 live 报告改进方向 1 让失败显式化。
+
+改动（纯叠加，不动预算准入与会计）：
+
+- 新 `lib/output-nature.js`：`pseudoToolCallMarkup(text)` 检测两族伪调用标记——实测的 `<｜｜DSML｜｜ …>` 标签族（含 invoke 工具名提取）与 provider 特殊 token `<｜tool▁…｜>` 族；建议性标记，不阻断、不改写、不执行。共享指引文案 `PSEUDO_MARKUP_GUIDANCE`。
+- `worker-diagnostics.js`：诊断 `closeout.output_nature` 新增伪标记分类、末步真实工具调用布尔、是否预算轨移除工具；生成时按全文计算并随 `dpswarm/worker-diagnostic` 入审计。compact 视图投影该字段，检出时附 `lead_note`（这些调用从未执行、结构报告可能缺失/无效、考虑 dpswarm_repair_report）；无该字段的旧账本条目按文本重算（`recomputed_from_text` 标记），不改写历史记录。
+- `acceptance-runtime.js` `record()`：报告解析失败时 `report_error` 增加 `output_nature` 与 `guidance`；发往 Python 控制面的 evidence 载荷不变。
+- `fixed-team.js` `report()`：分页视图对完整文本计算 `output_nature`，检出时 `note` 附同一指引。
+- 提示强化：`CLOSEOUT_INSTRUCTION` / `BUDGET_POLICY_INSTRUCTION` / worker 指引点名 DSML/invoke 标记"是纯文本、什么都不执行、会被标记为未执行"。
+
+验证：完整 JavaScript 回归 **745/745** 通过（仓库根 `node --test dpswarm-dsh-plugin/tests/*.test.mjs`，含此前单独通过的 host-dispatch-integration）。新增 12 项：`output-nature` 6（三个真实样本逐字裁剪段、provider token 族、阴性组、围栏内引用的文档化行为）、`worker-diagnostics` 3（DSML 收尾分类、干净文本无标记、旧账本重算）、`acceptance-report-nature` 2（DSML 交付的 report_error 富化、纯文本无效报告无标记）、`fixed-team-report` 1（run 交付与分页视图的标记贯通）。外部模型调用为 0。
+
+边界：检测是建议性标记，不防止模型输出 DSML；提示强化在真实模型下的服从率未测量。Tester 补报告 max-tokens 截断（单次输出上限放不下完整报告）是独立的预算数学缺口，本版未动。0.8.3 式"可见 schema + 执行层拒绝"的机制层根因修复（逆转无工具收尾设计）保留为后续可选方向。本版未安装/打包到日常 profile，安装与真实模型试点另行记录。
+
+
+## 2026-09-12：0.15.0 恢复可见工具收尾（0.8.3 语义回归）
+
+动机：0.14.1 真实回归中三个初始角色的无工具收尾全部产出 DSML 伪调用文本（详见 0.14.2 节与 `reports/2026-09-12/pelican-014-live/`）。0.8.3 曾以"保留工具 schema、执行层拒绝"修复同一根因（commit `7df7520`），0.12.0 请求会计对齐时退回工具摘除，本版恢复 0.8.3 语义并适配现行会计。
+
+改动：
+
+- `budget.js` `applyCloseout` 不再清空 `assembly.tools`；收尾估算按真实含 schema 信封计价（pre-step 的 finalInput 与 `agent/request` 的实际测量一致）。**不**额外预留恢复输入：1/3 估算余量与报告下限已缓冲典型的一次拒绝尝试；紧额度不应在到达即停泊（0.8.2 教训）；尝试耗尽余量时以诚实准入拒绝收场，不再产出假报告（0.8.3 教训）。宿主工具管线确认：闸门/前置钩子的拒绝会转为错误工具结果喂回模型，循环继续到报告步。
+- `budget-runtime.js` 收尾准入：移除 `WORKER_CLOSEOUT_TOOLS_PRESENT` 拒绝；`WORKER_CLOSEOUT_ALREADY_SENT` 阈值 `calls_at_closeout + 1` → `+ 2`（一次工具尝试步 + 一次报告步）；系统提示指令校验与 CM 延迟不变。describe 指引文案同步。
+- 呼叫数泊车规则保持 `remainingCalls <= 1` 不变：`+2` 准入在令牌轨泊车下提供尝试空间；按呼叫数在 ≤2 停泊会让 2 次呼叫的 worker 完全无法工作（预算宿主测试实证），被呼叫轨停泊且仅剩 1 次时模型应直接写文本报告——烧掉尝试则报告撞上 `WORKER_CALL_LIMIT_REACHED`，与 0.8.3 同为已知残余。
+- `budget-advice.js` Lead 规划文案同步（触轨不再"丢失全部工具 schema"）。
+
+测试：完整 JavaScript 回归 **746/746**（全量运行 745 通过 + `fixed-team-rework` 的真实 Python sidecar 用例单独通过；该用例与既有 `host-dispatch-integration` 同属并行执行资源争用 flake 类）。新增 1 项端到端（`native-budget-pipeline`：收尾时真实工具调用 → 闸门拒绝为错误工具结果 → 下一步纯文本报告被接受，第三次调用被拒；全程零执行）。重钉既有行为：`native-budget-pipeline` 4 处（收尾信封含 schema、传输重试后 schema 保留、报告修复续接的收尾请求保留 evidence 工具 schema）、`budget-host` 3 处、`worker-closeout-request` 2 处（+2 准入边界）、`mechanism-911-characterization` 1 处（真实账本重钉：第二收尾调用仍准入、第三次拒绝）、`worker-rework-budget` 1 处。`budget-runtime` 的恢复储备兼容通道测试不变。外部模型调用为 0。
+
+边界：真实模型在可见 schema + 指令下选择直接写报告的比例需试点验证（0.8.3 证据来自当时模型版本）；伪调用检测（0.14.2）作为兜底显式层保留。呼叫轨泊车仅剩 1 次时的尝试烧毁、拒绝后历史增长超出估算余量两类残余与本设计同存并已在测试注释中记录。本版未安装/打包到日常 profile。

@@ -1,0 +1,131 @@
+{
+  "session_id": "session-6ccc299c-98fd-43a8-928e-d58dfe872e24",
+  "artifact": {
+    "path": "911/pelican-bicycle.html",
+    "bytes": 13856,
+    "md5": "792a26521cc3a82a8aba305232268999",
+    "sha256": "b99cc10e9f365deb726d04c1d7cbb192fa2a0dd5906957412930de43ef7dea5f"
+  },
+  "observed_totals": {
+    "all": {
+      "sessions": 22,
+      "assistant_responses": 190,
+      "usage": {
+        "cacheReadTokens": 7959296,
+        "inputTokens": 488665,
+        "outputTokens": 547439,
+        "reasoningTokens": 406811,
+        "totalTokens": 8995400,
+        "cacheWriteTokens": 0
+      },
+      "summed_session_wall_seconds": 5339.85,
+      "cache_read_share_of_total": 0.8848184627698602
+    },
+    "root": {
+      "sessions": 1,
+      "assistant_responses": 44,
+      "usage": {
+        "cacheReadTokens": 3816064,
+        "inputTokens": 74958,
+        "outputTokens": 54478,
+        "reasoningTokens": 24530,
+        "totalTokens": 3945500,
+        "cacheWriteTokens": 0
+      },
+      "summed_session_wall_seconds": 2950.739
+    },
+    "children": {
+      "sessions": 21,
+      "assistant_responses": 146,
+      "usage": {
+        "cacheReadTokens": 4143232,
+        "inputTokens": 413707,
+        "outputTokens": 492961,
+        "reasoningTokens": 382281,
+        "totalTokens": 5049900,
+        "cacheWriteTokens": 0
+      },
+      "summed_session_wall_seconds": 2389.111
+    },
+    "by_role": {
+      "implementer": {
+        "sessions": 7,
+        "assistant_responses": 48,
+        "usage": {
+          "cacheReadTokens": 1080064,
+          "inputTokens": 93602,
+          "outputTokens": 149001,
+          "reasoningTokens": 117904,
+          "totalTokens": 1322667,
+          "cacheWriteTokens": 0
+        },
+        "summed_session_wall_seconds": 711.344
+      },
+      "tester": {
+        "sessions": 7,
+        "assistant_responses": 38,
+        "usage": {
+          "cacheReadTokens": 1197824,
+          "inputTokens": 204745,
+          "outputTokens": 165296,
+          "reasoningTokens": 133213,
+          "totalTokens": 1567865,
+          "cacheWriteTokens": 0
+        },
+        "summed_session_wall_seconds": 777.926
+      },
+      "reviewer": {
+        "sessions": 7,
+        "assistant_responses": 60,
+        "usage": {
+          "cacheReadTokens": 1865344,
+          "inputTokens": 115360,
+          "outputTokens": 178664,
+          "reasoningTokens": 131164,
+          "totalTokens": 2159368,
+          "cacheWriteTokens": 0
+        },
+        "summed_session_wall_seconds": 899.841
+      }
+    }
+  },
+  "wall_time": {
+    "session_created_to_last_event": {
+      "seconds": 2950.739,
+      "minutes": 49.178983
+    },
+    "turn_start_to_last_event": {
+      "seconds": 2939.139,
+      "minutes": 48.98565
+    },
+    "original_user_prompt_to_last_event": {
+      "seconds": 2939.054,
+      "minutes": 48.984233
+    },
+    "orchestration_tool_wait_seconds": 2403.063,
+    "outside_orchestration_tool_wait_seconds_from_user_prompt": 535.991
+  },
+  "rework_calls": 6,
+  "child_peak_concurrency": 1,
+  "final_control_plane_acceptance": "accepted",
+  "acceptance_basis": "independent-reviewer-evidence",
+  "worker_slots": 0,
+  "root_points": 1,
+  "workspace_lease_present": false,
+  "analysis_only": true,
+  "source_files_modified": false,
+  "provider_calls_started_by_this_audit": 0,
+  "user_report_followup": {
+    "actual_browser_phases_seconds": [
+      0.0001,
+      0.3,
+      0.6,
+      0.9
+    ],
+    "confirmed_visible_defect": "Opposite IK knee branches between far and near legs",
+    "prior_audit_missed_defect": true,
+    "tester_had_reported_but_classified_nonblocking": true,
+    "artifact_modified": false,
+    "render_evidence": ".tmp/session-audit-6ccc299c/visual-knee-review/render-evidence.json"
+  }
+}

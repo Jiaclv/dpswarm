@@ -1,4 +1,9 @@
-/** Isolated native DSH AgentLoop probe; fixture adapter only, no model network. */
+/*
+// OBSOLETE (2026-09-13): Auto mode (Lead-estimated worker_budgets /
+// dpswarm_prepare_worker) was removed; worker limits now come from user
+// settings only. This probe exercised the removed path and is kept as the
+// historical verification record of that mechanism.
+* Isolated native DSH AgentLoop probe; fixture adapter only, no model network. */
 import assert from 'node:assert/strict'
 import { writeFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'

@@ -10,10 +10,10 @@ const { apply, Config } = await import('../lib/index.js')
 test('real installed DSH tool/schema API accepts the default-off fixed plugin', async () => {
   process.env.DPSWARM_SKIP_SETTINGS='1'
   const registered=new Map(), effects=[], prompts=[]
-  const ctx={on(){return ()=>{}},provide(name,value){this[name]=value},tools:{register(t){registered.set(t.name,t)}},subagents:{start(){throw new Error('Must not start')}},
+  const ctx={get(name){return this[name]},on(){return ()=>{}},provide(name,value){this[name]=value},tools:{register(t){registered.set(t.name,t)}},subagents:{start(){throw new Error('Must not start')}},
     systemPrompt:{section(p){prompts.push(p)}},inject(_deps,fn){fn(ctx)},effect(fn){effects.push(fn)}}
   apply(ctx,{})
-  assert.deepEqual([...registered.keys()].sort(),['dpswarm_artifact','dpswarm_mailbox','dpswarm_models','dpswarm_prepare_worker','dpswarm_report','dpswarm_review','dpswarm_rework','dpswarm_run','dpswarm_status'])
+  assert.deepEqual([...registered.keys()].sort(),['dpswarm_acceptance','dpswarm_amend_task','dpswarm_artifact','dpswarm_continue_task','dpswarm_finalize','dpswarm_mailbox','dpswarm_models','dpswarm_read_evidence','dpswarm_repair_report','dpswarm_report','dpswarm_resume','dpswarm_review','dpswarm_rework','dpswarm_run','dpswarm_status','dpswarm_verify_rework'])
   assert.equal(registered.has('dpswarm_delegate'),false)
   for(const effect of effects) effect()
   const parent={id:'p',session:{id:'p',header:{}},options:{provider:'gpt',model:'sol'}}
@@ -25,14 +25,17 @@ test('real installed DSH tool/schema API accepts the default-off fixed plugin', 
   assert.match(runTool.description,/team_mode/)
   assert.equal(result.team_mode.mode,'serial')
   assert.equal(result.team_mode.source,'default')
+  assert.equal(prompts.find(p => p.name === 'dpswm:model-capabilities').text({ agent: parent }), '', 'cold prompt assembly must not require a request header')
   const leadPrompt = prompts[0].text({ agent: parent })
   assert.match(leadPrompt,/off by default/)
+  assert.match(leadPrompt,/implicit quality dimensions/, 'the Lead planning methodology must stay in the guide')
+  assert.match(leadPrompt,/state-of-the-art practice/)
   assert.match(leadPrompt,/fixed rework allowance \(600000 tokens \/ 28 calls per rework attempt\)/)
   const childPrompt = prompts[0].text({ agent: { session: { id: 'child', header: { origin: 'subagent', parentSession: 'p', delegationDepth: 1 } } } })
   assert.match(childPrompt,/DPSwarm worker: execute/)
   assert.doesNotMatch(childPrompt,/DPSwarm Lead: plan|call dpswarm_status once/)
   assert.equal(result.budget_planning.modifies_limits, false)
-  assert.equal(result.budget_planning.envelope_reference, null)
+  assert.ok(!('envelope_reference' in result.budget_planning), 'the Lead-side estimation proxy was removed with Auto mode')
   assert.ok(Config)
 })
 
@@ -42,7 +45,7 @@ test('settings service is the authority and cannot be replaced by model argument
   const tools=new Map()
   // 对齐 dsh-settings ≥0.1.5：模块级 installSettingsSection 已删，宿主走
   // SettingsProvider.installSection(owner, ns, schema, entry, hooks)。
-  const ctx={on(){return ()=>{}},provide(name,value){this[name]=value},tools:{register(t){tools.set(t.name,t)}},subagents:{start(){throw new Error('no model')}},
+  const ctx={get(name){return this[name]},on(){return ()=>{}},provide(name,value){this[name]=value},tools:{register(t){tools.set(t.name,t)}},subagents:{start(){throw new Error('no model')}},
     settings:{ installSection(owner, ns, schema, entry, hooks) { hooks.setSource(() => value); hooks.onChange() },
       register(){return {get:()=>value,watch(){return ()=>{}}}}},
     systemPrompt:{section(){}},inject(_deps,fn){fn(ctx)},effect(){}}
@@ -80,7 +83,7 @@ test('worker limits have independent modes and old settings stay unrestricted', 
 test('models tool reports effective Lead selection instead of startup options', async () => {
   process.env.DPSWARM_SKIP_SETTINGS='1'
   const tools=new Map()
-  const ctx={on(){return ()=>{}},provide(name,value){this[name]=value},tools:{register(t){tools.set(t.name,t)}},
+  const ctx={get(name){return this[name]},on(){return ()=>{}},provide(name,value){this[name]=value},tools:{register(t){tools.set(t.name,t)}},
     subagents:{start(){throw new Error('Must not start')}},systemPrompt:{section(){}},inject(_deps,fn){fn(ctx)},effect(){}}
   apply(ctx,{autoStart:false,testProvider:'glmcp',testModel:'glm-5.3-flash'})
   const parent={id:'p',session:{id:'p',header:{},requestHeader:()=>({config:{provider:'glmcp',model:'glm-5.3'}})},
